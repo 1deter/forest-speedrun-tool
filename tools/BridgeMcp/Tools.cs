@@ -36,7 +36,7 @@ namespace ForestOverlay.BridgeMcp
         }
 
         public const string Instructions =
-            "Drives The Forest (running, with ForestOverlay's Settings -> Test bridge on) through the live test bridge: " +
+            "Drives The Forest (running, with ForestOverlay's Developer -> Test bridge on) through the live test bridge: " +
             "each tool writes bridge commands to in.txt and returns the game's replies from out.txt. " +
             "Targets: #<handle> (printed by every listing; valid for this launch only), player, camera, static:<Type>, " +
             "or a GameObject name or path (BepInEx_Manager is the plugin: BepInEx_Manager OverlayPlugin._host...). " +
@@ -203,8 +203,8 @@ namespace ForestOverlay.BridgeMcp
                 Notice);
 
             Add("open_tab",
-                "Opens the ForestOverlay window on a tab by name (Practice, Runs, Deaths, Debug views, " +
-                "Inventory, 100%, Settings, QA, Updates...), opens the type explorer (`explorer`), or closes the window " +
+                "Opens the ForestOverlay window on a tab by name (Practice, Map, Runs, Deaths, Views, " +
+                "Inventory, 100%, Settings, QA, Updates, Developer...), opens the type explorer (`explorer`), or closes the window " +
                 "(`close`). Unknown names list the tabs. `scroll_tour` scrolls each of the tab's scroll views from top " +
                 "to end with a screenshot per frame (UI review: forest-ux), then puts the scroll back; a view the " +
                 "tab is not drawing now (another sub-view) is named and skipped.",

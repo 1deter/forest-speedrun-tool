@@ -29,6 +29,7 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     public sealed partial class RunUploadModule
     {
+        private static readonly GUIContent SendTip = new GUIContent("Each run mode attempt's codes and log go to forest.deter.cloud, where moderators check runs.");
         private const string AttemptExt = ".attempt";
         private const int RecentShown = 5;
 
@@ -214,7 +215,9 @@ namespace ForestOverlay.Modules
         private void TickAttempts()
         {
             if (_recentDirty) RebuildRecent();
-            if (_recentCheckDue && !_recentCheckBusy && Time.frameCount <= _recentDrawnFrame + 2) CheckRecent();
+            // Settings > Network's automatic refresh (T-0326); off, DrawAttempts' Check now.
+            if (_recentCheckDue && !_recentCheckBusy && Time.frameCount <= _recentDrawnFrame + 2 && Ctx.Network.Refresh.Value)
+                CheckRecent();
             if (_attemptBusy || !AttemptsOn || Time.unscaledTime < _nextAttemptTry) return;
             _nextAttemptTry = Time.unscaledTime + 5f;
             string next = OldestAttempt();
@@ -378,13 +381,29 @@ namespace ForestOverlay.Modules
             // opened: the listed attempts are asked about again.
             if (Time.frameCount > _recentDrawnFrame + 2) { _askedThisOpen.Clear(); _recentCheckDue = true; }
             _recentDrawnFrame = Time.frameCount;
-            bool on = GUI.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website (codes + log, for checking runs)");
+            bool on = UiKit.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website");
+            UiKit.Hint(new Rect(0, y, w, 20), SendTip);
             if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
             y += 22f;
             if (_attemptState.Length > 0)
             {
                 if (_attemptStateText.text != _attemptState) _attemptStateText.text = _attemptState;
                 y += UiText.Draw(0, y, w, _attemptStateText);
+            }
+            if (_recentIds.Count > 0 && !Ctx.Network.Refresh.Value)
+            {
+                GUI.enabled = !_recentCheckBusy;
+                Rect checkR = new Rect(0, y + 1, 90, 20);
+                if (GUI.Button(checkR, RecentCheckText))
+                {
+                    Ctx.Log.LogInfo("Attempts: Check now - asking the website about the listed attempts.");
+                    _askedThisOpen.Clear();
+                    CheckRecent();
+                    if (!_recentCheckBusy) _attemptState = "nothing to ask: each listed attempt is already confirmed on the website or still waiting to be sent";
+                }
+                UiKit.Hint(checkR, RecentCheckTip);
+                GUI.enabled = true;
+                y += 24f;
             }
             for (int i = 0; i < _recentIds.Count && i < _recentText.Count; i++)
             {
@@ -399,6 +418,9 @@ namespace ForestOverlay.Modules
         }
 
         private readonly GUIContent _attemptStateText = new GUIContent("");
+        private static readonly GUIContent RecentCheckText = new GUIContent("Check now");
+        private static readonly GUIContent RecentCheckTip = new GUIContent(
+            "Ask the website whether the attempts below are still there. Settings > Network can do it by itself.");
 
         // --- attempts deleted on the site (T-0144) ---------------------------------------
 

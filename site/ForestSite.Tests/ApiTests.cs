@@ -47,13 +47,13 @@ public sealed class ApiTests : IDisposable
         return s;
     }
 
-    private static string RunText(Segment seg, string runner, float duration, float split, int minute = 0, string route = null)
+    private static string RunText(Segment seg, string runner, float duration, float split, int minute = 0, string route = null, bool modApi = false)
     {
         var a = new Attempt
         {
             AnchorLabel = seg.Id, Route = route ?? seg.RouteFingerprint(), Duration = duration,
             RecordedUtc = new DateTime(2026, 9, 27, 12, minute, 0, DateTimeKind.Utc), Completed = true,
-            Splits = new[] { split }, RunnerId = runner, RunnerName = "Runner " + runner.Substring(2, 4),
+            Splits = new[] { split }, RunnerId = runner, RunnerName = "Runner " + runner.Substring(2, 4), ModApi = modApi,
         };
         for (int i = 0; i <= 10; i++)
             a.Samples.Add(new RunSample { T = duration * i / 10, P = new Vector3(0, 0, 4 * i), Speed = 6 });
@@ -133,6 +133,37 @@ public sealed class ApiTests : IDisposable
         // Another route, or no spot at all: an empty board, not an error.
         Assert.Empty(SiteBoard.Parse(await _http.GetStringAsync(SiteBoard.Url("", seg.Id, "other"))));
         Assert.Empty(SiteBoard.Parse(await _http.GetStringAsync(SiteBoard.Url("", "s-none", "x"))));
+    }
+
+    [Fact]
+    public async Task Board_MarksARunFromAModApiSession()
+    {
+        Segment seg = TestSegment();
+        string ta = await Register(A);
+        string tb = await Register(B);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1, modApi: true)));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 11f, 4f, 2)));
+        JsonObject spot = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        var board = spot["routes"][0]["board"].AsArray();
+        Assert.Equal(2, board.Count);
+        Assert.True(board[0]["modApi"]?.GetValue<bool>() ?? false);
+        Assert.Null(board[1]["modApi"]);
+    }
+
+    [Fact]
+    public async Task Board_NamesTheModsOfARun()
+    {
+        Segment seg = TestSegment();
+        string ta = await Register(A);
+        string tb = await Register(B);
+        string text = RunText(seg, A, 10f, 4f, 1).Replace("duration|", "flags|Mods Detected: Cool Cheats, Foo.dll" + "\n" + "duration|");
+        await Upload(ta, Bundle(seg, text));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 11f, 4f, 2)));
+        JsonObject spot = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        var board = spot["routes"][0]["board"].AsArray();
+        Assert.Equal(2, board.Count);
+        Assert.Equal("Cool Cheats, Foo.dll", board[0]["mods"]?.GetValue<string>());
+        Assert.Null(board[1]["mods"]);
     }
 
     [Fact]

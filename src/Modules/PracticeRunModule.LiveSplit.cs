@@ -412,7 +412,7 @@ namespace ForestOverlay.Modules
 
             if (LssAvailable)
             {
-                bool on = GUI.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.LiveSplit, " LiveSplit");
+                bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.LiveSplit, " LiveSplit");
                 if (on && _referenceKind != Reference.LiveSplit) PickLss(_lssPick);
                 if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickLss(_lssPick - 1);
                 if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickLss(_lssPick + 1);
@@ -445,8 +445,8 @@ namespace ForestOverlay.Modules
             if (_lssRun != null && _lssLink != null)
             {
                 GUI.Label(new Rect(x, y, 60, 20), "Timing");
-                if (GUI.Toggle(new Rect(x + 64, y, 90, 20), _lssLink.Timing == LssTiming.RealTime, " real time")) SetLssTiming(LssTiming.RealTime);
-                if (GUI.Toggle(new Rect(x + 158, y, 90, 20), _lssLink.Timing == LssTiming.GameTime, " game time")) SetLssTiming(LssTiming.GameTime);
+                if (UiKit.Toggle(new Rect(x + 64, y, 90, 20), _lssLink.Timing == LssTiming.RealTime, " real time")) SetLssTiming(LssTiming.RealTime);
+                if (UiKit.Toggle(new Rect(x + 158, y, 90, 20), _lssLink.Timing == LssTiming.GameTime, " game time")) SetLssTiming(LssTiming.GameTime);
                 if (_lssLink.Map != null && GUI.Button(new Rect(w - 130, y, 130, 20), "Match by name")) ResetLssMap();
                 y += 24f;
             }

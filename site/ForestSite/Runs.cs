@@ -126,7 +126,7 @@ public sealed class Runs
             bool flagged = count >= 3 && a.Duration < best * FlagRatio;
 
             var (id, added) = _store.AddRun(seg.Id, route, runnerId, name, a.Duration, a.Splits,
-                                            a.RecordedUtc, runText, flagged);
+                                            a.RecordedUtc, runText, flagged, a.ModApi, Clip(a.Mods ?? "", 200));
             (added ? res.Added : res.Existing).Add(id);
             if (added) fresh.Add((a.Duration, flagged, id, name));
         }
@@ -537,7 +537,8 @@ public sealed class Runs
         public string SegmentId, Route, Runner, Name, Recorded;
         public float Duration;
         public float[] Splits;
-        public bool Flagged;
+        public bool Flagged, ModApi;
+        public string Mods = "";
 
         public Attempt AsAttempt() => new Attempt { Duration = Duration, Splits = Splits, Completed = true };
     }
@@ -576,7 +577,7 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
         return list;
     }
 
-    private const string RunColumns = "id, segment_id, route, runner_id, runner_name, duration, splits, recorded, flagged";
+    private const string RunColumns = "id, segment_id, route, runner_id, runner_name, duration, splits, recorded, flagged, modapi, mods";
 
     private List<RunRow> RunsOn(string segmentId, string route)
     {
@@ -606,7 +607,7 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
             {
                 Id = rd.GetInt64(0), SegmentId = rd.GetString(1), Route = rd.GetString(2), Runner = rd.GetString(3),
                 Name = rd.GetString(4), Duration = (float)rd.GetDouble(5), Splits = Json.ParseFloats(rd.GetString(6)),
-                Recorded = rd.GetString(7), Flagged = rd.GetInt64(8) == 1,
+                Recorded = rd.GetString(7), Flagged = rd.GetInt64(8) == 1, ModApi = rd.GetInt64(9) == 1, Mods = rd.GetString(10),
             });
         return list;
     }
@@ -622,6 +623,8 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
         };
         if (attempts > 0) o["attempts"] = attempts;
         if (r.Flagged) o["flagged"] = true;
+        if (r.ModApi) o["modApi"] = true;
+        if (r.Mods.Length > 0) o["mods"] = r.Mods;
         return o;
     }
 

@@ -48,12 +48,13 @@ F1 is left free (the game's own console).
 - **Savestates** (start states on spots): **Quick load** restores in place
   (fast, the default); **Full load** reloads the scene. Practice only.
 - **Timed runs** with live deltas, ghosts and run lines, a LiveSplit-style
-  splits table (every column toggleable), comparisons against your PB, best
+  splits panel on screen (every column toggleable, set up in Edit HUD), comparisons against your PB, best
   segments, other runners or a LiveSplit `.lss` file. Endgame splits are
   frame-identical to the LiveSplit autosplitter (`endgame-splits`).
-- **Reload save on death** (on by default; allowed in normal runs - the
-  game's own load of the same save).
-- **Debug views**: freecam, colliders, triggers, wireframe.
+- **Reload on death** (what a death does when no spot applies; allowed in
+  normal runs - the game's own load of the same save).
+- **Views** tab: freecam, colliders, triggers, wireframe. Developer-only
+  and experimental tools sit in the last tab, **Developer**.
 - **Sharing**: a spot with its start state and attempts as one `.foseg`
   file; community packs fetched from the repo.
 - **Run mode**: a run spot's Restart starts a run with practice features

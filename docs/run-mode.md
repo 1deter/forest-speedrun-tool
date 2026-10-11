@@ -236,7 +236,19 @@ the link preview, `Pages.AttemptSummary`): the verdict in plain words
 plugin), a **check a code** box (where a code from the video shows in
 the log, real time and timer), *What the site saw during the run* (the
 receipt's lines) and *What ran in the game* (the report's findings),
-the report as written behind a fold, and the log's download.
+the report as written behind a fold, and the log's download. An attempt
+played with ModAPI loaded is marked **ModAPI Detected** beside the title
+(T-0295, `Attempts.ModApiSession`: run mode's flag of that name - every
+attempt of a session whose Assembly-CSharp references ModAPI's BaseModLib,
+`Game/ModApi` - in the chain or the report's flag lines). It is a flag, so
+the receipt is red; the HUD shows `ModAPI` above the marker all session.
+Any other external code (T-0308: a BepInEx plugin, a patcher, a DLL from
+outside the game folders, a foreign Harmony patch; `Game/ExternalModWatch`
+over `RunIntegrity.GatherMods`) is flagged the same way: the HUD line
+`Mods: A, B`, run mode's flag `Mods Detected: A, B` on every attempt
+(appended again, longer, if one turns up mid-attempt; readers take the
+last), `flags|Mods Detected: ...` in the `.run`, a **Mods Detected** tag on
+the board and the attempt page (`Attempts.ModsSession`).
 
 **The verdict = the worse of two halves**, worked out when the page is
 read (so the allow-list applies to old attempts too):
@@ -329,7 +341,8 @@ How it works:
   amber red. The attempt page shows the version's rules, banned moves and
   unlocked features.
 - **Plugin** (`Modules/RunModeModule.Categories`): fetched 6 s after
-  startup and on *Check categories*, kept in
+  startup, every 2 minutes, when an attempt ends and when the Runs tab
+  opens (T-0254; no *Check categories* button), kept in
   `config/ForestOverlay/categories.txt`; picked with `<` `>` (config
   `RunMode.Category`). `Core/RunMode`: `Begin(..., category)`,
   `Refuse(feature, what)`, `Locks` / `Forces`, `Use` (an allowed

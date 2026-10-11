@@ -36,6 +36,9 @@ namespace ForestOverlay.Modules
     public sealed class CollectiblesModule : OverlayModule
     {
         private const float RefreshInterval = 1f;
+        // How often the list's files are looked at while the tab shows
+        // (T-0254: an edited list reads itself, no Reload list button).
+        private const float ListCheckInterval = 2f;
         private const float RowHeight = 19f;
 
         public override string Id { get { return "collectibles"; } }
@@ -48,6 +51,7 @@ namespace ForestOverlay.Modules
         private NatureGuideReader _nature;
         private PassengerReader _passengers;
         private CollectionList _list;
+        private FolderStamp _listFiles;
         private float _nextRefresh;
         private bool _resolved;
 
@@ -80,12 +84,19 @@ namespace ForestOverlay.Modules
             _showFound = _showFoundCfg.Value;
             _showMissing = _showMissingCfg.Value;
             _pinSummary = _pinSummaryCfg.Value;
+            // Settings -> HUD and Edit HUD switch the totals through the HUD's settings.
+            HudSettings hud = Host.Hud.Settings;
+            hud.ExternalGet = delegate { return TotalsOnHud; };
+            hud.ExternalSet = delegate (bool on) { TotalsOnHud = on; };
+            Host.Hud.Widgets.RegisterProfileEntry(_pinSummaryCfg, delegate (object v) { TotalsOnHud = (bool)v; });
 
             _book = new SurvivalBookReader(ctx.Log);
             _nature = new NatureGuideReader(ctx.Log, ctx.Inventory.NameForId);
             _passengers = new PassengerReader(ctx.Log);
             _list = new CollectionList(ctx.Log, ctx.ConfigDirectory);
             _list.WriteReadmeIfMissing();
+            _listFiles = new FolderStamp(_list.Folder, ListCheckInterval, "*.txt");
+            _listFiles.Take(Time.unscaledTime);
             _list.Reload();
         }
 
@@ -99,10 +110,18 @@ namespace ForestOverlay.Modules
             // The rows (a few hundred strings) are only built while the tab
             // shows - every second behind a closed window they were the
             // overlay's biggest idle garbage. The first frame on the tab
-            // refreshes at once.
+            // refreshes at once - and looks at the list's files, read again
+            // when one was added, removed or edited (T-0254).
             bool showing = TabShowing;
-            if (showing && !_wasShowing) _nextRefresh = 0f;
+            if (showing && !_wasShowing) { _nextRefresh = 0f; _listFiles.CheckNow(); }
             _wasShowing = showing;
+
+            if (showing && _listFiles.Changed(Time.unscaledTime))
+            {
+                _list.Reload();   // keeps what was collected (CollectionList)
+                _resolved = false;
+                _nextRefresh = 0f;
+            }
 
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + RefreshInterval;
@@ -366,39 +385,36 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
-            bool found = GUI.Toggle(new Rect(0, 2, 110, 20), _showFound, " collected");
+            bool found = UiKit.Toggle(new Rect(0, 2, 110, 20), _showFound, " collected");
             if (found != _showFound) { _showFound = found; _showFoundCfg.Value = found; RebuildRows(); }
 
-            bool missing = GUI.Toggle(new Rect(116, 2, 110, 20), _showMissing, " missing");
+            bool missing = UiKit.Toggle(new Rect(116, 2, 110, 20), _showMissing, " missing");
             if (missing != _showMissing) { _showMissing = missing; _showMissingCfg.Value = missing; RebuildRows(); }
 
-            bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
+            bool pin = UiKit.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) { _pinSummary = pin; _pinSummaryCfg.Value = pin; }
 
-            if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Write dumps"))
-                DumpItems();
+            // No Refresh / Reload list (T-0254): Tick refreshes every second
+            // while the tab shows and reads the list again when its files change.
 
-            if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
-            {
-                _list.Reload();
-                _resolved = false;
-            }
-
-            if (GUI.Button(new Rect(w - 90, 26, 90, 22), "Refresh"))
-            {
-                _book.Refresh();
-                UpdateSeen();
-                RebuildRows();
-            }
-
-            // Under the buttons that produce them: the dump result, then
-            // where the list and the book came from.
+            // Where the list and the book came from.
             RefreshTabText();
-            float y = 52f;
-            y += UiText.Draw(0, y, w, _dumpText);
+            float y = 26f;
             y += UiText.DrawDim(0, y, w, _sourceText);
 
             DrawList(new Rect(0, y + 2f, w, _tabH - y - 6f));
+        }
+
+        /// The Developer tab's Dumps fold (T-0226; was a button on this tab):
+        /// the button, then its result under it.
+        public float DrawDumps(float x, float y, float w)
+        {
+            if (GUI.Button(new Rect(x, y, 200, 22), "Write item / nature dumps"))
+                DumpItems();
+            y += 26f;
+            RefreshTabText();
+            y += UiText.Draw(x, y, w, _dumpText);
+            return y;
         }
 
         /// Writes every id and name the game knows, so a checklist can
@@ -459,22 +475,22 @@ namespace ForestOverlay.Modules
         {
             if (_rowStyle != null) return;
 
-            _rowStyle = new GUIStyle(GUI.skin.label);
+            _rowStyle = UiKit.Style(GUI.skin.label);
             _rowStyle.alignment = TextAnchor.MiddleLeft;
             _rowStyle.padding = new RectOffset(2, 2, 0, 0);
 
-            _headerStyle = new GUIStyle(_rowStyle);
+            _headerStyle = UiKit.Style(_rowStyle);
             _headerStyle.fontStyle = FontStyle.Bold;
 
             // Muted rather than saturated, for the same reason the zone
             // colours were toned down.
-            _doneStyle = new GUIStyle(_rowStyle);
+            _doneStyle = UiKit.Style(_rowStyle);
             _doneStyle.normal.textColor = new Color(0.45f, 0.82f, 0.50f);
 
-            _missingStyle = new GUIStyle(_rowStyle);
+            _missingStyle = UiKit.Style(_rowStyle);
             _missingStyle.normal.textColor = new Color(0.92f, 0.72f, 0.32f);
 
-            _warnStyle = new GUIStyle(_rowStyle);
+            _warnStyle = UiKit.Style(_rowStyle);
             _warnStyle.normal.textColor = new Color(0.90f, 0.45f, 0.45f);
         }
 

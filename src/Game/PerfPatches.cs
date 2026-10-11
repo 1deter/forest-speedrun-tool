@@ -20,7 +20,7 @@ namespace ForestOverlay.Game
     //
     // Each one is behaviour-preserving (the game computes and draws the
     // same things), has its own switch (`[Performance]`, on by default,
-    // Debug views tab), applies and removes live, and logs one line.
+    // Settings > Performance; the experimental ones in Developer > Experimental), applies and removes live, and logs one line.
     //
     // 1. Overlay layout (ours): Unity runs an IMGUI layout pass - a new
     //    GUILayoutGroup, its list and a RectOffset - for every OnGUI
@@ -187,6 +187,7 @@ namespace ForestOverlay.Game
             public string Status = "off";
             public bool Experimental;     // changes the game: off by default, own section
             public string Note = "";      // what it changes, shown under it
+            public string Flag;           // experimental: its short name on the HUD while on
         }
 
         private readonly ManualLogSource _log;
@@ -225,6 +226,7 @@ namespace ForestOverlay.Game
                 "finished inside that wait, can then still be running for a fraction of a second after you can move. Off = the game's own code.",
                 ApplyHandOver, RemoveHandOver, false);
             _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Flag = "fast save loads";
             _fixes[_fixes.Count - 1].Note = "Changes the game: the nav-mesh update for buildings can finish just after you get control " +
                                             "(enemies' paths around them). Saves about 1 s per save load.";
             Add(config, "EndgameAsyncForRestores", "Savestates: load the endgame area in the background",
@@ -263,6 +265,7 @@ namespace ForestOverlay.Game
                 "machines measured). Off = the game's own setting.",
                 _cameras.ApplySunshine, _cameras.RemoveSunshine, false);
             _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Flag = "half-rate shadows";
             _fixes[_fixes.Count - 1].Note = "Changes the picture: moving shadows update at half the frame rate. Saves ~0.3 ms a frame.";
             Add(config, "GrassBendingOffInCaves", "Caves: no grass bending while inside",
                 "EXPERIMENTAL, changes the picture: while you are in a cave, the game's grass-bending camera (it draws where you " +
@@ -271,6 +274,7 @@ namespace ForestOverlay.Game
                 "frame you leave. Saves ~0.25 ms a frame in caves here (up to ~2 ms measured on a laptop). Off = the game's own code.",
                 _cameras.ApplyCaveGrass, _cameras.RemoveCaveGrass, false);
             _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Flag = "no cave grass bending";
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
                                             "Saves ~0.25 ms a frame in caves.";
             Add(config, "CaveSurfaceOff", "Caves: don't draw the ground and distant trees above you",
@@ -361,6 +365,8 @@ namespace ForestOverlay.Game
         public string Status(int i) { return _fixes[i].Status; }
         public bool IsExperimental(int i) { return _fixes[i].Experimental; }
         public string Note(int i) { return _fixes[i].Note; }
+        /// The HUD flag while an experimental switch is on (author, 2026-10-10: short, like "god mode").
+        public string FlagName(int i) { return _fixes[i].Flag ?? _fixes[i].Label.Trim(); }
 
         /// The GUI switch (and the bridge): on / off, saved, applied live.
         public void Toggle(int i)
@@ -414,7 +420,7 @@ namespace ForestOverlay.Game
             return string.Join("; ", parts.ToArray());
         }
 
-        /// Once a frame (Debug views module).
+        /// Once a frame (DebugViewModule).
         public void Tick(PlayerRef player, GameEvents events)
         {
             EndgameLoader.Tick(player, events);

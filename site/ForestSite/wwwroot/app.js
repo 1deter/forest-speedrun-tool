@@ -620,7 +620,9 @@ async function spotPage(id, routeId) {
       return el("tr", { class: b.id === state.focus ? "focus" : "", onclick: () => { setFocus(b.id); renderBoard(); renderSplits(); renderState(); } },
         el("td", { class: "rank" }, i + 1),
         el("td", null, toggle),
-        el("td", { class: "name" }, b.name || b.runner, b.flagged ? el("span", { class: "flag", title: "Much faster than the route's best so far: waiting for a look" }, "under review") : null),
+        el("td", { class: "name" }, b.name || b.runner, b.flagged ? el("span", { class: "flag", title: "Much faster than the route's best so far: waiting for a look" }, "under review") : null,
+          b.modApi ? el("span", { class: "flag", title: "Played with ModAPI mods loaded (UltimateCheatmenu and others)" }, "ModAPI Detected") : null,
+          b.mods ? el("span", { class: "flag", title: "Played with other mods loaded: " + b.mods }, "Mods Detected") : null),
         el("td", { class: "r" }, time(b.duration)),
         el("td", { class: "r date col-date" }, date(b.recorded)));
     }));

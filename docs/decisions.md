@@ -147,6 +147,25 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## Plugin
 
+- **Developer tab and settings that never contradict** (author, 2026-10-08,
+  T-0226): developer-only = the bridge, memory census, benchmarks and the
+  experimental features runners would not risk a run on - they live in the
+  last tab, *Developer*. The behaviour-preserving performance patches are
+  *not* developer-only (Settings > Performance). Settings is a tab of folds,
+  "clear and easy to navigate". The QA tab stays while the tool is in
+  development and **goes at the public release**. Two options that
+  contradict can never both be on: one control per setting, a choice of
+  one (radio), or picking one disables the other (the Deaths tab's
+  *Reload save on death* toggle went for this). The Info box and the
+  legacy `locations/*.txt` import stay.
+- **Settings' long lists are grouped; developer keys live in the
+  Developer tab** (author, 2026-10-09, T-0263 answer (c)): Settings > Keys
+  and Settings > HUD's values sit under short headings, and the
+  developer-only keys (dumps, type explorer, TAS, QA) are rebound in the
+  Developer tab's *Keys* fold, not in the runner's list. Groups by hotkey
+  id in `Data/KeyGroups` (an unknown id shows under *Other*, never
+  hidden), the values' in `Data/HudLines`. Heading words proposed by the
+  builder (tasks/notes/T-0263.md), the author to OK.
 - **A quick load during the game's own death cleans it up in place**
   (author, 2026-10-09, T-0248): F7 / a restart / a Go while the death
   plays (the fall, the drag-away, the capture's hanging, the dead cam)
@@ -387,6 +406,15 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   code, rather than orange overlay text. Feedback adds no clutter (T-0321:
   a short result line, not a panel); text sizes follow docs/ux.md check 25
   (T-0324).
+- **Edit HUD snapping** (author, 2026-10-11, T-0020): a dragged piece (a
+  placed value, the column, the splits / results panels) snaps within ~8
+  px to the screen's 25 / 50 / 75 % lines and to the other pieces' edges
+  and centres, a thin guide line at the target while it holds; **Alt**
+  held drags freely. The resize keeps its 0.25 steps.
+- **Reset profile resets the whole profile** (author, 2026-10-11, T-0303:
+  "Everything in the profile"; button renamed from Reset layout, T-0306): values, column, Compact, Text size,
+  placed values and their text, the splits + results panels - the look
+  of a New profile; asks Sure? first, as Delete.
 
 ## Run mode
 
@@ -411,6 +439,20 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 - **Hold back (author, 2026-10-10)**: a runner can hold back their runs
   and their Discord PB posts - one clear option, easy to find, and it is
   plain when it is on (T-0292, v1.0 group 4).
+- **ModAPI sessions are flagged, never refused** (author, 2026-10-10,
+  T-0295): "you can flag sessions that detect modapi too" - both the
+  sticky marker in game and a mark on attempts uploaded to the site. The
+  word is `ModAPI` on the short in-game flag, `ModAPI Detected` where
+  there is room (the run flag, the attempt page). Detection is the
+  patcher's own (Assembly-CSharp references BaseModLib, `Game/ModApi`);
+  UltimateCheatmenu's red tabs are its own UI, not ours.
+- **Any other external code is flagged like ModAPI, never refused**
+  (author, 2026-10-11, T-0308): "it should be marked for any external DLL
+  or anything that is detected during practice" - another BepInEx plugin,
+  a patcher other than ours, a DLL from outside Managed / BepInEx core, a
+  Harmony patch owned by anyone else; no whitelist. Sticky for the
+  session: the HUD's `Mods: A, B`, and `Mods Detected: A, B` on run mode
+  attempts, uploaded runs and the site's tags.
 
 ## Site (forest.deter.cloud)
 

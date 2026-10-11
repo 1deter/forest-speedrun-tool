@@ -135,6 +135,15 @@ namespace ForestOverlay.Data
         public string RunnerId = "";
         public string RunnerName = "";
 
+        /// The session had ModAPI mods loaded (UltimateCheatmenu and others;
+        /// T-0295): the run is marked on the website's board. A label,
+        /// never a gate (rule 12). Written as a `flags|ModAPI Detected` line.
+        public bool ModApi;
+
+        /// Other mods seen that session (T-0308; "" none): the names, written
+        /// as a `flags|Mods Detected: A, B` entry.
+        public string Mods = "";
+
         /// Where this save's plane crashed (x, y, z) and its yaw - the map
         /// shows that plane (v0.24.163). HasPlane false for older runs.
         public bool HasPlane;

@@ -206,6 +206,12 @@ namespace ForestOverlay.Modules
 
         private string _sharedDir;
         private bool _importing;
+        // The Import view follows its folders and asks the community /
+        // website for their lists when it opens (T-0254: no Refresh,
+        // Check community now or Website spots button).
+        private const float ImportCheckInterval = 2f;
+        private bool _importWasShowing;
+        private FolderStamp _sharedFiles, _lssFiles;
         private readonly List<ImportEntry> _imports = new List<ImportEntry>();
         private readonly GUIContent _importStatus = new GUIContent("");
         private GUIContent _importHeader = new GUIContent("");
@@ -226,6 +232,9 @@ namespace ForestOverlay.Modules
             "Community spot (read-only) - it updates with the community packs. Duplicate makes your own copy " +
             "to edit, start state included.");
         private readonly GUIContent _communityStatus = new GUIContent("");
+        private static readonly GUIContent CheckNowText = new GUIContent("Check now");
+        private static readonly GUIContent CheckNowTip = new GUIContent(
+            "Ask for the community spots and the website's spots now. Settings > Network can refresh them by itself.");
         private string _communityStatusFor;
         private CommunityModule _community;
         private readonly GUIContent _webStatus = new GUIContent("");
@@ -248,6 +257,7 @@ namespace ForestOverlay.Modules
             _community = Host.Find<CommunityModule>();
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
+            _runs = Host.Find<PracticeRunModule>();   // the start strip (T-0256)
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true,
@@ -264,6 +274,8 @@ namespace ForestOverlay.Modules
             }
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
             _lssDir = System.IO.Path.Combine(ctx.ConfigDirectory, "livesplit");
+            _sharedFiles = new FolderStamp(_sharedDir, ImportCheckInterval, "*" + SegmentBundle.Extension);
+            _lssFiles = new FolderStamp(_lssDir, ImportCheckInterval, "*.lss", "*.lsl");
             _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir +
                                            ", or a LiveSplit splits file (.lss) from " + _lssDir +
                                            " - that one makes a timed spot where you stand, split like your autosplitter.");
@@ -277,8 +289,17 @@ namespace ForestOverlay.Modules
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("practice.saveSpot", KeyCode.F6, "Save spot here", QuickSaveSpot);
-            map.Add("practice.goToSpot", KeyCode.F7, "Restart current spot (restores its start state)", ReturnToSpot);
+            map.Add("practice.goToSpot", KeyCode.F7, "Restart the selected spot (restores its start state)", RestartTarget);
             map.Add("tab.practice", KeyCode.None, "Open Practice tab", OpenMyTab);
+        }
+
+        /// "restart (R)": the runner's Restart key, not the default (T-0262).
+        /// Built on a refusal only, never per frame.
+        private string RestartWhat()
+        {
+            HotkeyMap.Binding b = Host.Hotkeys.Find("practice.goToSpot");
+            KeyCode key = b != null ? b.Key : KeyCode.None;
+            return KeyText.With("restart", key == KeyCode.None ? null : key.ToString());
         }
 
         private void Reload()
@@ -316,6 +337,25 @@ namespace ForestOverlay.Modules
             }
 
             if (_autosave.Due(Time.realtimeSinceStartup)) Autosave();
+            TickImportView();
+        }
+
+        /// While the Import view shows: a file dropped in (or changed) in
+        /// shared/ or livesplit/ lists itself; opening it asks the community
+        /// and the website again when their last answer is old enough.
+        private void TickImportView()
+        {
+            bool showing = _importing && TabShowing;
+            if (showing && !_importWasShowing)
+            {
+                _sharedFiles.CheckNow();
+                _lssFiles.CheckNow();
+                if (_community != null) _community.ImportViewOpened();
+            }
+            _importWasShowing = showing;
+            if (!showing) return;
+            float now = Time.unscaledTime;
+            if (_sharedFiles.Changed(now) | _lssFiles.Changed(now)) ScanImports();   // | : both keep their stamp
         }
 
         public override void Shutdown()
@@ -500,16 +540,22 @@ namespace ForestOverlay.Modules
         /// place, or with a load per the segment), then the teleport runs as
         /// before - it sets the view angles and the cave state, and fires
         /// OnPlacedAtSpot for the run module once the world is final.
-        private void Restart(Segment s) { Restart(s, null); }
+        private void Restart(Segment s) { Restart(s, null, RestartFrom.Editor); }
+
+        /// Who asked for a restart: a runner's (the editor's buttons, the
+        /// start strip, F7 / the Runs tab / the bridge) turns practice mode
+        /// on for a timed segment (T-0256); a death's or the auto-restart's
+        /// never does. Its messages go where the click was.
+        private enum RestartFrom { Auto, Editor, Strip, Key }
 
         /// `cause` null = a plain restart (F7 / the buttons); the auto-restart names itself.
-        private void Restart(Segment s, string cause)
+        private void Restart(Segment s, string cause, RestartFrom from)
         {
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
             // A run spot's Restart starts (or resets) a run - the one Restart
             // run mode allows.
             bool runStart = _runMode != null && s.RunCategory.Length > 0 && _savestates != null && _savestates.HasStartState(s);
-            if (!runStart && Ctx.Run.Refuse("restart", "restart (F7)")) { _status = _refusedByRun = Ctx.Run.RefusedText("Restart"); return; }
+            if (!runStart && Ctx.Run.Refuse("restart", RestartWhat())) { _status = _refusedByRun = Ctx.Run.RefusedText("Restart"); return; }
 
             // The pause menu and the inventory stop game time, and a restore
             // runs over game time: F7 in the ESC menu sat half-loaded until
@@ -523,11 +569,12 @@ namespace ForestOverlay.Modules
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
                 if (s.KeepLoaded && RestartKept(s, runStart, cause)) return;
 
+                string turnedOn = TurnPracticeOnFor(s, runStart, from);
                 _current = s;
                 PlaceCause.Set(cause ?? "start-state restore");
                 if (OnRestartStarting != null) OnRestartStarting();
                 if (runStart) _runMode.SpotRunStarting(s);
-                StartStatus(runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
+                RestartStatus(s, from, turnedOn + (runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load..."));
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (runStart ? "for a " + s.RunCategory + " run, with a load." : s.StartRestoreWithLoad ? "with a load." : "in place."));
                 if (s.KeepLoaded) _keep.Restoring(s.Id);
@@ -555,16 +602,43 @@ namespace ForestOverlay.Modules
                     // closed (F7, a death): the log alone went unseen.
                     Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
                     string msg = "Start state not restored - " + error + ". Teleported only.";
-                    _status = "";   // said once, under the Start state buttons
-                    StartStatus(msg);
+                    _status = "";   // said once, under the button clicked
+                    RestartStatus(s, from, msg);
                     if (!Host.AnyPanelOpen()) Ctx.Notice.Show(msg, 7f);
                 });
                 return;
             }
 
             if (_savestates != null) Ctx.Log.LogInfo("Restart '" + s.Id + "': no start state - teleport only.");
+            string on = TurnPracticeOnFor(s, false, from);
             PlaceCause.Set(cause ?? "F7 restart");
             PlaceAt(s, true);
+            if (on.Length > 0) RestartStatus(s, from, on.TrimEnd());
+        }
+
+        /// A runner's Restart on a timed segment with practice mode off turns
+        /// it on (author, 2026-10-10, T-0256: starting a segment should not
+        /// need a trip to the Runs tab). "" when nothing changed, else the
+        /// words that go before the restart's own message. With the window
+        /// closed (F7) it is said on screen as well.
+        private string TurnPracticeOnFor(Segment s, bool runStart, RestartFrom from)
+        {
+            if (from == RestartFrom.Auto || _runs == null) return "";
+            if (!StartStrip.TurnsPracticeOn(s.IsTimed, runStart, _runs.Enabled)) return "";
+            _runs.TurnOnForRestart(s);
+            if (!Host.AnyPanelOpen()) Ctx.Notice.Show("Practice mode turned on - '" + s.Name + "' is timed.", 5f);
+            return "Practice mode turned on. ";
+        }
+
+        /// What a restart says, under the control that started it: the
+        /// start strip's own line, else the editor's Start state line (as
+        /// before - F7 and the Runs tab's Restart wrote there too).
+        /// A restore's error arrives later: the strip only says it while it
+        /// still shows that spot.
+        private void RestartStatus(Segment s, RestartFrom from, string text)
+        {
+            if (from == RestartFrom.Strip && ReferenceEquals(_selected, s)) _stripStatus.text = text ?? "";
+            else StartStatus(text);
         }
 
         /// Keep loaded (T-0212): a restart without the restore while the
@@ -665,6 +739,7 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Mark("teleport: " + s.Name);
 
             _current = s;
+            _selectedIdAtPlace = _selected != null ? _selected.Id : null;
             _status = "-> " + s.Name + (cave.Length > 0 ? " (" + cave + ")" : "");
 
             // Logged too: the status line is easy to miss, and the log is
@@ -681,8 +756,33 @@ namespace ForestOverlay.Modules
         public void ReturnToSpot(string cause)
         {
             if (_current == null) { _status = "No entry selected."; return; }
-            Restart(_current, cause);
+            Restart(_current, cause, RestartFrom.Auto);
         }
+
+        /// F7 and the Runs tab's Restart (author, 2026-10-10, T-0256): the
+        /// spot selected in the list when the selection changed since the
+        /// last placement, else the current spot (Go on a row selects it,
+        /// T-0271, so the two agree after a Go).
+        public void RestartTarget()
+        {
+            Segment s = TargetSpot;
+            if (s == null) { _status = "No entry selected."; return; }
+            Restart(s, null, RestartFrom.Key);
+        }
+
+        /// What F7 restarts now (see RestartTarget).
+        public Segment TargetSpot
+        {
+            get
+            {
+                return StartStrip.FollowsSelection(_selected != null ? _selected.Id : null, _selected != null && _selected.HasSpawn, _selectedIdAtPlace)
+                    ? _selected : _current;
+            }
+        }
+
+        // The selection's id when the player was last placed at a spot (an
+        // id: a Reload rebuilds every entry object under the same ids).
+        private string _selectedIdAtPlace;
 
         /// A death's "Revive at the current spot" (Deaths tab): Go to the
         /// current spot, its start state left alone.
@@ -710,7 +810,8 @@ namespace ForestOverlay.Modules
             return _refusedByRun;   // run mode's refusal, not ok
         }
 
-        /// `id` null: the current spot, as F7.
+        /// `id` null: the current spot (F7 follows the list's selection,
+        /// which the bridge does not drive). A runner's restart all the same.
         public string BridgeRestart(string id)
         {
             Segment s = id == null ? _current : _library.ById(id);
@@ -718,7 +819,7 @@ namespace ForestOverlay.Modules
             if (!s.HasSpawn) return "'" + s.Id + "' has no spawn point";
             if (_savestates != null && _savestates.Busy) return "a savestate action is still running";
             _refusedByRun = null;
-            Restart(s);
+            Restart(s, null, RestartFrom.Key);
             return _refusedByRun;   // run mode's refusal, not ok
         }
 
@@ -785,7 +886,9 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
-            if (_current != null) hud.Pair("Spot", _current.Name);
+            // The spot F7 restarts (HudLines: "Spot").
+            Segment target = TargetSpot;
+            if (target != null) hud.Pair("Spot", target.Name);
             if (_status.Length > 0) hud.Pair("Prac", _status);
         }
 
@@ -797,55 +900,151 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
+            // The front door: start the selected spot from here (T-0256).
+            float t = DrawStartStrip(w);
+
             // --- toolbar ---------------------------------------------------
-            if (GUI.Button(new Rect(0, 0, 70, 24), "New")) CreateNew();
+            if (GUI.Button(new Rect(0, t, 70, 24), "New")) CreateNew();
 
             GUI.enabled = _selected != null;
-            if (GUI.Button(new Rect(74, 0, 80, 24), "Duplicate")) Duplicate();
+            if (GUI.Button(new Rect(74, t, 80, 24), "Duplicate")) Duplicate();
             GUI.enabled = _selected != null && !SegmentLibrary.IsCommunity(_selected);
-            if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
+            if (GUI.Button(new Rect(158, t, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
-            if (GUI.Toggle(new Rect(232, 0, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
+            if (UiKit.Toggle(new Rect(232, t, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
 
             // --- filter ----------------------------------------------------
-            GUI.Label(new Rect(0, 30, 36, 20), "Find");
-            string filter = GUI.TextField(new Rect(38, 28, ListWidth - 80, 22), _filter);
+            GUI.Label(new Rect(0, t + 30, 36, 20), "Find");
+            string filter = GUI.TextField(new Rect(38, t + 28, ListWidth - 80, 22), _filter);
             if (filter != _filter) { _filter = filter; RebuildVisible(); }
-            if (GUI.Button(new Rect(ListWidth - 38, 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
+            if (GUI.Button(new Rect(ListWidth - 38, t + 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
 
             // Which zones are drawn (all / next only during a run / off).
             float zx = ListWidth + 14;
-            GUI.Label(new Rect(zx, 30, 46, 20), "Zones");
+            GUI.Label(new Rect(zx, t + 30, 46, 20), "Zones");
             ZoneMode mode = _zoneMode;
-            if (GUI.Toggle(new Rect(zx + 48, 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
-            if (GUI.Toggle(new Rect(zx + 96, 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
-            if (GUI.Toggle(new Rect(zx + 234, 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
+            if (UiKit.Toggle(new Rect(zx + 48, t + 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
+            if (UiKit.Toggle(new Rect(zx + 96, t + 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
+            if (UiKit.Toggle(new Rect(zx + 234, t + 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
             if (mode != _zoneMode) { _zoneMode = mode; _zoneModeCfg.Value = mode.ToString(); }   // one write per click
 
             // Over the spot panel it is about, wrapped to that panel and as
             // tall as it needs (UiText); the editor starts below it.
             // Start-state messages sit under their own buttons.
-            float statusH = Mathf.Max(22f, UiText.Draw(ListWidth + 14, 54, w - ListWidth - 14, _status));
+            float statusH = Mathf.Max(22f, UiText.Draw(ListWidth + 14, t + 54, w - ListWidth - 14, _status));
 
-            DrawList(new Rect(0, 56, ListWidth, _tabH - 60));
-            DrawEditor(new Rect(ListWidth + 14, 56 + statusH, w - ListWidth - 14, _tabH - 60 - statusH));
+            DrawList(new Rect(0, t + 56, ListWidth, _tabH - t - 60));
+            DrawEditor(new Rect(ListWidth + 14, t + 56 + statusH, w - ListWidth - 14, _tabH - t - 60 - statusH));
+        }
+
+        // --- the start strip (T-0256) --------------------------------------
+        // Pinned on top for the selected spot: Restart, a copy of the Runs
+        // tab's Practice mode toggle (decisions.md: "a copy of the control
+        // under each") and the spot's run state, so a timed segment starts
+        // here in two clicks (select, Restart) with its state in view.
+        private PracticeRunModule _runs;
+        private readonly GUIContent _stripText = new GUIContent("");
+        private readonly GUIContent _stripStatus = new GUIContent("");
+        private float _stripH = 34f;
+        private float _stripNextCheck;
+        private Segment _stripFor;
+        private string _stripName;
+        private string _stripRunCategory;
+        private bool _stripSpawn, _stripTimed, _stripHasState, _stripPractice, _stripBusy, _stripLocked;
+        private RunRecorder.RunState _stripState;
+        private static readonly GUIContent TextStripRestart = new GUIContent("Restart");
+        private static readonly GUIContent TipStripRestart = new GUIContent(
+            "Restore the selected spot's start state and go there (F7). On a timed segment it arms the run, turning practice mode on if it is off.");
+        private static readonly GUIContent TipStripPractice = new GUIContent(
+            "Practice mode (F9) - the same switch as on the Runs tab: it times the segments and makes the overlay's tools usable.");
+
+        /// Draws the strip; returns where the rest of the tab starts.
+        private float DrawStartStrip(float w)
+        {
+            RefreshStripText();
+            float h = _stripH;
+            GUI.Box(new Rect(0, 0, w, h), GUIContent.none, UiKit.Card);
+
+            Segment s = _selected;
+            Rect r = new Rect(6, 5, 96, 24);
+            GUI.enabled = s != null && s.HasSpawn && (_savestates == null || !_savestates.Busy);
+            if (UiKit.PrimaryButton(r, TextStripRestart)) Restart(s, null, RestartFrom.Strip);
+            GUI.enabled = true;
+            UiKit.Hint(r, TipStripRestart);
+
+            float right = 6f;
+            if (_runs != null)
+            {
+                Rect m = new Rect(w - 136, 6, 130, 22);
+                bool on = UiKit.Toggle(m, _runs.Enabled, " Practice mode");
+                if (on != _runs.Enabled) _runs.TogglePracticeMode();
+                UiKit.Hint(m, TipStripPractice);
+                right = 142f;
+            }
+
+            const float tx = 110f;
+            float y = 8f + UiText.Draw(tx, 8, w - tx - right, _stripText);
+            if (_stripStatus.text.Length > 0) y += UiText.Draw(tx, y, w - tx - 6, _stripStatus);
+            _stripH = Mathf.Max(34f, y + 4f);
+            return h + 6f;
+        }
+
+        /// The strip's line, rebuilt only when what it says changes (no
+        /// string per frame); the start-state file is looked at twice a second.
+        private void RefreshStripText()
+        {
+            Segment s = _selected;
+            bool changed = !ReferenceEquals(s, _stripFor);
+            if (changed)
+            {
+                _stripFor = s;
+                _stripStatus.text = "";   // never describes another spot
+                _stripNextCheck = 0f;
+            }
+
+            if (Time.unscaledTime >= _stripNextCheck)
+            {
+                _stripNextCheck = Time.unscaledTime + 0.5f;
+                bool has = s != null && _savestates != null && _runMode != null && s.RunCategory.Length > 0 && _savestates.HasStartState(s);
+                if (has != _stripHasState) { _stripHasState = has; changed = true; }
+            }
+
+            bool practice = _runs != null && _runs.Enabled;
+            RunRecorder.RunState state = _runs != null ? _runs.StateFor(s) : RunRecorder.RunState.Idle;
+            if (s != null && (!ReferenceEquals(s.Name, _stripName) || !ReferenceEquals(s.RunCategory, _stripRunCategory) ||
+                              s.HasSpawn != _stripSpawn || s.IsTimed != _stripTimed))
+                changed = true;
+            if (practice != _stripPractice || state != _stripState) changed = true;
+            bool busy = _savestates != null && _savestates.Busy;
+            bool locked = Ctx.Run.Locks("restart");
+            if (busy != _stripBusy || locked != _stripLocked) { _stripBusy = busy; _stripLocked = locked; changed = true; }
+            if (!changed) return;
+
+            _stripName = s != null ? s.Name : null;
+            _stripRunCategory = s != null ? s.RunCategory : null;
+            _stripSpawn = s != null && s.HasSpawn;
+            _stripTimed = s != null && s.IsTimed;
+            _stripPractice = practice;
+            _stripState = state;
+            _stripText.text = StartStrip.Text(_stripName, _stripSpawn, _stripTimed, _stripRunCategory, _stripHasState, practice, state,
+                                              _stripBusy, _stripLocked);
         }
 
         private void EnsureStyles()
         {
             if (_rowStyle != null) return;
 
-            _rowStyle = new GUIStyle(GUI.skin.button);
+            _rowStyle = UiKit.Style(GUI.skin.button);
             _rowStyle.alignment = TextAnchor.MiddleLeft;
             _rowStyle.padding = new RectOffset(6, 4, 0, 0);
 
-            _selectedRowStyle = new GUIStyle(_rowStyle);
+            _selectedRowStyle = UiKit.Style(_rowStyle);
             _selectedRowStyle.fontStyle = FontStyle.Bold;
 
-            _dimStyle = new GUIStyle(GUI.skin.label);
+            _dimStyle = UiKit.Style(GUI.skin.label);
             _dimStyle.alignment = TextAnchor.MiddleLeft;
 
-            _headerStyle = new GUIStyle(GUI.skin.box);
+            _headerStyle = UiKit.Style(GUI.skin.box);
             _headerStyle.alignment = TextAnchor.MiddleLeft;
             _headerStyle.padding = new RectOffset(6, 4, 0, 0);
             _headerStyle.fontStyle = FontStyle.Bold;
@@ -880,15 +1079,28 @@ namespace ForestOverlay.Modules
                 Rect r = new Rect(2f, rowY, content.width - 52f, RowHeight - 2f);
                 bool isSelected = ReferenceEquals(entry, _selected);
 
-                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle) && !isSelected)
+                // A click on the selected row too closes the Import view: an
+                // import selects its spot, so that is the row clicked next
+                // (author, 2026-10-11, T-0307).
+                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
                 {
-                    Select(entry);
-                    break;   // its autosave may have rebuilt _rows underneath us
+                    if (isSelected) _importing = false;
+                    else
+                    {
+                        Select(entry);
+                        break;   // its autosave may have rebuilt _rows underneath us
+                    }
                 }
 
                 GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
+                {
+                    // Go selects its row too (author, 2026-10-10, T-0271): the
+                    // strip, F7 and the HUD's Spot then name the same spot.
+                    if (!isSelected) Select(entry);
+                    else _importing = false;
                     Teleport(entry);
+                }
                 GUI.enabled = true;
             }
 
@@ -939,7 +1151,7 @@ namespace ForestOverlay.Modules
 
             y = Field(y, cw, "Notes", ref s.Notes);
             y = Field(y, cw, "Run", ref s.RunCategory);
-            y += UiText.DrawDim(80, y, cw - 90, RunHint);
+            y += UiText.Note(80, y, cw - 90, RunHint);
             y += 6f;
 
             // --- spawn -----------------------------------------------------
@@ -965,7 +1177,7 @@ namespace ForestOverlay.Modules
             y = DrawShare(y, cw, s);
 
             // --- timed toggle ----------------------------------------------
-            bool timed = GUI.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
+            bool timed = UiKit.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
             if (timed != s.IsTimed) ToggleTimed(s, timed);
 
             GUI.Label(new Rect(156, y, cw - 166, 20),
@@ -994,7 +1206,7 @@ namespace ForestOverlay.Modules
 
                     // Not drawn during runs (display only: no times retired).
                     bool hidden = s.IsCheckpointHidden(i);
-                    if (GUI.Toggle(new Rect(cw - 76f, y - 26f, 72f, 20f), hidden, " hide") != hidden)
+                    if (UiKit.Toggle(new Rect(cw - 76f, y - 26f, 72f, 20f), hidden, " hide") != hidden)
                     {
                         s.SetCheckpointHidden(i, !hidden);
                         Touch();
@@ -1231,7 +1443,7 @@ namespace ForestOverlay.Modules
                         y += UiText.DrawDim(x0, y, w - x0 - 6f, EventLabel(t.EventName)) + 2f;
                         // The clock from the first input (maks): already an event.
                         if (slot == -2 && !string.Equals(t.EventName, WorldEvents.FirstInput, StringComparison.OrdinalIgnoreCase))
-                            y += UiText.DrawDim(x0, y, w - x0 - 6f, FirstInputHint) + 2f;
+                            y += UiText.Note(x0, y, w - x0 - 6f, FirstInputHint) + 2f;
                         break;
                     }
 
@@ -1526,7 +1738,7 @@ namespace ForestOverlay.Modules
             }
             y += 26f;
 
-            y += UiText.DrawDim(x0, y, w - x0 - 6f, PolygonHint) + 2f;
+            y += UiText.Note(x0, y, w - x0 - 6f, PolygonHint) + 2f;
             return y;
         }
 
@@ -1586,7 +1798,7 @@ namespace ForestOverlay.Modules
                 if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount) { t.Amount = parsedAmt; Touch(); }
             }
 
-            bool rel = GUI.Toggle(new Rect(x0 + 184f, y, 100f, 20), t.Relative, " relative");
+            bool rel = UiKit.Toggle(new Rect(x0 + 184f, y, 100f, 20), t.Relative, " relative");
             if (rel != t.Relative) { t.Relative = rel; Touch(); }
             y += 24f;
 
@@ -2120,12 +2332,12 @@ namespace ForestOverlay.Modules
 
             // A two-button switch: the active mode shows pressed at a glance.
             GUI.Label(new Rect(80, y, 70, 20), "Restore by");
-            bool quick = GUI.Toggle(new Rect(152, y - 2, 100, 22), !s.StartRestoreWithLoad, "Quick load", GUI.skin.button);
-            bool full = GUI.Toggle(new Rect(256, y - 2, 100, 22), s.StartRestoreWithLoad, "Full load", GUI.skin.button);
+            bool quick = UiKit.Toggle(new Rect(152, y - 2, 100, 22), !s.StartRestoreWithLoad, "Quick load", GUI.skin.button);
+            bool full = UiKit.Toggle(new Rect(256, y - 2, 100, 22), s.StartRestoreWithLoad, "Full load", GUI.skin.button);
             if (quick && s.StartRestoreWithLoad) { s.StartRestoreWithLoad = false; Touch(); }
             else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
             y += 26f;
-            y += UiText.DrawDim(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
+            y += UiText.Note(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
             // Only with a start state to keep (it does nothing without one).
             if (_savestates.HasStartState(s))
             {
@@ -2138,7 +2350,7 @@ namespace ForestOverlay.Modules
                     Touch();
                 }
                 y += 22f;
-                y += UiText.DrawDim(80, y, cw - 90, KeepLoadedHint);
+                y += UiText.Note(80, y, cw - 90, KeepLoadedHint);
             }
             y += 6f;
             return y;
@@ -2256,7 +2468,7 @@ namespace ForestOverlay.Modules
             GUI.enabled = s.Id.Length > 0;
             if (GUI.Button(new Rect(80, y - 2, 70, 22), "Export")) Export(s);
             GUI.enabled = true;
-            _exportAttempts = GUI.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
+            _exportAttempts = UiKit.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
             if (GUI.Button(new Rect(350, y - 2, 96, 22), "Open folder")) OpenSharedFolder();
             y += 26f;
             if (_upload != null)
@@ -2419,6 +2631,9 @@ namespace ForestOverlay.Modules
 
         private void ScanImports()
         {
+            // Taken first: a file written while it is read is seen next time.
+            _sharedFiles.Take(Time.unscaledTime);
+            _lssFiles.Take(Time.unscaledTime);
             _imports.Clear();
             _importArmedPath = null;
             int bad = 0;
@@ -2452,7 +2667,7 @@ namespace ForestOverlay.Modules
             bad += ScanLiveSplitFiles();
 
             _importStatus.text = _imports.Count == 0
-                ? "No .foseg or .lss files there yet - put a shared file or a LiveSplit splits file in its folder (Open folder), then Refresh."
+                ? "No .foseg or .lss files there yet - put a shared file or a LiveSplit splits file in its folder (Open folder)."
                 : _imports.Count + " file" + (_imports.Count == 1 ? "" : "s") + " to import." +
                   (bad > 0 ? " " + bad + " could not be read - see the log." : "");
         }
@@ -2562,9 +2777,18 @@ namespace ForestOverlay.Modules
             GUI.BeginGroup(area);
             float y = 2f;
             y += UiText.Draw(0, y, w - 10, _importHeader);
-            if (GUI.Button(new Rect(0, y + 2, 70, 22), "Refresh")) ScanImports();
-            if (GUI.Button(new Rect(74, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
-            if (GUI.Button(new Rect(174, y + 2, 60, 22), "Close")) _importing = false;
+            if (GUI.Button(new Rect(0, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
+            if (GUI.Button(new Rect(100, y + 2, 60, 22), "Close")) _importing = false;
+            // Automatic refresh off (Settings > Network, T-0326): the lists
+            // below are asked for only on this click; the answer shows under it.
+            if (_community != null && !Ctx.Network.Refresh.Value)
+            {
+                GUI.enabled = !_community.Busy && !_community.WebBusy;
+                Rect checkR = new Rect(164, y + 2, 90, 22);
+                if (GUI.Button(checkR, CheckNowText)) _community.CheckAllNow();
+                UiKit.Hint(checkR, CheckNowTip);
+                GUI.enabled = true;
+            }
             y += 28f;
             if (_community != null)
             {
@@ -2574,19 +2798,10 @@ namespace ForestOverlay.Modules
                     _communityStatusFor = _community.Status;
                     _communityStatus.text = "Community spots: " + _community.Status;
                 }
-                GUI.enabled = !_community.Busy;
-                if (GUI.Button(new Rect(0, y + 2, 160, 22), "Check community now")) _community.CheckNow();
-                GUI.enabled = true;
-                y += 28f;
                 y += UiText.Draw(0, y, w - 10, _communityStatus) + 4f;
 
-                // Runners' spots on the website: the list on a click, one
-                // click adds one (read-only, "Website"; the runner's own
-                // into their own list).
-                GUI.enabled = !_community.WebBusy;
-                if (GUI.Button(new Rect(0, y + 2, 160, 22), "Website spots")) _community.WebRefresh();
-                GUI.enabled = true;
-                y += 28f;
+                // Runners' spots on the website: listed when the view
+                // opens, one click adds one (read-only, "Website").
                 if (!ReferenceEquals(_webStatusFor, _community.WebStatus))
                 {
                     _webStatusFor = _community.WebStatus;
@@ -2726,6 +2941,10 @@ namespace ForestOverlay.Modules
                                 System.IO.Path.GetFileName(e.Path) + " (" + what + ").");
                 for (int i = 0; i < _imports.Count; i++)
                     if (_imports[i].Bundle != null) _imports[i].Label.text = ImportLabel(_imports[i].Bundle);
+                // Done: the view closes on the imported spot, its result
+                // over the spot panel (author, 2026-10-11, T-0307).
+                _importing = false;
+                _status = _importStatus.text;
             }
             catch (Exception ex)
             {
@@ -2789,6 +3008,8 @@ namespace ForestOverlay.Modules
                                      LssPlan(e) + " Compare to shows the file's PB" + (runs != null ? "" : " once linked in Runs") +
                                      ". Practice mode (F9) times it; F7 brings you back here." +
                                      (saved ? "" : " Writing " + s.SourceFile + " failed - see the log.");
+                _importing = false;
+                _status = _importStatus.text;
                 Ctx.Log.LogInfo("Practice: LiveSplit file " + file + " -> '" + s.Id + "' (" + s.Name + "): start " +
                                 TriggerParser.Write(s.Start) + ", " + (s.Checkpoints.Count + 1) + " splits, autosplit = " +
                                 (s.AutoSplit.Count == 0 ? "(none)" : SegmentFormat.AutoSplitText(s)) +

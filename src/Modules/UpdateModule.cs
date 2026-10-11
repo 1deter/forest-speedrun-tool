@@ -38,6 +38,10 @@ namespace ForestOverlay.Modules
         private Vector2 _notesScroll;
         private float _notesHeight;
         private string _autoInstallLabel = "";
+        // T-0326: Settings > Network's startup switch was off.
+        private bool _startupSkipped;
+        private static readonly GUIContent StartupOffText = new GUIContent(
+            "Not checked at startup (Settings > Network). Check again asks now.");
 
         public override void Initialise(ModuleContext ctx)
         {
@@ -48,7 +52,12 @@ namespace ForestOverlay.Modules
             // Fixed for the session: the installer ran before any module.
             _autoInstallLabel = "Auto-install: " + UpdaterInstaller.Status;
 
-            if (ctx.Runner != null)
+            if (!ctx.Network.AtStartup.Value)
+            {
+                _startupSkipped = true;
+                ctx.Log.LogInfo("Update check: skipped at startup (Network.CheckAtStartup is off).");
+            }
+            else if (ctx.Runner != null)
                 ctx.Runner.StartCoroutine(_checker.Check());
             else
                 ctx.Log.LogWarning("No coroutine runner - update check skipped.");
@@ -130,6 +139,8 @@ namespace ForestOverlay.Modules
 
             _autoOpened = true;
             OpenMyTab();
+            // A toast as well: the update line is one HUD value and can be off.
+            if (Ctx.Notice != null) Ctx.Notice.Show("Update v" + _checker.LatestVersion + " is out - F2 -> Updates", 8f);
         }
 
         public override void ContributeHud(HudBuilder hud)
@@ -156,6 +167,8 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
             y += UiText.Draw(12, y, w - 24, _statusText);
             y += UiText.Draw(12, y, w - 24, _autoInstallLabel) + 6f;
+            if (_startupSkipped && _checker.State == UpdateChecker.Status.Idle)
+                y += UiText.Draw(12, y, w - 24, StartupOffText) + 6f;
 
             bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable ||
                                _checker.State == UpdateChecker.Status.DownloadRetry;
@@ -172,6 +185,10 @@ namespace ForestOverlay.Modules
             }
             GUI.enabled = true;
 
+            // Kept (T-0254, unlike the other lists' buttons): the check reads
+            // api.github.com's latest release - 60 calls an hour per IP - so
+            // nothing re-asks it by itself beyond the startup check and the
+            // mid-publish retries; a re-check is the runner's click.
             if (GUI.Button(new Rect(210, y, 130, 26), "Check again"))
             {
                 if (Ctx.Runner != null) Ctx.Runner.StartCoroutine(_checker.Check());

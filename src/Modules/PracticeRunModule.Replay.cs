@@ -192,7 +192,7 @@ namespace ForestOverlay.Modules
             _replay.MarkersPassed = running ? ReplayMarks.UpTo(_reference.Events, upTo) : int.MaxValue;
             _replay.ShowBuildings = _replayBuildingsCfg.Value;
             _replay.ShowMarkers = _replayMarkersCfg.Value;
-            _replay.Opacity = LineOpacity;
+            _replay.Opacity = ReplayOpacity;
 
             if (!_replayMarkersCfg.Value) { _labelCount = 0; _pickedCount = -1; return; }
             if (Time.unscaledTime < _nextLabelPick) return;
@@ -247,14 +247,14 @@ namespace ForestOverlay.Modules
             if (cam == null) return;
             if (_labelStyle == null)
             {
-                _labelStyle = new GUIStyle(GUI.skin.label);
+                _labelStyle = UiKit.Style(GUI.skin.label);
                 _labelStyle.alignment = TextAnchor.LowerCenter;
                 _labelStyle.fontSize = 13;
                 _labelStyle.wordWrap = false;
                 _labelStyle.clipping = TextClipping.Overflow;
                 _labelStyle.padding = new RectOffset(0, 0, 0, 0);
                 _labelStyle.normal.textColor = Color.white;
-                _labelShadow = new GUIStyle(_labelStyle);
+                _labelShadow = UiKit.Style(_labelStyle);
                 _labelShadow.normal.textColor = new Color(0f, 0f, 0f, 0.85f);
             }
             // Each label's box sits on its marker; one that would cover a
@@ -309,10 +309,10 @@ namespace ForestOverlay.Modules
             bool oneRow = w >= 400f;
             float x = oneRow ? 108f : 12f;
             if (!oneRow) y += 20f;
-            bool b = GUI.Toggle(new Rect(x, y, 100, 20), _replayBuildingsCfg.Value, " buildings");
+            bool b = UiKit.Toggle(new Rect(x, y, 100, 20), _replayBuildingsCfg.Value, " buildings");
             if (b != _replayBuildingsCfg.Value) _replayBuildingsCfg.Value = b;
             if (!oneRow) y += 20f; else x += 104f;
-            bool m = GUI.Toggle(new Rect(x, y, 180, 20), _replayMarkersCfg.Value, " interaction markers");
+            bool m = UiKit.Toggle(new Rect(x, y, 180, 20), _replayMarkersCfg.Value, " interaction markers");
             if (m != _replayMarkersCfg.Value) _replayMarkersCfg.Value = m;
             y += 22f;
             if (_replayText.text.Length > 0) y += UiText.Draw(0, y, w, _replayText);

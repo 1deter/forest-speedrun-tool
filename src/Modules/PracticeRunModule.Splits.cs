@@ -84,13 +84,11 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _compareTitle = new GUIContent("");
         private readonly GUIContent _panelSizeText = new GUIContent("");
         private readonly GUIContent _opacityText = new GUIContent("");
-        private readonly GUIContent _precisionText = new GUIContent("");
-        private readonly GUIContent _dragHint = new GUIContent(
-            "Drag the splits panel with the mouse to move it (while this window is open).");
+        private int _opacityShown = -1, _sizeShownW = -1, _sizeShownRows = -1;
         private readonly GUIContent _noSteamHint = new GUIContent(
             "Steam was not found - type the name your times should carry.");
 
-        // Dragging the panel: only while the window is open (the cursor is
+        // Dragging the panel: only in Edit HUD, T-0317 (the cursor is
         // free then). The position is kept here while dragging and written
         // to the config once, on release - a config write per mouse event
         // would rewrite the file dozens of times a second.
@@ -98,11 +96,21 @@ namespace ForestOverlay.Modules
         private Vector2 _dragOffset;
         private float _dragX, _dragY;
 
+        // Resizing in Edit HUD mode (HandleResize): 1 right edge, 2 rows,
+        // 4 left edge, 3 / 6 a corner.
+        // The live size is kept here and written once, on release.
+        private int _resizeMode;
+        private Vector2 _resizeStart;
+        private float _resizeStartW, _resizeStartX, _resizeX, _resizeY, _liveW;
+        private bool _resizeDocked;
+        private int _resizeStartRows, _liveRows;
+
         // The runner field: one text box, pre-filled with the Steam name
         // (author, 2026-09-27: one field, the name already typed). Filled
-        // from Tick when the options open; null = not filled yet.
+        // from Tick when the field is first drawn; null = not filled yet.
         private string _runnerEdit;
         private string _steamName;
+        private bool _runnerFill;
 
         // A config write saves the whole file (86 ms measured, bridge
         // 2026-09-27): the slider and the name field would hitch on every
@@ -121,7 +129,6 @@ namespace ForestOverlay.Modules
             if (_opacityPending) { _panelOpacity.Value = _opacityNow; _opacityPending = false; }
             if (_pendingName != null) { _runnerName.Value = _pendingName; _pendingName = null; }
         }
-        private readonly GUIContent _splitsHint = new GUIContent("");
         // The table's texts by what they were made from (RefreshSplits).
         private readonly TextMemo _cellText = new TextMemo();
         private readonly TextMemo _lineText = new TextMemo();
@@ -129,9 +136,8 @@ namespace ForestOverlay.Modules
         private bool _previousLive;
         private int _attemptsLineStarted = -1, _attemptsLineCount = -1;
         private int _shownRows;
-        private bool _splitsOptionsOpen;
 
-        private GUIStyle _cellStyle, _nameStyle, _titleStyle;
+        private GUIStyle _cellStyle, _nameStyle, _titleStyle, _placeholderStyle;
         private GUIStyle[] _colourStyles;
         private GUIStyle _panelStyle;
 
@@ -163,8 +169,43 @@ namespace ForestOverlay.Modules
                 _lineValues[i] = new GUIContent("");
                 _lineOptionText[i] = new GUIContent(" " + LineOptions[i]);
             }
+            RegisterSplitsProfile();
             _runnerName = c.Bind("Runs", "RunnerName", "", "Your name on recorded attempts. Empty = your Steam name.");
             _localRunnerId = c.Bind("Runs", "LocalRunnerId", "", "Runner id used when Steam is not available (made once).");
+        }
+
+        // Everything Edit HUD sets up for the panel belongs to the HUD profile
+        // (T-0019, author 2026-10-11): its switch, place, size, columns, lines,
+        // decimals and background. The cached ones rebuild when a profile
+        // switches them.
+        private void RegisterSplitsProfile()
+        {
+            HudWidgets profiles = Host.Hud.Widgets;
+            profiles.RegisterProfileEntry(_splitsPanel, null);
+            profiles.RegisterProfileEntry(_panelX, null, ProfileUnit.X);
+            profiles.RegisterProfileEntry(_panelY, null, ProfileUnit.Y);
+            profiles.RegisterProfileEntry(_panelWidth, null, ProfileUnit.Size);
+            profiles.RegisterProfileEntry(_panelRows, null);
+            for (int i = 0; i < ColCount; i++) profiles.RegisterProfileEntry(_cols[i], SplitsOptionApplier(_cols[i]));
+            for (int i = 0; i < LineCount; i++) profiles.RegisterProfileEntry(_lines2[i], SplitsOptionApplier(_lines2[i]));
+            profiles.RegisterProfileEntry(_timeDecimals, SplitsOptionApplier(_timeDecimals));
+            profiles.RegisterProfileEntry(_deltaDecimals, SplitsOptionApplier(_deltaDecimals));
+            profiles.RegisterProfileEntry(_panelOpacity, delegate (object v)
+            {
+                _opacityPending = false;
+                _opacityNow = -1f;
+                _panelOpacity.Value = (float)v;
+            });
+        }
+
+        private System.Action<object> SplitsOptionApplier(ConfigEntryBase entry)
+        {
+            return delegate (object v)
+            {
+                entry.BoxedValue = v;
+                _splitsDirty = true;
+                _playtimeShown = -1;
+            };
         }
 
         // --- identity ---------------------------------------------------------
@@ -198,6 +239,8 @@ namespace ForestOverlay.Modules
             }
             done.RunnerId = RunnerIdNow();
             done.RunnerName = RunnerNameNow();
+            done.ModApi = Ctx.Practice != null && Ctx.Practice.ModApi;
+            done.Mods = Ctx.Practice != null ? Ctx.Practice.Mods : "";
             Vector3 plane;
             float yaw;
             if (PlaneSite.TryRead(Ctx.Log, out plane, out yaw)) { done.HasPlane = true; done.Plane = plane; done.PlaneYaw = yaw; }
@@ -407,27 +450,38 @@ namespace ForestOverlay.Modules
 
         // --- text (Tick) ---------------------------------------------------------
 
+        /// The Edit HUD texts (background %, the size while resizing) and
+        /// the runner field, built only when their value moved.
+        private void RefreshEditTexts()
+        {
+            if (_runnerFill)
+            {
+                _runnerFill = false;
+                _steamName = RunnerIdentity.SteamName();
+                string typed = _runnerName.Value != null ? _runnerName.Value.Trim() : "";
+                _runnerEdit = typed.Length > 0 ? typed : (_steamName ?? "");
+            }
+            if (!HudEditing) return;
+            int op = Mathf.RoundToInt(Opacity * 100f);
+            if (op != _opacityShown) { _opacityShown = op; _opacityText.text = op + "%"; }
+            int pw = Mathf.RoundToInt(PanelWidthNow), pr = PanelRowsNow;
+            if (pw != _sizeShownW || pr != _sizeShownRows)
+            {
+                _sizeShownW = pw;
+                _sizeShownRows = pr;
+                _panelSizeText.text = pw + " px wide, up to " + pr + " rows";
+            }
+        }
+
         private void RefreshSplits()
         {
             FlushSplitSettings();
+            RefreshEditTexts();
             bool running = _recorder.State == RunRecorder.RunState.Running;
             if (!_splitsDirty && !(running && Time.unscaledTime >= _nextSplitText)) return;
-            if (!_splitsDirty && !TabShowing && !PanelShowing) return;
+            if (!_splitsDirty && !HudEditing && !PanelShowing) return;
             _splitsDirty = false;
             _nextSplitText = Time.unscaledTime + 0.1f;
-
-            if (TabShowing && _splitsOptionsOpen)
-            {
-                if (_runnerEdit == null)
-                {
-                    _steamName = RunnerIdentity.SteamName();
-                    string typed = _runnerName.Value != null ? _runnerName.Value.Trim() : "";
-                    _runnerEdit = typed.Length > 0 ? typed : (_steamName ?? "");
-                }
-                _panelSizeText.text = "width " + Mathf.RoundToInt(_panelWidth.Value) + " px, " + _panelRows.Value + " rows";
-                _opacityText.text = Mathf.RoundToInt(Opacity * 100f) + "%";
-                _precisionText.text = "times " + _timeDecimals.Value + ", deltas " + _deltaDecimals.Value + " decimal place(s)";
-            }
 
             int rows = SplitRows;
             float[] compare = ComparisonSplits();
@@ -436,7 +490,6 @@ namespace ForestOverlay.Modules
                 _shownRows = 0;
                 _compareTitle.text = "";
                 _titleFor = null;   // set again when the table comes back
-                _splitsHint.text = _segment == null ? "" : "Splits appear once the segment is armed.";
                 return;
             }
 
@@ -448,10 +501,6 @@ namespace ForestOverlay.Modules
                 _titleVs = compareName;
                 _compareTitle.text = _segment.Name + "  -  vs " + compareName;
             }
-            _splitsHint.text = _stats.Completed == 0 ? "No finished attempts yet: the columns fill in as you run it."
-                             : _stats.WithSplits == 0 && rows > 1 ? "Your earlier times were recorded before split times were saved - only their totals show."
-                             : "";
-
             if (_rowColours.Length != rows) { _rowColours = new SplitColour[rows]; _rowCurrent = new bool[rows]; }
             while (_rowNames.Count < rows) _rowNames.Add(new GUIContent(""));
             while (_cells.Count < rows * ColCount) _cells.Add(new GUIContent(""));
@@ -511,23 +560,45 @@ namespace ForestOverlay.Modules
 
         // --- drawing ---------------------------------------------------------------
 
+        private const float RowH = 18f;
+        private const float MinPanelW = 160f, MaxPanelW = 900f;
+        private const int MinPanelRows = 3, MaxPanelRows = 40;
+        private const float EdgeGrab = 5f, CornerSize = 12f;
+
         private bool PanelShowing
         {
             get { return _splitsPanel != null && _splitsPanel.Value && Timing && _segment != null && _shownRows > 0; }
         }
 
+        // The panels' names as Edit HUD pieces (snapping, T-0020).
+        private const string SplitsPiece = "splits", ResultsPiece = "results";
+
+        /// Edit HUD mode (Core/HudWidgets): the panels show even with nothing
+        /// in them, with an outline and their resize edges.
+        private bool HudEditing
+        {
+            get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; }
+        }
+
+        // The size while a resize is under way, else the setting.
+        private float PanelWidthNow { get { return _resizeMode != 0 ? _liveW : _panelWidth.Value; } }
+        private int PanelRowsNow { get { return _resizeMode != 0 ? _liveRows : _panelRows.Value; } }
+
         private void EnsureSplitStyles()
         {
             if (_cellStyle != null) return;
-            _cellStyle = new GUIStyle(GUI.skin.label);
+            _cellStyle = UiKit.Style(GUI.skin.label);
             _cellStyle.alignment = TextAnchor.MiddleRight;
             _cellStyle.padding = new RectOffset(0, 2, 0, 0);
             _cellStyle.wordWrap = false;
             _cellStyle.clipping = TextClipping.Clip;
-            _nameStyle = new GUIStyle(_cellStyle);
+            _nameStyle = UiKit.Style(_cellStyle);
             _nameStyle.alignment = TextAnchor.MiddleLeft;
-            _titleStyle = new GUIStyle(_nameStyle);
+            _titleStyle = UiKit.Style(_nameStyle);
             _titleStyle.fontStyle = FontStyle.Bold;
+            _placeholderStyle = UiKit.Style(GUI.skin.label);
+            _placeholderStyle.wordWrap = true;
+            _placeholderStyle.normal.textColor = UiKit.DimColour;
 
             Color[] colours =
             {
@@ -541,44 +612,89 @@ namespace ForestOverlay.Modules
             _colourStyles = new GUIStyle[colours.Length];
             for (int i = 0; i < colours.Length; i++)
             {
-                _colourStyles[i] = new GUIStyle(_cellStyle);
+                _colourStyles[i] = UiKit.Style(_cellStyle);
                 _colourStyles[i].normal.textColor = colours[i];
             }
 
-            _panelStyle = new GUIStyle(GUI.skin.box);
-            Texture2D bg = new Texture2D(1, 1);
-            bg.SetPixel(0, 0, new Color(0.06f, 0.06f, 0.06f, 0.82f));
-            bg.Apply();
-            _panelStyle.normal.background = bg;
+            // The kit's rounded dark card: the same look as the results panel
+            // and the HUD widgets (docs/ui-redesign.md).
+            _panelStyle = UiKit.Style(UiKit.WidgetCard);
         }
+
+        // The panels are drawn in the scaled screen (T-0318); the replay labels
+        // sit at world positions in real screen pixels, so they stay outside.
+        private UiScale HudUi { get { return Host.Hud.Settings.Scale(); } }
 
         public override void DrawScreen()
         {
             DrawReplayLabels();
-            DrawResults();
-            if (!PanelShowing) return;
+            Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
+            try { DrawPanels(); }
+            finally { GUI.matrix = outer; }
+        }
+
+        private void DrawPanels()
+        {
+            bool editing = HudEditing;
+            DrawResults(editing);
+            if (!editing && _resizeMode != 0) EndResize();   // the edit ended mid-gesture
+
+            // The results panel has the splits in it and used to be drawn
+            // over this panel (author, 2026-10-05): this one steps aside
+            // until the next run starts - except while the runner lays the
+            // HUD out, when both show.
+            bool real = PanelShowing && (editing || !ResultsShowing);
+            // Switched off, it is not drawn in edit mode either: the switch
+            // in the Edit HUD list is how it comes back.
+            if (!real && !(editing && _splitsPanel.Value))
+            {
+                if (_dragging) EndDrag();   // hidden mid-drag (the edit ended)
+                return;
+            }
             EnsureSplitStyles();
 
-            float w = Mathf.Clamp(_panelWidth.Value, 160f, Screen.width);
-            float h = PanelHeight(w);
-            float px = _dragging ? _dragX : _panelX.Value;
-            float py = _dragging ? _dragY : _panelY.Value;
-            // PanelX < 0 means "against the right edge" - but only as a
-            // saved setting: a drag past the left edge must stop at 0, not
-            // read as that and jump right (author, v0.24.151, windowed).
-            float x = px < 0f && !_dragging ? Screen.width - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            float w = Mathf.Clamp(PanelWidthNow, MinPanelW, HudUi.VW);
+            int rows = PanelRowsNow;
+            // In edit mode the outline is the most rows it will show, so the
+            // bottom edge visibly moves while it is dragged.
+            float h = PanelHeight(rows, editing);
+            float x, y;
+            if (_resizeMode != 0) { x = _resizeX; y = _resizeY; }
+            else
+            {
+                float px = _dragging ? _dragX : HudUi.PosX(_panelX.Value);
+                float py = _dragging ? _dragY : HudUi.PosY(_panelY.Value);
+                // PanelX < 0 means "against the right edge" - but only as a
+                // saved setting: a drag past the left edge must stop at 0, not
+                // read as that and jump right (author, v0.24.151, windowed).
+                x = px < 0f && !_dragging ? HudUi.VW - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, HudUi.VW - w));
+                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
+            }
             Rect panel = new Rect(x, y, w, h);
+            if (editing) Host.Hud.Widgets.ReportPiece(SplitsPiece, panel);   // the others snap to it (T-0020)
 
-            HandleDrag(panel);
+            if (editing) HandleResize(panel);
+            if (_resizeMode == 0) HandleDrag(panel);
 
             // Opacity on the background only: the text stays readable.
             Color before = GUI.color;
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Opacity));
             GUI.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
-            if (_dragging) GUI.Box(panel, GUIContent.none);   // an outline while moving
-            DrawSplitsTable(x + 6f, y + 4f, w - 12f, _panelRows.Value, true);
+            if (real) DrawSplitsTable(x + 6f, y + 4f, w - 12f, rows, true);
+            else
+            {
+                GUI.Label(new Rect(x + 6f, y + 4f, w - 12f, RowH), SplitsPanelText, _titleStyle);
+                UiText.Draw(x + 6f, y + 4f + RowH, w - 12f, SplitsPlaceholder, _placeholderStyle);
+            }
+
+            if (editing || _dragging) GUI.Box(panel, GUIContent.none, UiKit.Outline);
+            if (editing)
+            {
+                GUI.Box(new Rect(panel.xMax - CornerSize, panel.yMax - CornerSize, CornerSize, CornerSize), GUIContent.none, UiKit.Handle);
+                // The size while it changes, under the panel.
+                if (_resizeMode != 0) GUI.Label(new Rect(x, panel.yMax + 2f, w, RowH), _panelSizeText, _titleStyle);
+            }
         }
 
         private void HandleDrag(Rect panel)
@@ -586,9 +702,9 @@ namespace ForestOverlay.Modules
             Event e = Event.current;
             if (e == null) return;
             MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
-            bool windowOpen = main != null && main.PanelOpen;
 
-            if (!windowOpen)
+            // Edit HUD only: the F2 window alone is not a drag mode (author, 2026-10-11, T-0317).
+            if (!HudEditing || main == null)
             {
                 if (_dragging) EndDrag();
                 return;
@@ -597,7 +713,7 @@ namespace ForestOverlay.Modules
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button != 0 || !panel.Contains(e.mousePosition) || main.ScreenRect.Contains(e.mousePosition)) return;
+                    if (e.button != 0 || !panel.Contains(e.mousePosition) || Host.Hud.Settings.Virtual(main.ScreenRect).Contains(e.mousePosition)) return;
                     _dragging = true;
                     _dragOffset = e.mousePosition - new Vector2(panel.x, panel.y);
                     _dragX = panel.x;
@@ -608,6 +724,12 @@ namespace ForestOverlay.Modules
                     if (!_dragging) return;
                     _dragX = Mathf.Max(0f, e.mousePosition.x - _dragOffset.x);
                     _dragY = Mathf.Max(0f, e.mousePosition.y - _dragOffset.y);
+                    if (HudEditing)
+                    {
+                        Vector2 at = Host.Hud.Widgets.SnapDrag(SplitsPiece, new Rect(_dragX, _dragY, panel.width, panel.height));
+                        _dragX = at.x;
+                        _dragY = at.y;
+                    }
                     e.Use();
                     break;
                 case EventType.MouseUp:
@@ -621,10 +743,90 @@ namespace ForestOverlay.Modules
         private void EndDrag()
         {
             _dragging = false;
-            float w = Mathf.Clamp(_panelWidth.Value, 160f, Screen.width);
-            _panelX.Value = Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, Screen.width - w));
-            _panelY.Value = Mathf.Max(0f, _dragY);
+            if (HudEditing) Host.Hud.Widgets.EndSnap();
+            float w = Mathf.Clamp(_panelWidth.Value, MinPanelW, HudUi.VW);
+            _panelX.Value = HudUi.ToRefX(Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, HudUi.VW - w)));   // saved in reference pixels
+            _panelY.Value = HudUi.ToRefY(Mathf.Max(0f, _dragY));
             Ctx.Log.LogInfo("Splits panel moved to (" + Mathf.RoundToInt(_panelX.Value) + ", " + Mathf.RoundToInt(_panelY.Value) + ").");
+        }
+
+        /// Edit HUD mode: the right edge sets the width, the bottom edge the
+        /// rows, the corner both (author, 2026-10-09: by dragging, as modern
+        /// apps do - not +/- buttons). Written once, on release.
+        private void HandleResize(Rect panel)
+        {
+            Event e = Event.current;
+            if (e == null) return;
+            Vector2 m = e.mousePosition;
+            switch (e.type)
+            {
+                case EventType.MouseDown:
+                    if (e.button != 0 || _resizeMode != 0 || _dragging) return;
+                    MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
+                    if (main != null && Host.Hud.Settings.Virtual(main.ScreenRect).Contains(m)) return;
+                    bool corner = m.x >= panel.xMax - CornerSize && m.x <= panel.xMax + EdgeGrab &&
+                                  m.y >= panel.yMax - CornerSize && m.y <= panel.yMax + EdgeGrab;
+                    bool right = m.x >= panel.xMax - EdgeGrab && m.x <= panel.xMax + EdgeGrab && m.y >= panel.y && m.y <= panel.yMax;
+                    bool left = m.x >= panel.x - EdgeGrab && m.x <= panel.x + EdgeGrab && m.y >= panel.y && m.y <= panel.yMax;
+                    bool bottom = m.y >= panel.yMax - EdgeGrab && m.y <= panel.yMax + EdgeGrab && m.x >= panel.x && m.x <= panel.xMax;
+                    // 1 right edge, 4 left edge (a panel against the right edge
+                    // widens from there), 2 bottom; the corner is 1 + 2.
+                    int mode = corner ? 3 : (right ? 1 : left ? 4 : 0) | (bottom ? 2 : 0);
+                    if (mode == 0) return;
+                    _resizeMode = mode;
+                    _resizeStart = m;
+                    _resizeX = _resizeStartX = panel.x;
+                    _resizeY = panel.y;
+                    _resizeDocked = _panelX.Value < 0f;
+                    _liveW = _resizeStartW = panel.width;
+                    _liveRows = _resizeStartRows = Mathf.Clamp(_panelRows.Value, MinPanelRows, MaxPanelRows);
+                    _splitsDirty = true;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag:
+                    if (_resizeMode == 0) return;
+                    if ((_resizeMode & 1) != 0)
+                        _liveW = Mathf.Clamp(Mathf.Round(_resizeStartW + m.x - _resizeStart.x), MinPanelW,
+                                             Mathf.Max(MinPanelW, Mathf.Min(MaxPanelW, HudUi.VW - _resizeX)));
+                    if ((_resizeMode & 4) != 0)
+                    {
+                        // The right edge stays put.
+                        float rightEdge = _resizeStartX + _resizeStartW;
+                        _liveW = Mathf.Clamp(Mathf.Round(_resizeStartW - (m.x - _resizeStart.x)), MinPanelW,
+                                             Mathf.Max(MinPanelW, Mathf.Min(MaxPanelW, rightEdge)));
+                        _resizeX = rightEdge - _liveW;
+                    }
+                    if ((_resizeMode & 2) != 0)
+                        _liveRows = Mathf.Clamp(_resizeStartRows + Mathf.RoundToInt((m.y - _resizeStart.y) / RowH), MinPanelRows, MaxPanelRows);
+                    _splitsDirty = true;
+                    e.Use();
+                    break;
+                case EventType.MouseUp:
+                    if (_resizeMode == 0) return;
+                    EndResize();
+                    e.Use();
+                    break;
+            }
+        }
+
+        // One file write for the four values (each entry would save the
+        // whole file: 86 ms, bridge 2026-09-27).
+        private void EndResize()
+        {
+            ConfigFile c = Ctx.Config;
+            bool saveEach = c.SaveOnConfigSet;
+            c.SaveOnConfigSet = false;
+            // A panel against the right edge stays there unless its right
+            // edge was the one dragged.
+            _panelX.Value = _resizeDocked && (_resizeMode & 1) == 0 ? -1f : Mathf.Round(HudUi.ToRefX(_resizeX));
+            _panelY.Value = Mathf.Round(HudUi.ToRefY(_resizeY));
+            _panelWidth.Value = _liveW;
+            _panelRows.Value = _liveRows;
+            c.SaveOnConfigSet = saveEach;
+            c.Save();
+            _resizeMode = 0;
+            _splitsDirty = true;
+            Ctx.Log.LogInfo("Splits panel resized to " + Mathf.RoundToInt(_liveW) + " px, " + _liveRows + " rows.");
         }
 
         private int VisibleRows(int maxRows)
@@ -632,28 +834,30 @@ namespace ForestOverlay.Modules
             return maxRows <= 1 || _shownRows <= maxRows ? _shownRows : maxRows;
         }
 
-        private float PanelHeight(float w)
+        /// `full`: as tall as `maxRows` rows (edit mode), not only the ones
+        /// the current segment has.
+        private float PanelHeight(int maxRows, bool full)
         {
             int lines = 0;
             for (int i = 0; i < LineCount; i++) if (_lines2[i].Value) lines++;
             int cols = 0;
             for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
-            return 8f + 18f + (cols > 0 ? 18f : 0f) + VisibleRows(_panelRows.Value) * 18f + (lines > 0 ? 4f + lines * 18f : 0f);
+            int rows = full ? Mathf.Max(maxRows, VisibleRows(maxRows)) : VisibleRows(maxRows);
+            return 8f + RowH + (cols > 0 ? RowH : 0f) + rows * RowH + (lines > 0 ? 4f + lines * RowH : 0f);
         }
 
         /// The table at (x, y), `w` wide; returns its height. `header` adds
-        /// the column titles (the tab has room for them).
+        /// the column titles.
         private float DrawSplitsTable(float x, float y, float w, int maxRows, bool header)
         {
-            const float rowH = 18f;
             float colW = 50f + 6f * Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value);   // 62 at 2 decimals
             float y0 = y;
             int cols = 0;
             for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
             float nameW = Mathf.Max(60f, w - cols * colW);
 
-            GUI.Label(new Rect(x, y, w, rowH), _compareTitle, _titleStyle);
-            y += rowH;
+            GUI.Label(new Rect(x, y, w, RowH), _compareTitle, _titleStyle);
+            y += RowH;
 
             if (header && cols > 0)
             {
@@ -661,10 +865,10 @@ namespace ForestOverlay.Modules
                 for (int c = 0; c < ColCount; c++)
                 {
                     if (!_cols[c].Value) continue;
-                    GUI.Label(new Rect(cx, y, colW, rowH), _colTitles[c], _cellStyle);
+                    GUI.Label(new Rect(cx, y, colW, RowH), _colTitles[c], _cellStyle);
                     cx += colW;
                 }
-                y += rowH;
+                y += RowH;
             }
 
             // Which rows: all, or a window around the current one with the
@@ -683,93 +887,162 @@ namespace ForestOverlay.Modules
                 int r = start + k;
                 if (visible < _shownRows && k == visible - 1) r = _shownRows - 1;
                 GUIStyle nameStyle = _rowCurrent[r] ? _titleStyle : _nameStyle;
-                GUI.Label(new Rect(x, y, nameW, rowH), _rowNames[r], nameStyle);
+                GUI.Label(new Rect(x, y, nameW, RowH), _rowNames[r], nameStyle);
                 float cx = x + nameW;
                 for (int c = 0; c < ColCount; c++)
                 {
                     if (!_cols[c].Value) continue;
                     GUIStyle st = _cellStyle;
                     if (c == (int)Col.Delta || c == (int)Col.SegmentDelta) st = _colourStyles[(int)_rowColours[r]];
-                    GUI.Label(new Rect(cx, y, colW, rowH), _cells[r * ColCount + c], st);
+                    GUI.Label(new Rect(cx, y, colW, RowH), _cells[r * ColCount + c], st);
                     cx += colW;
                 }
-                y += rowH;
+                y += RowH;
             }
+            // Edit mode: the rows the panel has room for but this segment
+            // does not fill stay empty, so the lines sit where they will.
+            if (HudEditing && maxRows > visible) y += (maxRows - visible) * RowH;
 
             bool any = false;
             for (int i = 0; i < LineCount; i++)
             {
                 if (!_lines2[i].Value) continue;
                 if (!any) { y += 4f; any = true; }
-                GUI.Label(new Rect(x, y, w - 90f, rowH), _lineLabels[i], _nameStyle);
+                GUI.Label(new Rect(x, y, w - 90f, RowH), _lineLabels[i], _nameStyle);
                 GUIStyle st = i == (int)Line.Previous ? _colourStyles[(int)SplitTable.ColourOf(_summary.PreviousSegment, _summary.PreviousSegment, float.NaN, float.NaN)] : _cellStyle;
                 // The whole row, right-aligned: a long value ("100% (Congrats!)")
                 // is cut only when it meets its label, not at a fixed column.
-                GUI.Label(new Rect(x, y, w, rowH), _lineValues[i], st);
-                y += rowH;
+                GUI.Label(new Rect(x, y, w, RowH), _lineValues[i], st);
+                y += RowH;
             }
             return y - y0;
         }
 
-        /// The Runs tab's splits section: the table, then its options.
-        private float DrawSplitsSection(float y, float w)
+        // --- Edit HUD rows (T-0257) -----------------------------------------------------
+        //
+        // The splits and results panels are switched on and set up where
+        // they are shown (author, 2026-10-10): rows in the Edit HUD list,
+        // never a copy of the table in a tab. Each says what it is in a
+        // line that is always on the page (a runner who does not know the
+        // results panel would otherwise leave it off out of doubt).
+
+        private static readonly GUIContent SplitsPanelText = new GUIContent("Splits panel");
+        private static readonly GUIContent SplitsPanelAbout = new GUIContent(
+            "Your splits against the comparison, as in LiveSplit, while a timed segment is on. " +
+            "On screen: drag it to move, a side edge for the width, its bottom edge for the rows.");
+        private static readonly GUIContent SplitsPlaceholder = new GUIContent(
+            "Shows here while a timed segment is on. Drag the edges to size it.");
+        private static readonly GUIContent SplitsOptionsTitle = new GUIContent("Columns, lines, decimals, background");
+        private static readonly GUIContent ResultsPanelText = new GUIContent("Results panel");
+        private static readonly GUIContent ResultsPanelAbout = new GUIContent(
+            "Pops up when a timed run finishes: your time against your PB and the comparison, every split's delta, " +
+            "your golds and PB chance. It closes when the next run starts. On screen: drag it to move, its right edge for the width.");
+        private static readonly GUIContent ResLoadAlwaysText = new GUIContent(" Load-removed time after a run with no loads too");
+        private static readonly GUIContent ResLoadAlwaysTip = new GUIContent(
+            "A run with loads always shows its time without them; this adds the line after a load-free run. The LRT column is the splits' own.");
+        private static readonly GUIContent TimeDecimalsText = new GUIContent("Time decimals");
+        private static readonly GUIContent DeltaDecimalsText = new GUIContent("Delta decimals");
+        private static readonly GUIContent BackgroundText = new GUIContent("Background");
+        private static readonly GUIContent ColumnsText = new GUIContent("Columns");
+        private static readonly GUIContent LinesText = new GUIContent("Lines");
+        private static readonly GUIContent[] DecimalChoices = { new GUIContent("0"), new GUIContent("1"), new GUIContent("2"), new GUIContent("3") };
+
+        public override float DrawHudEditor(float y, float w)
         {
-            EnsureSplitStyles();
-            if (_shownRows > 0) y += DrawSplitsTable(0f, y, w, 0, true) + 4f;
-            y += UiText.Draw(0, y, w, _splitsHint);
-
-            if (GUI.Button(new Rect(0, y, 150, 22), _splitsOptionsOpen ? "Splits options  ^" : "Splits options  v"))
-            {
-                _splitsOptionsOpen = !_splitsOptionsOpen;
-                _runnerEdit = null;    // re-read the Steam name and the setting
-                _splitsDirty = true;   // the runner and size lines are built on a refresh
-            }
-            y += 26f;
-            if (!_splitsOptionsOpen) return y;
-
-            bool panel = GUI.Toggle(new Rect(0, y, w, 20), _splitsPanel.Value, " Show the splits panel on screen (F5 hides all overlay UI)");
+            const float indent = 20f;
+            bool panel = UiKit.Toggle(new Rect(0f, y, w, 22f), _splitsPanel.Value, SplitsPanelText);
             if (panel != _splitsPanel.Value) _splitsPanel.Value = panel;
-            y += 22f;
-            bool results = GUI.Toggle(new Rect(0, y, w, 20), _resultsCfg.Value, " Show a results panel when a run finishes (drag its title while ESC / F2 shows the cursor)");
+            y += 24f;
+            y += UiText.Draw(indent, y, w - indent, SplitsPanelAbout, UiKit.HintStyle) + 2f;
+            if (_splitsPanel.Value && UiKit.Section(indent, ref y, w - indent, "hud.splitsopts", SplitsOptionsTitle, false))
+                y = DrawSplitsOptions(indent, y, w - indent);
+            y += 8f;
+
+            bool results = UiKit.Toggle(new Rect(0f, y, w, 22f), _resultsCfg.Value, ResultsPanelText);
             if (results != _resultsCfg.Value) { _resultsCfg.Value = results; if (!results) CloseResults(); }
-            y += 22f;
+            y += 24f;
+            y += UiText.Draw(indent, y, w - indent, ResultsPanelAbout, UiKit.HintStyle) + 2f;
+            if (_resultsCfg.Value)
+            {
+                Rect loadR = new Rect(indent, y, w - indent, 22f);
+                bool always = UiKit.Toggle(loadR, _resLoadAlways.Value, ResLoadAlwaysText);
+                if (always != _resLoadAlways.Value) _resLoadAlways.Value = always;
+                UiKit.Hint(loadR, ResLoadAlwaysTip);
+                y += 24f;
+            }
+            return y + 4f;
+        }
 
-            y = FlowToggles(y, w, "Columns:", _cols, _colOptionText);
-            y = FlowToggles(y, w, "Lines:", _lines2, _lineOptionText);
+        private float DrawSplitsOptions(float x, float y, float w)
+        {
+            y = FlowToggles(x, y, w, ColumnsText, _cols, _colOptionText);
+            y = FlowToggles(x, y, w, LinesText, _lines2, _lineOptionText);
 
-            y += UiText.Draw(0, y, w, _dragHint);
-            GUI.Label(new Rect(0, y, 110, 20), "Panel position");
-            if (GUI.Button(new Rect(114, y - 1, 130, 22), "Reset to top right")) { _panelX.Value = -1f; _panelY.Value = 140f; }
+            const float labelW = 110f;
+            float barW = Mathf.Min(160f, w - labelW - 4f);
+            GUI.Label(new Rect(x, y, labelW, 22f), TimeDecimalsText);
+            int td = DecimalChoice(new Rect(x + labelW, y, barW, 22f), _timeDecimals.Value);
+            if (td != _timeDecimals.Value) { _timeDecimals.Value = td; _splitsDirty = true; }
             y += 26f;
-            GUI.Label(new Rect(0, y, 110, 20), "Background");
-            float sliderW = Mathf.Max(80f, w - 184f);
-            float op = GUI.HorizontalSlider(new Rect(114, y + 5, sliderW, 16), Opacity, 0f, 1f);
+            GUI.Label(new Rect(x, y, labelW, 22f), DeltaDecimalsText);
+            int dd = DecimalChoice(new Rect(x + labelW, y, barW, 22f), _deltaDecimals.Value);
+            if (dd != _deltaDecimals.Value) { _deltaDecimals.Value = dd; _splitsDirty = true; }
+            y += 26f;
+
+            GUI.Label(new Rect(x, y, labelW, 22f), BackgroundText);
+            float sliderW = Mathf.Max(60f, w - labelW - 50f);
+            float op = GUI.HorizontalSlider(new Rect(x + labelW, y + 6f, sliderW, 16f), Opacity, 0f, 1f);
             if (Mathf.Abs(op - Opacity) > 0.004f)
             {
                 _opacityNow = Mathf.Round(op * 100f) / 100f;
                 _opacityPending = true;
                 _writeAt = Time.unscaledTime + 0.5f;
-                _splitsDirty = true;
             }
-            GUI.Label(new Rect(120f + sliderW, y, 60, 20), _opacityText);
-            y += 26f;
-            GUI.Label(new Rect(0, y, 110, 20), "Precision");
-            if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) { _timeDecimals.Value = Mathf.Max(0, _timeDecimals.Value - 1); _splitsDirty = true; }
-            if (GUI.Button(new Rect(148, y - 1, 30, 22), "+")) { _timeDecimals.Value = Mathf.Min(3, _timeDecimals.Value + 1); _splitsDirty = true; }
-            if (GUI.Button(new Rect(190, y - 1, 30, 22), "-")) { _deltaDecimals.Value = Mathf.Max(0, _deltaDecimals.Value - 1); _splitsDirty = true; }
-            if (GUI.Button(new Rect(224, y - 1, 30, 22), "+")) { _deltaDecimals.Value = Mathf.Min(3, _deltaDecimals.Value + 1); _splitsDirty = true; }
-            GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _precisionText);
-            y += 26f;
-            GUI.Label(new Rect(0, y, 110, 20), "Width / rows");
-            if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) { _panelWidth.Value = Mathf.Max(160f, _panelWidth.Value - 20f); _splitsDirty = true; }
-            if (GUI.Button(new Rect(148, y - 1, 30, 22), "+")) { _panelWidth.Value = Mathf.Min(900f, _panelWidth.Value + 20f); _splitsDirty = true; }
-            if (GUI.Button(new Rect(190, y - 1, 30, 22), "-")) { _panelRows.Value = Mathf.Max(3, _panelRows.Value - 1); _splitsDirty = true; }
-            if (GUI.Button(new Rect(224, y - 1, 30, 22), "+")) { _panelRows.Value = Mathf.Min(40, _panelRows.Value + 1); _splitsDirty = true; }
-            GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _panelSizeText);
-            y += 26f;
+            GUI.Label(new Rect(x + labelW + sliderW + 6f, y, 44f, 22f), _opacityText);
+            return y + 28f;
+        }
 
+        // 0-3 as four buttons, the current one pressed (GUI.Toolbar builds
+        // style names as strings on every call).
+        private static int DecimalChoice(Rect r, int value)
+        {
+            float bw = (r.width - 6f) / 4f;
+            int picked = Mathf.Clamp(value, 0, 3);
+            for (int i = 0; i < 4; i++)
+            {
+                bool on = UiKit.Toggle(new Rect(r.x + i * (bw + 2f), r.y, bw, r.height), i == picked, DecimalChoices[i], GUI.skin.button);
+                if (on && i != picked) picked = i;
+            }
+            return picked;
+        }
+
+        // Toggles laid out left to right, each as wide as its words,
+        // wrapping at the width (the Edit HUD list is narrow).
+        private float FlowToggles(float x0, float y, float w, GUIContent title, ConfigEntry<bool>[] entries, GUIContent[] labels)
+        {
+            y += UiText.Draw(x0, y, w, title);
+            float x = x0;
+            GUIStyle toggle = GUI.skin.toggle;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                float tw = Mathf.Min(w, toggle.CalcSize(labels[i]).x + 8f);
+                if (x + tw > x0 + w && x > x0) { x = x0; y += 22f; }
+                bool v = UiKit.Toggle(new Rect(x, y, tw, 20f), entries[i].Value, labels[i]);
+                if (v != entries[i].Value) { entries[i].Value = v; _splitsDirty = true; _playtimeShown = -1; }
+                x += tw + 6f;
+            }
+            return y + 26f;
+        }
+
+        // --- the runner name (the Runs tab's Upload to the website) ------------------------
+
+        /// The name your attempts and uploads carry (T-0257: it lived in the
+        /// splits options; the site is where it shows). Filled from Tick.
+        private float DrawRunnerName(float y, float w)
+        {
             GUI.Label(new Rect(0, y, 110, 20), "Runner name");
-            if (_runnerEdit != null)
+            if (_runnerEdit == null) _runnerFill = true;
+            else
             {
                 string typed = GUI.TextField(new Rect(114, y - 2, Mathf.Max(80f, w - 124f), 22), _runnerEdit);
                 if (typed != _runnerEdit)
@@ -785,22 +1058,6 @@ namespace ForestOverlay.Modules
             y += 26f;
             if (_steamName == null && _runnerEdit != null && _runnerEdit.Trim().Length == 0) y += UiText.Draw(0, y, w, _noSteamHint);
             return y + 4f;
-        }
-
-        // Toggles laid out left to right, wrapping at the tab's width.
-        private float FlowToggles(float y, float w, string title, ConfigEntry<bool>[] entries, GUIContent[] labels)
-        {
-            GUI.Label(new Rect(0, y, 70, 20), title);
-            float x = 74f;
-            for (int i = 0; i < entries.Length; i++)
-            {
-                const float tw = 150f;
-                if (x + tw > w && x > 74f) { x = 74f; y += 22f; }
-                bool v = GUI.Toggle(new Rect(x, y, tw, 20), entries[i].Value, labels[i]);
-                if (v != entries[i].Value) { entries[i].Value = v; _splitsDirty = true; _playtimeShown = -1; }
-                x += tw;
-            }
-            return y + 24f;
         }
     }
 }

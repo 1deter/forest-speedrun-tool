@@ -319,7 +319,7 @@ namespace ForestOverlay.Modules
             // No checkpoints, nothing to capture: one line says why.
             if (_cpRows == 0) return y + UiText.Draw(0, y, w, _cpHeader) + 4f;
 
-            bool cap = GUI.Toggle(new Rect(0, y, w, 20), _cpCapture.Value, " Capture at checkpoints (practice runs)");
+            bool cap = UiKit.Toggle(new Rect(0, y, w, 20), _cpCapture.Value, " Capture at checkpoints (practice runs)");
             if (cap != _cpCapture.Value) { _cpCapture.Value = cap; _cpDirty = true; }
             y += 22f;
             y += UiText.DrawDim(0, y, w, _cpNote);

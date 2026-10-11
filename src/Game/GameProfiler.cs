@@ -12,7 +12,7 @@ namespace ForestOverlay.Game
     // ------------------------------------------------------------------
     // Times the game's own scripts (Next up 6, author: "can patches make
     // the game itself faster?" - measure first). A debug switch in the
-    // Debug views tab, never on by default and never kept across launches.
+    // Developer tab (Benchmarks), never on by default and never kept across launches.
     //
     // WHY: the Perf line says how often a frame is slow and how fast the
     // heap grows, not whose code it is. Unity 5.6 has no profiler in a

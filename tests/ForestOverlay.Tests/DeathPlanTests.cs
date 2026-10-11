@@ -5,13 +5,12 @@ namespace ForestOverlay.Tests
 {
     public class DeathPlanTests
     {
-        // A loaded game, Reload save on death on with both extra toggles
-        // (the defaults), no spot, practice mode off, no run.
+        // A loaded game, both extra reload toggles on (the defaults), no
+        // spot, practice mode off, no run.
         private static DeathSituation Base()
         {
             DeathSituation s = new DeathSituation();
             s.Kind = DeathCase.Real;
-            s.ReloadOn = true;
             s.ReloadOnCapture = true;
             s.ReloadInBoss = true;
             s.SlotKnown = true;
@@ -56,16 +55,13 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void AutomaticWithNoSpotReloadsOrDiesAsTheToggleSays()
+        public void AutomaticWithNoSpotReloads()
         {
+            // T-0226: the fallback is always a reload (the old toggle's default).
             DeathSituation s = Base();
             s.PracticeOn = true;
-            Assert.Equal("reloads your save (the game's own load) - Reload save on death is on",
+            Assert.Equal("reloads your save (the game's own load) - no spot applies",
                          DeathPlan.Decide(DeathChoice.Automatic, s).Text);
-            s.ReloadOn = false;
-            DeathDecision d = DeathPlan.Decide(DeathChoice.Automatic, s);
-            Assert.Equal(DeathOutcome.GameDeath, d.Outcome);
-            Assert.EndsWith("Reload save on death is off", d.Text);
         }
 
         [Fact]
@@ -118,7 +114,6 @@ namespace ForestOverlay.Tests
         {
             DeathSituation s = WithSpot(true);
             s.PracticeOn = true;
-            s.ReloadOn = false;
             DeathDecision d = DeathPlan.Decide(DeathChoice.ReloadSave, s);
             Assert.Equal(DeathOutcome.ReloadSave, d.Outcome);
             Assert.EndsWith("you chose Reload the save", d.Text);
@@ -146,12 +141,17 @@ namespace ForestOverlay.Tests
             DeathSituation s = Base();
             DeathDecision d = DeathPlan.Decide(DeathChoice.RestartSpot, s);
             Assert.Equal(DeathOutcome.ReloadSave, d.Outcome);
-            Assert.Equal("reloads your save (the game's own load) - no current spot to restart (Go to or save one in Practice); Reload save on death is on", d.Text);
+            Assert.Equal("reloads your save (the game's own load) - no current spot to restart (Go to or save one in Practice)", d.Text);
 
-            s.ReloadOn = false;
+            d = DeathPlan.Decide(DeathChoice.ReviveAtSpot, s);
+            Assert.Equal(DeathOutcome.ReloadSave, d.Outcome);
+            Assert.Contains("no current spot to revive at", d.Text);
+
+            // A category that locks the reload: the game's own death.
+            s.ReloadLocked = true;
             d = DeathPlan.Decide(DeathChoice.ReviveAtSpot, s);
             Assert.Equal(DeathOutcome.GameDeath, d.Outcome);
-            Assert.Contains("no current spot to revive at", d.Text);
+            Assert.Contains("locks Reload save on death", d.Text);
         }
 
         [Fact]
@@ -205,7 +205,6 @@ namespace ForestOverlay.Tests
             Assert.Contains("the run's category locks Reload save on death", d.Text);
 
             s = Base();
-            s.ReloadOn = false;
             s.ReloadForced = true;
             Assert.Equal(DeathOutcome.ReloadSave, Out(DeathChoice.Automatic, s));
             d = DeathPlan.Decide(DeathChoice.GameDeath, s);
@@ -218,7 +217,7 @@ namespace ForestOverlay.Tests
         {
             DeathSituation s = Base();
             s.ReloadInPlace = true;
-            Assert.Equal("reloads your save in place (a Quick load of the slot's save; marks practice) - Reload save on death is on",
+            Assert.Equal("reloads your save in place (a Quick load of the slot's save; marks practice) - no spot applies",
                          DeathPlan.Decide(DeathChoice.Automatic, s).Text);
             s.RunActive = true;
             DeathDecision d = DeathPlan.Decide(DeathChoice.Automatic, s);

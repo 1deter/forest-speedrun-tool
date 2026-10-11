@@ -434,7 +434,7 @@ namespace ForestOverlay.Modules
         }
 
         /// The Paint view of the Settings tab (SettingsModule draws the switch).
-        public void DrawSettings(Rect area)
+        public float DrawSettings(Rect area)
         {
             RefreshTexts();
             if (_swatchStyle == null)
@@ -505,7 +505,8 @@ namespace ForestOverlay.Modules
             }
             y += 28f;
 
-            if (_messageAt == 1 && _message.text.Length > 0) UiText.Draw(x, y, w, _message);
+            if (_messageAt == 1 && _message.text.Length > 0) y += UiText.Draw(x, y, w, _message);
+            return y;
         }
 
         private void StepSize(int dir)

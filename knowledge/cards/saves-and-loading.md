@@ -43,7 +43,7 @@ copy returns anyway.
 
 ## Death and loading
 
-Reloading the save on death (ForestOverlay's *Reload save on death*, or
+Reloading the save on death (ForestOverlay's reload on death - its Deaths tab - or
 manually) is the game's own load of the same save; the author rules the
 tool's version allowed in normal runs. See `deaths-and-revives`.
 

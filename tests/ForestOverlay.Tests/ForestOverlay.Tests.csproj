@@ -34,15 +34,18 @@
   <!-- Logic under test, compiled from the real source. -->
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+    <Compile Include="../../src/Data/ExternalMods.cs" Link="Linked/ExternalMods.cs" />
     <Compile Include="../../src/Data/ArmCause.cs" Link="Linked/ArmCause.cs" />
     <Compile Include="../../src/Data/ColdNote.cs" Link="Linked/ColdNote.cs" />
     <Compile Include="../../src/Data/LevelText.cs" Link="Linked/LevelText.cs" />
+    <Compile Include="../../src/Data/UiPalette.cs" Link="Linked/UiPalette.cs" />
     <Compile Include="../../src/Data/LoadTimes.cs" Link="Linked/LoadTimes.cs" />
     <Compile Include="../../src/Data/AttemptFormat.cs" Link="Linked/AttemptFormat.cs" />
     <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />
     <Compile Include="../../src/Data/RunHistory.cs" Link="Linked/RunHistory.cs" />
     <Compile Include="../../src/Data/RunResults.cs" Link="Linked/RunResults.cs" />
     <Compile Include="../../src/Data/RunTiming.cs" Link="Linked/RunTiming.cs" />
+    <Compile Include="../../src/Data/StartStrip.cs" Link="Linked/StartStrip.cs" />
     <Compile Include="../../src/Data/RunReport.cs" Link="Linked/RunReport.cs" />
     <Compile Include="../../src/Data/RunCategory.cs" Link="Linked/RunCategory.cs" />
     <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
@@ -102,12 +105,22 @@
     <Compile Include="../../src/Data/LssAutoSplit.cs" Link="Linked/LssAutoSplit.cs" />
     <Compile Include="../../src/Data/AttemptOwners.cs" Link="Linked/AttemptOwners.cs" />
     <Compile Include="../../src/Data/ItemCaps.cs" Link="Linked/ItemCaps.cs" />
+    <Compile Include="../../src/Data/InventoryFilter.cs" Link="Linked/InventoryFilter.cs" />
     <Compile Include="../../src/Data/MapView.cs" Link="Linked/MapView.cs" />
     <Compile Include="../../src/Data/ReliefImage.cs" Link="Linked/ReliefImage.cs" />
     <Compile Include="../../src/Data/Trajectory.cs" Link="Linked/Trajectory.cs" />
     <Compile Include="../../src/Data/MoveDetector.cs" Link="Linked/MoveDetector.cs" />
     <Compile Include="../../src/Data/HudLines.cs" Link="Linked/HudLines.cs" />
+    <Compile Include="../../src/Data/KeyText.cs" Link="Linked/KeyText.cs" />
+    <Compile Include="../../src/Data/KeyGroups.cs" Link="Linked/KeyGroups.cs" />
+    <Compile Include="../../src/Data/HudLayout.cs" Link="Linked/HudLayout.cs" />
+    <Compile Include="../../src/Data/UiScale.cs" Link="Linked/UiScale.cs" />
+    <Compile Include="../../src/Data/ProfileUnits.cs" Link="Linked/ProfileUnits.cs" />
+    <Compile Include="../../src/Data/HudProfile.cs" Link="Linked/HudProfile.cs" />
+    <Compile Include="../../src/Data/HudSnap.cs" Link="Linked/HudSnap.cs" />
+    <Compile Include="../../src/Data/HudTrend.cs" Link="Linked/HudTrend.cs" />
     <Compile Include="../../src/Data/TextMemo.cs" Link="Linked/TextMemo.cs" />
+    <Compile Include="../../src/Data/FolderStamp.cs" Link="Linked/FolderStamp.cs" />
     <Compile Include="../../src/Data/ClockText.cs" Link="Linked/ClockText.cs" />
     <Compile Include="../../src/Data/DeathPlan.cs" Link="Linked/DeathPlan.cs" />
     <Compile Include="../../src/Data/DeathProgress.cs" Link="Linked/DeathProgress.cs" />

@@ -152,7 +152,7 @@ namespace ForestOverlay.Data
 
         /// The run's load-removed time (Data/LoadTimes): "Load-removed time:
         /// 1:20.45 (1 load, 4.25 s)." - shown when the run had loads, or
-        /// `always` (the splits' LRT column is on); "" otherwise.
+        /// `always` ([Splits] ResultsLoadTimeAlways); "" otherwise.
         public static string LoadLine(float final, int loads, float loadTime, int timeDecimals, bool always)
         {
             if (float.IsNaN(final)) return "";

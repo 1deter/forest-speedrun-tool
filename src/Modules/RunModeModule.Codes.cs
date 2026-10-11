@@ -291,26 +291,38 @@ namespace ForestOverlay.Modules
             int size = Mathf.Clamp(Mathf.RoundToInt(_codeSize.Value), 16, 120);
             if (_codeStyle != null && _styleSize == size) return;
             _styleSize = size;
-            _codeStyle = new GUIStyle(GUI.skin.label);
+            if (_codeStyle == null)
+            {
+                // Built once (UiKit.Style keeps every style it makes); a size change only resizes.
+                _codeStyle = UiKit.Style(GUI.skin.label);
+                _codeStyle.fontStyle = FontStyle.Bold;
+                _codeStyle.alignment = TextAnchor.MiddleCenter;
+                _codeStyle.normal.textColor = Color.white;
+                _subStyle = UiKit.Style(GUI.skin.label);
+                _subStyle.alignment = TextAnchor.MiddleCenter;
+                _subStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+            }
             _codeStyle.fontSize = size;
-            _codeStyle.fontStyle = FontStyle.Bold;
-            _codeStyle.alignment = TextAnchor.MiddleCenter;
-            _codeStyle.normal.textColor = Color.white;
-            _subStyle = new GUIStyle(GUI.skin.label);
             _subStyle.fontSize = Mathf.Max(11, size / 3);
-            _subStyle.alignment = TextAnchor.MiddleCenter;
-            _subStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
             if (_boxStyle == null)
             {
-                _boxStyle = new GUIStyle(GUI.skin.box);
-                Texture2D bg = new Texture2D(1, 1);
-                bg.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.78f));
-                bg.Apply();
-                _boxStyle.normal.background = bg;
+                _boxStyle = UiKit.Style(UiKit.WidgetCard);   // the redesign's card
             }
         }
 
+        // Drawn in the scaled screen (T-0318), like the other HUD pieces.
+        private UiScale HudUi { get { return Host.Hud.Settings.Scale(); } }
+
         public override void DrawScreenAlways()
+        {
+            if (!Ctx.Run.Active) return;
+            if (Ctx.Run.Category != null && !Ctx.Run.Category.AntiSplice) return;
+            Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
+            try { DrawCodeBox(); }
+            finally { GUI.matrix = outer; }
+        }
+
+        private void DrawCodeBox()
         {
             if (!Ctx.Run.Active) return;
             // A category without the anti-splice codes: none on screen
@@ -320,27 +332,33 @@ namespace ForestOverlay.Modules
             float size = _styleSize;
             float w = Mathf.Max(size * 3.4f + 24f, _subStyle.CalcSize(_codeSub).x + 16f);
             float h = size * 1.25f + _subStyle.fontSize * 1.6f + 8f;
-            float px = _dragging ? _dragX : _codeX.Value;
-            float py = _dragging ? _dragY : _codeY.Value;
-            float x = px < 0f && !_dragging ? (Screen.width - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            float px = _dragging ? _dragX : HudUi.PosX(_codeX.Value);
+            float py = _dragging ? _dragY : HudUi.PosY(_codeY.Value);
+            float x = px < 0f && !_dragging ? (HudUi.VW - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, HudUi.VW - w));
+            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
             Rect box = new Rect(x, y, w, h);
             HandleCodeDrag(box, w);
 
             GUI.Box(box, GUIContent.none, _boxStyle);
-            if (_dragging) GUI.Box(box, GUIContent.none);
+            if (_dragging || HudEditing) GUI.Box(box, GUIContent.none, UiKit.Outline);
             GUI.Label(new Rect(x, y + 2f, w, size * 1.25f), _codeText, _codeStyle);
             GUI.Label(new Rect(x, y + size * 1.25f + 2f, w, _subStyle.fontSize * 1.6f), _codeSub, _subStyle);
         }
 
-        // Moved like the splits panel: drag it while the F2 window is open.
+        // Moved like every HUD piece: only in Edit HUD (author, 2026-10-11,
+        // T-0317: the F2 window alone moves nothing but itself).
+        private bool HudEditing
+        {
+            get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; }
+        }
+
         private void HandleCodeDrag(Rect box, float w)
         {
             Event e = Event.current;
             if (e == null) return;
             if (_main == null) _main = Host.Find<MainWindowModule>();
             MainWindowModule main = _main;
-            if (main == null || !main.PanelOpen)
+            if (main == null || !HudEditing)
             {
                 if (_dragging) EndCodeDrag(w);
                 return;
@@ -348,7 +366,7 @@ namespace ForestOverlay.Modules
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button != 0 || !box.Contains(e.mousePosition) || main.ScreenRect.Contains(e.mousePosition)) return;
+                    if (e.button != 0 || !box.Contains(e.mousePosition) || Host.Hud.Settings.Virtual(main.ScreenRect).Contains(e.mousePosition)) return;
                     _dragging = true;
                     _dragOffset = e.mousePosition - new Vector2(box.x, box.y);
                     _dragX = box.x;
@@ -372,8 +390,8 @@ namespace ForestOverlay.Modules
         private void EndCodeDrag(float w)
         {
             _dragging = false;
-            _codeX.Value = Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, Screen.width - w));
-            _codeY.Value = Mathf.Max(0f, _dragY);
+            _codeX.Value = HudUi.ToRefX(Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, HudUi.VW - w)));   // saved in reference pixels (T-0318)
+            _codeY.Value = HudUi.ToRefY(Mathf.Max(0f, _dragY));
             Ctx.Log.LogInfo("Run code moved to (" + Mathf.RoundToInt(_codeX.Value) + ", " + Mathf.RoundToInt(_codeY.Value) + ").");
         }
     }

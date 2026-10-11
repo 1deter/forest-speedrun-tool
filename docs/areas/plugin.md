@@ -36,22 +36,23 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels; matched by `Data/PositionKey`), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/RideModes` + `Data/RideState` (zipline, sled, glider, cliff climb: ended on Go / tp / restore, put back from the `ride` header, v0.24.201), `Game/BlueprintKeeper` + `Data/BlueprintState` (placed blueprints filled since rebuilt from the save, build HUD recounted, `blueprints` header, v0.24.203), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BreakableKeeper` (cave stalagmites broken since / at capture + their debris, `broken` header, T-0273), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/SlidingDoorKeeper` (the endgame's sliding doors incl. the elevator car door, `doors` header, v0.24.226), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Game/SceneCache` (the keepers' scene searches kept between restores, T-0148), `Game/WreckClearing` (the re-created plane wreck skips the crash clearing, T-0148), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its load options drawn in Settings > Loads and savestates via `DrawOptions`, the memory census in Developer via `DrawCensus`, T-0226), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels; matched by `Data/PositionKey`), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/RideModes` + `Data/RideState` (zipline, sled, glider, cliff climb: ended on Go / tp / restore, put back from the `ride` header, v0.24.201), `Game/BlueprintKeeper` + `Data/BlueprintState` (placed blueprints filled since rebuilt from the save, build HUD recounted, `blueprints` header, v0.24.203), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BreakableKeeper` (cave stalagmites broken since / at capture + their debris, `broken` header, T-0273), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/SlidingDoorKeeper` (the endgame's sliding doors incl. the elevator car door, `doors` header, v0.24.226), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Game/SceneCache` (the keepers' scene searches kept between restores, T-0148), `Game/WreckClearing` (the re-created plane wreck skips the crash clearing, T-0148), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary` (autosave: `Data/EditDebounce`, `Data/SafeFile`), `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | 2D map caves (site) | `scripts/cave-bake.py` -> `site/ForestSite/wwwroot/terrain/caves.webp` + `caves.json`, drawn by `wwwroot/map.js` underground |
 | Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`; `ItemChange` track), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`), `Game/PlayerStateReader` (5 Hz stats), `Game/ItemCounter` (carried items, event-driven) |
-| Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/RunHistory` (PB chance, total playtime, `runs/<id>/unfinished.txt`; tested), `Data/LssFile` (LiveSplit `.lss` parse / match / links, tested), `Modules/PracticeRunModule.LiveSplit.cs` (Runs tab: file per segment, match, Compare to -> LiveSplit), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
+| Splits panel (on screen; set up, moved and resized in Edit HUD mode via `OverlayModule.DrawHudEditor`, T-0257), runner identity (Runs tab > Upload) | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/RunHistory` (PB chance, total playtime, `runs/<id>/unfinished.txt`; tested), `Data/LssFile` (LiveSplit `.lss` parse / match / links, tested), `Modules/PracticeRunModule.LiveSplit.cs` (Runs tab: file per segment, match, Compare to -> LiveSplit), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
 | The autosplitter's other splits (caves, clothing, passengers, starts) | `Game/WorldEvents` (polls the ASL's fields; events via `GameEvents.RecordWorld`), editor picker groups in `Modules/PracticeModule` |
-| Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
-| Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
+| Reload on death / practice revive | `Modules/DeathModule` (Deaths tab; one choice, the fallback is always a reload - T-0226), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
+| Views (was Debug views), freecam, volume filters | `Modules/DebugViewModule` (also draws Settings > Performance and Developer's Benchmarks / Experimental folds), `Game/DebugDraw`, `Data/VolumeFilter` |
 | TAS input record / replay (experimental, practice only) | `Modules/TasModule` (no tab: the Runs tab draws its section; `[TAS]` config; hotkeys `tas.stop` = `]`, `tas.record`, `tas.replayLatest`), `Game/TasInput` (Harmony postfixes on `TheForest.Utils.Input` via `Game/InputInject`: records what the game read each frame, replays by replacing the results; frame-rate lock with `Time.captureFramerate`), `Data/TasRecording` (`.tas` text in `runs/<id>/inputs/`, changes only; tested) |
-| Paint (practice mode only, T-0219) | `Modules/PaintModule` (hold keys `paint.paint` Mouse 4 / `paint.erase` Mouse 5, `paint.undo` X; the aiming cross; per-spot files `config/ForestOverlay/paint/<spot id>.txt`; Settings -> Paint: swatches, size, Undo, Clear all), `Game/PaintDraw` (crosshair raycast, discs + ribbons as chunked meshes in the late pass, palette made linear), `Data/PaintSet` (dots, strokes, erase, undo, file; tested) |
-| Trajectory preview (experimental, practice only) | `Modules/DebugViewModule` (switch in Debug views, hotkey `debug.trajectory`, HUD `Flight` / `Boost` lines), `Game/TrajectoryView` (10 Hz, reads the player's flight numbers, capsule sweeps, GL lines), `Data/Trajectory` (the physics step and knockback maths; tested) |
-| Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Debug views switch), `Game/RestoreGarbage` + `Data/StepBytes` (a Quick load's garbage per step in its log line while the tracker counts, T-0202), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Debug views), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only), `Game/FrameTimer` + `Data/FrameTimeline` (`Frame (30 s):` line: waiting vs scripts vs each camera; tested), `Game/RenderProbe` (bridge: what a camera draws, who reads a texture), `Game/CameraTrim` (cameras that drew for nothing), `Core/StallWatch` (`Stall:` lines: a background thread names the hook / module / tab the main thread was in when it stopped for 10 s, also into `logs/stall.log` during the hang; T-0284) |
+| Paint (practice mode only, T-0219) | `Modules/PaintModule` (hold keys `paint.paint` Mouse 4 / `paint.erase` Mouse 5, `paint.undo` X; the aiming cross; per-spot files `config/ForestOverlay/paint/<spot id>.txt`; Settings > Paint fold: swatches, size, Undo, Clear all), `Game/PaintDraw` (crosshair raycast, discs + ribbons as chunked meshes in the late pass, palette made linear), `Data/PaintSet` (dots, strokes, erase, undo, file; tested) |
+| Trajectory preview (experimental, practice only) | `Modules/DebugViewModule` (switch in Developer > Experimental, hotkey `debug.trajectory`, HUD `Flight` / `Boost` lines), `Game/TrajectoryView` (10 Hz, reads the player's flight numbers, capsule sweeps, GL lines), `Data/Trajectory` (the physics step and knockback maths; tested) |
+| Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Developer > Benchmarks), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Developer > Benchmarks), `Game/RestoreGarbage` + `Data/StepBytes` (a Quick load's garbage per step in its log line while the tracker counts, T-0202), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Settings > Performance; the experimental ones in Developer > Experimental), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only), `Game/FrameTimer` + `Data/FrameTimeline` (`Frame (30 s):` line: waiting vs scripts vs each camera; tested), `Game/RenderProbe` (bridge: what a camera draws, who reads a texture), `Game/CameraTrim` (cameras that drew for nothing), `Core/StallWatch` (`Stall:` lines: a background thread names the hook / module / tab the main thread was in when it stopped for 10 s, also into `logs/stall.log` during the hang; T-0284) |
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
+| Network switches (what is asked online by itself) | `Core/NetworkSwitches` (`Network.CheckAtStartup`, `Network.RefreshAutomatically`; T-0326), Settings > Network; every automatic request checks one, each list has a Check now when refresh is off |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Logs in the inventory (gameplay mod) | `Game/LogStore` (patches + transpiled holder / repair reads; `logs` savestate header), Inventory tab (`Modules/InventoryModule`: toggle, cap, HUD `Logs n / cap`); game-notes *Logs* |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
@@ -76,8 +77,18 @@ identity.
 scale. Per-feature keys still exist and are rebindable, but they open the
 window on that tab and are **unbound by default**.
 
-Tabs: Practice, Runs, Deaths, Debug views, Inventory, 100%, Settings,
-QA, Updates. The type explorer keeps its own window (`F10`) — it needs the
+Tabs: Practice, Map, Runs, Inventory, 100%, Deaths, Views, Settings,
+QA, Updates, Developer. **Developer** (`Modules/DeveloperModule`, last) holds
+what a run never needs - test bridge, benchmarks, experimental features,
+TAS, memory census, dumps, and the developer-only keys (dumps, type
+explorer, TAS, QA; drawn by Settings, T-0263) - each fold drawn by the
+module that owns it (T-0226). Settings is one page of folds: Keys, HUD,
+Performance, Loads and savestates; its key list and HUD values sit under
+short headings (`Data/KeyGroups`, `HudLines.HeadingAt`, T-0263). **One setting, one feature** (T-0253): Settings > HUD
+puts the HUD-wide options (compact, text size, position) above the values
+(T-0018: no info box - a column of values, placed values, orange flags); Runs keeps the run lines' options under *Run lines* (shown
+only while on) and the ghost's switch + an opacity for the ghost and replay
+under *Ghost and replay*; the results panel has its own load-time choice. The QA tab goes at the public release. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
 
 While the window is open the player is held (`LockView`) and the game's key
@@ -89,7 +100,7 @@ Settings shows *Game input: blocked* when that is working.
 | `F2` | Open the ForestOverlay window |
 | `F5` | Show / hide **all** overlay UI |
 | `F6` | Save spot here |
-| `F7` | Restart the current spot (restores its start state, if it has one) |
+| `F7` | Restart the selected spot (restores its start state, if it has one; a timed segment turns practice mode on) |
 | `F9` | Practice mode on / off |
 | `F10` | Type explorer |
 | `F11` | Write dumps |
@@ -98,10 +109,11 @@ Settings shows *Game input: blocked* when that is working.
 | `Keypad *` | Freecam |
 | `Mouse 4` / `Mouse 5` (hold) | Paint / erase paint (practice mode) |
 | `X` | Undo the last paint stroke (practice mode) |
-| *(unbound)* | info box only; each tab |
+| *(unbound)* | HUD values only; each tab |
 
 `F1` is deliberately free — the game's own dev console uses it.
-All keys are rebindable in **Settings**, or in
+All keys are rebindable in **Settings** (the developer keys in
+**Developer > Keys**), or in
 `BepInEx/config/com.deter.forestoverlay.cfg`.
 
 ## What works
@@ -123,7 +135,8 @@ self-installing updates **with a changelog in the Updates tab**, a
 **memory census on every load**, offline IL
 scanner, the live test bridge with its **MCP server** (drive the game,
 screenshots, logs, restart / update the game) and the **QA Discord bot**;
-a **LiveSplit-style splits table** (every column toggleable, Compare to:
+a **LiveSplit-style splits panel** on screen (every column toggleable, set
+up and sized in Edit HUD mode; Compare to:
 PB / best segments / another runner / a LiveSplit file), the autosplitter's
 events, one-click `.lss` import, run uploads to **forest.deter.cloud**
 (spots, runs, comparisons, photo map, 3D world), gameplay mods (god mode,

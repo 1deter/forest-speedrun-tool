@@ -54,7 +54,6 @@ namespace ForestOverlay.Data
         public bool FullLoad;          // ... restored with a load
         public bool PracticeOn;        // practice mode (F9)
 
-        public bool ReloadOn;          // "Reload save on death"
         public bool ReloadOnCapture;   // "Also on the first death"
         public bool ReloadInBoss;      // "Also in the boss fight"
         public bool SlotKnown;         // a save slot to reload
@@ -165,18 +164,15 @@ namespace ForestOverlay.Data
         }
 
         // Step 2 and 3. `chosen` (the why) when the reload was picked
-        // outright: the main toggle does not matter then, its first-death /
-        // boss toggles do. `instead`: why the runner's choice did not apply.
+        // outright; otherwise the reload is the fallback when no spot
+        // applies (T-0226: no separate on / off toggle any more). The
+        // first-death / boss toggles apply either way. `instead`: why the
+        // runner's choice did not apply.
         private static DeathDecision Reload(DeathSituation s, string chosen, string instead)
         {
             string lead = instead != null ? instead + "; " : "";
-            bool want = s.ReloadForced || (!s.ReloadLocked && (chosen != null || s.ReloadOn));
-            if (!want)
-            {
-                if (s.ReloadLocked && (chosen != null || s.ReloadOn))
-                    return Game(s, lead + "run mode: the run's category locks Reload save on death");
-                return Game(s, lead + "Reload save on death is off");
-            }
+            if (s.ReloadLocked && !s.ReloadForced)
+                return Game(s, lead + "run mode: the run's category locks Reload save on death");
 
             if (s.Kind == DeathCase.PermaDeath)
                 return Game(s, lead + "permadeath: the game deletes the save, nothing to reload");
@@ -187,12 +183,13 @@ namespace ForestOverlay.Data
             if (!s.SlotKnown)
                 return Game(s, lead + "no save slot to reload");
 
-            string why = chosen ?? (s.ReloadForced ? "the run's category forces Reload save on death"
-                                                   : "Reload save on death is on");
+            string why = chosen ?? (s.ReloadForced ? lead + "the run's category forces Reload save on death"
+                                                   : instead ?? "no spot applies");
+            if (chosen != null) why = lead + chosen;
             string what = !s.ReloadInPlace ? "reloads your save (the game's own load)"
                         : s.RunActive ? "reloads your save (the game's own load - run mode never reloads in place)"
                         : "reloads your save in place (a Quick load of the slot's save; marks practice)";
-            return Make(DeathOutcome.ReloadSave, what, lead + why);
+            return Make(DeathOutcome.ReloadSave, what, why);
         }
 
         /// Null when a reload can be done in place (the slot's save restored

@@ -54,6 +54,7 @@ namespace ForestOverlay.Core
 
         private bool _active;
         private bool _hadLockedCursor = true;
+        private bool _hadPauseMenu;
 
         public CursorController(ManualLogSource log)
         {
@@ -113,6 +114,7 @@ namespace ForestOverlay.Core
             if (!_active)
             {
                 _hadLockedCursor = ReadGameLocked();
+                _hadPauseMenu = MenuClose.PauseMenuOpen();
                 _active = true;
             }
 
@@ -148,8 +150,14 @@ namespace ForestOverlay.Core
             if (_isMouseLockedProp != null)
             {
                 // Restore whatever the game had before we interfered, so
-                // closing a panel in a menu does not re-lock the pointer.
-                if (_hadLockedCursor) WriteGameLocked(true);
+                // closing a panel in a menu does not re-lock the pointer -
+                // unless the pause menu opened or closed while we held the
+                // mouse (T-0024, author: F2, Esc, F2 left the pause menu
+                // with no cursor - the snapshot said "locked"). The game's
+                // own pause open frees the mouse and its close locks it.
+                bool pauseNow = MenuClose.PauseMenuOpen();
+                bool relock = pauseNow ? false : (_hadPauseMenu || _hadLockedCursor);
+                if (relock) WriteGameLocked(true);
                 return;
             }
 

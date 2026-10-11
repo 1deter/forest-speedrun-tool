@@ -74,6 +74,12 @@ CREATE TABLE IF NOT EXISTS admins (
 CREATE TABLE IF NOT EXISTS admin_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, admin TEXT NOT NULL, action TEXT NOT NULL,
   status INTEGER NOT NULL, at TEXT NOT NULL);");
+        // Runs from a session with ModAPI mods loaded carry the mark (T-0295).
+        if (!HasColumn(c, "runs", "modapi"))
+            Exec(c, "ALTER TABLE runs ADD COLUMN modapi INTEGER NOT NULL DEFAULT 0;");
+        // And the names of any other mods seen (T-0308); '' = none.
+        if (!HasColumn(c, "runs", "mods"))
+            Exec(c, "ALTER TABLE runs ADD COLUMN mods TEXT NOT NULL DEFAULT '';");
         if (!HasColumn(c, "submissions", "start_state"))
             Exec(c, "ALTER TABLE submissions ADD COLUMN start_state INTEGER NOT NULL DEFAULT 0;");
     }
@@ -221,15 +227,15 @@ ON CONFLICT(id) DO UPDATE SET token_hash = $hash, name = $name WHERE runners.tok
     /// Stores one run; the id of the stored run (the existing one for a
     /// re-upload of the same attempt), and whether it was new.
     public (long id, bool added) AddRun(string segmentId, string route, string runnerId, string runnerName,
-                                        float duration, float[] splits, DateTime recorded, string text, bool flagged)
+                                        float duration, float[] splits, DateTime recorded, string text, bool flagged, bool modApi = false, string mods = "")
     {
         using var c = Open();
         using var tx = c.BeginTransaction();
         using var cmd = c.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = @"
-INSERT INTO runs (segment_id, route, runner_id, runner_name, duration, splits, recorded, uploaded, flagged)
-VALUES ($s, $r, $rid, $rn, $d, $sp, $rec, $now, $f)
+INSERT INTO runs (segment_id, route, runner_id, runner_name, duration, splits, recorded, uploaded, flagged, modapi, mods)
+VALUES ($s, $r, $rid, $rn, $d, $sp, $rec, $now, $f, $m, $mods)
 ON CONFLICT DO NOTHING RETURNING id";
         cmd.Parameters.AddWithValue("$s", segmentId);
         cmd.Parameters.AddWithValue("$r", route);
@@ -240,6 +246,8 @@ ON CONFLICT DO NOTHING RETURNING id";
         cmd.Parameters.AddWithValue("$rec", recorded.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture));
         cmd.Parameters.AddWithValue("$now", Now());
         cmd.Parameters.AddWithValue("$f", flagged ? 1 : 0);
+        cmd.Parameters.AddWithValue("$m", modApi ? 1 : 0);
+        cmd.Parameters.AddWithValue("$mods", mods ?? "");
         object id = cmd.ExecuteScalar();
 
         if (id == null)

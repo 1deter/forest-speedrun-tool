@@ -337,12 +337,9 @@ namespace ForestOverlay.Modules
 
             string state;
             if (Ctx.Run.Active)
-                state = "Run mode: ON - attempt " + Ctx.Run.Attempt + (Ctx.Run.Started.Length > 0 ? " (" + Ctx.Run.Started + ")" : "") +
-                        ". Practice features are locked until the run ends. During a run the window opens over the pause menu (ESC) only.";
+                state = "Run mode: ON - attempt " + Ctx.Run.Attempt + (Ctx.Run.Started.Length > 0 ? " (" + Ctx.Run.Started + ")" : "");
             else
-                state = "Run mode: off - Restart on a run spot (a spot with a run category) starts a run. " +
-                        "For a category with no run spot: Start run mode, then reset as usual." +
-                        (Ctx.Run.EndedWhy.Length > 0 ? " Last run mode ended: " + Ctx.Run.EndedWhy + "." : "");
+                state = "Run mode: off" + (Ctx.Run.EndedWhy.Length > 0 ? " (ended: " + Ctx.Run.EndedWhy + ")" : "");
             if (confirming) state += "\nClick End run mode again to unlock practice (a run in progress stops counting).";
             _stateText.text = state;
 
@@ -353,10 +350,18 @@ namespace ForestOverlay.Modules
                                  (moves.Length > 0 ? "\n" + moves : "");
         }
 
+        // The explanations live in tooltips (author, 2026-10-05: name + toggle, the rest on hover).
+        private static readonly GUIContent TipOff = new GUIContent(
+            "Restart on a run spot (a spot with a run category) starts a run. For a category with no run spot: Start run mode, then reset as usual.");
+        private static readonly GUIContent TipOn = new GUIContent(
+            "Practice features are locked until the run ends. During a run the window opens over the pause menu (ESC) only.");
+
         /// The Runs tab's section; returns the new y.
         public float DrawSection(float y, float w)
         {
-            y += UiText.Draw(0, y, w, _stateText);
+            float h = UiText.Draw(0, y, w, _stateText);
+            UiKit.Hint(new Rect(0, y, w, h), Ctx.Run.Active ? TipOn : TipOff);
+            y += h;
             y = DrawCategories(y + 2f, w);
             if (Ctx.Run.Active)
             {

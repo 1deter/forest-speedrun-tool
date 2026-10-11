@@ -95,7 +95,7 @@ LiveSplit, uploads.
 
 ### Practice
 
-Paths: `src/Modules/{PracticeModule,DeathModule,PaintModule}.cs` `src/Game/PaintDraw.cs` `src/Data/PaintSet.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,EditDebounce,HeldReport,ItemCaps,LocationLibrary,SafeFile,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
+Paths: `src/Modules/{PracticeModule,DeathModule,PaintModule}.cs` `src/Game/PaintDraw.cs` `src/Data/PaintSet.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,EditDebounce,HeldReport,ItemCaps,LocationLibrary,SafeFile,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,StartStrip,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
 
 Spots and their editor, teleports, Go / Restart, death reload and revive,
 sharing and community packs, the gameplay mods ("ON NOW").
@@ -110,7 +110,7 @@ sharing and community packs, the gameplay mods ("ON NOW").
 
 ### Run mode
 
-Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,MoveDetector,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `docs/run-mode.md`
+Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,ExternalModWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,ExternalMods,MoveDetector,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `docs/run-mode.md`
 
 - Verification **A**: MoveDetector (36 + 21 physics), RunAudit,
   RunCategory, RunReport, AttemptChain; the e2e `runmode` journey;
@@ -125,7 +125,7 @@ Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs`
 
 ### Information tabs
 
-Paths: `src/Modules/{CollectiblesModule,InventoryModule,MapModule,RunInfoModule}.cs` `src/Game/{DrawingsReader,InventoryReader,MapRelief,NatureGuideReader,PassengerReader,PlaneSite,SurvivalBookReader}.cs` `src/Data/{CollectionList,HudLines,MapView,ReliefImage}.cs` `collectibles/`
+Paths: `src/Modules/{CollectiblesModule,InventoryModule,MapModule,RunInfoModule}.cs` `src/Game/{DrawingsReader,InventoryReader,MapRelief,NatureGuideReader,PassengerReader,PlaneSite,SurvivalBookReader}.cs` `src/Data/{CollectionList,HudLines,InventoryFilter,MapView,ReliefImage}.cs` `collectibles/`
 
 HUD readouts, inventory, the 100% checklist, nature guide, To Do list,
 the Map tab.
@@ -138,7 +138,7 @@ the Map tab.
 
 ### Plugin core and UI
 
-Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CursorController,HotkeyMap,HudBuilder,HudSettings,Lifecycle,ModuleContext,ModuleHost,Notice,OverlayModule,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{PageGrouping,TextMemo}.cs` `ForestOverlay.csproj`
+Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CursorController,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{FolderStamp,KeyText,KeyGroups,HudTrend,HudLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,UiPalette,UiScale}.cs` `ForestOverlay.csproj`
 
 The module host, window and tabs, hotkeys, cursor, input block, HUD
 builder, notice, settings, the reflection helpers.
@@ -188,7 +188,7 @@ Paths: `src/Modules/TasModule.cs` `src/Game/{TasInput,TrajectoryView}.cs` `src/D
 
 ### Dev tools
 
-Paths: `src/Modules/{DebugViewModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/{VolumeFilter,DumpText}.cs` `tools/ILScan/` `tests/ILScan.Tests/`
+Paths: `src/Modules/{DebugViewModule,DeveloperModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/{VolumeFilter,DumpText}.cs` `tools/ILScan/` `tests/ILScan.Tests/`
 
 Debug views and freecam, the explorer, dumps, the FSM / terrain / world
 exports, the offline IL scanner.

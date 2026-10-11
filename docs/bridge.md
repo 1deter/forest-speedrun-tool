@@ -18,7 +18,7 @@ them after.
 ## The live test bridge (v0.24.13)
 
 Dynamic analysis: the running game answers questions from here. Off by
-default; the author ticks **Settings -> Test bridge** (or
+default; the author ticks **Developer -> Test bridge** (or
 `[Diagnostics] TestBridge = true`, persists). The plugin polls
 `BepInEx/config/ForestOverlay/bridge/in.txt`, runs one line a frame on
 the main thread (a waiting command holds the queue, so a batch reads as

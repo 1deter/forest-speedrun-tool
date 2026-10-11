@@ -8,9 +8,13 @@ concept before changing its feature. Where the code lives:
 
 - **Spots and segments are one thing.** Every Practice entry is somewhere to
   teleport; tick "Timed segment" and it gains start/end triggers and
-  checkpoints. There is no separate "anchor". **F7 restarts the *current*
-  spot** (the last one teleported to or captured on), not the editor's
-  selection.
+  checkpoints. There is no separate "anchor". **F7 and the Runs tab's
+  Restart follow the selection** (author, 2026-10-10, T-0256): the spot
+  selected in the list when it was selected after the last placement,
+  else the *current* spot (the last one teleported to, restarted or
+  captured on). Go on a list row selects that row too (T-0271), so the
+  strip, F7 and the HUD's Spot line name one spot. A death's restart and
+  the auto-restart stay on the current spot.
 - **Editor edits save themselves** (T-0217): an edit marks its entry
   *(unsaved)* and is written to its local file once the edits pause
   (1 s quiet, at most 5 s - `Data/EditDebounce`), or at once on selecting
@@ -22,8 +26,16 @@ concept before changing its feature. Where the code lives:
   is reported once (`Data/HeldReport`). Nothing is uploaded by an edit.
 - **One button, one job** (author, v0.22.0: "buttons shouldn't have
   double-purposes"). **Go only teleports**, start state or not. Restoring
-  is **Restart**: F7, the Runs tab's Restart, a death revive, and the
-  *Restart* button on the editor's Start state row.
+  is **Restart**: F7, the Runs tab's Restart, a death revive, the
+  *Restart* button on the editor's Start state row and the Practice tab's
+  **start strip** (T-0256: pinned on top for the selected spot, with a
+  copy of the Practice mode toggle and the spot's run state).
+- **A runner's Restart on a timed segment turns practice mode on**
+  (author, 2026-10-10, T-0256) and says so under the button (on screen
+  with the window closed; log `Run '<id>': practice mode turned on by
+  Restart.`): a timed segment starts in two clicks, select + Restart.
+  Go, a death's restart and the auto-restart never turn it on; a run
+  spot's Restart is run mode's to time (`Data/RunTiming`).
 - **TAS record / replay is inputs, not positions** (experimental, practice
   only). Record (Runs tab, or every timed run with `[TAS] RecordTimedRuns`)
   restarts the current spot and, from the frame after the player is placed
@@ -40,7 +52,7 @@ concept before changing its feature. Where the code lives:
   `]`. Run mode refuses it (feature `tas`, not in any category). Log prefix
   `TAS:`.
 - **The trajectory preview predicts a let-go flight and only reads the
-  game** (experimental, Debug views switch, off at every launch, practice
+  game** (experimental, Developer tab switch, off at every launch, practice
   marked; run mode refuses it unless a category allows feature
   `trajectory`). Ten times a second it steps the player's live velocity with
   the game's gravity (Physics -16 plus the controller's 10), the 55 m/s cap
@@ -86,8 +98,10 @@ concept before changing its feature. Where the code lives:
      death"; a load-mode state = a full load per death);
   2. practice mode on + a current spot → **revive** at the spot (health
      100, blood cleared, no reload, marks practice);
-  3. otherwise **Reload save on death** (was "quick-load"; toggle, on;
-     config keys still `QuickLoad*`) — every death, the first-death
+  3. otherwise **the save reloads** (was "quick-load"; the separate
+     *Reload save on death* toggle went in T-0226 - the game's own death is
+     its own choice; config keys still `QuickLoad*`, `QuickLoadOnDeath` no
+     longer read) — every death, the first-death
      capture and the boss-fight wake-up each with their own toggle (both on;
      the boss toggle is the author's call). Never permadeath or multiplayer.
   The reload **skips the title screen** by default (`QuickLoadSkipMenu`,
@@ -139,8 +153,8 @@ concept before changing its feature. Where the code lives:
   lists that folder; the same id = the same original (a second click
   replaces). Community packs: the repo's `community/*.foseg` +
   `index.txt` (hash per file, `scripts/community-index.py`; CI checks
-  it), fetched from raw.githubusercontent 5 s after startup and on
-  *Check community now*; written to `segments/community.txt`, shown
+  it), fetched from raw.githubusercontent 5 s after startup and when
+  the Practice tab's Import view opens (at most every 10 min, T-0254); written to `segments/community.txt`, shown
   under **Community**, read-only (Duplicate = own copy, start state
   included); the runner's ids win; attempts ignored.
   **Website spots** (Import view, `CommunityModule.Website`) carry the
@@ -175,7 +189,7 @@ concept before changing its feature. Where the code lives:
   **route fingerprint**, so moving a zone retires old times instead of
   letting them compete. Lines are cleared when the current entry is a plain
   spot or another segment.
-- **Loads and memory** (Debug views, bottom; drawn by `SavestateModule.DrawOptions`): `Game/LoadWatcher`
+- **Loads and memory** (Settings > Loads and savestates via `SavestateModule.DrawOptions`; the census in Developer via `DrawCensus`): `Game/LoadWatcher`
   sees every load by `Scene.FinishGameLoad`; 1.5 s later `Game/MemoryCensus`
   logs the heap, destroyed Unity objects still reachable from statics (per
   root, with growth) and Unity objects by type (switch

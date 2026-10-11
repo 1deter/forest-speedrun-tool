@@ -7,6 +7,30 @@ namespace ForestOverlay.Tests
     public class HudLinesTests
     {
         [Fact]
+        public void MarkerPutsTheModApiFlagFirst()
+        {
+            Assert.Equal("", HudLines.Marker(false, null, null));
+            Assert.Equal("teleport", HudLines.Marker(false, null, "teleport: Cave 5 (top)"));
+            Assert.Equal("RUN MODE - attempt 1", HudLines.Marker(false, "RUN MODE - attempt 1", "teleport: x"));
+            // Sticky: shown while clean too, above the tool or run mode's line.
+            Assert.Equal("ModAPI", HudLines.Marker(true, null, null));
+            Assert.Equal("ModAPI\nteleport", HudLines.Marker(true, null, "teleport: Cave 5 (top)"));
+            // In run mode the run line says it (NOT VALID: ModAPI Detected): once, not twice.
+            Assert.Equal("RUN MODE - attempt 1 - NOT VALID: ModAPI Detected",
+                HudLines.Marker(true, "RUN MODE - attempt 1 - NOT VALID: ModAPI Detected", null));
+        }
+
+        [Fact]
+        public void ShortReasonIsTheToolsName()
+        {
+            Assert.Equal("test bridge", HudLines.ShortReason("test bridge: screenshot"));
+            Assert.Equal("savestate restore", HudLines.ShortReason("savestate restore (load)"));
+            Assert.Equal("teleport", HudLines.ShortReason("teleport: Cave 5 (top)"));
+            Assert.Equal("no blood, no stagger", HudLines.ShortReason("no blood, no stagger"));
+            Assert.Equal("", HudLines.ShortReason(null));
+        }
+
+        [Fact]
         public void FindsLinesByModuleAndLabel()
         {
             Assert.Equal("Speed", HudLines.All[HudLines.Find("runinfo", "Speed")].Name);
@@ -44,14 +68,32 @@ namespace ForestOverlay.Tests
             HashSet<string> keys = new HashSet<string>();
             foreach (HudLine l in HudLines.All)
             {
-                if (!l.Switchable) continue;
+                if (l.Locked) continue;
+                // Every value has a layout key (T-0018: the 100% totals too).
                 Assert.True(keys.Add(l.ConfigKey), l.ConfigKey);
+                if (!l.Switchable) continue;
                 // Lines added after the HUD settings are opt-in.
-                Assert.Equal(l.ConfigKey != "ShowLoadRemoved", l.DefaultOn);
+                Assert.Equal(l.ConfigKey != "ShowLoadRemoved" && l.ConfigKey != "ShowTotalSpeed", l.DefaultOn);
                 Assert.False(string.IsNullOrEmpty(l.Description));
             }
             Assert.True(HudLines.IndexOfKey("ShowTitle") >= 0);
             Assert.Equal(-1, HudLines.IndexOfKey("Nope"));
+        }
+
+        [Fact]
+        public void OnlyTheSpeedsOfferTheTrendColour()
+        {
+            Assert.True(HudLines.All[HudLines.IndexOfKey("ShowSpeed")].Trend);
+            Assert.True(HudLines.All[HudLines.IndexOfKey("ShowTotalSpeed")].Trend);
+            int offered = 0;
+            for (int i = 0; i < HudLines.All.Length; i++)
+            {
+                if (!HudLines.All[i].Trend) continue;
+                offered++;
+                Assert.NotNull(HudLines.All[i].ConfigKey);   // kept in the layout by its key
+                Assert.False(HudLines.All[i].Locked);
+            }
+            Assert.Equal(2, offered);
         }
 
         [Fact]
@@ -68,8 +110,8 @@ namespace ForestOverlay.Tests
         [Fact]
         public void CompactValuesUseFewerWords()
         {
-            Assert.Equal("4.20 u/s   (tot 5.00)", HudLines.Speed(4.2f, 5f, false));
-            Assert.Equal("4.20 (5.00)", HudLines.Speed(4.2f, 5f, true));
+            Assert.Equal("4.20", HudLines.Speed(4.2f, false));
+            Assert.Equal("4.20", HudLines.Speed(4.2f, true));
             Assert.Equal("12   (3 stacks)", HudLines.Items(12, 3, false));
             Assert.Equal("12", HudLines.Items(12, 3, true));
             Assert.Equal("1.5, -2.0, 0.3", HudLines.Vector(1.5f, -2f, 0.26f, 1));

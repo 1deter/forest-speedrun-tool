@@ -295,6 +295,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         private void ToggleMode()
         {
+            _turnedOnByRestart = false;   // F9 since: the Restart's words no longer apply
             Enabled = !Enabled;
             if (_practiceModeCfg != null && _practiceModeCfg.Value != Enabled) _practiceModeCfg.Value = Enabled;
 
@@ -321,6 +322,35 @@ namespace ForestOverlay.Modules
 
             _status = "on - go to a timed segment in Practice";
             OnPlacedAtSpot();
+        }
+
+        /// The Practice tab's copy of the toggle (its start strip, T-0256).
+        public void TogglePracticeMode() { ToggleMode(); }
+
+        /// A runner's Restart on a timed segment with practice mode off
+        /// (Modules/PracticeModule, T-0256): on, without arming here - the
+        /// restart's placement arms it at the spot. Never reached in run
+        /// mode (its Restart of a plain spot is refused, a run spot is run
+        /// mode's to time - Data/RunTiming).
+        public void TurnOnForRestart(Segment s)
+        {
+            if (Enabled) return;
+            Enabled = true;
+            if (_practiceModeCfg != null && !_practiceModeCfg.Value) _practiceModeCfg.Value = true;
+            _status = "practice mode turned on by Restart - '" + s.Name + "' is timed";
+            _turnedOnByRestart = true;
+            Ctx.Log.LogInfo("Run '" + s.Id + "': practice mode turned on by Restart.");
+        }
+
+        // Set by TurnOnForRestart, said and cleared by the arming that follows.
+        private bool _turnedOnByRestart;
+
+        /// The run's state for this spot, Idle when the armed run is
+        /// another spot's or nothing times it (the start strip).
+        public RunRecorder.RunState StateFor(Segment s)
+        {
+            if (s == null || !ReferenceEquals(s, _segment) || !Timing) return RunRecorder.RunState.Idle;
+            return _recorder.State;
         }
 
         /// Called when the player is placed at the current entry.
@@ -420,7 +450,10 @@ namespace ForestOverlay.Modules
             _lssDirty = true;   // re-read the linked file if it changed
             SelectReference();
             ArmSplits();
-            _status = "armed: " + _segment.Name;
+            // Said where a Runs tab Restart was clicked (T-0270): this line
+            // replaces the "turned on" one before anyone reads it.
+            _status = (_turnedOnByRestart ? "practice mode turned on - " : "") + "armed: " + _segment.Name;
+            _turnedOnByRestart = false;
             Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed after " + cause + " (start: " + _segment.Start.Describe() + ").");
         }
 
@@ -763,7 +796,7 @@ namespace ForestOverlay.Modules
         }
 
         /// A running attempt about to be dropped: its line stays as the
-        /// failed one (Runs -> Line options).
+        /// failed one (Runs -> Run lines -> Keep the last unfinished run's line).
         private void KeepFailed()
         {
             if (_recorder.State != RunRecorder.RunState.Running || _recorder.Current == null) return;
@@ -971,7 +1004,13 @@ namespace ForestOverlay.Modules
             // Lines belong to the selected entry only when it is the one
             // being run (author, 2026-09-24): selecting another entry hid
             // its zones but left this segment's line drawn.
-            _lines.Show = (_showLines || _camOn) && Enabled &&
+            // Each drawing follows its own feature's settings (T-0253): your
+            // lines and the comparison's during a run the run lines', the
+            // ghost its switch, and while the replay camera plays the
+            // comparison line and ghost the replay's (always shown there).
+            bool running = _recorder.State == RunRecorder.RunState.Running;
+            bool ghostOn = _camOn || (_ghostCfg.Value && running);
+            _lines.Show = (_showLines || ghostOn) && Enabled &&
                           (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
             if (!_lines.Show) return;
 
@@ -984,30 +1023,34 @@ namespace ForestOverlay.Modules
             }
             _lines.ReferenceLine = _referenceLine.Points;
             _lines.ReferenceStart = 0;
-            _lines.ReferenceCount = _referenceLine.Count;
+            _lines.ReferenceCount = _camOn || _showLines ? _referenceLine.Count : 0;
             _lines.Opacity = LineOpacity;
-            if (_lineAheadOn.Value)
+            _lines.ReferenceOpacity = _camOn ? ReplayOpacity : LineOpacity;
+            _lines.GhostOpacity = ReplayOpacity;
+            if (!_camOn && _showLines && _lineAheadOn.Value)
             {
                 // Only the next few seconds of the comparison (author, QA
                 // 2026-09-26): from where its ghost is now, or its start.
-                float from = _camOn ? _clock.T : _recorder.State == RunRecorder.RunState.Running ? _recorder.Elapsed : 0f;
+                // The replay camera shows the whole line (its trajectory
+                // view frames the stretch it is on).
+                float from = running ? _recorder.Elapsed : 0f;
                 int s, e;
                 _referenceLine.Window(from, from + LineAhead, out s, out e);
                 _lines.ReferenceStart = s;
                 _lines.ReferenceCount = e;
             }
 
-            Attempt current = _recorder.Current;
+            Attempt current = _showLines ? _recorder.Current : null;
             if (current == null) _currentLine.Clear();
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;
             _lines.CurrentCount = _currentLine.Count;
             _lines.FailedLine = _failedLine.Points;
-            _lines.FailedCount = _keepFailedCfg.Value ? _failedLine.Count : 0;
+            _lines.FailedCount = _showLines && _keepFailedCfg.Value ? _failedLine.Count : 0;
 
             _lines.HasGhost = false;
             if (_reference != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
-            else if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
+            else if (_reference != null && ghostOn)
             {
                 Vector3 ghost;
                 if (RunCompare.PositionAt(_reference.Samples, _reference.Duration, _recorder.Elapsed,
@@ -1147,28 +1190,36 @@ namespace ForestOverlay.Modules
 
             if (_rowStyle == null)
             {
-                _rowStyle = new GUIStyle(GUI.skin.label);
+                _rowStyle = UiKit.Style(GUI.skin.label);
                 _rowStyle.alignment = TextAnchor.MiddleLeft;
             }
 
             float w = _tabW;
 
-            bool on = GUI.Toggle(new Rect(0, 2, 140, 20), Enabled, " Practice mode");
+            // --- the essentials, always in view ----------------------------------
+            Rect modeR = new Rect(0, 2, 140, 22);
+            bool on = UiKit.Toggle(modeR, Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
+            UiKit.Hint(modeR, TipPracticeMode);
+            GUI.Label(new Rect(150, 2, w - 160, 22), _segmentText);
 
-            GUI.Label(new Rect(150, 2, w - 160, 20), _segmentText);
+            Rect restartR = new Rect(0, 30, 110, 26);
+            if (UiKit.PrimaryButton(restartR, TextRestart)) Restart();
+            UiKit.Hint(restartR, TipRestart);
+            Rect splitR = new Rect(116, 30, 120, 26);
+            if (GUI.Button(splitR, "Split / finish")) ManualAdvance();
+            UiKit.Hint(splitR, TipSplit);
+            Rect abortR = new Rect(242, 30, 80, 26);
+            if (GUI.Button(abortR, "Abort")) AbortRun();
+            UiKit.Hint(abortR, TipAbort);
 
-            if (GUI.Button(new Rect(0, 28, 120, 24), "Restart")) Restart();
-            if (GUI.Button(new Rect(126, 28, 120, 24), "Split / finish")) ManualAdvance();
-            if (GUI.Button(new Rect(252, 28, 90, 24), "Abort")) AbortRun();
-            if (GUI.Button(new Rect(w - 100, 28, 100, 24), "Clear times")) ClearTimes();
-
-            GUI.Label(new Rect(0, 58, 80, 20), "Compare to");
+            GUI.Label(new Rect(0, 62, 80, 20), "Compare to");
             Reference kind = _referenceKind;
-            if (GUI.Toggle(new Rect(84, 58, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
-            if (GUI.Toggle(new Rect(148, 58, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
-            if (GUI.Toggle(new Rect(212, 58, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
-            if (GUI.Toggle(new Rect(296, 58, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            if (UiKit.Toggle(new Rect(84, 62, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
+            if (UiKit.Toggle(new Rect(148, 62, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
+            if (UiKit.Toggle(new Rect(212, 62, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
+            if (UiKit.Toggle(new Rect(296, 62, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            UiKit.Hint(new Rect(0, 62, 420, 20), TipCompare);
             if (kind != _referenceKind)
             {
                 _referenceKind = kind;
@@ -1177,53 +1228,108 @@ namespace ForestOverlay.Modules
                 _splitsDirty = true;
             }
 
-            bool lines = GUI.Toggle(new Rect(0, 82, 110, 20), _showLines, " run lines");
-            if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
-
-            bool auto = GUI.Toggle(new Rect(114, 82, w - 114 - 130, 20), _autoRestart.Value,
-                                   " Auto-restart when a run finishes");
-            if (auto != _autoRestart.Value) _autoRestart.Value = auto;
-            if (GUI.Button(new Rect(w - 124, 81, 124, 22), _lineOptionsOpen ? "Line options  ^" : "Line options  v"))
-                _lineOptionsOpen = !_lineOptionsOpen;
-
             // Flowing, each line as tall as its text (UiText) - these
             // messages vary in length and clipped at fixed heights. The rest
-            // of the tab scrolls: with the splits table and its options open
-            // it outgrows the window (v0.24.147).
-            const float top = 106f;
+            // of the tab scrolls, in sections: what a runner needs is open,
+            // the advanced ones are closed behind a header (docs/ui-redesign.md).
+            const float top = 90f;
             float viewH = _tabH - top - 4f;
             bool scrolls = _pageH > viewH;
             float cw = scrolls ? w - 20f : w;
             _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
             float y = _runMode != null ? _runMode.DrawSection(0f, cw) + 4f : 0f;
-            y = DrawCheckpointSection(y, cw);
-            if (_tas != null) y = _tas.DrawSection(y, cw);
-            y = DrawLineOptions(y, cw);
-            y = DrawReplayOptions(y, cw);
-            y = DrawCameraSection(y, cw);
-            y = DrawRunnersSection(y, cw);
-            y = DrawLiveSplitSection(y, cw);
             y += UiText.Draw(0, y, cw, _statusText);
             y += UiText.Draw(0, y, cw, _diagnoseText);
             y += UiText.Draw(0, y, cw, _eventText);
-            if (_upload != null) y = _upload.DrawSection(y + 4f, cw);
-            y = DrawSplitsSection(y + 4f, cw);
-            y += UiText.Draw(0, y, cw, _whenSetText);
 
-            // The attempts keep their own scrolling list: the room left, or
-            // at least 160 px below everything else.
-            y += 4f;
-            float listH = Mathf.Max(160f, viewH - y - 4f);
-            DrawAttemptList(new Rect(0, y, cw, listH));
-            _pageH = y + listH + 4f;
+            // No splits table here (author, 2026-10-10, T-0257): the splits
+            // and results panels are overlays, set up in Edit HUD mode.
+
+            // Attempts: open, and takes the room the closed sections leave.
+            if (UiKit.Section(0f, ref y, cw, "runs.attempts", TextAttempts, null, null, true))
+            {
+                y += UiText.Draw(0, y, cw, _whenSetText);
+                // As tall as its rows (no dead space, the page wheel works over it); long lists scroll inside.
+                float room = Mathf.Min(320f, Mathf.Max(24f, _attempts.Count * 20f + 4f));
+                DrawAttemptList(new Rect(0, y, cw, room));
+                y += room + 4f;
+            }
+
+            if (_segment != null && _cpCapture != null &&
+                UiKit.Section(0f, ref y, cw, "runs.checkpoints", TextCheckpoints, _cpCapture.Value ? SummaryOn : SummaryOff, TipCheckpoints, false))
+                y = DrawCheckpointSection(y, cw);
+
+            if (_segment != null &&
+                UiKit.Section(0f, ref y, cw, "runs.sources", TextSources, null, TipSources, false))
+            {
+                y = DrawRunnersSection(y, cw);
+                y = DrawLiveSplitSection(y, cw);
+            }
+
+            if (UiKit.Section(0f, ref y, cw, "runs.options", TextOptions, null, TipOptions, false))
+            {
+                bool lines = UiKit.Toggle(new Rect(0, y, cw, 22), _showLines, " Run lines");
+                if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
+                UiKit.Hint(new Rect(0, y, cw, 22), TipLines);
+                y += 24f;
+                if (_showLines) y = DrawLineOptions(20f, y, cw);
+                bool auto = UiKit.Toggle(new Rect(0, y, cw, 22), _autoRestart.Value, " Auto-restart when a run finishes");
+                if (auto != _autoRestart.Value) _autoRestart.Value = auto;
+                y += 28f;
+                if (GUI.Button(new Rect(0, y, 120, 24), "Clear times")) ClearTimes();
+                UiKit.Hint(new Rect(0, y, 120, 24), TipClear);
+                y += 30f;
+            }
+
+            if (UiKit.Section(0f, ref y, cw, "runs.replay", TextReplay, null, TipReplay, false))
+            {
+                y = DrawGhostOptions(y, cw);
+                y = DrawReplayOptions(y, cw);
+                y = DrawCameraSection(y, cw);
+            }
+
+            bool uploadOpen = _upload != null && UiKit.Section(0f, ref y, cw, "runs.upload", TextUpload, null, TipUpload, false);
+            if (uploadOpen)
+            {
+                y = _upload.DrawSection(y, cw);
+                y = DrawRunnerName(y, cw);
+            }
+            if (!uploadOpen) _runnerEdit = null;   // re-read the Steam name and the setting on the next open
+
+            _pageH = y + 4f;
             GUI.EndScrollView();
         }
+
+        // Section titles, summaries and hover tips of the Runs tab: made
+        // once (nothing is built in DrawTab).
+        private static readonly GUIContent TextRestart = new GUIContent("Restart");
+        private static readonly GUIContent TextAttempts = new GUIContent("Attempts");
+        private static readonly GUIContent TextCheckpoints = new GUIContent("Checkpoint states");
+        private static readonly GUIContent TextSources = new GUIContent("Compare to another runner or LiveSplit");
+        private static readonly GUIContent TextOptions = new GUIContent("Run options");
+        private static readonly GUIContent TextReplay = new GUIContent("Ghost and replay");
+        private static readonly GUIContent TextUpload = new GUIContent("Upload to the website");
+        private static readonly GUIContent SummaryOn = new GUIContent("on");
+        private static readonly GUIContent SummaryOff = new GUIContent("off");
+        private static readonly GUIContent TipPracticeMode = new GUIContent("Practice mode makes the overlay's tools usable; the HUD says PRACTICE once one is used.");
+        private static readonly GUIContent TipRestart = new GUIContent("Back to the spot selected in Practice, with its start state (F7). On a timed segment it arms the run, turning practice mode on.");
+        private static readonly GUIContent TipSplit = new GUIContent("Split by hand, or finish the run (F12).");
+        private static readonly GUIContent TipAbort = new GUIContent("Throw the run away without saving a time ([).");
+        private static readonly GUIContent TipCompare = new GUIContent("What the delta, the ghost and the lines compare against.");
+        private static readonly GUIContent TipCheckpoints = new GUIContent("Save the game at each checkpoint of a practice run, to restart from there.");
+        private static readonly GUIContent TipSources = new GUIContent("Another runner's times from the website, or a LiveSplit .lss file, as the comparison.");
+        private static readonly GUIContent TipOptions = new GUIContent("Run lines and their look, auto-restart, clear times.");
+        private static readonly GUIContent TipLines = new GUIContent("Draw the path of your run (yellow) and the comparison (blue) in the world.");
+        private static readonly GUIContent TipClear = new GUIContent("Clears the attempts from view; the files are kept.");
+        private static readonly GUIContent TipReplay = new GUIContent("The ghost and its look, what the replay shows, and watching the comparison run (chase, first person, trajectory).");
+        private static readonly GUIContent TipUpload = new GUIContent("Finished runs go to forest.deter.cloud automatically, under your runner name; the queue and refused files are here.");
 
         // Tab text, rebuilt from Tick a few times a second - never in
         // DrawTab, which runs several times a frame (module rules).
         private const float TabTextInterval = 0.25f;
         private float _nextTabText;
+        private bool _runsTabWasShowing;
         private readonly GUIContent _segmentText = new GUIContent("");
         private readonly GUIContent _statusText = new GUIContent("");
         private readonly GUIContent _diagnoseText = new GUIContent("");
@@ -1243,6 +1349,8 @@ namespace ForestOverlay.Modules
             // closed window (the upload line listed a folder twice a
             // second), and at once when the tab opens.
             bool showing = TabShowing;
+            if (showing && !_runsTabWasShowing) RunsTabOpened();
+            _runsTabWasShowing = showing;
             if (_upload != null && showing) _upload.RefreshText();
             // At once: it answers a click.
             if (!ReferenceEquals(_statusText.text, _status)) _statusText.text = _status;
@@ -1362,7 +1470,7 @@ namespace ForestOverlay.Modules
         private void Restart()
         {
             if (_practice == null) { _status = "no practice module"; return; }
-            _practice.ReturnToSpot();
+            _practice.RestartTarget();   // as F7: the selected spot (T-0256)
         }
 
         private void ClearTimes()

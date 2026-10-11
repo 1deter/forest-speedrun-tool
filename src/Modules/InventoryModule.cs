@@ -38,7 +38,8 @@ namespace ForestOverlay.Modules
         private int _total = -1;
         private int _stackCount;
 
-        // Item names the HUD should always show, lowercased for matching.
+        // Item names the HUD should always show, as the game spells them
+        // (an item not held shows that name, x0); matched case ignored.
         private readonly List<string> _watch = new List<string>();
         // The HUD lines for them ("  name xN"), rebuilt only when a name or
         // an amount changes; what each was built from beside it.
@@ -71,6 +72,19 @@ namespace ForestOverlay.Modules
         private readonly List<int> _shown = new List<int>();
         private string _shownFilter = "";
         private bool _wasShowing;
+
+        // T-0289: a filter also lists the game's items not held, greyed x0,
+        // so one can be pinned before it is picked up (author, 2026-10-10).
+        // From the reader's catalogue (ItemDatabase, the item caps' search);
+        // names and labels built once per catalogue / phantom setting.
+        private readonly List<string> _catalogNames = new List<string>();
+        private readonly List<GUIContent> _catalogLabels = new List<GUIContent>();
+        private int _catalogBuiltFrom = -1;     // the catalogue's count they were built from
+        private bool _catalogPhantomsHidden;
+        private readonly List<string> _heldNames = new List<string>();
+        private readonly List<int> _notHeld = new List<int>();   // indices into _catalogNames
+        private readonly GUIContent _notHeldNote = new GUIContent("");
+        private GUIStyle _notHeldStyle;
 
         // Logs in the inventory (Game/LogStore).
         private ConfigEntry<bool> _logsCfg;
@@ -168,7 +182,8 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             // The first frame on the tab refreshes at once: it opened empty
-            // until Refresh was clicked (author, v0.22.6) - rows were only
+            // until Refresh was clicked (author, v0.22.6; the button went in
+            // T-0254) - rows were only
             // rebuilt behind PanelOpen, which a tab never sets.
             bool showing = TabShowing;
             if (showing && !_wasShowing) _nextRefresh = 0f;
@@ -377,12 +392,12 @@ namespace ForestOverlay.Modules
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
             GUI.enabled = guiWas && !RunLocked("fastbuild");
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, RunToggleText("fastbuild", "Fast building", " Fast building - hold to add, like Creative (gameplay mod, practice)"));
+            bool on = UiKit.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, RunToggleText("fastbuild", "Fast building", " Fast building - hold to add, like Creative (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _fastBuildCfg.Value) _fastBuildCfg.Value = on;
             y += 24f;
             if (!_fastBuildCfg.Value) return y + 4f;
-            y += UiText.DrawDim(30, y, w - 20f, FastBuildText) + 8f;
+            y += UiText.Note(30, y, w - 20f, FastBuildText) + 8f;
             return y;
         }
 
@@ -392,7 +407,7 @@ namespace ForestOverlay.Modules
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
             GUI.enabled = guiWas && !RunLocked("itemcaps");
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, RunToggleText("itemcaps", "Item caps", " Item caps (gameplay mod, practice)"));
+            bool on = UiKit.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, RunToggleText("itemcaps", "Item caps", " Item caps (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _capsOnCfg.Value) { _capsOnCfg.Value = on; ApplyCaps(); }
             y += 24f;
@@ -407,7 +422,7 @@ namespace ForestOverlay.Modules
                 }
                 GUI.enabled = guiWas;
                 if (_runCapsStatus.text.Length > 0) y += UiText.Draw(30, y, w - 20f, _runCapsStatus) + 2f;
-                y += UiText.DrawDim(30, y, w - 20f, RunCapsText) + 8f;
+                y += UiText.Note(30, y, w - 20f, RunCapsText) + 8f;
                 return y;
             }
             if (!_capsOnCfg.Value) return y + 4f;
@@ -447,7 +462,7 @@ namespace ForestOverlay.Modules
                 y += 22f;
             }
             y += UiText.Draw(30, y, w - 20f, _capsStatus) + 2f;
-            y += UiText.DrawDim(30, y, w - 20f, CapsText) + 8f;
+            y += UiText.Note(30, y, w - 20f, CapsText) + 8f;
             return y;
         }
 
@@ -471,12 +486,49 @@ namespace ForestOverlay.Modules
         private void RebuildShown()
         {
             _shownFilter = _filter;
-            string lower = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
             IList<ItemStack> stacks = Ctx.Inventory.Stacks;
 
             _shown.Clear();
+            _heldNames.Clear();
             for (int i = 0; i < stacks.Count && i < _rowLabels.Count; i++)
-                if (Matches(stacks[i], lower)) _shown.Add(i);
+            {
+                _heldNames.Add(stacks[i].Name);
+                if (InventoryFilter.Matches(stacks[i].Name, _filter)) _shown.Add(i);
+            }
+
+            _notHeld.Clear();
+            string note = "";
+            if (_filter.Length > 0)
+            {
+                if (Ctx.Inventory.CatalogReady)
+                {
+                    BuildCatalogNames();
+                    InventoryFilter.NotHeld(_catalogNames, _heldNames, _filter, _notHeld);
+                }
+                else
+                    // Wording proposed (T-0289 notes), not yet the author's.
+                    note = "Items you do not hold are listed once the game's item list is read (" + Ctx.Inventory.CatalogStatus + ").";
+            }
+            if (note != _notHeldNote.text) _notHeldNote.text = note;
+        }
+
+        // The catalogue's names, phantoms left out while the held list hides
+        // them (a pin on one would read x0 for good); labels as a held row's.
+        private void BuildCatalogNames()
+        {
+            IList<ItemInfo> catalog = Ctx.Inventory.Catalog;
+            bool hide = Ctx.Inventory.FilterPhantomItems;
+            if (catalog.Count == _catalogBuiltFrom && hide == _catalogPhantomsHidden) return;
+            _catalogBuiltFrom = catalog.Count;
+            _catalogPhantomsHidden = hide;
+            _catalogNames.Clear();
+            _catalogLabels.Clear();
+            for (int i = 0; i < catalog.Count; i++)
+            {
+                if (hide && !InventoryReader.IsRealItem(catalog[i].Id)) continue;
+                _catalogNames.Add(catalog[i].Name);
+                _catalogLabels.Add(new GUIContent(catalog[i].Name + "   x0   (id " + catalog[i].Id + ")"));
+            }
         }
 
         private void RebuildWatchLines()
@@ -505,8 +557,7 @@ namespace ForestOverlay.Modules
                 for (int i = 0; i < stacks.Count; i++)
                 {
                     if (stacks[i].Name == null) continue;
-                    // The pins are kept lower case (ToLowerInvariant) and the
-                    // names are plain ASCII: the same match, no string per stack.
+                    // The names are plain ASCII: case ignored, no string per stack.
                     if (!string.Equals(stacks[i].Name, _watch[w], System.StringComparison.OrdinalIgnoreCase)) continue;
                     amount += stacks[i].Amount;
                     display = stacks[i].Name;
@@ -581,9 +632,12 @@ namespace ForestOverlay.Modules
         {
             if (_rowStyle == null)
             {
-                _rowStyle = new GUIStyle(GUI.skin.label);
+                _rowStyle = UiKit.Style(GUI.skin.label);
                 _rowStyle.alignment = TextAnchor.MiddleLeft;
                 _rowStyle.padding = new RectOffset(4, 4, 0, 0);
+                _notHeldStyle = UiKit.Style(_rowStyle);
+                _notHeldStyle.normal.textColor = UiKit.DimColour;
+                _notHeldStyle.hover.textColor = UiKit.DimColour;
             }
 
             float top = DrawFastBuild(DrawCaps(DrawLogs(4f)));
@@ -593,17 +647,13 @@ namespace ForestOverlay.Modules
 
             if (GUI.Button(new Rect(266, top, 56, 22), "Clear")) _filter = "";
             if (!ReferenceEquals(_filter, _shownFilter)) RebuildShown();
-            if (GUI.Button(new Rect(326, top, 64, 22), "Refresh"))
-            {
-                Ctx.Inventory.Refresh();
-                RebuildRowLabels();
-            }
+            // No Refresh (T-0254): Tick rebuilds the rows 4 times a second while the tab shows.
 
             // Exploration toggles: the filter hides ids the autosplitter
             // proved are not real inventory contents (dev id 302 and
             // anything outside 29-311), but seeing the raw list is exactly
             // the kind of thing this tool exists for.
-            bool filter = GUI.Toggle(new Rect(10, top + 26, 130, 20),
+            bool filter = UiKit.Toggle(new Rect(10, top + 26, 130, 20),
                                      Ctx.Inventory.FilterPhantomItems, " hide phantoms");
             if (filter != Ctx.Inventory.FilterPhantomItems)
             {
@@ -613,7 +663,7 @@ namespace ForestOverlay.Modules
                 RebuildRowLabels();
             }
 
-            bool zeros = GUI.Toggle(new Rect(146, top + 26, 120, 20),
+            bool zeros = UiKit.Toggle(new Rect(146, top + 26, 120, 20),
                                     Ctx.Inventory.ShowZeroAmounts, " show x0");
             if (zeros != Ctx.Inventory.ShowZeroAmounts)
             {
@@ -624,6 +674,7 @@ namespace ForestOverlay.Modules
             }
 
             float y = top + 50f + UiText.Draw(10, top + 50f, _tabW - 20, _summary);
+            if (_notHeldNote.text.Length > 0) y += UiText.Draw(10, y, _tabW - 20, _notHeldNote);
 
             Rect listRect = new Rect(8, y, _tabW - 16, _tabH - y - 10);
             DrawList(listRect);
@@ -636,7 +687,7 @@ namespace ForestOverlay.Modules
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
             GUI.enabled = guiWas && !RunLocked("logs");
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
+            bool on = UiKit.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
                                  RunToggleText("logs", "Logs in the inventory", " Logs in the inventory (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _logsCfg.Value) _logsCfg.Value = on;
@@ -670,7 +721,7 @@ namespace ForestOverlay.Modules
             }
             y += 26f;
             y += UiText.Draw(30, y, w - 20f, _logsStatus) + 2f;
-            y += UiText.DrawDim(30, y, w - 20f, LogsText) + 8f;
+            y += UiText.Note(30, y, w - 20f, LogsText) + 8f;
             return y;
         }
 
@@ -678,7 +729,9 @@ namespace ForestOverlay.Modules
         {
             IList<ItemStack> stacks = Ctx.Inventory.Stacks;
 
-            Rect content = new Rect(0, 0, listRect.width - 20f, _shown.Count * RowHeight);
+            // The held rows, then the items not held the filter matches.
+            int rows = _shown.Count + _notHeld.Count;
+            Rect content = new Rect(0, 0, listRect.width - 20f, rows * RowHeight);
             _scroll = GUI.BeginScrollView(listRect, _scroll, content);
 
             // Virtualised: only rows inside the viewport are drawn. Drawing
@@ -687,9 +740,20 @@ namespace ForestOverlay.Modules
             int first = Mathf.Max(0, (int)(_scroll.y / RowHeight) - 1);
             int visible = (int)(listRect.height / RowHeight) + 3;
 
-            int last = Mathf.Min(_shown.Count - 1, first + visible);
+            int last = Mathf.Min(rows - 1, first + visible);
             for (int thisRow = first; thisRow <= last; thisRow++)
             {
+                if (thisRow >= _shown.Count)
+                {
+                    int c = _notHeld[thisRow - _shown.Count];
+                    if (c >= _catalogNames.Count) continue;
+                    if (IsPinned(_catalogNames[c]))
+                        GUI.Label(new Rect(2f, thisRow * RowHeight, 14f, RowHeight), PinMark);
+                    if (GUI.Button(new Rect(16f, thisRow * RowHeight, content.width - 16f, RowHeight), _catalogLabels[c], _notHeldStyle))
+                        TogglePin(_catalogNames[c]);
+                    continue;
+                }
+
                 int i = _shown[thisRow];
                 if (i >= stacks.Count || i >= _rowLabels.Count) continue;
 
@@ -705,13 +769,6 @@ namespace ForestOverlay.Modules
             GUI.EndScrollView();
         }
 
-        private static bool Matches(ItemStack s, string lowerFilter)
-        {
-            if (lowerFilter == null) return true;
-            if (s.Name == null) return false;
-            return s.Name.ToLowerInvariant().Contains(lowerFilter);
-        }
-
         private bool IsPinned(string name)
         {
             if (name == null) return false;
@@ -722,9 +779,12 @@ namespace ForestOverlay.Modules
 
         private void TogglePin(string name)
         {
-            string key = name.ToLowerInvariant();
-            if (_watch.Contains(key)) _watch.Remove(key);
-            else _watch.Add(key);
+            if (name == null) return;
+            int at = -1;
+            for (int i = 0; i < _watch.Count && at < 0; i++)
+                if (string.Equals(_watch[i], name, System.StringComparison.OrdinalIgnoreCase)) at = i;
+            if (at >= 0) _watch.RemoveAt(at);
+            else _watch.Add(name);
             RebuildWatchLines();
             RefreshTitle();
         }

@@ -23,16 +23,21 @@ namespace ForestOverlay.Modules
     //   starts (ResetSplits); F5 hides it with the rest of the UI.
     // - Buttons only while the cursor is the runner's (the F2 window or the
     //   pause menu): with the game's locked cursor a click lands in the
-    //   middle of the screen and would hit them. Dragged by its title then.
-    // - [Splits] ResultsPanel turns it off.
+    //   middle of the screen and would hit them. Dragged by its title in
+    //   Edit HUD only (T-0317).
+    // - [Splits] ResultsPanel turns it off; ResultsLoadTimeAlways shows the
+    //   load-removed time after a load-free run too.
     // ------------------------------------------------------------------
     public sealed partial class PracticeRunModule
     {
         private const int ResCols = 5;   // name, time, delta, segment, saved / lost
-        private const int ResMaxRows = 16;
+        // Every split shows (author, 2026-10-10, T-0257); only a run with
+        // more than the screen holds is cut: its first rows and the end.
+        private int _resRowCap = int.MaxValue;
+        private int _resMoreFor;
         private const float ResRowH = 18f;
 
-        private ConfigEntry<bool> _resultsCfg;
+        private ConfigEntry<bool> _resultsCfg, _resLoadAlways;
         private ConfigEntry<float> _resX, _resY, _resWidth;
 
         private bool _resultsOpen;
@@ -70,7 +75,7 @@ namespace ForestOverlay.Modules
 
         private GUIStyle _resHeadStyle, _resHeadGold, _resGoldWrap;
 
-        // Dragging by the title, as the splits panel is dragged.
+        // Dragging by the title in Edit HUD, as the splits panel is dragged.
         private bool _resDragging;
         private Vector2 _resDragOffset;
         private float _resDragX, _resDragY;
@@ -82,6 +87,16 @@ namespace ForestOverlay.Modules
             _resX = c.Bind("Splits", "ResultsX", -1f, "Results panel position from the left, in pixels (-1 = centred).");
             _resY = c.Bind("Splits", "ResultsY", 120f, "Results panel position from the top, in pixels.");
             _resWidth = c.Bind("Splits", "ResultsWidth", 480f, "Results panel width in pixels.");
+            HudWidgets profiles = Host.Hud.Widgets;   // the HUD profile (T-0019)
+            profiles.RegisterProfileEntry(_resultsCfg, null);
+            profiles.RegisterProfileEntry(_resX, null, ProfileUnit.X);
+            profiles.RegisterProfileEntry(_resY, null, ProfileUnit.Y);
+            profiles.RegisterProfileEntry(_resWidth, null, ProfileUnit.Size);
+            // Its own choice (T-0253); it followed the splits' LRT column
+            // before, so it starts from that.
+            _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _cols[(int)Col.Lrt].Value,
+                "Results panel: show the load-removed time after a run with no loads too (a run with loads always shows it).");
+            profiles.RegisterProfileEntry(_resLoadAlways, null);
             for (int i = 0; i < ResLineLabels.Length; i++)
             {
                 _resLineLabels[i] = new GUIContent(ResLineLabels[i]);
@@ -116,8 +131,10 @@ namespace ForestOverlay.Modules
             for (int r = 0; r < rows; r++) names[r] = _segment.SplitName(r);
             float[] compare = ComparisonSplits();
             bool compareIsPb = ReferenceEquals(compare, _stats.PbSplits);
-            int td = _timeDecimals.Value, dd = _deltaDecimals.Value;
-            _result = RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, td, dd);
+            // One precision for the whole panel (author, 2026-10-05: an 11.331 PB
+            // "by 0.03 (was 11.37)" read wrong): the finer of the two settings.
+            int p = Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value);
+            _result = RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, p, p);
             _resOutcome = outcome;
 
             _resTitle.text = _segment.Name + "  -  results";
@@ -125,7 +142,7 @@ namespace ForestOverlay.Modules
             _resVerdict.text = _result.Verdict;
             _resCompare.text = _result.CompareLine;
             _resGolds.text = _result.GoldLine;
-            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, td, _cols[(int)Col.Lrt].Value);
+            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, p, _resLoadAlways.Value);
             _resLoads.text = _result.LoadLine;
 
             // The table's cells: copied once, drawn every frame.
@@ -149,8 +166,8 @@ namespace ForestOverlay.Modules
                 _resSavedLost[r] = row.Saved ? -1 : row.Lost ? 1 : 0;
                 _resGold[r] = row.Gold;
             }
-            int hidden = rows > ResMaxRows ? rows - ResMaxRows : 0;
-            _resMore.text = hidden > 0 ? hidden + " more row(s) - the Runs tab's splits table has them all." : "";
+            _resMore.text = "";
+            _resMoreFor = 0;
 
             // PB chance for the NEXT run (this one's is decided): this run in
             // the history, its time the PB if it beat it.
@@ -203,16 +220,16 @@ namespace ForestOverlay.Modules
         private void EnsureResultStyles()
         {
             if (_resHeadStyle != null) return;
-            _resHeadStyle = new GUIStyle(GUI.skin.label);
+            _resHeadStyle = UiKit.Style(GUI.skin.label);
             _resHeadStyle.fontSize = 26;
             _resHeadStyle.fontStyle = FontStyle.Bold;
             _resHeadStyle.alignment = TextAnchor.MiddleLeft;
             _resHeadStyle.wordWrap = false;
             _resHeadStyle.clipping = TextClipping.Clip;
-            _resHeadGold = new GUIStyle(_resHeadStyle);
-            _resHeadGold.normal.textColor = new Color(1f, 0.8f, 0.2f);
-            _resGoldWrap = new GUIStyle(UiText.Plain);
-            _resGoldWrap.normal.textColor = new Color(1f, 0.8f, 0.2f);
+            _resHeadGold = UiKit.Style(_resHeadStyle);
+            _resHeadGold.normal.textColor = UiKit.Accent;
+            _resGoldWrap = UiKit.Style(UiText.Plain);
+            _resGoldWrap.normal.textColor = UiKit.Accent;
         }
 
         private float ResColW { get { return 52f + 6f * Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value); } }
@@ -250,11 +267,11 @@ namespace ForestOverlay.Modules
                 }
             }
             y += ResRowH;
-            int visible = Mathf.Min(_resRows, ResMaxRows);
+            int visible = Mathf.Min(_resRows, _resRowCap);
             for (int k = 0; k < visible; k++)
             {
                 // The first rows, the end always last.
-                int r = _resRows > ResMaxRows && k == visible - 1 ? _resRows - 1 : k;
+                int r = _resRows > _resRowCap && k == visible - 1 ? _resRows - 1 : k;
                 if (draw)
                 {
                     GUI.Label(new Rect(x, y, nameW, ResRowH), _resCells[r * ResCols], _resGold[r] ? GoldName : _nameStyle);
@@ -329,46 +346,140 @@ namespace ForestOverlay.Modules
             {
                 if (_goldName == null)
                 {
-                    _goldName = new GUIStyle(_nameStyle);
-                    _goldName.normal.textColor = new Color(1f, 0.8f, 0.2f);
+                    _goldName = UiKit.Style(_nameStyle);
+                    _goldName.normal.textColor = UiKit.Accent;
                 }
                 return _goldName;
             }
         }
 
-        private void DrawResults()
+        private static readonly GUIContent ResultsPlaceholder = new GUIContent(
+            "Pops up here when a timed run finishes. Drag it to move, its right edge for the width.");
+
+        /// `editing`: Edit HUD mode - the panel shows (a placeholder when no
+        /// run has finished), moves by its body and sizes by its right edge.
+        private void DrawResults(bool editing)
         {
-            if (!ResultsShowing) return;
+            bool real = ResultsShowing;
+            if (!editing && _resResizing) EndResultsResize();
+            if (!real && !(editing && _resultsCfg.Value))
+            {
+                if (_resDragging) EndResultsDrag();   // hidden mid-drag (the edit ended)
+                return;
+            }
             EnsureSplitStyles();
             EnsureResultStyles();
 
-            float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
+            float w = Mathf.Clamp(_resResizing ? _resLiveW : _resWidth.Value, 300f, Mathf.Max(300f, HudUi.VW - 16f));
             float inner = w - 16f;
-            float h = ResultsBody(0f, 0f, inner, false, false) + 12f;
-            float px = _resDragging ? _resDragX : _resX.Value;
-            float py = _resDragging ? _resDragY : _resY.Value;
-            float x = px < 0f && !_resDragging ? (Screen.width - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            float h;
+            if (real)
+            {
+                _resRowCap = int.MaxValue;
+                h = ResultsBody(0f, 0f, inner, false, false) + 12f;
+                if (h > HudUi.VH && _resRows > 3)
+                {
+                    _resRowCap = Mathf.Max(3, _resRows - Mathf.CeilToInt((h - HudUi.VH) / ResRowH) - 1);
+                    h = ResultsBody(0f, 0f, inner, false, false) + 12f;
+                }
+                int hidden = _resRows - Mathf.Min(_resRows, _resRowCap);
+                if (hidden != _resMoreFor)   // built only when it changes (a resolution change)
+                {
+                    _resMoreFor = hidden;
+                    _resMore.text = hidden > 0 ? hidden + " more split(s) do not fit on the screen." : "";
+                }
+            }
+            else h = ResRowH + 8f + UiText.Height(inner, ResultsPlaceholder, _placeholderStyle) + 10f;
+            float x, y;
+            if (_resResizing) { x = _resResizeX; y = _resResizeY; }
+            else
+            {
+                float px = _resDragging ? _resDragX : HudUi.PosX(_resX.Value);
+                float py = _resDragging ? _resDragY : HudUi.PosY(_resY.Value);
+                x = px < 0f && !_resDragging ? (HudUi.VW - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, HudUi.VW - w));
+                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
+            }
             Rect panel = new Rect(x, y, w, h);
+            if (editing) Host.Hud.Widgets.ReportPiece(ResultsPiece, panel);   // the others snap to it (T-0020)
 
             MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
             Event e = Event.current;
-            bool overWindow = main != null && e != null && main.ScreenRect.Contains(e.mousePosition);
-            HandleResultsDrag(new Rect(x, y, w, ResRowH + 6f), overWindow);
+            bool overWindow = main != null && e != null && Host.Hud.Settings.Virtual(main.ScreenRect).Contains(e.mousePosition);
+            if (editing) HandleResultsResize(panel, overWindow);
+            // Edit HUD only: the F2 window or the pause menu alone is not a
+            // drag mode (author, 2026-10-11, T-0317); the buttons stay live.
+            if (!_resResizing) HandleResultsDrag(panel, overWindow, editing);
 
             Color before = GUI.color;
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Mathf.Max(Opacity, 0.85f)));
             GUI.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
-            if (_resDragging) GUI.Box(panel, GUIContent.none);
-            ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
+            if (_resDragging || editing) GUI.Box(panel, GUIContent.none, UiKit.Outline);
+            if (real) ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
+            else
+            {
+                GUI.Label(new Rect(x + 8f, y + 6f, inner, ResRowH), ResultsPanelText, _titleStyle);
+                UiText.Draw(x + 8f, y + 8f + ResRowH, inner, ResultsPlaceholder, _placeholderStyle);
+            }
+            // The right edge's grip.
+            if (editing) GUI.Box(new Rect(panel.xMax - 5f, panel.y + panel.height * 0.5f - 12f, 5f, 24f), GUIContent.none, UiKit.Handle);
         }
 
-        private void HandleResultsDrag(Rect title, bool overWindow)
+        // Edit HUD mode: the right edge sets the width, written on release.
+        private bool _resResizing;
+        private float _resResizeX, _resResizeY, _resLiveW, _resResizeStartW, _resResizeStartMouse;
+
+        private void HandleResultsResize(Rect panel, bool overWindow)
         {
             Event e = Event.current;
             if (e == null) return;
-            if (!_resClickable)
+            Vector2 m = e.mousePosition;
+            switch (e.type)
+            {
+                case EventType.MouseDown:
+                    if (e.button != 0 || _resDragging || overWindow) return;
+                    if (m.x < panel.xMax - EdgeGrab || m.x > panel.xMax + EdgeGrab || m.y < panel.y || m.y > panel.yMax) return;
+                    _resResizing = true;
+                    _resResizeX = panel.x;
+                    _resResizeY = panel.y;
+                    _resLiveW = _resResizeStartW = panel.width;
+                    _resResizeStartMouse = m.x;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag:
+                    if (!_resResizing) return;
+                    _resLiveW = Mathf.Clamp(Mathf.Round(_resResizeStartW + m.x - _resResizeStartMouse), 300f,
+                                            Mathf.Max(300f, HudUi.VW - _resResizeX));
+                    e.Use();
+                    break;
+                case EventType.MouseUp:
+                    if (!_resResizing) return;
+                    EndResultsResize();
+                    e.Use();
+                    break;
+            }
+        }
+
+        // One file write for the three values.
+        private void EndResultsResize()
+        {
+            _resResizing = false;
+            ConfigFile c = Ctx.Config;
+            bool saveEach = c.SaveOnConfigSet;
+            c.SaveOnConfigSet = false;
+            _resX.Value = Mathf.Round(HudUi.ToRefX(_resResizeX));   // saved in reference pixels (T-0318)
+            _resY.Value = Mathf.Round(HudUi.ToRefY(_resResizeY));
+            _resWidth.Value = _resLiveW;
+            c.SaveOnConfigSet = saveEach;
+            c.Save();
+            Ctx.Log.LogInfo("Results panel resized to " + Mathf.RoundToInt(_resLiveW) + " px wide.");
+        }
+
+        private void HandleResultsDrag(Rect title, bool overWindow, bool allowed)
+        {
+            Event e = Event.current;
+            if (e == null) return;
+            if (!allowed)
             {
                 if (_resDragging) EndResultsDrag();
                 return;
@@ -387,6 +498,12 @@ namespace ForestOverlay.Modules
                     if (!_resDragging) return;
                     _resDragX = Mathf.Max(0f, e.mousePosition.x - _resDragOffset.x);
                     _resDragY = Mathf.Max(0f, e.mousePosition.y - _resDragOffset.y);
+                    if (HudEditing)
+                    {
+                        Vector2 at = Host.Hud.Widgets.SnapDrag(ResultsPiece, new Rect(_resDragX, _resDragY, title.width, title.height));
+                        _resDragX = at.x;
+                        _resDragY = at.y;
+                    }
                     e.Use();
                     break;
                 case EventType.MouseUp:
@@ -401,9 +518,10 @@ namespace ForestOverlay.Modules
         private void EndResultsDrag()
         {
             _resDragging = false;
-            float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
-            _resX.Value = Mathf.Clamp(_resDragX, 0f, Mathf.Max(0f, Screen.width - w));
-            _resY.Value = Mathf.Max(0f, _resDragY);
+            if (HudEditing) Host.Hud.Widgets.EndSnap();
+            float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, HudUi.VW - 16f));
+            _resX.Value = HudUi.ToRefX(Mathf.Clamp(_resDragX, 0f, Mathf.Max(0f, HudUi.VW - w)));
+            _resY.Value = HudUi.ToRefY(Mathf.Max(0f, _resDragY));
             Ctx.Log.LogInfo("Results panel moved to (" + Mathf.RoundToInt(_resX.Value) + ", " + Mathf.RoundToInt(_resY.Value) + ").");
         }
     }

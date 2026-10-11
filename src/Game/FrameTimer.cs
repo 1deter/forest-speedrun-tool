@@ -28,7 +28,7 @@ namespace ForestOverlay.Game
         /// Called at every end of frame (RenderProbe's tests); += / -=.
         public static Action EndOfFrameHook;
 
-        /// The load test (Debug views): this many ms of busy work on the
+        /// The load test (Developer tab, Benchmarks): this many ms of busy work on the
         /// main thread every frame. Main thread the limit = the frame grows
         /// by it; the render thread the limit = it grows less (the main
         /// thread had been waiting for it, inside the first cameras).

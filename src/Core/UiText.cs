@@ -39,6 +39,29 @@ namespace ForestOverlay.Core
             return Draw(x, y, width, Scratch, Plain);
         }
 
+        /// An explanation of the control just above (redesign, author 2026-10-05:
+        /// "a feature, its name and a toggle - hover for a brief description"):
+        /// shown as that row's tooltip, takes no space.
+        public static float Note(float x, float y, float width, GUIContent content)
+        {
+            if (content == null || string.IsNullOrEmpty(content.text)) return 0f;
+            UiKit.Hint(new Rect(0f, y - 24f, x + width, 24f), content);
+            return 0f;
+        }
+
+        private static readonly GUIContent NoteCache = new GUIContent("");
+
+        public static float Note(float x, float y, float width, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return 0f;
+            // One shared cache: set only for the row under the mouse.
+            Rect r = new Rect(0f, y - 24f, x + width, 24f);
+            Event e = Event.current;
+            if (e == null || !r.Contains(e.mousePosition)) return 0f;
+            UiKit.Hint(r, text, NoteCache);
+            return 0f;
+        }
+
         public static float DrawDim(float x, float y, float width, GUIContent content)
         {
             return Draw(x, y, width, content, Dim);
@@ -83,7 +106,7 @@ namespace ForestOverlay.Core
             {
                 if (_box == null)
                 {
-                    _box = new GUIStyle(GUI.skin.textArea);
+                    _box = UiKit.Style(GUI.skin.textArea);
                     _box.wordWrap = true;
                 }
                 return _box;
@@ -97,7 +120,7 @@ namespace ForestOverlay.Core
             {
                 if (_plain == null)
                 {
-                    _plain = new GUIStyle(GUI.skin.label);
+                    _plain = UiKit.Style(GUI.skin.label);
                     _plain.wordWrap = true;
                     _plain.alignment = TextAnchor.UpperLeft;
                 }
@@ -111,8 +134,8 @@ namespace ForestOverlay.Core
             {
                 if (_dim == null)
                 {
-                    _dim = new GUIStyle(Plain);
-                    _dim.normal.textColor = new Color(0.78f, 0.78f, 0.78f);
+                    _dim = UiKit.Style(Plain);
+                    _dim.normal.textColor = UiKit.SoftColour;
                 }
                 return _dim;
             }

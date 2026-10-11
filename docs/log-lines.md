@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-226 prefixes from 729 log calls.
+238 prefixes from 774 log calls.
 
 ## `Aerial capture`
 
@@ -62,6 +62,7 @@ Written by RunUploadModule.Attempts.cs; info / warning.
 - info `Attempts: <id> log sent - <verdict><..>.`
 - info `Attempts: <id> never ended (the game closed during it) - its log is <..>`
 - info `Attempts: <id> was deleted on the site (<how>) - taken off the Runs tab's list (sent.txt).`
+- info `Attempts: Check now - asking the website about the listed attempts.`
 - warning `Attempts: cannot read <..>: <ex.Message>`
 - warning `Attempts: checkpoint <attemptId> step <step> not taken: <..>.`
 - info `Attempts: checkpoint <attemptId> step <step> sent.`
@@ -216,6 +217,7 @@ Written by CommunityModule.cs; info / warning.
 - warning `Community: <e.File> not written: <ex.Message>`
 - warning `Community: <status>.`
 - info `Community: <status>.`
+- info `Community: Check now.`
 - info `Community: skipped (you have that id): <..>.`
 - warning `Community: start state of '<s.Id>' failed: <ex.Message>`
 - warning `Community: start state of '<s.Id>' not written: <err>`
@@ -606,12 +608,72 @@ Written by GreebleKeeper.cs; info / warning.
 - info `GreebleKeeper: tree zone at <z.transform.position> spawned with its captured sticks (seed <r.Seed>).`
 - warning `GreebleKeeper: zone at <z.transform.position> failed: <ex.Message>`
 
-## `Info box moved to`
+## `HUD column moved to`
 
-Meaning: The runner dragged the info box; its new position.
+Meaning: The column of HUD values was dragged to a new place (in Edit HUD, by its grip), with its top-left corner.
 Written by Plugin.cs; info.
 
-- info `Info box moved to (<..>, <..>).`
+- info `HUD column moved to (<..>, <..>).`
+
+## `HUD layout reset`
+
+Meaning: Edit HUD's Reset profile (after its Sure?): the active profile back to the default look - every value in the column with no text, its settings (values shown, column place, Compact, Text size, the splits + results panels) at their defaults (T-0303).
+Written by HudWidgets.Profiles.cs; info.
+
+- info `HUD layout reset: profile <name> back to the default look (values, column, panels, Compact, Text size).`
+
+## `HUD profile`
+
+Meaning: The HUD profiles (T-0019, files in config/ForestOverlay/hud): which one loaded at start, Default made from the old settings on the first launch, a switch / new / duplicate / rename / delete in the Edit HUD picker, or a profile file that could not be read or written.
+Written by HudWidgets.Profiles.cs, ModuleHost.cs; info / warning / error.
+
+- warning `HUD profile '<name>' not read (<ex.Message>) - the default look.`
+- warning `HUD profile '<name>' not saved: <ex.Message>`
+- warning `HUD profile: '<name>' not found in <_dir> - using <..>.`
+- info `HUD profile: <from> duplicated as <name>.`
+- info `HUD profile: <from> renamed to <to>.`
+- info `HUD profile: <name> (<_names.Count> in <_dir>).`
+- info `HUD profile: <name> deleted - now <..>.`
+- info `HUD profile: <name> was made at <fw>x<fh> - positions and sizes converted to <tw>x<th><..>`
+- info `HUD profile: Default made from the current HUD settings and layout.`
+- warning `HUD profile: folder not read (<_dir>): <ex.Message>`
+- warning `HUD profile: hud-layout.txt left in place (<ex.Message>); it is no longer read.`
+- info `HUD profile: new profile <name> (the default look).`
+- info `HUD profile: switched to <name>.`
+- warning `HUD profile: the old layout file not read (<ex.Message>) - Default starts with every value in the column.`
+- error `HUD profile: not loaded - <ex>`
+
+## `HUD scale`
+
+Meaning: The screen the placed HUD pieces are drawn for, logged once at the first draw and again when the resolution (or the sizes-follow option) changes: screen, the reference screen the saved places were made at, and the GUI scale.
+Written by HudSettings.cs; info.
+
+- info `HUD scale: <..>.`
+
+## `HUD sizes`
+
+Meaning: The runner flipped Settings -> HUD -> "Sizes follow the screen": the pieces now follow the screen size, or stay in pixels.
+Written by SettingsModule.cs; info.
+
+- info `HUD sizes <..>`
+
+## `HUD widget`
+
+Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of the column), put back in the column, moved or scaled, the runner's text before / after it set, or its trend colour (T-0023) switched on / off.
+Written by HudWidgets.cs; info.
+
+- info `HUD widget '<..>' <..>.`
+- info `HUD widget '<..>' placed on its own at (<..>, <..>).`
+- info `HUD widget '<..>' put back in the column.`
+- info `HUD widget '<..>' text: before "<..>", after "<..>".`
+- info `HUD widget '<..>' trend colour <..>.`
+
+## `HUD widgets`
+
+Meaning: The placed HUD values' own font (T-0022): written only when it could not be made, so the values fall back to the UI's shared font (large values may flicker / blur).
+Written by HudWidgets.cs; warning.
+
+- warning `HUD widgets: no font of their own (<ex.Message>) - values share the UI's font.`
 
 ## `InputInject`
 
@@ -888,10 +950,11 @@ Written by SavestateModule.cs; warning.
 
 ## `ModAPI`
 
-Meaning: ModAPI rebuilt Assembly-CSharp but the patcher's repair did not run this launch (it was just installed), so the overlay stays off until a restart (T-0246).
+Meaning: ModAPI rebuilt Assembly-CSharp but the patcher's repair did not run this launch (it was just installed), so the overlay stays off until a restart (T-0246). Also: ModAPI's rebuilt Assembly-CSharp (UltimateCheatmenu...) is loaded: at launch the session is flagged - the HUD's `ModAPI` flag and run mode's `ModAPI Detected` flag on every attempt (T-0295).
 Written by Plugin.cs; warning / error.
 
 - warning `ModAPI: its Assembly-CSharp is not repaired this launch (the patcher was just installed) - overlay off until the game is restarted.`
+- warning `ModAPI: loaded - this session is flagged (the HUD's ModAPI flag, every run mode attempt).`
 - error `ModAPI: the patcher could not repair its Assembly-CSharp (see the 'ModAPI fix:' line above) - overlay off.`
 
 ## `ModAPI fix`
@@ -904,6 +967,13 @@ Written by ModApiFix.cs; info / error.
 - info `ModAPI fix: Assembly-CSharp.dll was rebuilt by ModAPI - checking its parameter defaults.`
 - error `ModAPI fix: could not read Assembly-CSharp.dll - <ex.Message>`
 - error `ModAPI fix: failed - <ex>`
+
+## `Mods`
+
+Meaning: Other code was seen beside the game (another BepInEx plugin, a patcher, a DLL from outside the game folders, a Harmony patch owned by someone else; T-0308): the names, listed when a new one turns up. The session stays flagged - the HUD `Mods:` line, `Mods Detected: ...` on every run mode attempt and on uploaded runs.
+Written by ExternalModWatch.cs; warning.
+
+- warning `Mods: other code is running beside the game - this session is flagged (<..>).`
 
 ## `Module`
 
@@ -976,6 +1046,14 @@ Written by NatureKeeper.cs; info / warning.
 - warning `NatureKeeper: <Status>`
 - info `NatureKeeper: <Status><..>.`
 - warning `NatureKeeper: keeping a bush failed: <ex.Message>`
+
+## `Network`
+
+Meaning: The two Settings > Network switches at startup (check online at startup, refresh lists automatically) and the old Community.UpdateOnStartup carried over (T-0326).
+Written by NetworkSwitches.cs; info.
+
+- info `Network: Community.UpdateOnStartup was off - Network.CheckAtStartup is off too.`
+- info `Network: check at startup <..>, refresh automatically <..>.`
 
 ## `No coroutine runner`
 
@@ -1333,10 +1411,17 @@ Written by PracticeRunModule.Results.cs; info.
 
 ## `Results panel moved to`
 
-Meaning: The runner dragged the results panel; its new position.
+Meaning: The runner dragged the results panel in Edit HUD; its new position.
 Written by PracticeRunModule.Results.cs; info.
 
 - info `Results panel moved to (<..>, <..>).`
+
+## `Results panel resized to`
+
+Meaning: The runner dragged the results panel's right edge in Edit HUD mode; its new width.
+Written by PracticeRunModule.Results.cs; info.
+
+- info `Results panel resized to <..> px wide.`
 
 ## `Run`
 
@@ -1362,6 +1447,7 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<done.AnchorLabel>': finished in <..> - <done.Splits.Length> split time(s) saved, runner '<done.RunnerName>' (<done.RunnerId>); load-removed <..> (<..>).`
 - info `Run '<done.AnchorLabel>': finished in <..> by a TAS replay (not saved).`
 - info `Run '<gone.Id>': <..> - the spot was deleted.`
+- info `Run '<s.Id>': practice mode turned on by Restart.`
 - info `Run '<s.Id>': timed by run mode (practice mode is off).`
 
 ## `Run audit`
@@ -1377,7 +1463,7 @@ Written by AuditWatch.cs, RunModeModule.Audit.cs; info / warning.
 
 ## `Run code moved to`
 
-Meaning: The runner dragged the run code box; its new position.
+Meaning: The runner dragged the run code box in Edit HUD; its new position.
 Written by RunModeModule.Codes.cs; info.
 
 - info `Run code moved to (<..>, <..>).`
@@ -1408,6 +1494,7 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: game code <..> (Assembly-CSharp <..>).`
 - info `Run mode: hashed <_typeHashes.Count> types of the game's code for the site to compare (<sw.ElapsedMilliseconds> ms).`
 - info `Run mode: <list.Count> categories from the site<..>.`
+- info `Run mode: categories Check now.`
 - warning `Run mode: categories not fetched from <url>: <..>.`
 - warning `Run mode: categories not saved: <ex.Message>`
 - info `Run mode: <_attemptId> ended (<reason>) after <_chain.Steps> step(s), <..>; last code <_chain.Code>.`
@@ -1621,6 +1708,20 @@ Written by SegmentLibrary.cs; info / warning.
 - warning `Segments: <fileName>: segment (<..>) skipped - needs id, start and end.`
 - warning `Segments: could not tidy after an interrupted write of <..>: <ex.Message>`
 
+## `Settings`
+
+Meaning: The runner reset the keys or the HUD values in Settings (after its Sure?), reset or unbound one key, rebound a key (with the key it also clashes with) or cancelled a rebind (T-0260).
+Written by SettingsModule.cs; info.
+
+- info `Settings: HUD values reset to their defaults.`
+- info `Settings: all keys reset to their defaults.`
+- info `Settings: check online at startup <..>.`
+- info `Settings: key '<b.Description>' reset to <..>.`
+- info `Settings: key '<target.Description>' rebound to <name><..>`
+- info `Settings: key '<target.Description>' unbound.`
+- info `Settings: rebind of '<target.Description>' cancelled.`
+- info `Settings: refresh lists automatically <..>.`
+
 ## `SetupHold`
 
 Meaning: Holding the game's cannibal family setup after a Full load: installed or why not.
@@ -1656,6 +1757,7 @@ Written by GameBridge.cs; info.
 Meaning: A spot's leaderboard from the site: runners to compare with, or why not.
 Written by PracticeRunModule.Site.cs; info / warning.
 
+- info `Site board '<_boardKey>': Check now.`
 - info `Site board '<key>': <board.Count> runner(s), <_siteOthers.Count> to compare with.`
 - warning `Site board '<key>': <why>.`
 
@@ -1706,10 +1808,17 @@ Written by FrameTimer.cs; info.
 
 ## `Splits panel moved to`
 
-Meaning: The runner dragged the splits panel; its new position.
+Meaning: The runner dragged the splits panel in Edit HUD; its new position.
 Written by PracticeRunModule.Splits.cs; info.
 
 - info `Splits panel moved to (<..>, <..>).`
+
+## `Splits panel resized to`
+
+Meaning: The runner dragged the splits panel's edge or corner in Edit HUD mode; its new width and most rows shown.
+Written by PracticeRunModule.Splits.cs; info.
+
+- info `Splits panel resized to <..> px, <_liveRows> rows.`
 
 ## `Staged update is`
 
@@ -1808,6 +1917,13 @@ Meaning: The game's mouse-lock class was not found; direct Cursor writes are use
 Written by CursorController.cs; warning.
 
 - warning `TheForest.Utils.Input not found - falling back to direct Cursor writes.`
+
+## `Theme`
+
+Meaning: The runner picked a theme in Settings -> Theme (T-0258).
+Written by SettingsModule.cs; info.
+
+- info `<..>` *(declared)*
 
 ## `Threads`
 
@@ -1909,10 +2025,11 @@ Written by UpdateChecker.cs; info / warning.
 ## `Update check`
 
 Meaning: The update check against the release asset: up to date, an update available or still publishing, or an error.
-Written by UpdateChecker.cs; info / warning.
+Written by UpdateChecker.cs, UpdateModule.cs; info / warning.
 
 - warning `Update check: <Message>`
 - info `Update check: <Message>`
+- info `Update check: skipped at startup (Network.CheckAtStartup is off).`
 
 ## `Update check in preloader failed`
 

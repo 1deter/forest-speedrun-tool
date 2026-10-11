@@ -260,6 +260,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             steps = row.Steps, flags = j?.Flags ?? 0, verdict = j?.Verdict ?? "running", why = j?.Why ?? Lines(row.Why),
             recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
             events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads, path = j?.Path,
+            modApi = j?.ModApi ?? false, mods = j?.Mods ?? "",
         };
     }
 
@@ -394,7 +395,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
-                                 object Recording, string Report, object Loads, List<double[]> Path,
+                                 object Recording, string Report, object Loads, List<double[]> Path, bool ModApi, string Mods,
                                  ILookup<string, (int N, long RealMs, long TimerMs)> Codes);
 
     /// The logs' size the cache may hold (characters of log text); past it,
@@ -470,6 +471,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
             new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text),
+            ModApiSession(replay, parsed), ModsSession(replay, parsed),
             replay.Steps.ToLookup(st => st.Code ?? "", st => (st.N, st.RealMs, st.TimerMs)));
         lock (_judged)
         {
@@ -732,6 +734,18 @@ CREATE TABLE IF NOT EXISTS allowed_code (
                        (areas.Count > 6 ? " and " + (areas.Count - 6) + " more areas" : "");
         return new("bad", "The game's code was changed: " + where + ". " + touched.Count + " of " + code.Count +
                           " parts differ from the Steam game.", details);
+    }
+
+    /// Played with ModAPI loaded (T-0295): run mode's flag, in the chain or
+    /// the report's flag lines. The attempt page marks it.
+    public static bool ModApiSession(AttemptChain.Replay replay, RunReport report) =>
+        RunReport.HasModApi(replay.Flags) || report.ModApi;
+
+    /// The other mods seen (T-0308): the names from run mode's flag, "" none.
+    public static string ModsSession(AttemptChain.Replay replay, RunReport report)
+    {
+        string names = RunReport.ModsOf(replay.Flags);
+        return names.Length > 0 ? names : report.Mods;
     }
 
     /// The report as shown: the per-type hashes left out (thousands of lines;

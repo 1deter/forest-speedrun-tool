@@ -150,8 +150,8 @@ namespace ForestOverlay.BridgeMcp
             string setting = _paths.TestBridgeSetting();
             if (setting != null && !setting.Equals("true", StringComparison.OrdinalIgnoreCase))
                 return "the game is running but the bridge is off (TestBridge = " + setting +
-                       " in " + _paths.ConfigFile + ") - tick Settings -> Test bridge in game.";
-            return "the game is running but did not read in.txt - still loading, frozen, or the bridge is off (Settings -> Test bridge).";
+                       " in " + _paths.ConfigFile + ") - tick Developer -> Test bridge in game.";
+            return "the game is running but did not read in.txt - still loading, frozen, or the bridge is off (Developer -> Test bridge).";
         }
 
         /// Sends commands and waits for every reply. `readWithin`: how long

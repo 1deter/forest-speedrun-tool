@@ -4,7 +4,8 @@ using System.Globalization;
 namespace ForestOverlay.Data
 {
     // ------------------------------------------------------------------
-    // Every line the top-left info box can show, for the Settings tab's
+    // Every value the HUD can show (the column at the top left, or placed
+    // on its own - Core/HudWidgets), for the Settings tab's
     // HUD section (runner request, docs/backlog.md *HUD*: "more control
     // over the top-left HUD, less clutter").
     //
@@ -23,7 +24,9 @@ namespace ForestOverlay.Data
         public readonly string Module;
         /// HudBuilder.Pair label; null = every line of that module.
         public readonly string Label;
-        /// Config key under [HUD]; null for locked / externally switched lines.
+        /// Config key under [HUD] and the HUD layout's key; null for locked
+        /// lines. An externally switched line has one for the layout only
+        /// (placed on its own, text around it - T-0018), no [HUD] entry.
         public readonly string ConfigKey;
         public readonly string Name;
         public readonly string Description;
@@ -32,10 +35,25 @@ namespace ForestOverlay.Data
         public readonly bool Locked;
         /// Switched by its own module's setting (the 100% tab's), not by [HUD].
         public readonly bool External;
+        /// A single number that rises and falls: offers the trend colour
+        /// (Data/HudTrend, T-0023), switched on per value in Edit HUD.
+        public readonly bool Trend;
+        /// The hotkey id whose key the description names (KeyText.Slot), or
+        /// null; Unbound is the description while that action has no key.
+        public readonly string KeyId;
+        public readonly string Unbound;
 
         public HudLine(string module, string label, string configKey, string name, string description,
-                       bool defaultOn, bool locked, bool external)
+                       bool defaultOn, bool locked, bool external, bool trend = false)
+            : this(module, label, configKey, name, description, defaultOn, locked, external, null, null, trend)
         {
+        }
+
+        public HudLine(string module, string label, string configKey, string name, string description,
+                       bool defaultOn, bool locked, bool external, string keyId, string unbound, bool trend = false)
+        {
+            KeyId = keyId;
+            Unbound = unbound;
             Module = module;
             Label = label;
             ConfigKey = configKey;
@@ -44,6 +62,7 @@ namespace ForestOverlay.Data
             DefaultOn = defaultOn;
             Locked = locked;
             External = external;
+            Trend = trend;
         }
 
         /// Has a [HUD] config switch of its own.
@@ -61,6 +80,13 @@ namespace ForestOverlay.Data
             return new HudLine(module, label, key, name, description, true, false, false);
         }
 
+        /// A line whose description names a hotkey's current key (T-0262).
+        private static HudLine K(string module, string label, string key, string name, string description,
+                                 string keyId, string unbound)
+        {
+            return new HudLine(module, label, key, name, description, true, false, false, keyId, unbound);
+        }
+
         private static HudLine Always(string name, string description)
         {
             return new HudLine(PluginModule, null, null, name, description, true, true, false);
@@ -73,8 +99,11 @@ namespace ForestOverlay.Data
               "The box's title: Forest Overlay and its version."),
             L("update", "Update", "ShowUpdate", "Update check",
               "Whether a newer version is out (or that the check worked)."),
-            L("runinfo", "Speed", "ShowSpeed", "Speed",
-              "Horizontal speed, with the total (falling included) after it."),
+            new HudLine("runinfo", "Speed", "ShowSpeed", "Speed",
+              "Horizontal speed (u/s).", true, false, false, trend: true),
+            // One value per line (author, 2026-10-05: no "(tot x)" inside the speed).
+            new HudLine("runinfo", "Total", "ShowTotalSpeed", "Total speed",
+              "Speed including falling and jumping (u/s).", false, false, false, trend: true),
             L("runinfo", "Vel", "ShowVelocity", "Velocity",
               "Velocity along x, y and z."),
             L("runinfo", "Pos", "ShowPosition", "Position",
@@ -87,19 +116,21 @@ namespace ForestOverlay.Data
               "Logs carried / cap, while logs in the inventory is on."),
             L("inventory", "", "ShowPinnedItems", "Pinned items",
               "The items pinned in the Inventory tab, one line each."),
-            new HudLine(CollectiblesModule, null, null, "100% totals",
+            new HudLine(CollectiblesModule, null, "Show100Totals", "100% totals",
               "Items, nature, tasks and passengers found - the same switch as the 100% tab's.",
               false, false, true),
             L("debugview", "Cam", "ShowFreecam", "Freecam",
               "FREECAM while the free camera is on."),
             L("debugview", "Flight", "ShowTrajectory", "Trajectory preview",
-              "Where you come down (distance, time, speed) while the trajectory preview (Debug views) is on."),
+              "Where you come down (distance, time, speed) while the trajectory preview (Developer tab, Experimental) is on."),
             L("debugview", "Boost", "ShowBoostPreview", "Bomb boost preview",
               "The piled-up speed and distance in the pause menu during a knockback, while the trajectory preview is on."),
-            L("dumps", "Dump", "ShowDumps", "Dump status",
-              "What the F11 dumps are doing."),
-            L("practice", "Spot", "ShowSpot", "Current spot",
-              "The spot F7 restarts."),
+            K("dumps", "Dump", "ShowDumps", "Dump status",
+              "What the " + KeyText.Slot + " dumps are doing.", "dump.write",
+              "What the dumps are doing."),
+            K("practice", "Spot", "ShowSpot", "Current spot",
+              "The spot " + KeyText.Slot + " restarts.", "practice.goToSpot",
+              "The spot the Practice tab's Restart restarts."),
             L("practice", "Prac", "ShowPracticeStatus", "Practice messages",
               "The last practice action's result (teleport, restart, save)."),
             L("practicerun", "Run", "ShowRunTimer", "Run timer",
@@ -113,12 +144,37 @@ namespace ForestOverlay.Data
             L("practicerun", "Last", "ShowLastTime", "Last time",
               "Your previous time on the segment."),
             Always("ON NOW",
-              "Always shown: what changes the game right now (god mode, item caps...). A recording must show it."),
+              "Always shown while on: what changes the game right now (god mode, item caps...), one orange name each. A recording must show it."),
             Always("Practice marker",
-              "Always shown: clean, PRACTICE (a practice tool was used) or the run line. A recording must show it."),
+              "Always shown once a practice tool was used: its name, orange (nothing while clean); or the run line. A recording must show it."),
             Always("Run code",
               "Always shown during a run, even with every overlay hidden (run mode's anti-splice code)."),
         };
+
+        /// Settings > HUD's value list under short headings (T-0263): the
+        /// line each group starts at (by Name, so a reorder cannot shift
+        /// them) and its heading (proposed words, tasks/notes/T-0263.md).
+        private static readonly string[] GroupFirst =
+            { "Title", "Speed", "Items carried", "Freecam", "Current spot", "Run timer" };
+        private static readonly string[] GroupHeadings =
+            { "Overlay", "Movement", "Inventory and 100%", "Tools", "Practice", "Runs" };
+
+        /// The heading drawn above line `index`, or null (not a group's first line).
+        public static string HeadingAt(int index)
+        {
+            if (index < 0 || index >= All.Length) return null;
+            string name = All[index].Name;
+            for (int g = 0; g < GroupFirst.Length; g++)
+                if (string.Equals(GroupFirst[g], name, StringComparison.Ordinal)) return GroupHeadings[g];
+            return null;
+        }
+
+        /// The line's description with the runner's key in it: `keyName` is
+        /// the current key of the line's KeyId (null / "" = unbound).
+        public static string Describe(HudLine line, string keyName)
+        {
+            return line.KeyId == null ? line.Description : KeyText.Fill(line.Description, keyName, line.Unbound);
+        }
 
         /// Index of the line a module's Pair writes, or -1 (not listed:
         /// always shown).
@@ -160,11 +216,9 @@ namespace ForestOverlay.Data
             return compact ? "FO v" + version : "Forest Overlay v" + version;
         }
 
-        public static string Speed(float horizontal, float total, bool compact)
+        public static string Speed(float speed, bool compact)
         {
-            return compact
-                ? F(horizontal, 2) + " (" + F(total, 2) + ")"
-                : F(horizontal, 2) + " u/s   (tot " + F(total, 2) + ")";
+            return F(speed, 2);   // the number only (author, 2026-10-05: no units on a run screen)
         }
 
         public static string Vector(float x, float y, float z, int decimals)
@@ -176,6 +230,43 @@ namespace ForestOverlay.Data
         {
             string t = total.ToString(CultureInfo.InvariantCulture);
             return compact ? t : t + "   (" + stacks.ToString(CultureInfo.InvariantCulture) + " stacks)";
+        }
+
+        /// The HUD's practice flag: a Mark reason cut to the tool's short
+        /// name (author, 2026-10-10: "test bridge: screenshot" -> "test
+        /// bridge", "savestate restore (load)" -> "savestate restore").
+        public static string ShortReason(string reason)
+        {
+            if (string.IsNullOrEmpty(reason)) return "";
+            int cut = reason.Length;
+            int colon = reason.IndexOf(':');
+            if (colon > 0) cut = colon;
+            int paren = reason.IndexOf(" (", StringComparison.Ordinal);
+            if (paren > 0 && paren < cut) cut = paren;
+            return reason.Substring(0, cut).Trim();
+        }
+
+        /// The short flag of a session with ModAPI loaded (T-0295; the
+        /// author's word, 2026-10-10).
+        public const string ModApiFlag = "ModAPI";
+
+        /// The practice marker: run mode's line when there is one (it names
+        /// "ModAPI Detected" itself - said once, author 2026-10-11), else the
+        /// ModAPI flag first when the session has it, then the tool's short name.
+        public static string Marker(bool modApi, string runText, string reason)
+        {
+            return Marker(modApi, "", runText, reason);
+        }
+
+        /// With the external mods seen this session (T-0308; "" none): a
+        /// "Mods: A, B" line under the ModAPI flag.
+        public static string Marker(bool modApi, string mods, string runText, string reason)
+        {
+            if (runText != null) return runText;
+            string rest = ShortReason(reason);
+            if (!string.IsNullOrEmpty(mods)) rest = rest.Length == 0 ? "Mods: " + mods : "Mods: " + mods + "\n" + rest;
+            if (!modApi) return rest;
+            return rest.Length == 0 ? ModApiFlag : ModApiFlag + "\n" + rest;
         }
 
         /// The update check's message; compact drops the version an

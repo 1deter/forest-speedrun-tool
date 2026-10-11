@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using BepInEx;
 using ForestOverlay.Core;
@@ -48,6 +49,7 @@ namespace ForestOverlay
         private InventoryReader _inventory;
         private PlayerStateReader _playerState;
         private PracticeState _practice;
+        private ExternalModWatch _modWatch;
         private readonly Notice _notice = new Notice();
         private GUIStyle _noticeStyle;
         private GameEvents _events;
@@ -56,19 +58,10 @@ namespace ForestOverlay
 
         private GUIStyle _hudLabelStyle;
         private GUIStyle _warnStyle;
-        private GUIStyle _hudBoxStyle;
         private int _hudStyleVersion = -1;
 
-        // Built once. Concatenating the title inside OnGUI would allocate
-        // on every pass, several times per frame.
-        private static readonly GUIContent HudTitle =
-            new GUIContent(HudLines.Title(PluginVersion, false));
-        private static readonly GUIContent HudTitleCompact =
-            new GUIContent(HudLines.Title(PluginVersion, true));
-        private static readonly int HudTitleIndex = HudLines.IndexOfKey("ShowTitle");
-
-        // Dragging the info box (Settings -> HUD): only while the window is
-        // open (the cursor is free then). Kept here while dragging, clamped
+        // Dragging the HUD column: only in Edit HUD, by its grip (T-0317;
+        // the cursor is free then). Kept here while dragging, clamped
         // live, written once on release (gotchas 60-61).
         private MainWindowModule _mainWindow;
         private bool _hudDragging;
@@ -127,6 +120,16 @@ namespace ForestOverlay
                 _inventory = new InventoryReader(Logger);
                 _playerState = new PlayerStateReader(Logger);
                 _practice = new PracticeState();
+                // ModAPI's rebuilt game code (UltimateCheatmenu...): the
+                // session is flagged, nothing refused (T-0295; rule 12).
+                if (ModApi.Present())
+                {
+                    Logger.LogWarning("ModAPI: loaded - this session is flagged (the HUD's ModAPI flag, every run mode attempt).");
+                    _practice.SetModApi(true);
+                }
+                // Other plugins / DLLs / patches (T-0308): looked at on the
+                // first Update, when every plugin has loaded.
+                _modWatch = new ExternalModWatch(Logger, _practice, PluginGuid, System.Reflection.Assembly.GetExecutingAssembly().Location);
 
                 // Read-only postfixes on the endgame cutscene methods.
                 // Installed before modules so none can miss an event.
@@ -145,6 +148,7 @@ namespace ForestOverlay
                 ctx.Run = new RunMode(Logger, _notice, _practice);
                 ctx.Notice = _notice;
                 ctx.Events = _events;
+                ctx.Network = new NetworkSwitches(Config, Logger);
                 ctx.ConfigDirectory = configDir;
                 ctx.Logs = _logs;
                 ctx.Runner = this;
@@ -163,7 +167,7 @@ namespace ForestOverlay
                 _host.Hotkeys.Add("ui.toggleAll", ToggleHudKeyDefault,
                                   "Show / hide ALL overlay UI", ToggleAllUi);
                 _host.Hotkeys.Add("ui.toggleInfo", KeyCode.None,
-                                  "Show / hide the info box", ToggleInfoBox);
+                                  "Show / hide the HUD values", ToggleInfoBox);
 
                 Logger.LogInfo("Modules: " + _host.Count + " registered.");
                 Logger.LogInfo("Keys: " + _host.Hotkeys.Describe());
@@ -206,6 +210,7 @@ namespace ForestOverlay
             host.Register(new TasModule());          // PRACTICE ONLY, experimental: input record / replay (drawn in the Runs tab; last, so bridge indexes stay)
             host.Register(new MapModule());          // info-only view (its Go is Practice's); after TAS so bridge indexes stay
             host.Register(new PaintModule());        // practice mode only: paint where the crosshair hits (T-0219); last, so bridge indexes stay
+            host.Register(new DeveloperModule());    // the Developer tab: hosts other modules' developer folds; last, so bridge indexes stay
         }
 
         // ------------------------------------------------------------------
@@ -217,6 +222,7 @@ namespace ForestOverlay
                 StallWatch.At(StallWatch.Hook.Update, -1);
                 UnityErrorLog.Flush();
                 if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
+                if (_modWatch != null) _modWatch.Tick(Time.realtimeSinceStartup);
                 if (_host == null) return;
 
                 _player.Tick();
@@ -333,27 +339,21 @@ namespace ForestOverlay
 
             // Wraps: a long line (an update message, a spot name in the
             // practice marker) was cut off at the box edge.
-            _hudLabelStyle = new GUIStyle(GUI.skin.label);
+            _hudLabelStyle = UiKit.Style(GUI.skin.label);
             _hudLabelStyle.padding = new RectOffset(0, 0, 0, 0);
             _hudLabelStyle.wordWrap = true;
 
-            _warnStyle = new GUIStyle(_hudLabelStyle);
+            _warnStyle = UiKit.Style(_hudLabelStyle);
             _warnStyle.fontStyle = FontStyle.Bold;
             _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
 
-            _hudBoxStyle = new GUIStyle(GUI.skin.box);
-
-            _noticeStyle = new GUIStyle(GUI.skin.box);
+            // The toast's text; its card is UiKit's (opaque, rounded).
+            _noticeStyle = UiKit.Style(GUI.skin.label);
             _noticeStyle.fontSize = 14;
             _noticeStyle.wordWrap = true;
-            _noticeStyle.alignment = TextAnchor.MiddleCenter;
-            _noticeStyle.normal.textColor = new Color(1f, 0.75f, 0.4f);
-            // Opaque: the skin's box is see-through, and over the window
-            // its text read through the notice.
-            Texture2D bg = new Texture2D(1, 1);
-            bg.SetPixel(0, 0, new Color(0.08f, 0.08f, 0.08f, 0.95f));
-            bg.Apply();
-            _noticeStyle.normal.background = bg;
+            _noticeStyle.alignment = TextAnchor.MiddleLeft;
+            _noticeStyle.padding = new RectOffset(0, 0, 0, 0);
+            _noticeStyle.normal.textColor = UiKit.TextColour;
         }
 
         // Upper middle: clear of the HUD box (top left) and of the game's
@@ -363,12 +363,22 @@ namespace ForestOverlay
         private const int NoticeWindowId = 59_999;
         private GUI.WindowFunction _noticeWindowFn;
 
+        // A toast (author, 2026-10-05): slides down from the top edge, a thin
+        // bar runs out while it shows, slides back up at the end.
+        private const float ToastSlide = 0.25f;
+        private float _toastW, _toastH;
+
         private void DrawNotice()
         {
-            const float w = 560f;
-            float h = Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, w) + 16f);
+            float w = Mathf.Min(520f, Screen.width - 32f);
+            float h = Mathf.Max(44f, _noticeStyle.CalcHeight(_notice.Content, w - 28f) + 22f);
+            float t = _notice.Elapsed, d = _notice.Duration;
+            float k = Mathf.Min(Mathf.Clamp01(t / ToastSlide), Mathf.Clamp01((d - t) / ToastSlide));
+            k = k * k * (3f - 2f * k);
+            _toastW = w;
+            _toastH = h;
             if (_noticeWindowFn == null) _noticeWindowFn = DrawNoticeWindow;
-            GUI.Window(NoticeWindowId, new Rect((Screen.width - w) * 0.5f, Screen.height * 0.18f, w, h),
+            GUI.Window(NoticeWindowId, new Rect((Screen.width - w) * 0.5f, Mathf.Lerp(-h - 4f, 28f, k), w, h),
                 _noticeWindowFn, GUIContent.none, GUIStyle.none);
             GUI.BringWindowToFront(NoticeWindowId);
         }
@@ -376,8 +386,10 @@ namespace ForestOverlay
         private void DrawNoticeWindow(int id)
         {
             StallWatch.At(StallWatch.Hook.Notice, -1);
-            GUI.Box(new Rect(0f, 0f, 560f, Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, 560f) + 16f)),
-                _notice.Content, _noticeStyle);
+            GUI.Box(new Rect(0f, 0f, _toastW, _toastH), GUIContent.none, UiKit.WidgetCard);
+            GUI.Label(new Rect(14f, 8f, _toastW - 28f, _toastH - 18f), _notice.Content, _noticeStyle);
+            float left = 1f - Mathf.Clamp01(_notice.Elapsed / Mathf.Max(0.01f, _notice.Duration));
+            GUI.DrawTexture(new Rect(8f, _toastH - 6f, (_toastW - 16f) * left, 2f), UiKit.AccentTexture);
             StallWatch.Leave();
         }
 
@@ -388,107 +400,192 @@ namespace ForestOverlay
             int px = s.TextSize;
             _hudLabelStyle.fontSize = px;
             _warnStyle.fontSize = px;
-            _hudBoxStyle.fontSize = px;
         }
+
+        // The HUD (T-0018): every ticked value, in the COLUMN at the HUD
+        // position - the pre-overhaul info box's order, title first, value
+        // only with the runner's own text around it, no backing (author,
+        // 2026-10-10) - then what changes the game (ON NOW) and the practice
+        // marker, always (honest labelling). A value placed on its own
+        // (HudWidgets) leaves the column; a value not showing leaves no gap.
+        private readonly List<float> _colH = new List<float>();
+        private readonly List<float> _colW = new List<float>();
+        private const float GripW = 10f;
 
         private void DrawHud()
         {
+            // Drawn in the scaled screen (T-0318): same look at every resolution.
+            Matrix4x4 outer = _host.Hud.Settings.BeginScaled();
+            try { DrawHudScaled(); }
+            finally { GUI.matrix = outer; }
+        }
+
+        private void DrawHudScaled()
+        {
             HudSettings s = _host.Hud.Settings;
+            UiScale ui = s.Ui;
             if (_hudStyleVersion != s.Version) ApplyHudStyle(s);
 
             int px = s.TextSize;
-            float w = HudLines.Width(px, Screen.width);
+            float wrapW = HudLines.Width(px, ui.VW) - 24f;
             float lineHeight = HudLines.LineHeight(px);
-            float textW = w - 24f;
-            bool title = s.Shows(HudTitleIndex);
-            float top = title ? (px <= 0 ? 20f : lineHeight + 2f) : 6f;
+            HudBuilder hud = _host.Hud;
+            HudWidgets widgets = hud.Widgets;
+            bool editing = widgets != null && widgets.Editing;
 
-            // Measured every pass (CalcHeight does not allocate) so the box
-            // grows with a wrapped line instead of cutting it off.
-            int lines = _host.Hud.Count;
-            GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
-            float markerH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
-            float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, textW)) : 0f;
-            float textH = markerH + onH;
-            for (int i = 0; i < lines; i++)
-                textH += Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(_host.Hud.At(i), textW));
-
-            float boxH = top + textH + 14f;
-            float bx = HudLines.Clamp(_hudDragging ? _hudDragX : s.X, w, Screen.width);
-            float by = HudLines.Clamp(_hudDragging ? _hudDragY : s.Y, boxH, Screen.height);
-            Rect box = new Rect(bx, by, w, boxH);
-            HandleHudDrag(box, s);
-
-            GUI.Box(box, title ? (s.Compact ? HudTitleCompact : HudTitle) : GUIContent.none, _hudBoxStyle);
-            if (_hudDragging) GUI.Box(box, GUIContent.none);   // an outline while moving
-
-            float x = bx + 10f;
-            float y = by + top;
+            // Measured every pass (CalcSize / CalcHeight do not allocate) so
+            // a long line wraps instead of being cut off.
+            int lines = hud.Count;
+            while (_colH.Count < lines) { _colH.Add(0f); _colW.Add(0f); }
+            float colW = 0f, colH = 0f;
             for (int i = 0; i < lines; i++)
             {
-                GUIContent line = _host.Hud.At(i);
-                float h = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(line, textW));
-                GUI.Label(new Rect(x, y, textW, h), line, _hudLabelStyle);
-                y += h;
+                if (widgets != null && widgets.IsFree(hud.LineIndex(i))) continue;
+                GUIContent c = hud.ValueAt(i);
+                float cw = Mathf.Min(wrapW, _hudLabelStyle.CalcSize(c).x);
+                float ch = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(c, wrapW));
+                _colW[i] = cw;
+                _colH[i] = ch;
+                colW = Mathf.Max(colW, cw);
+                colH += ch;
+            }
+            GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
+            float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, wrapW)) : 0f;
+            // Nothing while clean (author, 2026-10-10).
+            bool marked = _practice.Label.text.Length > 0;
+            float markH = marked ? Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, wrapW)) : 0f;
+            if (onH > 0f) colW = Mathf.Max(colW, Mathf.Min(wrapW, _warnStyle.CalcSize(_practice.OnLabel).x));
+            if (marked) colW = Mathf.Max(colW, Mathf.Min(wrapW, practiceStyle.CalcSize(_practice.Label).x));
+            colH += onH + markH;
+            // Nothing to show: still a spot to see and move while editing.
+            if (editing)
+            {
+                colW = Mathf.Max(colW, 60f);
+                colH = Mathf.Max(colH, lineHeight);
+            }
+
+            float x = HudLines.Clamp(_hudDragging ? _hudDragX : ui.PosX(s.X), colW, ui.VW);
+            float y = HudLines.Clamp(_hudDragging ? _hudDragY : ui.PosY(s.Y), colH, ui.VH);
+            Rect col = new Rect(x, y, colW, colH);
+
+            if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
+            Rect blocked = _mainWindow != null ? s.Virtual(_mainWindow.ScreenRect) : new Rect();
+
+            // Edit mode: a press on a value places it on its own (HudWidgets);
+            // the column moves by its grip only. Not editing, nothing moves:
+            // the F2 window alone is not a drag mode (author, 2026-10-11, T-0317).
+            Rect grip = new Rect(col.xMax + 6f, y, GripW, colH);
+            if (grip.xMax > ui.VW) grip.x = col.x - 6f - GripW;
+            if (editing)
+            {
+                float ly = y;
+                for (int i = 0; i < lines; i++)
+                {
+                    int li = hud.LineIndex(i);
+                    if (widgets.IsFree(li)) continue;
+                    widgets.ColumnLineEvent(new Rect(x, ly, _colW[i], _colH[i]), li, blocked);
+                    ly += _colH[i];
+                }
+                HandleHudDrag(grip, col, s);
+            }
+            else if (_hudDragging) EndHudDrag(col, s);
+
+            // A placed value dragged over the column: dropping it puts it back.
+            if (editing && widgets.DropOnColumn) GUI.Box(new Rect(col.x - 4f, col.y - 2f, col.width + 8f, col.height + 4f), GUIContent.none, UiKit.WidgetCard);
+            if (editing || _hudDragging)
+                GUI.Box(new Rect(col.x - 4f, col.y - 2f, col.width + 8f, col.height + 4f), GUIContent.none, UiKit.Outline);
+            if (editing) GUI.Box(grip, GUIContent.none, UiKit.Handle);
+
+            float yy = y;
+            for (int i = 0; i < lines; i++)
+            {
+                if (widgets != null && widgets.IsFree(hud.LineIndex(i))) continue;
+                int trend = hud.TrendAt(i);
+                if (trend >= 0)
+                {
+                    // A value with Trend on (T-0023): its colour only, for this draw.
+                    Color normal = _hudLabelStyle.normal.textColor;
+                    _hudLabelStyle.normal.textColor = s.TrendColour((TrendState)trend);
+                    GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
+                    _hudLabelStyle.normal.textColor = normal;
+                }
+                else GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
+                yy += _colH[i];
             }
 
             // What changes the game now (no stagger, god mode, item caps...),
             // above the marker. Never switchable (honest labelling).
-            if (_practice.AnyOn)
+            if (onH > 0f)
             {
-                GUI.Label(new Rect(x, y, textW, onH), _practice.OnLabel, _warnStyle);
-                y += onH;
+                GUI.Label(new Rect(x, yy, wrapW, onH), _practice.OnLabel, _warnStyle);
+                yy += onH;
             }
 
             // Sticky and last, so it is the line the eye lands on. A run
             // recording must make it obvious that a practice tool was used.
             // Never switchable either.
-            GUI.Label(new Rect(x, y, textW, markerH), _practice.Label, practiceStyle);
+            if (marked) GUI.Label(new Rect(x, yy, wrapW, markH), _practice.Label, practiceStyle);
+
+            // The values placed on their own (and, in edit mode, their handles);
+            // a placed value dropped on the column goes back into it.
+            if (widgets != null)
+            {
+                widgets.ColumnRect = col;
+                widgets.Draw(hud, blocked);
+            }
         }
 
-        private void HandleHudDrag(Rect box, HudSettings s)
+        // `hit`: where a press starts the drag; `col`: the column, whose
+        // size keeps it on screen.
+        private void HandleHudDrag(Rect hit, Rect col, HudSettings s)
         {
             Event e = Event.current;
             if (e == null) return;
+            // Called only while editing, and Edit HUD needs the F2 window open
+            // (closing it ends the edit), so no window check here (T-0317).
             if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
-            bool windowOpen = _mainWindow != null && _mainWindow.PanelOpen;
-
-            if (!windowOpen)
-            {
-                if (_hudDragging) EndHudDrag(box, s);
-                return;
-            }
+            if (_mainWindow == null) return;
 
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button != 0 || !box.Contains(e.mousePosition) || _mainWindow.ScreenRect.Contains(e.mousePosition)) return;
+                    if (e.button != 0 || !hit.Contains(e.mousePosition) || s.Virtual(_mainWindow.ScreenRect).Contains(e.mousePosition)) return;
                     _hudDragging = true;
-                    _hudDragOffset = e.mousePosition - new Vector2(box.x, box.y);
-                    _hudDragX = box.x;
-                    _hudDragY = box.y;
+                    _hudDragOffset = e.mousePosition - new Vector2(col.x, col.y);
+                    _hudDragX = col.x;
+                    _hudDragY = col.y;
                     e.Use();
                     break;
                 case EventType.MouseDrag:
                     if (!_hudDragging) return;
-                    _hudDragX = HudLines.Clamp(e.mousePosition.x - _hudDragOffset.x, box.width, Screen.width);
-                    _hudDragY = HudLines.Clamp(e.mousePosition.y - _hudDragOffset.y, box.height, Screen.height);
+                    _hudDragX = HudLines.Clamp(e.mousePosition.x - _hudDragOffset.x, col.width, s.Ui.VW);
+                    _hudDragY = HudLines.Clamp(e.mousePosition.y - _hudDragOffset.y, col.height, s.Ui.VH);
+                    // Edit HUD mode: snaps to the screen and the other pieces (T-0020).
+                    HudWidgets widgets = _host.Hud.Widgets;
+                    if (widgets != null)
+                    {
+                        Vector2 at = widgets.SnapDrag(HudWidgets.ColumnPiece, new Rect(_hudDragX, _hudDragY, col.width, col.height));
+                        _hudDragX = at.x;
+                        _hudDragY = at.y;
+                    }
                     e.Use();
                     break;
                 case EventType.MouseUp:
                     if (!_hudDragging) return;
-                    EndHudDrag(box, s);
+                    EndHudDrag(col, s);
                     e.Use();
                     break;
             }
         }
 
-        private void EndHudDrag(Rect box, HudSettings s)
+        private void EndHudDrag(Rect col, HudSettings s)
         {
             _hudDragging = false;
-            s.SetPosition(Mathf.Round(HudLines.Clamp(_hudDragX, box.width, Screen.width)),
-                          Mathf.Round(HudLines.Clamp(_hudDragY, box.height, Screen.height)));
-            Logger.LogInfo("Info box moved to (" + Mathf.RoundToInt(s.X) + ", " + Mathf.RoundToInt(s.Y) + ").");
+            if (_host.Hud.Widgets != null) _host.Hud.Widgets.EndSnap();
+            // Saved in reference pixels (Data/UiScale).
+            s.SetPosition(Mathf.Round(s.Ui.ToRefX(HudLines.Clamp(_hudDragX, col.width, s.Ui.VW))),
+                          Mathf.Round(s.Ui.ToRefY(HudLines.Clamp(_hudDragY, col.height, s.Ui.VH))));
+            Logger.LogInfo("HUD column moved to (" + Mathf.RoundToInt(s.X) + ", " + Mathf.RoundToInt(s.Y) + ").");
         }
     }
 }

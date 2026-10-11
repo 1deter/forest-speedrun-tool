@@ -44,9 +44,9 @@ namespace ForestOverlay.Modules
         private const float SaveDelay = 1f;
 
         public override string Id { get { return "debugview"; } }
-        public override string DisplayName { get { return "Debug views"; } }
+        public override string DisplayName { get { return "Views"; } }
         public override bool HasTab { get { return true; } }
-        public override string TabTitle { get { return "Debug views"; } }
+        public override string TabTitle { get { return "Views"; } }
         public override int TabOrder { get { return 50; } }
 
         public override bool HoldsPlayer { get { return _freeCamOn; } }
@@ -164,12 +164,12 @@ namespace ForestOverlay.Modules
             ApplyFilters();
 
             _profilerExtraCfg = Ctx.Config.Bind("Diagnostics", "GameProfilerExtra", "",
-                "Extra game methods the game profiler (Debug views) times: \"Type::Method\" or \"Type::*\", comma-separated. " +
+                "Extra game methods the game profiler (Developer tab) times: \"Type::Method\" or \"Type::*\", comma-separated. " +
                 "Read when the profiler is switched on.");
             _profiler = new GameProfiler(Ctx.Log, OverlayPlugin.PluginGuid);
 
             _allocAtStartupCfg = Ctx.Config.Bind("Diagnostics", "AllocationTrackerAtStartup", false,
-                "Install the allocation tracker (Debug views) when the game starts, so every allocation is seen - " +
+                "Install the allocation tracker (Developer tab) when the game starts, so every allocation is seen - " +
                 "a small cost on each allocation for the whole session. Off: it installs when first switched on and " +
                 "misses plain objects from code the game already ran.");
             if (_allocAtStartupCfg.Value) AllocationTracker.Install(Ctx.Log, true);
@@ -227,7 +227,7 @@ namespace ForestOverlay.Modules
             // F1 is deliberately left unbound - it opens the game's own
             // developer console when that is enabled, and a runner who has
             // not rebound yet would get both.
-            map.Add("tab.debugview", KeyCode.None, "Open Debug views tab", OpenMyTab);
+            map.Add("tab.debugview", KeyCode.None, "Open Views tab", OpenMyTab);
             map.Add("debug.freecam", KeyCode.KeypadMultiply, "Toggle freecam", ToggleFreeCam);
             map.Add("debug.trajectory", KeyCode.None, "Toggle trajectory preview", ToggleTrajectory);
         }
@@ -242,7 +242,7 @@ namespace ForestOverlay.Modules
                 if (_perfNames == null)
                 {
                     _perfNames = new string[_perf.Count];
-                    for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.Label(i).Trim();
+                    for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.FlagName(i);
                 }
                 for (int i = 0; i < _perf.Count && i < _perfNames.Length; i++)
                     if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i) && !_perf.ExperimentalSuspended);
@@ -475,11 +475,11 @@ namespace ForestOverlay.Modules
                 if (_perf.IsExperimental(i) != experimental) continue;
                 bool guiWas = GUI.enabled;
                 if (experimental && _perf.ExperimentalSuspended) GUI.enabled = false;
-                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
+                bool on = UiKit.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
                 GUI.enabled = guiWas;
                 if (on != _perf.IsOn(i)) _perf.Toggle(i);
                 y += Row;
-                if (_perf.Note(i).Length > 0) y += UiText.Draw(30, y, w - 42, _perf.Note(i));
+                if (_perf.Note(i).Length > 0) UiText.Note(30, y, w - 42, _perf.Note(i));
                 if (_perf.Status(i) != (_perf.IsOn(i) ? "on" : "off"))
                     y += UiText.Draw(30, y, w - 42, _perf.Status(i));
             }
@@ -495,19 +495,19 @@ namespace ForestOverlay.Modules
             float y = 4f;
 
             // --- views ------------------------------------------------------
-            bool freecam = GUI.Toggle(new Rect(12, y, w - 24, 22), _freeCamOn, " Freecam");
+            bool freecam = UiKit.Toggle(new Rect(12, y, w - 24, 22), _freeCamOn, " Freecam");
             if (freecam != _freeCamOn) ToggleFreeCam();
             y += Row;
 
-            bool wire = GUI.Toggle(new Rect(12, y, w - 24, 22), _wireOn, " Wireframe");
+            bool wire = UiKit.Toggle(new Rect(12, y, w - 24, 22), _wireOn, " Wireframe");
             if (wire != _wireOn) SetWireframe(wire);
             y += Row;
 
-            bool cols = GUI.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowColliders, " Colliders (green)");
+            bool cols = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowColliders, " Colliders (green)");
             if (cols != _draw.ShowColliders) { _draw.ShowColliders = cols; _draw.RefreshSoon(); }
             y += Row;
 
-            bool trigs = GUI.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowTriggers, " Triggers (orange)");
+            bool trigs = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowTriggers, " Triggers (orange)");
             if (trigs != _draw.ShowTriggers) { _draw.ShowTriggers = trigs; _draw.RefreshSoon(); }
             y += Row + 6f;
 
@@ -516,22 +516,8 @@ namespace ForestOverlay.Modules
             _radius = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _radius, 5f, 120f);
             y += Row + 6f;
 
-            // --- experimental: trajectory preview ---------------------------
-            y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
-            bool traj = GUI.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
-            if (traj != _trajectoryOn) ToggleTrajectory();
-            y += Row;
-            if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);
-            y += UiText.Draw(30, y, w - 42, _trajectoryStatus);
-            if (_trajectory.Show)
-            {
-                y += UiText.Draw(30, y, w - 42, _trajectory.Summary);
-                y += UiText.Draw(30, y, w - 42, _trajectory.BoostText);
-            }
-            y += UiText.Draw(30, y, w - 42, TrajectoryHelp) + 6f;
-
             // --- filters ----------------------------------------------------
-            bool limit = GUI.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
+            bool limit = UiKit.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
             if (limit != _limitSize) { _limitSize = limit; FiltersChanged(); }
             y += Row;
 
@@ -543,7 +529,7 @@ namespace ForestOverlay.Modules
                 y += Row;
             }
 
-            y += UiText.Draw(12, y, w - 24, FilterHelp);
+            UiText.Note(12, y, w - 24, FilterHelp);
             string text = GUI.TextField(new Rect(12, y, w - 24, 22), _excludeText);
             if (text != _excludeText) { _excludeText = text; FiltersChanged(); }
             y += Row + 2f;
@@ -572,41 +558,6 @@ namespace ForestOverlay.Modules
             }
             y += 8f;
 
-            // --- game profiler ---------------------------------------------
-            bool prof = GUI.Toggle(new Rect(12, y, w - 24, 22), _profiler.Active,
-                                   " Game profiler (the game's slowest scripts, in the log every 30 s)");
-            if (prof != _profiler.Active) ToggleProfiler();
-            y += Row;
-            y += UiText.Draw(12, y, w - 24, _profiler.Status);
-            y += UiText.Draw(12, y, w - 24, _profiler.LastReport) + 8f;
-
-            bool load = GUI.Toggle(new Rect(12, y, w - 24, 22), FrameTimer.TestLoadMs > 0.0,
-                                   " Frame test: add 1 ms of work every frame (for a minute - it lowers your fps)");
-            if (load != (FrameTimer.TestLoadMs > 0.0)) ToggleFrameTest();
-            y += Row;
-            y += UiText.Draw(12, y, w - 24, "Tells whether your processor's main game thread or its drawing thread limits your frame " +
-                                            "rate: the log's Frame lines with and without it. Never kept on between launches.") + 8f;
-
-            bool alloc = GUI.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
-                                    " Allocation tracker (what the game allocates, by type; by method with the profiler)");
-            if (alloc != AllocationTracker.Counting) ToggleAllocations();
-            y += Row;
-            y += UiText.Draw(12, y, w - 24, AllocationTracker.Status);
-            y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
-
-            // --- performance patches -----------------------------------------
-            y += UiText.Draw(12, y, w - 24, "Performance patches - less work for the game each frame, and less garbage to collect (fewer hitches); " +
-                                            "each one keeps what the game does. Untick one to get the game's own code back.");
-            y = DrawPerf(y, w, false);
-            y += UiText.Draw(12, y, w - 24, "Experimental / gameplay-altering - off by default. These change what the game does, " +
-                                            "not only how fast it runs; each one says what under it.");
-            y = DrawPerf(y, w, true);
-            y += 8f;
-
-            // --- savestates and loads (was the Savestates tab) --------------
-            SavestateModule savestates = Host.Find<SavestateModule>();
-            if (savestates != null) y = savestates.DrawOptions(12, y, w - 24) + 8f;
-
             // --- notes ------------------------------------------------------
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
@@ -616,6 +567,72 @@ namespace ForestOverlay.Modules
             _contentHeight = y;
             GUI.EndScrollView();
         }
+
+        // --- drawn by the Settings tab's Performance fold ---------------------
+        // The behaviour-preserving patches: on by default and for everyone
+        // (author, 2026-10-08: not developer-only). Draws from x 0, width w.
+        public float DrawPerformance(float y, float w)
+        {
+            y += UiText.Note(12, y, w - 24, PerformanceNote) + 4f;
+            return DrawPerf(y, w, false);
+        }
+
+        // --- drawn by the Developer tab ------------------------------------------
+        // Benchmarks: the game profiler, the frame test, the allocation tracker.
+        public float DrawBenchmarks(float y, float w)
+        {
+            bool prof = UiKit.Toggle(new Rect(12, y, w - 24, 22), _profiler.Active,
+                                   " Game profiler (the game's slowest scripts, in the log every 30 s)");
+            if (prof != _profiler.Active) ToggleProfiler();
+            y += Row;
+            y += UiText.Draw(12, y, w - 24, _profiler.Status);
+            y += UiText.Draw(12, y, w - 24, _profiler.LastReport) + 8f;
+
+            bool load = UiKit.Toggle(new Rect(12, y, w - 24, 22), FrameTimer.TestLoadMs > 0.0,
+                                   " Frame test: add 1 ms of work every frame (for a minute - it lowers your fps)");
+            if (load != (FrameTimer.TestLoadMs > 0.0)) ToggleFrameTest();
+            y += Row;
+            y += UiText.Note(12, y, w - 24, FrameTestNote) + 8f;
+
+            bool alloc = UiKit.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
+                                    " Allocation tracker (what the game allocates, by type; by method with the profiler)");
+            if (alloc != AllocationTracker.Counting) ToggleAllocations();
+            y += Row;
+            y += UiText.Draw(12, y, w - 24, AllocationTracker.Status);
+            y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
+            return y;
+        }
+
+        // Experimental: the trajectory preview and the gameplay-altering
+        // performance switches - off by default, never needed for a run.
+        public float DrawExperimental(float y, float w)
+        {
+            y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
+            bool traj = UiKit.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
+            if (traj != _trajectoryOn) ToggleTrajectory();
+            y += Row;
+            if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);
+            y += UiText.Draw(30, y, w - 42, _trajectoryStatus);
+            if (_trajectory.Show)
+            {
+                y += UiText.Draw(30, y, w - 42, _trajectory.Summary);
+                y += UiText.Draw(30, y, w - 42, _trajectory.BoostText);
+            }
+            UiText.Note(30, y, w - 42, TrajectoryHelp);
+            y += 10f;
+
+            { float hh = UiText.Draw(12, y, w - 24, "Gameplay-altering performance switches"); UiText.Note(12, y + hh, w - 24, ExperimentalNote); y += hh; }
+            return DrawPerf(y, w, true) + 4f;
+        }
+
+        private static readonly GUIContent PerformanceNote = new GUIContent(
+            "Less work for the game each frame, and less garbage to collect (fewer hitches); " +
+            "each one keeps what the game does. Untick one to get the game's own code back.");
+        private static readonly GUIContent ExperimentalNote = new GUIContent(
+            "Off by default. These change what the game does, not only how fast it runs; each one says what under it.");
+        private static readonly GUIContent FrameTestNote = new GUIContent(
+            "Tells whether your processor's main game thread or its drawing thread limits your frame " +
+            "rate: the log's Frame lines with and without it. Never kept on between launches.");
 
         public override void Shutdown()
         {

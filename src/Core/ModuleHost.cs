@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using ForestOverlay.Game;
 using UnityEngine;
 
@@ -31,6 +32,8 @@ namespace ForestOverlay.Core
         private readonly PerfMonitor _perf;
 
         private float _nextHudRefresh;
+        private static readonly string TitleFull = HudLines.Title(OverlayPlugin.PluginVersion, false);
+        private static readonly string TitleCompact = HudLines.Title(OverlayPlugin.PluginVersion, true);
 
         // Stutter watch. A module that takes longer than this in one Tick
         // is logged by name, at most once per interval per module, so a
@@ -46,7 +49,7 @@ namespace ForestOverlay.Core
 
         /// Whether game input is being blocked, for the Settings tab.
         public string InputStatus { get { return _input.Status; } }
-        /// The info box in the corner.
+        /// The HUD values (the column and the placed values; its key).
         public bool HudVisible = true;
 
         /// Master switch: hides EVERYTHING this plugin draws, including
@@ -73,6 +76,8 @@ namespace ForestOverlay.Core
             _perf.Breakdown = this;
             _hotkeys = new HotkeyMap(ctx.Config);
             _hud.Settings = new HudSettings(ctx.Config);
+            _hud.Settings.Log = ctx.Log;
+            _hud.Widgets = new HudWidgets(ctx.Config, _hud.Settings, ctx.ConfigDirectory, ctx.Log);
         }
 
         public void Register(OverlayModule module)
@@ -167,6 +172,9 @@ namespace ForestOverlay.Core
                     Disable(m, "Initialise", ex);
                 }
             }
+            // Every module has registered its HUD profile settings by now.
+            try { _hud.Widgets.LoadProfiles(); }
+            catch (Exception ex) { _ctx.Log.LogError("HUD profile: not loaded - " + ex); }
         }
 
         private void Disable(OverlayModule m, string where, Exception ex)
@@ -327,6 +335,7 @@ namespace ForestOverlay.Core
             }
 
             _perf.Frame(tickTotal, _ctx.Player.Found);
+            _hud.Widgets.FlushProfile();
 
             // During a run a window lives over the pause menu: closing the
             // menu closes it, so it never holds the player in play.
@@ -440,6 +449,9 @@ namespace ForestOverlay.Core
             _nextHudRefresh = Time.unscaledTime + HudRefreshInterval;
 
             _hud.Begin();
+            // The title, first in the column as in the pre-overhaul box (T-0018).
+            _hud.Source = HudLines.PluginModule;
+            _hud.Pair(HudLines.TitleLabel, _hud.Compact ? TitleCompact : TitleFull);
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];
@@ -484,21 +496,40 @@ namespace ForestOverlay.Core
             }
         }
 
-        public void DrawPanels()
+        /// Every module's Edit HUD rows (OverlayModule.DrawHudEditor), in order.
+        public float DrawHudEditors(float y, float w)
         {
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];
-                if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
-                long heap0 = Heap();
-                StallWatch.At(StallWatch.Hook.DrawPanel, i);
-                try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
-                catch (Exception ex)
+                if (!IsLive(m)) continue;
+                try { y = m.DrawHudEditor(y, w); }
+                catch (Exception ex) { Disable(m, "DrawHudEditor", ex); }
+            }
+            return y;
+        }
+
+        public void DrawPanels()
+        {
+            // The overlay skin (Core/UiKit) only around the panels: the HUD,
+            // the notice and the game's own GUI keep the default one.
+            GUISkin previous = UiKit.Begin();
+            try
+            {
+                for (int i = 0; i < _modules.Count; i++)
                 {
-                    m.PanelOpen = false;
-                    Disable(m, "DrawPanel", ex);
+                    OverlayModule m = _modules[i];
+                    if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
+                    long heap0 = Heap();
+                    try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
+                    catch (Exception ex)
+                    {
+                        m.PanelOpen = false;
+                        Disable(m, "DrawPanel", ex);
+                    }
                 }
             }
+            finally { UiKit.End(previous); }
         }
 
         // ------------------------------------------------------------------
@@ -540,8 +571,11 @@ namespace ForestOverlay.Core
             _playerLockApplied = false;
 
             // The game's own menu still holds him: leave the lock (and the
-            // cursor it freed) to the game.
-            if (_gameHeldLock) { _gameHeldLock = false; return; }
+            // cursor it freed) to the game. Also when the pause menu opened
+            // while the window was up (T-0024, author: F2, Esc, F2 freed the
+            // camera under the menu and UnLockView's LockMouse hid the
+            // cursor); the menu's close unlocks him itself.
+            if (_gameHeldLock || MenuClose.PauseMenuOpen()) { _gameHeldLock = false; return; }
 
             _ctx.Bridge.SetPlayerLocked(false);
 

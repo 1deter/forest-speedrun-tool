@@ -8,7 +8,7 @@ using UnityEngine;
 namespace ForestOverlay.Game
 {
     // ------------------------------------------------------------------
-    // The trajectory preview (Debug views, Experimental, off by default;
+    // The trajectory preview (Developer tab, Experimental, off by default;
     // Next up 6 "Speedrun tech research"). Read-only: it never writes the
     // game. Ten times a second (real time, so it keeps working in the
     // pause menu) it steps the player's flight from the live velocity with
