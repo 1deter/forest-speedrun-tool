@@ -195,9 +195,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 ## Where we are (replaced at each handoff)
 
 - **2026-10-11 (T-0019, author present):** HUD profiles on ui-redesign
-  (559b2dd + 03d7186) - the whole HUD (values, column, Compact, Text
-  size, placed values, splits + results panels' on/off / place / width /
-  rows) is a named file in `config/ForestOverlay/hud/`, picked in Edit
+  (559b2dd, 03d7186, 1f18a8f) - the whole HUD (values, column, Compact, Text
+  size, placed values, splits + results panels - all Edit HUD sets
+  for them) is a named file in `config/ForestOverlay/hud/`, picked in Edit
   HUD (New / Duplicate / Rename / Delete); the old layout becomes
   `Default` (decisions.md *HUD profiles*). Checker accepted; waits for
   the author's wording OK, in game, forest-ux (notes). **Next: T-0301**

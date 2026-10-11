@@ -179,7 +179,8 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 - **HUD profiles** (author, 2026-10-11, T-0019; Momentum Mod style): a
   profile is the whole HUD - which values show, the column's place,
   Compact, Text size, placed values and their text, the splits + results
-  panels (on / off, place, width, rows) - one file each in
+  panels (everything Edit HUD sets for them: on / off, place, width,
+  rows, columns, lines, decimals, background) - one file each in
   `config/ForestOverlay/hud/` so it can be shared. Switched only from the
   picker in Edit HUD (New / Duplicate / Rename / Delete); the layout a
   runner had becomes `Default` on the first launch.
