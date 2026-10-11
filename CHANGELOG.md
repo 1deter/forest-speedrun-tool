@@ -7,7 +7,7 @@ changed. A tag without a section here fails the release build.
 
 ## v0.24.287 - 2026-10-11
 
-- Go and Restart inside the endgame no longer cause a short hitch (a teleport there took 40-46 ms, now 1-2 ms).
+- Go and Restart inside the endgame no longer cause a short hitch (a teleport there took about 25 ms, now 1-2 ms).
 
 ## v0.24.286 - 2026-10-11
 
