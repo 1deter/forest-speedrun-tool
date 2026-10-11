@@ -239,8 +239,15 @@ change with `python scripts/agent-cost.py [--since D] [--runs]` (per
 agent: calls, the start context, cache reads, output, active minutes);
 on 2026-10-07 a check cost ~5 calls from a 14k start, a dev run ~22 calls
 / 1.5M cache reads, a tester run ~47 / 3.3M, the old general-purpose Opus
-runs ~60 / 10M. The main session merges (`scripts/merge-keepboth.py` for
-add/add conflicts), releases (`scripts/bump.py`), keeps the handoff, and
+runs ~60 / 10M. `forest-integrator` (Sonnet, T-0315) merges a batch of
+branches - or one with conflicts - onto `integrate/<name>` in its own
+worktree, resolves the conflicts (`merge-keepboth.py` for add/add, the
+generated `docs/log-lines.md` regenerated, CHANGELOG / quality.md by
+hand, a clash of intents skipped and reported), builds and runs the
+touched suites; give it "Integrate <branches> onto <target>", then take it
+with `git merge --ff-only integrate/<name>` (gotcha 97 still holds). The
+main session merges a single clean branch itself, releases
+(`scripts/bump.py`), keeps the handoff, and
 says in one line what each agent is doing when it starts it. Do the small
 things yourself: an agent costs a cold start (CLAUDE.md + reading),
 worth it only for work bigger than that.
@@ -305,7 +312,7 @@ The router's *Commands* holds the daily ones; the rest:
 dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: preview "forest-site" (.claude/launch.json)
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
-python scripts/merge-keepboth.py <files>          # resolve add/add merge conflicts (parallel branches)
+python scripts/merge-keepboth.py <files>          # resolve add/add merge conflicts (parallel branches; a batch: forest-integrator)
 python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (local + origin), __pycache__, scratch > 7 days
 python scripts/loop.py begin                    # the assisted loop (skill work-loop): next / end / intervene / report; tests: test_loop.py
 python scripts/audit.py [--file]                # the weekly cleanup's finder: dead paths / code / files (skill weekly-cleanup)

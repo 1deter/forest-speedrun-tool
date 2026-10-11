@@ -126,7 +126,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `harness-review` - monthly, when due: one harness component off for 5 tasks, stats before / after, the author decides.
 
 ## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)
-`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-ux` reviews what a runner sees (`Review T-n`, every UI task; `docs/ux.md`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.
+`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-ux` reviews what a runner sees (`Review T-n`, every UI task; `docs/ux.md`); `forest-qa` the QA Discord; `forest-integrator` merges a batch of branches (`Integrate <branches> onto <target>`). What each costs: `python scripts/agent-cost.py`.
 
 ## Where everything else lives
 
