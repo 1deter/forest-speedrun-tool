@@ -192,13 +192,6 @@ Written by CollectionList.cs; warning.
 
 - warning `Collection list failed: <ex.Message>`
 
-## `Colours`
-
-Meaning: The window's colour variant was switched in Developer -> Colours (T-0258).
-Written by DeveloperModule.cs; info.
-
-- info `<..>` *(declared)*
-
 ## `Community`
 
 Meaning: Community spot packs: a pack file updated, unreadable or not removed.
@@ -1781,6 +1774,13 @@ Meaning: The game's mouse-lock class was not found; direct Cursor writes are use
 Written by CursorController.cs; warning.
 
 - warning `TheForest.Utils.Input not found - falling back to direct Cursor writes.`
+
+## `Theme`
+
+Meaning: The runner picked a theme in Settings -> Theme (T-0258).
+Written by SettingsModule.cs; info.
+
+- info `<..>` *(declared)*
 
 ## `Threads`
 

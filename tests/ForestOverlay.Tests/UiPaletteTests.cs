@@ -47,6 +47,8 @@ namespace ForestOverlay.Tests
         [Theory, MemberData(nameof(Variants))]
         public void Accent_IsTheLoadingScreensYellow(string id)
         {
+            // The yellow-on-black themes; the first redesign and Catppuccin keep their own yellow.
+            if (id == "bluegrey" || id.StartsWith("catppuccin")) return;
             UiPalette p = UiPalette.Find(id);
             Assert.Equal(0xE5C501FFu, p.Accent);
             Assert.Equal(229 / 255f, UiPalette.R(p.Accent));

@@ -45,8 +45,14 @@ going to be overwhelming when runners first interact with it."
 
 Yellow on black, as the game's loading screen and the site (decisions.md
 *Look: yellow on black*; T-0258). The colours live in `Data/UiPalette`, one
-full set per variant; the author picks one in game (Developer -> Colours,
-config `Window/Colours`, switched live), the site's is the default until then.
+full set per theme; they are preset themes the runner picks in Settings ->
+Theme (config `Window/Theme`, switched live; author, 2026-10-11: keep them
+all, plus the redesign's first look and Catppuccin's dark flavours).
+Customisable colours come after v1.0. Besides the four below: *Blue-grey
+(first redesign)* - UiKit's colours before T-0258, `#17191F` / `#20232B`,
+accent `#F5C417` - and *Catppuccin Mocha / Macchiato / Frappé* (mantle
+window, base cards, surface edges, subtext hints, its yellow accent, peach
+warn).
 
 | Token | site (default) | black | warm | translucent |
 |---|---|---|---|---|
@@ -55,7 +61,7 @@ config `Window/Colours`, switched live), the site's is the default until then.
 | Hairline border | `#222222` | `#2A2A2A` | `#2C291D` | `#333333` @ 90 % |
 | Text | `#E5C501` (yellow) | `#EAEAEA` | `#ECE6D4` | `#EAEAEA` |
 | Dim / descriptions | `#8A7A1C` / `#8B7B1D` | `#8C8C8C` / `#C2C2C2` | `#9A927A` / `#C8C0A8` | `#9A9A9A` / `#C8C8C8` |
-| **Accent** (every variant) | `#E5C501` = rgb(229, 197, 1) | | | |
+| **Accent** (all four) | `#E5C501` = rgb(229, 197, 1) | | | |
 | Warn (changes the game) | `#FF8C33` (unchanged) | | | |
 
 A switch repaints UiKit's textures in place and recolours every style made

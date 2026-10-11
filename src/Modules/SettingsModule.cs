@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
 using UnityEngine;
@@ -53,6 +54,12 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TextHud = new GUIContent("HUD");
         private static readonly GUIContent TipHud = new GUIContent(
             "The values on screen: the HUD layout editor, the whole HUD's look and which values show.");
+        private static readonly GUIContent TextTheme = new GUIContent("Theme");
+        private static readonly GUIContent TipTheme = new GUIContent(
+            "The window's colours. Changes at once.");
+        private GUIContent[] _themeNames, _themeTips;
+        private string[] _themeLog;
+        private ConfigEntry<string> _theme;
         private static readonly GUIContent TextPerf = new GUIContent("Performance");
         private static readonly GUIContent TipPerf = new GUIContent(
             "Patches that make the game do less work each frame without changing what it does. On by default.");
@@ -84,6 +91,43 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _placeText = new GUIContent("");
         private int _sizeShown = -1;
         private float _placeShownX = float.NaN, _placeShownY = float.NaN;
+
+        public override void Initialise(ModuleContext ctx)
+        {
+            base.Initialise(ctx);
+            // T-0258 (author, 2026-10-11): preset themes, the runner picks.
+            _theme = ctx.Config.Bind("Window", "Theme", UiPalette.Default.Id,
+                "The window's colours: site, black, warm, translucent, bluegrey, catppuccin-mocha, catppuccin-macchiato or catppuccin-frappe.");
+            UiKit.Apply(UiPalette.Find(_theme.Value));
+            int n = UiPalette.All.Length;
+            _themeNames = new GUIContent[n];
+            _themeTips = new GUIContent[n];
+            _themeLog = new string[n];
+            for (int i = 0; i < n; i++)
+            {
+                _themeNames[i] = new GUIContent(" " + UiPalette.All[i].Name);
+                _themeTips[i] = new GUIContent(UiPalette.All[i].Description);
+                _themeLog[i] = "Theme: " + UiPalette.All[i].Id;
+            }
+        }
+
+        private float DrawTheme(float y, float w)
+        {
+            for (int i = 0; i < UiPalette.All.Length; i++)
+            {
+                UiPalette p = UiPalette.All[i];
+                bool on = UiKit.Toggle(new Rect(12, y, w - 24, 22), UiKit.Palette == p, _themeNames[i]);
+                if (on && UiKit.Palette != p)
+                {
+                    _theme.Value = p.Id;
+                    UiKit.Apply(p);
+                    Ctx.Log.LogInfo(_themeLog[i]);   // log: Theme
+                }
+                y += 22f;
+                y += UiText.DrawDim(34, y, w - 46, _themeTips[i]) + 4f;
+            }
+            return y + 4f;
+        }
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
@@ -169,6 +213,9 @@ namespace ForestOverlay.Modules
 
             if (UiKit.Section(0f, ref y, w, "settings.hud", TextHud, null, TipHud, false))
                 y = DrawHudSettings(y, w);
+
+            if (UiKit.Section(0f, ref y, w, "settings.theme", TextTheme, null, TipTheme, false))
+                y = DrawTheme(y, w);
 
             if (_views != null && UiKit.Section(0f, ref y, w, "settings.perf", TextPerf, null, TipPerf, false))
                 y = _views.DrawPerformance(y, w) + 6f;

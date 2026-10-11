@@ -1,6 +1,4 @@
-using BepInEx.Configuration;
 using ForestOverlay.Core;
-using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -13,8 +11,6 @@ namespace ForestOverlay.Modules
     //
     // It owns no feature: each fold is drawn by the module that owns it
     // (same config keys as before the move), so nobody's settings change.
-    // The one exception is Colours (T-0258): the window's palette variants,
-    // switched live while the author picks one.
     // ------------------------------------------------------------------
     public sealed class DeveloperModule : OverlayModule
     {
@@ -39,11 +35,6 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TextCensus = new GUIContent("Memory census");
         private static readonly GUIContent TipCensus = new GUIContent(
             "What the game keeps in memory, in the log - after every load or now.");
-        private static readonly GUIContent TextColours = new GUIContent("Colours");
-        private static readonly GUIContent TipColours = new GUIContent(
-            "The window's colours: yellow on black, in four variants to compare. Switches at once.");
-        private static GUIContent[] _variantNames, _variantTips;
-        private static string[] _variantLog;
         private static readonly GUIContent TextDumps = new GUIContent("Dumps");
         private static readonly GUIContent TipDumps = new GUIContent(
             "Every item id and name the game knows (and the nature guide in a loaded save), written to files for checklists.");
@@ -55,27 +46,8 @@ namespace ForestOverlay.Modules
         private CollectiblesModule _collectibles;
         private bool _found;
 
-        private ConfigEntry<string> _colours;
-
         private Vector2 _scroll;
         private float _pageH = 600f;
-
-        public override void Initialise(ModuleContext ctx)
-        {
-            base.Initialise(ctx);
-            _colours = ctx.Config.Bind("Window", "Colours", UiPalette.Default.Id,
-                "The window's colour variant (T-0258): site, black, warm or translucent.");
-            UiKit.Apply(UiPalette.Find(_colours.Value));
-            _variantNames = new GUIContent[UiPalette.All.Length];
-            _variantTips = new GUIContent[UiPalette.All.Length];
-            _variantLog = new string[UiPalette.All.Length];
-            for (int i = 0; i < UiPalette.All.Length; i++)
-            {
-                _variantNames[i] = new GUIContent(" " + UiPalette.All[i].Name);
-                _variantTips[i] = new GUIContent(UiPalette.All[i].Description);
-                _variantLog[i] = "Colours: " + UiPalette.All[i].Id;
-            }
-        }
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
@@ -100,25 +72,6 @@ namespace ForestOverlay.Modules
 
             float y = 4f;
             y += UiText.DrawDim(0, y, w, Intro) + 6f;
-
-            if (UiKit.Section(0f, ref y, w, "dev.colours", TextColours, null, TipColours, true))
-            {
-                for (int i = 0; i < UiPalette.All.Length; i++)
-                {
-                    UiPalette p = UiPalette.All[i];
-                    Rect r = new Rect(12, y, w - 24, 22);
-                    bool on = UiKit.Toggle(r, UiKit.Palette == p, _variantNames[i]);
-                    if (on && UiKit.Palette != p)
-                    {
-                        _colours.Value = p.Id;
-                        UiKit.Apply(p);
-                        Ctx.Log.LogInfo(_variantLog[i]);   // log: Colours
-                    }
-                    y += 22f;
-                    y += UiText.DrawDim(34, y, w - 46, _variantTips[i]) + 4f;
-                }
-                y += 4f;
-            }
 
             if (_bridge != null && UiKit.Section(0f, ref y, w, "dev.bridge", TextBridge, null, TipBridge, false))
             {
