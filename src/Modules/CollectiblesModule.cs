@@ -84,6 +84,7 @@ namespace ForestOverlay.Modules
             HudSettings hud = Host.Hud.Settings;
             hud.ExternalGet = delegate { return TotalsOnHud; };
             hud.ExternalSet = delegate (bool on) { TotalsOnHud = on; };
+            Host.Hud.Widgets.RegisterProfileEntry(_pinSummaryCfg, delegate (object v) { TotalsOnHud = (bool)v; });
 
             _book = new SurvivalBookReader(ctx.Log);
             _nature = new NatureGuideReader(ctx.Log, ctx.Inventory.NameForId);

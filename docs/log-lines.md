@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-225 prefixes from 688 log calls.
+224 prefixes from 700 log calls.
 
 ## `Aerial capture`
 
@@ -595,26 +595,32 @@ Written by Plugin.cs; info.
 
 - info `HUD column moved to (<..>, <..>).`
 
-## `HUD layout not read`
-
-Meaning: The HUD layout file (hud-layout.txt) could not be read; every value starts in the column with no text of its own.
-Written by HudWidgets.cs; warning.
-
-- warning `HUD layout not read (<_path>): <ex.Message>`
-
-## `HUD layout not saved`
-
-Meaning: A change to the HUD layout (hud-layout.txt) could not be written; it lasts until the game closes.
-Written by HudWidgets.cs; warning.
-
-- warning `HUD layout not saved: <ex.Message>`
-
 ## `HUD layout reset`
 
 Meaning: Edit HUD's Reset layout: every value back in the column, the runner's text around each cleared.
 Written by HudWidgets.cs; info.
 
 - info `HUD layout reset: every value back in the column, its own text cleared.`
+
+## `HUD profile`
+
+Meaning: The HUD profiles (T-0019, files in config/ForestOverlay/hud): which one loaded at start, Default made from the old settings on the first launch, a switch / new / duplicate / rename / delete in the Edit HUD picker, or a profile file that could not be read or written.
+Written by HudWidgets.Profiles.cs, ModuleHost.cs; info / warning / error.
+
+- warning `HUD profile '<name>' not read (<ex.Message>) - the default look.`
+- warning `HUD profile '<name>' not saved: <ex.Message>`
+- warning `HUD profile: '<name>' not found in <_dir> - using <..>.`
+- info `HUD profile: <from> duplicated as <name>.`
+- info `HUD profile: <from> renamed to <to>.`
+- info `HUD profile: <name> (<_names.Count> in <_dir>).`
+- info `HUD profile: <name> deleted - now <..>.`
+- info `HUD profile: Default made from the current HUD settings and layout.`
+- warning `HUD profile: folder not read (<_dir>): <ex.Message>`
+- warning `HUD profile: hud-layout.txt left in place (<ex.Message>); it is no longer read.`
+- info `HUD profile: new profile <name> (the default look).`
+- info `HUD profile: switched to <name>.`
+- warning `HUD profile: the old layout file not read (<ex.Message>) - Default starts with every value in the column.`
+- error `HUD profile: not loaded - <ex>`
 
 ## `HUD widget`
 

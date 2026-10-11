@@ -74,6 +74,23 @@ namespace ForestOverlay.Core
             Version++;
         }
 
+        /// The HUD profile holds these (HudWidgets.Profiles, T-0019).
+        public void RegisterProfileEntries(HudWidgets widgets)
+        {
+            for (int i = 0; i < _show.Length; i++)
+                if (_show[i] != null) widgets.RegisterProfileEntry(_show[i], null);
+            widgets.RegisterProfileEntry(_compact, null);
+            widgets.RegisterProfileEntry(_textSize, null);
+            widgets.RegisterProfileEntry(_x, null);
+            widgets.RegisterProfileEntry(_y, null);
+        }
+
+        /// A profile was switched in: the cached look rebuilds.
+        public void Touch()
+        {
+            Version++;
+        }
+
         public bool Compact
         {
             get { return _compact.Value; }

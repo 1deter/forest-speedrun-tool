@@ -105,7 +105,9 @@ T-0018 (author, 2026-10-10; decisions.md *The HUD is a column of values*,
   up), right-click it or press *To column* to put it back. The column moves
   by its grip (the bar beside it); with the window open but not editing,
   the whole column drags.
-- Layout = `config/ForestOverlay/hud-layout.txt` (`Data/HudLayout`, tested):
+- Layout = part of the active HUD profile, `config/ForestOverlay/hud/<name>.txt`
+  (`Data/HudProfile` + `Data/HudLayout`, tested; T-0019 - its settings are
+  `@Section.Key = value` lines above these):
   ```
   # ForestOverlay HUD layout
   ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s"

@@ -149,6 +149,13 @@ namespace ForestOverlay.Modules
             _panelY = c.Bind("Splits", "PanelY", 140f, "Panel position from the top, in pixels.");
             _panelWidth = c.Bind("Splits", "PanelWidth", 300f, "Panel width in pixels.");
             _panelRows = c.Bind("Splits", "PanelRows", 12, "Most split rows the panel shows at once (the end is always shown).");
+            // The panel's place, size and switch belong to the HUD profile (T-0019).
+            HudWidgets profiles = Host.Hud.Widgets;
+            profiles.RegisterProfileEntry(_splitsPanel, null);
+            profiles.RegisterProfileEntry(_panelX, null);
+            profiles.RegisterProfileEntry(_panelY, null);
+            profiles.RegisterProfileEntry(_panelWidth, null);
+            profiles.RegisterProfileEntry(_panelRows, null);
             _timeDecimals = c.Bind("Splits", "TimeDecimals", 2, "Decimal places for split times (0-3). Attempts always save milliseconds.");
             _deltaDecimals = c.Bind("Splits", "DeltaDecimals", 2, "Decimal places for deltas (0-3).");
             _panelOpacity = c.Bind("Splits", "PanelOpacity", 0.82f, "Opacity of the panel's background, 0 (none) to 1 (solid). The text stays solid.");

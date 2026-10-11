@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using ForestOverlay.Data;
 using UnityEngine;
@@ -13,9 +14,9 @@ namespace ForestOverlay.Core
     // default in the COLUMN at the HUD position (drawn by the plugin, the
     // pre-overhaul order, no backing), or FREE - placed anywhere and sized
     // on its own. Each value shows its value only, with the runner's own
-    // text before / after it. The changes are
-    // `config/ForestOverlay/hud-layout.txt` (Data/HudLayout, tested); an
-    // empty file is the default look.
+    // text before / after it. The changes are part of the active HUD
+    // profile (HudWidgets.Profiles, `config/ForestOverlay/hud/<name>.txt`;
+    // Data/HudLayout + HudProfile, tested); an empty file is the default look.
     //
     // EDIT MODE (Editing): the main window turns into a value list
     // (DrawEditor) and the screen shows an outline on every value. Drag a
@@ -33,7 +34,7 @@ namespace ForestOverlay.Core
     // - Honest labelling is not a value: ON NOW and the practice marker
     //   always close the column (HudLines.Locked).
     // ------------------------------------------------------------------
-    public sealed class HudWidgets
+    public sealed partial class HudWidgets
     {
         private const float CardPad = 8f;
         private const float HandleSize = 12f;
@@ -76,7 +77,6 @@ namespace ForestOverlay.Core
             return _valueFont;
         }
 
-        private readonly string _path;
         private readonly ManualLogSource _log;
         private HudLayout _layout = new HudLayout();
         private readonly bool[] _free = new bool[HudLines.All.Length];
@@ -90,11 +90,18 @@ namespace ForestOverlay.Core
         /// Bumped when any value's text changes, so HudBuilder rebuilds the shown text.
         public int TextVersion { get; private set; }
 
-        public HudWidgets(string configDirectory, ManualLogSource log)
+        public HudWidgets(ConfigFile config, HudSettings settings, string configDirectory, ManualLogSource log)
         {
             _log = log;
-            _path = string.IsNullOrEmpty(configDirectory) ? null : Path.Combine(configDirectory, "hud-layout.txt");
-            Load();
+            _config = config;
+            _settings = settings;
+            _configDir = configDirectory;
+            _dir = string.IsNullOrEmpty(configDirectory) ? null : Path.Combine(configDirectory, "hud");
+            _activeCfg = config.Bind("HUD", "Profile", HudProfileNames.DefaultName,
+                "The HUD profile in use: a file in config/ForestOverlay/hud (pick it in Edit HUD layout).");
+            config.SettingChanged += OnSettingChanged;
+            if (settings != null) settings.RegisterProfileEntries(this);
+            Rebuild();
         }
 
         public HudLayout Layout { get { return _layout; } }
@@ -116,33 +123,10 @@ namespace ForestOverlay.Core
 
         // --- file ---------------------------------------------------------------
 
-        private void Load()
-        {
-            try
-            {
-                if (_path != null && File.Exists(_path)) _layout = HudLayout.Parse(File.ReadAllText(_path));
-            }
-            catch (Exception ex)
-            {
-                if (_log != null) _log.LogWarning("HUD layout not read (" + _path + "): " + ex.Message);
-                _layout = new HudLayout();
-            }
-            Rebuild();
-        }
-
+        /// The layout changed: the active profile's file is written now.
         private void Save()
         {
-            if (_path == null) return;
-            try
-            {
-                string dir = Path.GetDirectoryName(_path);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                File.WriteAllText(_path, _layout.Format());
-            }
-            catch (Exception ex)
-            {
-                if (_log != null) _log.LogWarning("HUD layout not saved: " + ex.Message);
-            }
+            SaveProfile();
         }
 
         private void Rebuild()
@@ -478,6 +462,8 @@ namespace ForestOverlay.Core
         {
             CloseText();
             Editing = false;
+            _scannedForEdit = false;
+            _renaming = false;
             _dragWidget = -1;
             _resizeWidget = -1;
             _pullLine = -1;
@@ -579,7 +565,7 @@ namespace ForestOverlay.Core
             bool scrolls = contentH > viewH;
             float cw = scrolls ? w - 18f : w;
             _scroll = GUI.BeginScrollView(new Rect(0f, y, w, viewH), _scroll, new Rect(0f, 0f, cw, contentH));
-            float ry = 0f;
+            float ry = DrawProfiles(0f, cw);
             // The on-screen panels first (author, 2026-10-10: set up where
             // they are shown, and visible - not under 24 value rows).
             if (host != null)
@@ -588,8 +574,8 @@ namespace ForestOverlay.Core
                 float after = host.DrawHudEditors(ry + 24f, cw);
                 GUI.Label(new Rect(0f, after + 4f, cw, 22f), ValuesTitle, UiKit.Title);
                 ry = after + 30f;
-                _panelsH = ry;
             }
+            _panelsH = ry;
             for (int i = 0; i < HudLines.All.Length; i++)
             {
                 HudLine l = HudLines.All[i];

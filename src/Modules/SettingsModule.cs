@@ -82,7 +82,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent EditLayoutText = new GUIContent("Edit HUD layout");
         private static readonly GUIContent EditLayoutTip = new GUIContent(
             "Show / hide each value, add your own text around it, drag it out of the column to place it anywhere " +
-            "(layout file: config/ForestOverlay/hud-layout.txt).");
+            "and keep layouts as named profiles (files in config/ForestOverlay/hud).");
         private static readonly GUIContent CompactText = new GUIContent(" Compact: fewer words");
         private static readonly GUIContent CompactNote = new GUIContent(
             "Shorter values (no stack count, no units) and the short title.");

@@ -76,7 +76,7 @@ namespace ForestOverlay.Core
             _perf.Breakdown = this;
             _hotkeys = new HotkeyMap(ctx.Config);
             _hud.Settings = new HudSettings(ctx.Config);
-            _hud.Widgets = new HudWidgets(ctx.ConfigDirectory, ctx.Log);
+            _hud.Widgets = new HudWidgets(ctx.Config, _hud.Settings, ctx.ConfigDirectory, ctx.Log);
         }
 
         public void Register(OverlayModule module)
@@ -162,6 +162,9 @@ namespace ForestOverlay.Core
                     Disable(m, "Initialise", ex);
                 }
             }
+            // Every module has registered its HUD profile settings by now.
+            try { _hud.Widgets.LoadProfiles(); }
+            catch (Exception ex) { _ctx.Log.LogError("HUD profile: not loaded - " + ex); }
         }
 
         private void Disable(OverlayModule m, string where, Exception ex)
@@ -320,6 +323,7 @@ namespace ForestOverlay.Core
             }
 
             _perf.Frame(tickTotal, _ctx.Player.Found);
+            _hud.Widgets.FlushProfile();
 
             // During a run a window lives over the pause menu: closing the
             // menu closes it, so it never holds the player in play.
