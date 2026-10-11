@@ -194,6 +194,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-11 (T-0258, author present):** preset themes on ui-redesign
+  (5827004) - Settings -> Theme, 8 themes in `Data/UiPalette` (site,
+  black, **warm near-black = default**, translucent, blue-grey = the first
+  redesign, Catppuccin Mocha / Macchiato / Frappe), switched live (UiKit
+  repaints its textures in place; modules build styles with
+  `UiKit.Style`); decisions.md *Preset themes*. Checker accepted; waits for
+  forest-ux (`Review T-0258`) + in-game: theme kept after a relaunch,
+  Blue-grey / Macchiato, tooltips and the toast per theme. The author's
+  install runs this branch build; its config still says `Window/Theme =
+  site` until Warm is picked once. Customisable colours: T-0300 (after
+  v1.0). **T-0301** (P2, new): a small frame spike on every game input
+  (WASD / Space; RivaTuner) - the first-input start trigger (T-0282) is
+  the author's suspect; the author opens a fresh session for it. QA:
+  T-0299 (paint overhangs a face's edge).
 - **2026-10-11 (author present, design answers):** every v1.0 task that
   waited on the author has its answers in its notes - T-0019 profiles,
   T-0020 snapping (Alt = free drag), T-0023 trend colour per value, T-0258
