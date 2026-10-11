@@ -266,6 +266,15 @@ class ContextCap(unittest.TestCase):
         finally:
             shutil.rmtree(d)
 
+    def test_a_subagent_is_not_warned(self):
+        d = tempfile.mkdtemp()
+        try:
+            payload = dict(self.write(d, 300000), agent_id="a1")
+            self.assertIsNone(P.context_cap(payload, d))
+            self.assertEqual(P.context_cap(self.write(d, 300000), d)[0], "warn")  # main's mark untouched
+        finally:
+            shutil.rmtree(d)
+
     def test_no_transcript_is_no_opinion(self):
         self.assertIsNone(P.context_cap({}))
 

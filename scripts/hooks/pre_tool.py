@@ -258,7 +258,11 @@ def context_size(transcript):
 
 
 def context_cap(payload, state_dir=None):
-    """A warn when this session's context is past CONTEXT_CAP and has not been warned at this step."""
+    """A warn when this main session's context is past CONTEXT_CAP and has not been warned at this step.
+    A subagent's call (agent_id set) is left alone: its payload may carry the main session's
+    transcript, and a warning there would use up main's mark."""
+    if payload.get("agent_id"):
+        return None
     tokens = context_size(payload.get("transcript_path"))
     if tokens is None or tokens <= CONTEXT_CAP:
         return None
@@ -278,8 +282,7 @@ def context_cap(payload, state_dir=None):
         pass
     return ("warn", "this session's context is %dk, past the %dk cap (author, 2026-10-11, T-0319). Finish the "
                     "step in hand, record where the task stands (tasks.py evidence / the handoff), commit, and "
-                    "end: a main session tells the author to continue in a fresh one, a subagent returns its "
-                    "report." % (tokens // 1000, CONTEXT_CAP // 1000))
+                    "end the session: tell the author to continue in a fresh one." % (tokens // 1000, CONTEXT_CAP // 1000))
 
 
 def loop_open(path=None):
