@@ -257,6 +257,7 @@ namespace ForestOverlay.Modules
         {
             Status = status + " (" + DateTime.Now.ToString("HH:mm") + ")";
             Busy = false;
+            if (warn) _checkedAt = -1f;   // a failed check: the next Import view asks again
             if (warn) Ctx.Log.LogWarning("Community: " + status + ".");
             else Ctx.Log.LogInfo("Community: " + status + ".");
         }

@@ -76,6 +76,7 @@ namespace ForestOverlay.Modules
             {
                 string why = code == 0 ? (error ?? "no answer") : "answer " + code;
                 WebStatus = "Could not read the website (" + why + ").";
+                _webAskedAt = -1f;   // the next Import view asks again
                 Ctx.Log.LogWarning("Website spots: list: " + why + ".");
                 yield break;
             }

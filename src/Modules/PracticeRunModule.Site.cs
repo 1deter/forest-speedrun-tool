@@ -89,6 +89,7 @@ namespace ForestOverlay.Modules
                 string why = code == 0 ? (error ?? "no answer") : "answer " + code;
                 _boardState = "Other runners: could not read the website (" + why + ")" +
                               (_others.Count > 0 ? " - showing the last list." : ".");
+                _boardFetchedAt = -999f;   // the next arm / Runs tab asks again (no Refresh, T-0254)
                 Ctx.Log.LogWarning("Site board '" + key + "': " + why + ".");
                 yield break;
             }
