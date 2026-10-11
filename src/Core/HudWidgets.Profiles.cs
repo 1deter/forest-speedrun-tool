@@ -188,8 +188,7 @@ namespace ForestOverlay.Core
             Write(_activeCfg.Value, Capture());
         }
 
-        /// Reads profile `name` and puts it in: its settings into the config
-        /// (one save), its layout on screen. A missing setting takes its default.
+        /// Reads profile `name` and puts it in (Apply); an unreadable file is the default look.
         private void ApplyFile(string name)
         {
             HudProfile p;
@@ -200,9 +199,15 @@ namespace ForestOverlay.Core
             catch (Exception ex)
             {
                 if (_log != null) _log.LogWarning("HUD profile '" + name + "' not read (" + ex.Message + ") - the default look.");
-                p = new HudProfile();
+                p = HudProfile.DefaultLook();
             }
+            Apply(p, name);
+        }
 
+        /// Puts profile `p` in as `name`: its settings into the config (one
+        /// save), its layout on screen. A missing setting takes its default.
+        private void Apply(HudProfile p, string name)
+        {
             _applying = true;
             bool saveEach = _config.SaveOnConfigSet;
             _config.SaveOnConfigSet = false;
@@ -267,7 +272,7 @@ namespace ForestOverlay.Core
             FlushProfile();
             ScanNames();   // a file dropped in since Edit HUD opened is not overwritten
             string name = HudProfileNames.Unique("New profile", _names);
-            if (!Write(name, new HudProfile())) { ProfileStatus("Could not write the file - see the log."); return; }
+            if (!Write(name, HudProfile.DefaultLook())) { ProfileStatus("Could not write the file - see the log."); return; }
             _names.Add(name);
             HudProfileNames.Sort(_names);
             BuildNameTexts();
@@ -293,6 +298,30 @@ namespace ForestOverlay.Core
         }
 
         private float _deleteArmedUntil = -1f;
+        private float _resetArmedUntil = -1f;
+
+        /// Reset layout (T-0303): the active profile back to the default look -
+        /// every setting it holds (values shown, the column's place, Compact,
+        /// Text size, the splits + results panels and their options) and every
+        /// value back in the column with no text. A second click within 3 s,
+        /// as Delete (author, 2026-10-11).
+        private void ResetProfile()
+        {
+            if (Time.unscaledTime > _resetArmedUntil)
+            {
+                _resetArmedUntil = Time.unscaledTime + 3f;
+                return;
+            }
+            _resetArmedUntil = -1f;
+            CloseText();
+            _renaming = false;
+            string name = _activeCfg.Value;
+            Apply(HudProfile.DefaultLook(), name);
+            _dirty = false;
+            SaveProfile();
+            ProfileStatus("");
+            if (_log != null) _log.LogInfo("HUD layout reset: profile " + name + " back to the default look (values, column, panels, Compact, Text size).");
+        }
 
         private void DeleteProfile()
         {

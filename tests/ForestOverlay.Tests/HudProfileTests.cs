@@ -84,5 +84,68 @@ namespace ForestOverlay.Tests
             Assert.True(u.Length <= HudProfileNames.MaxLength);
             Assert.EndsWith(" 2", u);
         }
+
+        // The settings a profile holds and their defaults, as the plugin
+        // registers them (HudSettings, the splits + results panels).
+        private static readonly string[] Keys =
+        {
+            "HUD.ShowSpeed", "HUD.X", "HUD.Y", "HUD.Compact", "HUD.TextSize",
+            "Splits.Panel", "Splits.PanelX", "Splits.PanelWidth", "Splits.Decimals", "Splits.ResultsX",
+        };
+        private static readonly string[] Defaults = { "true", "10", "10", "false", "0", "true", "-1", "320", "2", "-1" };
+
+        // What the plugin writes (HudWidgets.Capture): every setting as it is now + the layout.
+        private static HudProfile Written(IList<string> values, HudLayout layout)
+        {
+            HudProfile p = new HudProfile();
+            for (int i = 0; i < Keys.Length; i++) p.Set(Keys[i], values[i]);
+            p.Layout = layout;
+            return p;
+        }
+
+        // Putting a profile in (HudWidgets.Apply): a setting the file has none of takes its default.
+        private static string[] Applied(HudProfile p)
+        {
+            string[] v = new string[Keys.Length];
+            for (int i = 0; i < Keys.Length; i++) v[i] = p.Get(Keys[i]) ?? Defaults[i];
+            return v;
+        }
+
+        [Fact]
+        public void AResetProfileEqualsAFreshDefault()
+        {
+            // T-0303: a profile changed everywhere - values, column, Compact,
+            // Text size, both panels, placed values and their text.
+            string[] changed = { "false", "300", "200", "true", "24", "false", "40", "500", "3", "600" };
+            HudLayout layout = new HudLayout();
+            layout.Detach("ShowSpeed", 24f, 80f).Scale = 2.5f;
+            layout.SetText("ShowPosition", "Pos ", "");
+            HudProfile before = Written(changed, layout);
+            Assert.NotEqual(Written(Defaults, new HudLayout()).Format(), before.Format());
+
+            // Reset layout puts the default look in, then writes the profile.
+            HudProfile look = HudProfile.DefaultLook();
+            HudProfile reset = Written(Applied(look), look.Layout);
+
+            // A fresh install's Default: the config's defaults, no old layout file.
+            HudProfile fresh = Written(Defaults, HudLayout.Parse(""));
+
+            Assert.Equal(fresh.Format(), reset.Format());
+            Assert.Empty(reset.Layout.Widgets);
+            for (int i = 0; i < Keys.Length; i++) Assert.Equal(Defaults[i], reset.Get(Keys[i]));
+        }
+
+        [Fact]
+        public void TheDefaultLookHasNoSettingAndNoValueOfItsOwn()
+        {
+            HudProfile look = HudProfile.Parse(HudProfile.DefaultLook().Format());
+            Assert.Equal(0, look.Count);
+            Assert.Empty(look.Layout.Widgets);
+            // Two calls never share a layout (a reset profile edited later must
+            // not change the next New).
+            HudProfile a = HudProfile.DefaultLook();
+            a.Layout.Detach("ShowSpeed", 1f, 2f);
+            Assert.Empty(HudProfile.DefaultLook().Layout.Widgets);
+        }
     }
 }

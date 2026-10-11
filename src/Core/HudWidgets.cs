@@ -192,15 +192,6 @@ namespace ForestOverlay.Core
             }
         }
 
-        public void ResetLayout()
-        {
-            CloseText();
-            _layout = new HudLayout();
-            Rebuild();
-            Save();
-            if (_log != null) _log.LogInfo("HUD layout reset: every value back in the column, its own text cleared.");
-        }
-
         private HudWidgetLayout WidgetOf(int lineIndex)
         {
             return lineIndex < 0 ? null : _layout.Find(HudLines.All[lineIndex].ConfigKey);
@@ -537,7 +528,9 @@ namespace ForestOverlay.Core
             "Always shown under the column: ON NOW and the practice marker (a recording must show them).");
         private static readonly GUIContent DoneText = new GUIContent("Done");
         private static readonly GUIContent ResetText = new GUIContent("Reset layout");
-        private static readonly GUIContent ResetTip = new GUIContent("Every value back in the column, its own text cleared.");
+        private static readonly GUIContent ResetSureText = new GUIContent("Sure?");
+        private static readonly GUIContent ResetTip = new GUIContent(
+            "This profile back to the default HUD: every value in the column with no text, the panels, Compact and Text size.");
         private static readonly GUIContent TextText = new GUIContent("Text");
         private static readonly GUIContent TextTip = new GUIContent("Your own text before and after the value, e.g. \"Speed \" or \" u/s\".");
         private static readonly GUIContent BeforeText = new GUIContent("Before");
@@ -575,7 +568,8 @@ namespace ForestOverlay.Core
             float y = 0f;
             y += UiText.Draw(0f, y, w, EditHint, UiKit.HintStyle) + 4f;
             if (UiKit.PrimaryButton(new Rect(0f, y, 100f, 26f), DoneText)) done = true;
-            if (GUI.Button(new Rect(106f, y, 120f, 26f), ResetText)) ResetLayout();
+            bool resetArmed = Time.unscaledTime <= _resetArmedUntil;
+            if (GUI.Button(new Rect(106f, y, 120f, 26f), resetArmed ? ResetSureText : ResetText)) ResetProfile();
             UiKit.Hint(new Rect(106f, y, 120f, 26f), ResetTip);
             y += 34f;
 
