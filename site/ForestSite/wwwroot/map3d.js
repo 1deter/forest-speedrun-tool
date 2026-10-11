@@ -1,8 +1,9 @@
 // The spot page's 3D view (the map's "3D" button; loaded the first time it is
 // opened): the game's terrain as a mesh, the shown runs as lines in their
 // colours, a ghost per run at the scrub time and the spot's zones. Orbit
-// (drag / right-drag / wheel, one / two fingers) or Follow: the camera rides
-// behind the focused run's ghost - a replay freecam.
+// (drag / right-drag / wheel, one / two fingers), Follow: the camera rides
+// behind the focused run's ghost - a replay freecam - or First person: the
+// runner's own view from the run's look track (T-0281).
 //
 // World (Unity): x east, z north, y up. three.js is right-handed, so a world
 // point is drawn at (x, y, -z): north is -Z, and nothing is mirrored.
@@ -31,9 +32,41 @@ const UNDER = 3;                  // metres below the ground that count as under
 // WALL_GAP in front of a wall, comes no closer than MIN_FOLLOW, and closer
 // than FOLLOW_LOW aims lower.
 const FOLLOW_HEAD = 1.2, WALL_GAP = 0.4, MIN_FOLLOW = 0.8, FOLLOW_LOW = 4;
+// First person: the game's view - a vertical FOV of 95 (the author's game
+// at 16:10, docs/website.md *The 3D world*) and a near plane of 0.2 m. A run
+// with no look track faces where it moved over HEADING_WINDOW s either side
+// (one sample's spacing for a sparser path: an attempt's 1 Hz route), level,
+// at the in-game replay camera's default eye (Data/ReplayCamera).
+const ORBIT_FOV = 55, EYES_FOV = 95, EYES_NEAR = 0.2, DEFAULT_EYE = 1.6, HEADING_WINDOW = 0.25;
+const DEG = Math.PI / 180;
 const ORDER = { terrain: 0, sea: 1, zone: 2, line: 3, xray: 4, ghost: 5, label: 6 };
 
 const P = (x, y, z) => new THREE.Vector3(x, y, -z);
+
+/// A run's look at t from its [t, yaw, pitch, eye] track (the .run's `l|`
+/// lines): interpolated, the yaw the short way round, held past either end;
+/// null with no track. As the in-game replay camera (ReplayCamera.PoseAt).
+function lookAt(look, t) {
+  if (!look || !look.length) return null;
+  if (t <= look[0][0]) return look[0];
+  const last = look[look.length - 1];
+  if (t >= last[0]) return last;
+  let lo = 0, hi = look.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (look[mid][0] <= t) lo = mid; else hi = mid; }
+  const a = look[lo], b = look[hi], k = (t - a[0]) / Math.max(1e-6, b[0] - a[0]);
+  let dy = b[1] - a[1];
+  dy -= 360 * Math.round(dy / 360);
+  return [t, a[1] + dy * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k];
+}
+
+/// Where a run moved around t, as a Unity yaw (degrees, 0 = north), else
+/// `last` while it stands still (ReplayCamera.HeadingAt).
+function headingAt(path, t, last) {
+  const n = path.length, w = Math.max(HEADING_WINDOW, n > 1 ? (path[n - 1][0] - path[0][0]) / (n - 1) : 0);
+  const a = RunMap.at(path, t - w), b = RunMap.at(path, t + w);
+  const dx = b[1] - a[1], dz = b[3] - a[3];
+  return dx * dx + dz * dz < 0.0025 ? last : Math.atan2(dx, dz) / DEG;
+}
 
 // --- fat lines -----------------------------------------------------------------
 // One quad per path segment, widened on screen (WebGL draws 1 px lines only).
@@ -247,7 +280,7 @@ class Map3D {
     r.setClearColor(0x050505);
     r.localClippingEnabled = true;     // the world's cutaway underground (world3d.js setCut)
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(55, 1, 1, 30000);
+    this.camera = new THREE.PerspectiveCamera(ORBIT_FOV, 1, 1, 30000);
     this.lookDir = new THREE.Vector3();
     this.followDir = new THREE.Vector3();
     this.followLook = new THREE.Vector3();
@@ -262,6 +295,10 @@ class Map3D {
     // dist: the wanted distance; cur: the camera's, pulled in front of a wall
     // (followCamera()); hitKey / hitAt / hit: the last wall test.
     this.follow = { yawOff: 0, pitch: 0.22, dist: 12, heading: null, target: null, cur: null, hitKey: "", hitAt: 0, hit: Infinity };
+    // First person: pos / yaw (degrees) / looked = the last view (yaw kept
+    // while a run without a look track stands still); yawOff / pitchOff =
+    // the viewer's drag around the runner's look.
+    this.eyes = { pos: null, yaw: null, looked: false, yawOff: 0, pitchOff: 0, dir: new THREE.Vector3() };
     this.fade = 1; this.fadeTo = 1;
     this.lines = []; this.ghosts = []; this.labels = [];
     this.zoneGroup = new THREE.Group(); this.scene.add(this.zoneGroup);
@@ -282,7 +319,6 @@ class Map3D {
     this.note = document.createElement("div");
     this.note.className = "map3dnote";
     this.note.hidden = true;
-    this.note.textContent = "Underground";
     canvas.insertAdjacentElement("afterend", this.note);
     this.world = new World(this.scene, () => { this.dirty = true; }, canvas.parentElement);
     const detail = document.createElement("button");
@@ -496,11 +532,20 @@ class Map3D {
     this.dirty = true;
   }
 
-  /// "orbit" or "follow" (behind the focused run's ghost).
+  /// "orbit", "follow" (behind the focused run's ghost) or "eyes" (first
+  /// person: the focused run's own view).
   setMode(mode) {
+    const was = this.mode;
     this.mode = mode;
+    const fov = mode === "eyes" ? EYES_FOV : ORBIT_FOV;
+    if (this.camera.fov !== fov) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     if (mode === "follow") { this.follow.yawOff = 0; this.follow.heading = null; this.follow.target = null; this.follow.cur = null; }
-    else if (this.follow.target) {
+    else if (mode === "eyes") { const e = this.eyes; e.pos = null; e.yaw = null; e.yawOff = 0; e.pitchOff = 0; }
+    else if (was === "eyes" && this.eyes.pos) {
+      // Orbit from just behind where the eyes were: no jump across the map.
+      const e = this.eyes, o = this.orbit;
+      o.target.copy(e.pos); o.yaw = -(e.yaw + e.yawOff) * DEG; o.pitch = 0.3; o.dist = 8;
+    } else if (this.follow.target) {
       // Orbit from where the follow camera was: no jump.
       const f = this.follow, o = this.orbit;
       o.target.copy(f.target); o.yaw = (f.heading || 0) + f.yawOff; o.pitch = f.pitch; o.dist = Math.max(8, f.cur ?? f.dist);
@@ -510,7 +555,7 @@ class Map3D {
 
   setVisible(on) {
     this.visible = on;
-    this.note.hidden = !on || this.fadeTo === 1;
+    this.note.hidden = !on || !this.note.textContent;
     this.world.box.classList.toggle("off", !on);
     if (on) { this.dirty = true; this.last = 0; this.raf = requestAnimationFrame(this.loop); }
     else cancelAnimationFrame(this.raf);
@@ -840,9 +885,11 @@ class Map3D {
   frame(dt) {
     let moving = false;
     const under = [];
+    const followed = this.followedRun(), riding = this.mode !== "orbit" && followed;
     for (const g of this.ghosts) {
       const s = RunMap.at(g.userData.run.path, this.time);
-      g.visible = !!s;
+      // First person: no ball over the view's own run (the camera is in it).
+      g.visible = !!s && !(this.mode === "eyes" && g.userData.run === followed);
       if (!s) continue;
       g.position.set(s[1], s[2], -s[3]);
       const ground = RunMap.groundAt(s[1], s[3]);
@@ -853,10 +900,10 @@ class Map3D {
     if (this.points) { this.points.visible = this.showMarkers; this.points.material.uniforms.uTime.value = this.time; }
     if (this.tipAt && this.tipAt.kind === "building" && !this.boxes.some(b => b.visible && b.userData.b === this.tipAt.item)) this.setTip(null, false);
 
-    // Underground: every ghost (orbit) or the followed one (follow) below
-    // the ground fades the terrain and the sea, as the 2D map fades its relief.
-    const followed = this.followedRun();
-    const u = this.mode === "follow" && followed ? under.filter(e => e.run === followed) : under;
+    // Underground: every ghost (orbit) or the followed one (follow, first
+    // person) below the ground fades the terrain and the sea, as the 2D map
+    // fades its relief.
+    const u = riding ? under.filter(e => e.run === followed) : under;
     this.fadeTo = u.length && u.every(e => e.under) ? 0.22 : 1;
     if (this.fade !== this.fadeTo) {
       const k = 1 - Math.exp(-dt * 8);
@@ -864,7 +911,6 @@ class Map3D {
       if (Math.abs(this.fade - this.fadeTo) < 0.01) this.fade = this.fadeTo;
       moving = true;
     }
-    this.note.hidden = this.fadeTo === 1;
     for (const mesh of [this.coarse, this.detail]) if (mesh) {
       mesh.material.opacity = this.fade;
       mesh.material.depthWrite = this.fade > 0.99;
@@ -873,9 +919,17 @@ class Map3D {
     for (const l of this.lines) if (l.renderOrder === ORDER.xray) l.visible = this.fade > 0.99;
 
     if (this.mode === "follow" && followed) moving = this.followCamera(followed, dt) || moving;
+    else if (this.mode === "eyes" && followed) this.eyesCamera(followed);
     else this.orbitCamera();
+    // The note under the view: underground, and a first person that only
+    // guesses the look (a run from before the look track, an attempt's route).
+    const note = [this.fadeTo === 1 ? "" : "Underground",
+      this.mode === "eyes" && followed && !this.eyes.looked ? "No look recorded: facing the way it moved" : ""].filter(Boolean).join(" · ");
+    if (this.note.textContent !== note) this.note.textContent = note;
+    this.note.hidden = !note;
     this.world.setFade(this.fade);
-    const target = this.mode === "follow" && this.follow.target ? this.follow.target : this.orbit.target;
+    const target = this.mode === "follow" && this.follow.target ? this.follow.target
+      : this.mode === "eyes" && this.eyes.pos ? this.eyes.pos : this.orbit.target;
     this.world.setCut(this.fadeTo < 1, this.camera.position, target);
     // The camera's focal length in drawing buffer pixels: where a far copy's
     // error stays under a pixel (world3d.js split()).
@@ -950,6 +1004,26 @@ class Map3D {
     return moving;
   }
 
+  /// At the run's recorded eye, looking where the runner looked (its look
+  /// track, interpolated, not smoothed - the in-game replay camera's first
+  /// person), turned by the viewer's drag; a run without a look track faces
+  /// where it moved, level, at the default eye.
+  eyesCamera(run) {
+    const e = this.eyes, c = this.camera, s = RunMap.at(run.path, this.time);
+    if (!s) return;
+    const l = lookAt(run.look, this.time);
+    e.looked = !!l;
+    e.yaw = l ? l[1] : headingAt(run.path, this.time, e.yaw ?? 0);
+    const eye = l ? l[3] : DEFAULT_EYE;
+    const yaw = (e.yaw + e.yawOff) * DEG;
+    const pitch = Math.max(-89, Math.min(89, (l ? l[2] : 0) + e.pitchOff)) * DEG;
+    e.pos = (e.pos || new THREE.Vector3()).set(s[1], s[2] + eye, -s[3]);
+    c.position.copy(e.pos);
+    // Unity's view direction (x sin, z cos, pitch + = down), z flipped.
+    c.lookAt(e.dir.set(Math.cos(pitch) * Math.sin(yaw), -Math.sin(pitch), -Math.cos(pitch) * Math.cos(yaw)).add(e.pos));
+    if (c.near !== EYES_NEAR) { c.near = EYES_NEAR; c.updateProjectionMatrix(); }
+  }
+
   clip(dist) {
     const c = this.camera, near = Math.max(0.1, Math.min(5, dist * 0.004));
     if (c.near !== near) { c.near = near; c.updateProjectionMatrix(); }
@@ -988,7 +1062,11 @@ class Map3D {
       e.preventDefault();
       this.zoom(Math.exp(e.deltaY * 0.0012));
     }, { passive: false });
-    on("dblclick", () => { if (this.mode === "follow") { this.follow.yawOff = 0; this.follow.pitch = 0.22; this.follow.dist = 12; this.dirty = true; } else this.fit(); });
+    on("dblclick", () => {
+      if (this.mode === "follow") { this.follow.yawOff = 0; this.follow.pitch = 0.22; this.follow.dist = 12; this.dirty = true; }
+      else if (this.mode === "eyes") { this.eyes.yawOff = 0; this.eyes.pitchOff = 0; this.dirty = true; }
+      else this.fit();
+    });
     on("pointerdown", e => {
       c.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, [e.clientX, e.clientY]);
@@ -1042,6 +1120,15 @@ class Map3D {
   }
 
   rotate(dx, dy) {
+    if (this.mode === "eyes") {
+      // Look around the runner's look, the picture following the pointer
+      // (degrees; double-click goes back to the runner's).
+      const e = this.eyes;
+      e.yawOff = ((e.yawOff - dx * 0.25 + 540) % 360) - 180;
+      e.pitchOff = Math.max(-90, Math.min(90, e.pitchOff - dy * 0.25));
+      this.dirty = true;
+      return;
+    }
     const o = this.mode === "follow" ? this.follow : this.orbit;
     if (this.mode === "follow") this.follow.yawOff -= dx * 0.006; else o.yaw -= dx * 0.006;
     o.pitch = Math.max(-1.2, Math.min(1.55, o.pitch + dy * 0.005));
@@ -1049,6 +1136,7 @@ class Map3D {
   }
 
   zoom(k) {
+    if (this.mode === "eyes") return;   // the runner's eye: no distance
     const o = this.mode === "follow" ? this.follow : this.orbit;
     o.dist = Math.max(this.mode === "follow" ? 2 : 5, Math.min(this.mode === "follow" ? 400 : 9000, o.dist * k));
     this.dirty = true;
@@ -1057,7 +1145,7 @@ class Map3D {
   /// Moves the orbit's centre with the pointer, along the ground (no pan
   /// while following: the ghost is the centre).
   pan(dx, dy) {
-    if (this.mode === "follow") return;
+    if (this.mode !== "orbit") return;
     const o = this.orbit, h = this.canvas.clientHeight || 1;
     const per = 2 * o.dist * Math.tan(this.camera.fov * Math.PI / 360) / h;
     const right = new THREE.Vector3(Math.cos(o.yaw), 0, -Math.sin(o.yaw));

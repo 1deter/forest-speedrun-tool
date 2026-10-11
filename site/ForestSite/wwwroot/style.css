@@ -123,7 +123,9 @@ h3.fold {
 .maphint { margin-left: auto; max-width: 46ch; text-align: right; font-size: 11px; color: var(--muted); pointer-events: none !important; }
 @media (max-width: 560px) { .maphint { display: none; } }
 .maplayers { display: flex; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(0,0,0,.72); }
-.map3dnote { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); padding: 2px 8px; background: rgba(0,0,0,.72); color: #bbb; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
+/* Underground / first person without a look (map3d.js): above the world
+   switches' row, wrapping on a phone. */
+.map3dnote { position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%); max-width: calc(100% - 32px); text-align: center; padding: 2px 8px; background: rgba(0,0,0,.72); color: #bbb; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
 .map3dnote[hidden] { display: none; }
 /* The 3D view's world switches (world3d.js), bottom left over the view. */
 .map3dworld { position: absolute; left: 8px; bottom: 58px; align-items: center; }
