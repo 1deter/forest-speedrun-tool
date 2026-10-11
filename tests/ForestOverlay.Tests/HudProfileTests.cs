@@ -123,7 +123,7 @@ namespace ForestOverlay.Tests
             HudProfile before = Written(changed, layout);
             Assert.NotEqual(Written(Defaults, new HudLayout()).Format(), before.Format());
 
-            // Reset layout puts the default look in, then writes the profile.
+            // Reset profile puts the default look in, then writes the profile.
             HudProfile look = HudProfile.DefaultLook();
             HudProfile reset = Written(Applied(look), look.Layout);
 
