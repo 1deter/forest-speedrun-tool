@@ -244,6 +244,15 @@ public sealed class CategoryTests : IDisposable
         var view = await http.GetFromJsonAsync<JsonObject>("/api/categories/any-normal/2");
         Assert.Equal(10, (int)view["logcap"]);
         Assert.Equal("Rock", (string)view["caps"][0]["name"]);
+        // A draft is nobody's to read (security audit, 2026-10-11): a preset,
+        // and a published category taken back to a draft - every version.
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/api/categories/manhunt/1")).StatusCode);
+        c.Status = "draft";
+        put = new HttpRequestMessage(HttpMethod.Put, "/api/admin/categories/any-normal") { Content = new StringContent(c.Format(), Encoding.UTF8) };
+        put.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await http.SendAsync(put)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/api/categories/any-normal/2")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/api/categories/any-normal/3")).StatusCode);
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
     }
 }

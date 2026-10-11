@@ -34,7 +34,9 @@ using Microsoft.AspNetCore.RateLimiting;
 const int MaxBody = 4 * 1024 * 1024;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = MaxBody);
+// No `Server: Kestrel` header: nothing to gain from naming the server
+// (security audit, 2026-10-11).
+builder.WebHost.ConfigureKestrel(k => { k.Limits.MaxRequestBodySize = MaxBody; k.AddServerHeader = false; });
 
 string dataDir = Environment.GetEnvironmentVariable("FOREST_DATA") ?? Path.Combine(AppContext.BaseDirectory, "data");
 string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? "";
@@ -320,7 +322,7 @@ api.MapPost("/register", async (HttpRequest req) =>
     RegisterRequest body;
     try { body = await req.ReadFromJsonAsync<RegisterRequest>(); }
     catch { return Problem(400, "expected JSON { runner, name }"); }
-    if (body == null || !RunnerIds.Valid(body.runner)) return Problem(400, "runner must be r- and 16 hex digits");
+    if (body == null || !RunnerIds.Valid(body.runner)) return Problem(400, "runner must be r- and 16 lowercase hex digits");
     string name = ForestOverlay.Data.AttemptFormat.Clean(body.name ?? "");
     if (name.Length > 40) name = name.Substring(0, 40);
     string token = store.Register(body.runner, name);
@@ -427,7 +429,7 @@ api.MapGet("/categories.txt", (HttpContext c) =>
     return Results.Text(text, "text/plain; charset=utf-8");
 }).RequireRateLimiting("read");
 api.MapGet("/categories/{id}/{version:int}", (string id, int version) =>
-    Categories.View(categories.Version(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
+    Categories.View(categories.PublishedVersion(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
 
 // --- the knowledge bot (BotSettings; docs/knowledge-bot.md) -----------------------
 // The bot's own token, not an admin's: it can read the settings and report,
@@ -460,6 +462,10 @@ static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGet
 var admin = api.MapGroup("/admin").AddEndpointFilter(async (ctx, next) =>
 {
     var http = ctx.HttpContext;
+    // Admin answers hold tokens (a new admin's), the runners' spots' webhook
+    // URL and the runner list: never kept by a browser or a proxy (security
+    // audit, 2026-10-11).
+    http.Response.Headers.CacheControl = "no-store";
     string given = http.Request.Headers["X-Admin-Token"].FirstOrDefault() ?? "";
     bool owner = adminToken.Length > 0 && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
         Encoding.UTF8.GetBytes(given), Encoding.UTF8.GetBytes(adminToken));
@@ -565,17 +571,21 @@ async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed
     if (size != null && !size.IsReadOnly) size.MaxRequestBodySize = 100L * 1024 * 1024;
     using var buffer = new MemoryStream();
     await c.Request.Body.CopyToAsync(buffer);
-    if (c.Request.Query["clear"] == "1")
-        foreach (string d in Directory.GetFileSystemEntries(dir))
-            if (Directory.Exists(d)) Directory.Delete(d, true); else File.Delete(d);
     int files = 0;
     try
     {
         using var zip = new System.IO.Compression.ZipArchive(buffer, System.IO.Compression.ZipArchiveMode.Read);
-        foreach (var entry in zip.Entries)
+        // Every name is checked before anything is cleared or written: a
+        // refused upload leaves the map as it was (security audit,
+        // 2026-10-11: ?clear=1 emptied the folder first, a bad name half-way
+        // left the files before it).
+        var entries = zip.Entries.Where(e => !e.FullName.EndsWith("/")).ToList();
+        if (entries.FirstOrDefault(e => !allowed(e.FullName)) is { } bad) return Problem(400, "not a map file: " + bad.FullName);
+        if (c.Request.Query["clear"] == "1")
+            foreach (string d in Directory.GetFileSystemEntries(dir))
+                if (Directory.Exists(d)) Directory.Delete(d, true); else File.Delete(d);
+        foreach (var entry in entries)
         {
-            if (entry.FullName.EndsWith("/")) continue;
-            if (!allowed(entry.FullName)) return Problem(400, "not a map file: " + entry.FullName);
             string to = Path.Combine(dir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
             using (var from = entry.Open())
@@ -780,12 +790,15 @@ public static class Pages
 
 public static class RunnerIds
 {
-    /// `r-` + 16 hex digits (Game/RunnerIdentity).
+    /// `r-` + 16 lowercase hex digits (Game/RunnerIdentity writes them so).
+    /// Upper case was taken too: `r-00AB..` was a second runner beside
+    /// `r-00ab..`, the same id to anyone reading it (security audit,
+    /// 2026-10-11), as attempt ids already refuse.
     public static bool Valid(string id)
     {
         if (id == null || id.Length != 18 || !id.StartsWith("r-", StringComparison.Ordinal)) return false;
         for (int i = 2; i < id.Length; i++)
-            if (!Uri.IsHexDigit(id[i])) return false;
+            if (!Uri.IsHexDigit(id[i]) || char.IsUpper(id[i])) return false;
         return true;
     }
 }
