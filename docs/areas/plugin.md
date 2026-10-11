@@ -78,9 +78,11 @@ window on that tab and are **unbound by default**.
 Tabs: Practice, Map, Runs, Inventory, 100%, Deaths, Views, Settings,
 QA, Updates, Developer. **Developer** (`Modules/DeveloperModule`, last) holds
 what a run never needs - test bridge, benchmarks, experimental features,
-TAS, memory census, dumps - each fold drawn by the module that owns it
-(T-0226). Settings is one page of folds: Keys, HUD, Performance,
-Loads and savestates. **One setting, one feature** (T-0253): Settings > HUD
+TAS, memory census, dumps, and the developer-only keys (dumps, type
+explorer, TAS, QA; drawn by Settings, T-0263) - each fold drawn by the
+module that owns it (T-0226). Settings is one page of folds: Keys, HUD,
+Performance, Loads and savestates; its key list and HUD values sit under
+short headings (`Data/KeyGroups`, `HudLines.HeadingAt`, T-0263). **One setting, one feature** (T-0253): Settings > HUD
 puts the HUD-wide options (compact, text size, position) above the values
 (T-0018: no info box - a column of values, placed values, orange flags); Runs keeps the run lines' options under *Run lines* (shown
 only while on) and the ghost's switch + an opacity for the ghost and replay
@@ -106,7 +108,8 @@ Settings shows *Game input: blocked* when that is working.
 | *(unbound)* | HUD values only; each tab |
 
 `F1` is deliberately free — the game's own dev console uses it.
-All keys are rebindable in **Settings**, or in
+All keys are rebindable in **Settings** (the developer keys in
+**Developer > Keys**), or in
 `BepInEx/config/com.deter.forestoverlay.cfg`.
 
 ## What works
