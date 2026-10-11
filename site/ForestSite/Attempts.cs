@@ -252,6 +252,36 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         };
     }
 
+    /// The most ids one exists question may name (the plugin asks about 5).
+    public const int MaxExistIds = 20;
+
+    /// Which of these attempts the site has, and nothing else about them
+    /// (T-0266): the plugin's Runs tab asks this once per opening instead
+    /// of fetching each listed attempt's whole view. An id that is not an
+    /// attempt id is never here - gone, as its GET /api/attempts/<id> is a
+    /// 404. Each id once, in the order asked.
+    public (List<string> there, List<string> gone) Exist(IEnumerable<string> ids)
+    {
+        var asked = ids.Where(i => !string.IsNullOrEmpty(i)).Distinct(StringComparer.Ordinal).ToList();
+        var found = new HashSet<string>(StringComparer.Ordinal);
+        var valid = asked.Where(AttemptChain.IsAttemptId).ToList();
+        if (valid.Count > 0)
+        {
+            using var c = _store.Open();
+            using var cmd = c.CreateCommand();
+            var names = new List<string>();
+            for (int i = 0; i < valid.Count; i++)
+            {
+                names.Add("$a" + i);
+                cmd.Parameters.AddWithValue("$a" + i, valid[i]);
+            }
+            cmd.CommandText = "SELECT id FROM attempts WHERE id IN (" + string.Join(", ", names) + ")";
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) found.Add(r.GetString(0));
+        }
+        return (asked.Where(found.Contains).ToList(), asked.Where(i => !found.Contains(i)).ToList());
+    }
+
     // --- official runs (T-0223) --------------------------------------------------------
 
     /// How many runners a category lists (fastest first); the count says how many there are.

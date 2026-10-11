@@ -522,6 +522,11 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal(log, await _http.GetStringAsync("/api/attempts/" + Id + "/log"));
         var found = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id + "/code/" + c.Code.ToLowerInvariant());
         Assert.Contains(found["matches"].AsArray(), m => m["step"].GetValue<int>() == 3);
+        // The Runs tab's light check (T-0266): there, with nothing else about it.
+        var exists = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/exists?ids=" + Id + ",a-00000000000000fe");
+        Assert.Equal(new[] { "gone", "there" }, exists.Select(p => p.Key).OrderBy(k => k, StringComparer.Ordinal).ToArray());
+        Assert.Equal(new[] { Id }, Ids(exists, "there"));
+        Assert.Equal(new[] { "a-00000000000000fe" }, Ids(exists, "gone"));
 
         // Only the owner deletes one.
         var del = new HttpRequestMessage(HttpMethod.Delete, "/api/admin/attempts/" + Id);
@@ -532,7 +537,28 @@ public sealed class AttemptTests : IDisposable
         // The plugin drops a deleted attempt from its Runs tab on exactly this
         // answer (src/Data/SentAttempts.GoneError, T-0144).
         Assert.Equal("no such attempt", (await gone.Content.ReadFromJsonAsync<JsonObject>())["error"].GetValue<string>());
+        Assert.Equal(new[] { Id }, Ids(await _http.GetFromJsonAsync<JsonObject>("/api/attempts/exists?ids=" + Id), "gone"));
         Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/attempts/" + Id + "/log")).StatusCode);
+    }
+
+    private static string[] Ids(JsonObject answer, string list) =>
+        answer[list].AsArray().Select(n => n.GetValue<string>()).ToArray();
+
+    [Fact]
+    public async Task ExistsCheck_NamesEachOnce_AndIsCapped()
+    {
+        // The plugin's light check (src/Data/SentAttempts.ExistsMeaning, T-0266):
+        // not an attempt id = gone, each id once in the order asked, empty
+        // names skipped; no ids or too many is a 400, never a 404 (a 404
+        // tells the plugin the site predates the check).
+        var a = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/exists?ids=a-00000000000000fe,,../x,a-00000000000000fe");
+        Assert.Empty(Ids(a, "there"));
+        Assert.Equal(new[] { "a-00000000000000fe", "../x" }, Ids(a, "gone"));
+        Assert.Equal(HttpStatusCode.BadRequest, (await _http.GetAsync("/api/attempts/exists")).StatusCode);
+        string many = string.Join(",", Enumerable.Range(0, Attempts.MaxExistIds + 1).Select(i => "a-" + i.ToString("x16")));
+        Assert.Equal(HttpStatusCode.BadRequest, (await _http.GetAsync("/api/attempts/exists?ids=" + many)).StatusCode);
+        string max = string.Join(",", Enumerable.Range(0, Attempts.MaxExistIds).Select(i => "a-" + i.ToString("x16")));
+        Assert.Equal(Attempts.MaxExistIds, Ids(await _http.GetFromJsonAsync<JsonObject>("/api/attempts/exists?ids=" + max), "gone").Length);
     }
 
     [Fact]
