@@ -137,6 +137,17 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     public Answer Log(string runner, string id, string text)
     {
         if (!AttemptChain.IsAttemptId(id)) return Fail(400, "not an attempt id");
+        // One log of an attempt at a time: two first uploads at once both
+        // found none in and both were written - the last file and the first
+        // verdict (security audit, 2026-10-11).
+        lock (_logGates[Convert.ToInt32(id.Substring(14), 16) % _logGates.Length])
+            return LogOnce(runner, id, text);
+    }
+
+    private readonly object[] _logGates = Enumerable.Range(0, 64).Select(_ => new object()).ToArray();
+
+    private Answer LogOnce(string runner, string id, string text)
+    {
         var row = Row(id);
         if (row != null && row.Runner != runner) return Fail(409, "this attempt id is someone else's");
         if (row?.LogMs != null)

@@ -897,6 +897,36 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void Log_TwoFirstUploadsAtOnce_OneIsKept_TheOtherRefused()
+    {
+        // Security audit (2026-10-11): both found no log in, both were
+        // written - the file of one, the verdict of the other.
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new Attempts(new Store(dir), dir, () => Issued);
+            for (int round = 1; round <= 5; round++)
+            {
+                string id = AId(round);
+                var logs = Enumerable.Range(0, 8).Select(i => FinishedLog(id, "Any%", 60_000 + i)).ToArray();
+                var start = new Barrier(logs.Length);
+                var answers = new (string l, int Status)[logs.Length];
+                var threads = logs.Select((l, i) => new Thread(() => { start.SignalAndWait(); answers[i] = (l, a.Log(Runner, id, l).Status); })).ToList();
+                threads.ForEach(t => t.Start());
+                threads.ForEach(t => t.Join());
+                var kept = Assert.Single(answers, x => x.Status == 200);
+                Assert.All(answers.Where(x => x.Status != 200), x => Assert.Equal(409, x.Status));
+                Assert.Equal(kept.l, a.LogText(id));
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
     public void PathOf_ReadsTheStepPositions_InMetres_SkippingLoads()
     {
         var c = new AttemptChain();
