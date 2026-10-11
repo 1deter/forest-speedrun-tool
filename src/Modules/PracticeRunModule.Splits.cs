@@ -691,9 +691,9 @@ namespace ForestOverlay.Modules
             Event e = Event.current;
             if (e == null) return;
             MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
-            bool windowOpen = main != null && main.PanelOpen;
 
-            if (!windowOpen)
+            // Edit HUD only: the F2 window alone is not a drag mode (author, 2026-10-11, T-0317).
+            if (!HudEditing || main == null)
             {
                 if (_dragging) EndDrag();
                 return;

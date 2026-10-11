@@ -394,8 +394,8 @@ namespace ForestOverlay
             if (onH > 0f) colW = Mathf.Max(colW, Mathf.Min(wrapW, _warnStyle.CalcSize(_practice.OnLabel).x));
             if (marked) colW = Mathf.Max(colW, Mathf.Min(wrapW, practiceStyle.CalcSize(_practice.Label).x));
             colH += onH + markH;
-            // Nothing to show: still a spot to see and move while the window is open.
-            if (_mainWindow != null && _mainWindow.PanelOpen)
+            // Nothing to show: still a spot to see and move while editing.
+            if (editing)
             {
                 colW = Mathf.Max(colW, 60f);
                 colH = Mathf.Max(colH, lineHeight);
@@ -407,11 +407,10 @@ namespace ForestOverlay
 
             if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
             Rect blocked = _mainWindow != null ? _mainWindow.ScreenRect : new Rect();
-            bool windowOpen = _mainWindow != null && _mainWindow.PanelOpen;
 
             // Edit mode: a press on a value places it on its own (HudWidgets);
-            // the column moves by its grip only. Window open, not editing:
-            // the whole column drags, as the box did.
+            // the column moves by its grip only. Not editing, nothing moves:
+            // the F2 window alone is not a drag mode (author, 2026-10-11, T-0317).
             Rect grip = new Rect(col.xMax + 6f, y, GripW, colH);
             if (grip.xMax > Screen.width) grip.x = col.x - 6f - GripW;
             if (editing)
@@ -426,11 +425,11 @@ namespace ForestOverlay
                 }
                 HandleHudDrag(grip, col, s);
             }
-            else HandleHudDrag(col, col, s);
+            else if (_hudDragging) EndHudDrag(col, s);
 
             // A placed value dragged over the column: dropping it puts it back.
             if (editing && widgets.DropOnColumn) GUI.Box(new Rect(col.x - 4f, col.y - 2f, col.width + 8f, col.height + 4f), GUIContent.none, UiKit.WidgetCard);
-            if (editing || windowOpen || _hudDragging)
+            if (editing || _hudDragging)
                 GUI.Box(new Rect(col.x - 4f, col.y - 2f, col.width + 8f, col.height + 4f), GUIContent.none, UiKit.Outline);
             if (editing) GUI.Box(grip, GUIContent.none, UiKit.Handle);
 

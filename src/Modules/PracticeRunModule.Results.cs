@@ -405,8 +405,9 @@ namespace ForestOverlay.Modules
             Event e = Event.current;
             bool overWindow = main != null && e != null && main.ScreenRect.Contains(e.mousePosition);
             if (editing) HandleResultsResize(panel, overWindow);
-            // Outside edit mode by the title (the buttons below are live).
-            if (!_resResizing) HandleResultsDrag(editing ? panel : new Rect(x, y, w, ResRowH + 6f), overWindow, editing || _resClickable);
+            // Edit HUD only: the F2 window or the pause menu alone is not a
+            // drag mode (author, 2026-10-11, T-0317); the buttons stay live.
+            if (!_resResizing) HandleResultsDrag(panel, overWindow, editing);
 
             Color before = GUI.color;
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Mathf.Max(Opacity, 0.85f)));
