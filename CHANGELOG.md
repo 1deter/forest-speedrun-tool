@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.285 - 2026-10-11
+
+- Capture at checkpoints no longer freezes a run for half a second: the worst frame of a capture went from about 600 ms to about 150 ms (the game's memory clean-up is skipped; the saved state is the same).
+- The Runs tab checks whether your uploaded attempts were deleted with one small request to the site instead of loading each attempt.
+
 ## v0.24.284 - 2026-10-11
 
 - In caves the game no longer draws the surface's ground and distant trees above you, which you cannot see there: about 0.3 ms faster a frame in Cave 6 (measured). Looking out of a cave mouth or up a sinkhole, the outside ground and distant trees are missing; switch it off in Debug views -> Performance (Caves: don't draw the ground and distant trees above you).
