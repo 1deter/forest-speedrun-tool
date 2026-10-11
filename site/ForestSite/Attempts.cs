@@ -353,7 +353,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
-                                 object Recording, string Report, object Loads, List<double[]> Path);
+                                 object Recording, string Report, object Loads, List<double[]> Path,
+                                 ILookup<string, AttemptChain.StepInfo> Codes);
 
     /// The logs' size the cache may hold (characters of log text); past it,
     /// it starts again. Settable for the tests.
@@ -427,7 +428,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
             RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
-            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text));
+            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text),
+            replay.Steps.ToLookup(st => st.Code ?? ""));
         lock (_judged)
         {
             _verdicts[id] = (j.LogMs, j.AllowedVersion, j.CategoryId, j.CategoryVersion, j.CategoryFound, j.Verdict);
@@ -758,8 +760,9 @@ GROUP BY kind, text ORDER BY MAX(allowed) DESC, SUM(n) DESC, kind, text";
         if (code == null) return null;
         var row = Row(id);
         if (row?.LogMs == null) return new { code, matches = Array.Empty<object>() };
-        var r = AttemptChain.Read(LogText(id));
-        var hits = r.Steps.Where(s => s.Code == code)
+        // From the judged log, kept (security audit, 2026-10-11: each look-up
+        // replayed the whole log, up to 4 MB, at the read limit's 600 a minute).
+        var hits = JudgedLog(id, row).Codes[code]
                           .Select(s => (object)new { step = s.N, realMs = s.RealMs, timerMs = s.TimerMs }).Take(50).ToList();
         return new { code, matches = hits };
     }

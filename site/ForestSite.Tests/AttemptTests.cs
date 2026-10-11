@@ -861,6 +861,42 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void FindCode_ReadsTheJudgedLog_NotAReplayPerLookUp()
+    {
+        // Security audit (2026-10-11): each look-up replayed the whole log.
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new Attempts(new Store(dir), dir, () => Issued);
+            var c = new AttemptChain();
+            c.Header(AId(1), Runner, "Runner", "test", "Any%", "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+            for (int s = 1; s <= 3; s++) c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
+            string code = c.Code;
+            c.End(3100, "reset", -1);
+            Assert.Equal(200, a.Log(Runner, AId(1), c.Text).Status);
+
+            JsonNode Find(string typed) => System.Text.Json.JsonSerializer.SerializeToNode(a.FindCode(AId(1), typed));
+            for (int i = 0; i < 5; i++)
+            {
+                var found = Find(code.ToLowerInvariant());
+                Assert.Equal(code, found!["code"]!.GetValue<string>());
+                Assert.Contains(found["matches"]!.AsArray(), m => m!["step"]!.GetValue<int>() == 3 && m["realMs"]!.GetValue<long>() == 3000);
+            }
+            Assert.Equal(1, a.LogsJudged);
+            Assert.Null(a.FindCode(AId(1), "toolong"));
+            // An attempt with no log yet: nothing to judge.
+            Assert.Equal(200, a.Start(Runner, AId(2), "Any%", "").Status);
+            Assert.Empty(System.Text.Json.JsonSerializer.SerializeToNode(a.FindCode(AId(2), code))!["matches"]!.AsArray());
+            Assert.Equal(1, a.LogsJudged);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
     public void PathOf_ReadsTheStepPositions_InMetres_SkippingLoads()
     {
         var c = new AttemptChain();
