@@ -41,7 +41,11 @@ namespace ForestOverlay.Modules
         private GUIStyle _warnStyle;
         private GUIStyle _promptStyle;
         private readonly GUIContent _prompt = new GUIContent();
+        // A rebind / reset result, shown in place of the Game input status
+        // for a few seconds, then the status comes back (T-0261).
+        private const float MessageSeconds = 5f;
         private string _message = "";
+        private float _messageUntil;
 
         // The page: folds, one scroll (T-0226).
         private Vector2 _pageScroll;
@@ -242,13 +246,14 @@ namespace ForestOverlay.Modules
             else if (!rebinding)
             {
                 _promptFor = null;
+                if (_message.Length > 0 && Time.unscaledTime > _messageUntil) _message = "";
                 _prompt.text = _message.Length > 0 ? _message : StatusLine();
             }
 
             if (GUI.Button(new Rect(12, y, 118, 22), "Reset all keys"))
             {
                 map.ResetToDefaults();
-                _message = "Keys reset to defaults.";
+                Say("Keys reset to defaults.");
             }
             y += 26f;
 
@@ -356,6 +361,12 @@ namespace ForestOverlay.Modules
             return y + 6f;
         }
 
+        private void Say(string message)
+        {
+            _message = message;
+            _messageUntil = Time.unscaledTime + MessageSeconds;
+        }
+
         // Rebuilt only when the status text changes, not on every OnGUI pass.
         private string _statusSource;
         private string _statusLine = "";
@@ -401,7 +412,7 @@ namespace ForestOverlay.Modules
                 if (GUI.Button(new Rect(content.width - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
                 {
                     b.Key = b.Default;
-                    _message = b.Description + " reset to " + b.Default + ".";
+                    Say(b.Description + " reset to " + b.Default + ".");
                 }
             }
 
@@ -425,7 +436,7 @@ namespace ForestOverlay.Modules
             if (e.keyCode == KeyCode.Escape)
             {
                 map.AwaitingRebind = null;
-                _message = "Rebind cancelled.";
+                Say("Rebind cancelled.");
                 e.Use();
                 return;
             }
@@ -435,7 +446,7 @@ namespace ForestOverlay.Modules
                 target.Key = KeyCode.None;
                 map.AwaitingRebind = null;
                 map.Swallow(KeyCode.Backspace);
-                _message = target.Description + " unbound.";
+                Say(target.Description + " unbound.");
                 e.Use();
                 return;
             }
@@ -454,9 +465,9 @@ namespace ForestOverlay.Modules
             // Bind it anyway and say so, rather than refusing. Two actions
             // on one key is occasionally deliberate, and silently dropping
             // the press would be worse than a warning.
-            _message = clash == null
+            Say(clash == null
                 ? target.Description + " -> " + e.keyCode
-                : target.Description + " -> " + e.keyCode + "  (also used by '" + clash.Description + "')";
+                : target.Description + " -> " + e.keyCode + "  (also used by '" + clash.Description + "')");
 
             e.Use();
         }
