@@ -800,7 +800,7 @@ namespace ForestOverlay.Modules
             GUI.enabled = _selected != null && !SegmentLibrary.IsCommunity(_selected);
             if (GUI.Button(new Rect(158, t, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
-            if (GUI.Toggle(new Rect(232, t, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
+            if (UiKit.Toggle(new Rect(232, t, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
 
             GUI.enabled = _unsaved.Count > 0;
             if (GUI.Button(new Rect(w - 160, t, 70, 24), _saveLabel)) Save();
@@ -817,9 +817,9 @@ namespace ForestOverlay.Modules
             float zx = ListWidth + 14;
             GUI.Label(new Rect(zx, t + 30, 46, 20), "Zones");
             ZoneMode mode = _zoneMode;
-            if (GUI.Toggle(new Rect(zx + 48, t + 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
-            if (GUI.Toggle(new Rect(zx + 96, t + 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
-            if (GUI.Toggle(new Rect(zx + 234, t + 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
+            if (UiKit.Toggle(new Rect(zx + 48, t + 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
+            if (UiKit.Toggle(new Rect(zx + 96, t + 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
+            if (UiKit.Toggle(new Rect(zx + 234, t + 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
             if (mode != _zoneMode) { _zoneMode = mode; _zoneModeCfg.Value = mode.ToString(); }   // one write per click
 
             // Over the spot panel it is about, wrapped to that panel and as
@@ -870,7 +870,7 @@ namespace ForestOverlay.Modules
             if (_runs != null)
             {
                 Rect m = new Rect(w - 136, 6, 130, 22);
-                bool on = GUI.Toggle(m, _runs.Enabled, " Practice mode");
+                bool on = UiKit.Toggle(m, _runs.Enabled, " Practice mode");
                 if (on != _runs.Enabled) _runs.TogglePracticeMode();
                 UiKit.Hint(m, TipStripPractice);
                 right = 142f;
@@ -1060,7 +1060,7 @@ namespace ForestOverlay.Modules
             y = DrawShare(y, cw, s);
 
             // --- timed toggle ----------------------------------------------
-            bool timed = GUI.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
+            bool timed = UiKit.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
             if (timed != s.IsTimed) ToggleTimed(s, timed);
 
             GUI.Label(new Rect(156, y, cw - 166, 20),
@@ -1089,7 +1089,7 @@ namespace ForestOverlay.Modules
 
                     // Not drawn during runs (display only: no times retired).
                     bool hidden = s.IsCheckpointHidden(i);
-                    if (GUI.Toggle(new Rect(cw - 76f, y - 26f, 72f, 20f), hidden, " hide") != hidden)
+                    if (UiKit.Toggle(new Rect(cw - 76f, y - 26f, 72f, 20f), hidden, " hide") != hidden)
                     {
                         s.SetCheckpointHidden(i, !hidden);
                         Touch();
@@ -1680,7 +1680,7 @@ namespace ForestOverlay.Modules
                 if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount) { t.Amount = parsedAmt; Touch(); }
             }
 
-            bool rel = GUI.Toggle(new Rect(x0 + 184f, y, 100f, 20), t.Relative, " relative");
+            bool rel = UiKit.Toggle(new Rect(x0 + 184f, y, 100f, 20), t.Relative, " relative");
             if (rel != t.Relative) { t.Relative = rel; Touch(); }
             y += 24f;
 
@@ -2122,8 +2122,8 @@ namespace ForestOverlay.Modules
 
             // A two-button switch: the active mode shows pressed at a glance.
             GUI.Label(new Rect(80, y, 70, 20), "Restore by");
-            bool quick = GUI.Toggle(new Rect(152, y - 2, 100, 22), !s.StartRestoreWithLoad, "Quick load", GUI.skin.button);
-            bool full = GUI.Toggle(new Rect(256, y - 2, 100, 22), s.StartRestoreWithLoad, "Full load", GUI.skin.button);
+            bool quick = UiKit.Toggle(new Rect(152, y - 2, 100, 22), !s.StartRestoreWithLoad, "Quick load", GUI.skin.button);
+            bool full = UiKit.Toggle(new Rect(256, y - 2, 100, 22), s.StartRestoreWithLoad, "Full load", GUI.skin.button);
             if (quick && s.StartRestoreWithLoad) { s.StartRestoreWithLoad = false; Touch(); }
             else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
             y += 26f;
@@ -2243,7 +2243,7 @@ namespace ForestOverlay.Modules
             GUI.enabled = s.Id.Length > 0;
             if (GUI.Button(new Rect(80, y - 2, 70, 22), "Export")) Export(s);
             GUI.enabled = true;
-            _exportAttempts = GUI.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
+            _exportAttempts = UiKit.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
             if (GUI.Button(new Rect(350, y - 2, 96, 22), "Open folder")) OpenSharedFolder();
             y += 26f;
             if (_upload != null)

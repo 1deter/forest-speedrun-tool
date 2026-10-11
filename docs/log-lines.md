@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-223 prefixes from 686 log calls.
+224 prefixes from 687 log calls.
 
 ## `Aerial capture`
 
@@ -625,6 +625,13 @@ Written by HudWidgets.cs; info.
 - info `HUD widget '<..>' placed on its own at (<..>, <..>).`
 - info `HUD widget '<..>' put back in the column.`
 - info `HUD widget '<..>' text: before "<..>", after "<..>".`
+
+## `HUD widgets`
+
+Meaning: The placed HUD values' own font (T-0022): written only when it could not be made, so the values fall back to the UI's shared font (large values may flicker / blur).
+Written by HudWidgets.cs; warning.
+
+- warning `HUD widgets: no font of their own (<ex.Message>) - values share the UI's font.`
 
 ## `InputInject`
 

@@ -377,7 +377,7 @@ namespace ForestOverlay.Modules
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
             GUI.enabled = guiWas && !RunLocked("fastbuild");
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, RunToggleText("fastbuild", "Fast building", " Fast building - hold to add, like Creative (gameplay mod, practice)"));
+            bool on = UiKit.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, RunToggleText("fastbuild", "Fast building", " Fast building - hold to add, like Creative (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _fastBuildCfg.Value) _fastBuildCfg.Value = on;
             y += 24f;
@@ -392,7 +392,7 @@ namespace ForestOverlay.Modules
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
             GUI.enabled = guiWas && !RunLocked("itemcaps");
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, RunToggleText("itemcaps", "Item caps", " Item caps (gameplay mod, practice)"));
+            bool on = UiKit.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, RunToggleText("itemcaps", "Item caps", " Item caps (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _capsOnCfg.Value) { _capsOnCfg.Value = on; ApplyCaps(); }
             y += 24f;
@@ -603,7 +603,7 @@ namespace ForestOverlay.Modules
             // proved are not real inventory contents (dev id 302 and
             // anything outside 29-311), but seeing the raw list is exactly
             // the kind of thing this tool exists for.
-            bool filter = GUI.Toggle(new Rect(10, top + 26, 130, 20),
+            bool filter = UiKit.Toggle(new Rect(10, top + 26, 130, 20),
                                      Ctx.Inventory.FilterPhantomItems, " hide phantoms");
             if (filter != Ctx.Inventory.FilterPhantomItems)
             {
@@ -613,7 +613,7 @@ namespace ForestOverlay.Modules
                 RebuildRowLabels();
             }
 
-            bool zeros = GUI.Toggle(new Rect(146, top + 26, 120, 20),
+            bool zeros = UiKit.Toggle(new Rect(146, top + 26, 120, 20),
                                     Ctx.Inventory.ShowZeroAmounts, " show x0");
             if (zeros != Ctx.Inventory.ShowZeroAmounts)
             {
@@ -636,7 +636,7 @@ namespace ForestOverlay.Modules
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
             GUI.enabled = guiWas && !RunLocked("logs");
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
+            bool on = UiKit.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
                                  RunToggleText("logs", "Logs in the inventory", " Logs in the inventory (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _logsCfg.Value) _logsCfg.Value = on;

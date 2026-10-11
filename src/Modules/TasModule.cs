@@ -652,13 +652,13 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, w, _header);
             y += UiText.DrawDim(0, y, w, _note);
 
-            bool auto = GUI.Toggle(new Rect(0, y, w, 20), _autoRecord.Value, " Record timed runs (from their Restart; saved when the run finishes)");
+            bool auto = UiKit.Toggle(new Rect(0, y, w, 20), _autoRecord.Value, " Record timed runs (from their Restart; saved when the run finishes)");
             if (auto != _autoRecord.Value) _autoRecord.Value = auto;
             y += 22f;
-            bool lockOn = GUI.Toggle(new Rect(0, y, w, 20), _lockReplay.Value, " Lock the frame rate during a replay (the recorded frame times)");
+            bool lockOn = UiKit.Toggle(new Rect(0, y, w, 20), _lockReplay.Value, " Lock the frame rate during a replay (the recorded frame times)");
             if (lockOn != _lockReplay.Value) _lockReplay.Value = lockOn;
             y += 22f;
-            bool r60 = GUI.Toggle(new Rect(0, y, w, 20), _record60.Value, " Record at a fixed 60 fps game step");
+            bool r60 = UiKit.Toggle(new Rect(0, y, w, 20), _record60.Value, " Record at a fixed 60 fps game step");
             if (r60 != _record60.Value) _record60.Value = r60;
             y += 24f;
 

@@ -2183,17 +2183,17 @@ namespace ForestOverlay.Modules
         // Debug views).
         public float DrawOptions(float x, float y, float w)
         {
-            bool respawn = GUI.Toggle(new Rect(x, y, w, 22), _respawnEnemies.Value,
+            bool respawn = UiKit.Toggle(new Rect(x, y, w, 22), _respawnEnemies.Value,
                                       " Savestates: put the captured enemies back after a restore (respawn, clear bodies)");
             if (respawn != _respawnEnemies.Value) _respawnEnemies.Value = respawn;
             y += 26f;
 
             // The load leak: what each load leaves behind.
-            bool fix = GUI.Toggle(new Rect(x, y, w, 22), _threadsFix.Value,
+            bool fix = UiKit.Toggle(new Rect(x, y, w, 22), _threadsFix.Value,
                                   " Fix: stop the worker threads the game leaves running after a load");
             if (fix != _threadsFix.Value) { _threadsFix.Value = fix; LeakedThreads.Enabled = fix; }
             y += 26f;
-            bool subs = GUI.Toggle(new Rect(x, y, w, 22), _subscribersFix.Value,
+            bool subs = UiKit.Toggle(new Rect(x, y, w, 22), _subscribersFix.Value,
                                    " Fix: drop the old world's event subscriptions after a load (the game keeps them)");
             if (subs != _subscribersFix.Value) { _subscribersFix.Value = subs; StaleSubscribers.Enabled = subs; }
             y += 26f;
@@ -2203,7 +2203,7 @@ namespace ForestOverlay.Modules
         // Drawn by the Developer tab (T-0226): the memory census.
         public float DrawCensus(float x, float y, float w)
         {
-            bool census = GUI.Toggle(new Rect(x, y, w, 22), _censusOnLoad.Value,
+            bool census = UiKit.Toggle(new Rect(x, y, w, 22), _censusOnLoad.Value,
                                      " Memory census after every load (log; a short hitch after the load)");
             if (census != _censusOnLoad.Value) _censusOnLoad.Value = census;
             y += 26f;

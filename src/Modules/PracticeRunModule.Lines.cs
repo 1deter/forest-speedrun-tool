@@ -90,11 +90,11 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineOpacityText);
             y += 24f;
 
-            bool failed = GUI.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
+            bool failed = UiKit.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
             if (failed != _keepFailedCfg.Value) _keepFailedCfg.Value = failed;
             y += 22f;
 
-            bool ahead = GUI.Toggle(new Rect(x, y, w, 20), _lineAheadOn.Value, " Comparison line: only the next few seconds of it");
+            bool ahead = UiKit.Toggle(new Rect(x, y, w, 20), _lineAheadOn.Value, " Comparison line: only the next few seconds of it");
             if (ahead != _lineAheadOn.Value) _lineAheadOn.Value = ahead;
             y += 22f;
             if (_lineAheadOn.Value)
@@ -119,7 +119,7 @@ namespace ForestOverlay.Modules
             if (ReplayOpacity != _replayOpacityShown) { _replayOpacityShown = ReplayOpacity; _replayOpacityText.text = Mathf.RoundToInt(ReplayOpacity * 100f) + "%"; }
 
             Rect ghostR = new Rect(0, y, w, 22);
-            bool ghost = GUI.Toggle(ghostR, _ghostCfg.Value, TextGhost);
+            bool ghost = UiKit.Toggle(ghostR, _ghostCfg.Value, TextGhost);
             if (ghost != _ghostCfg.Value) _ghostCfg.Value = ghost;
             UiKit.Hint(ghostR, TipGhost);
             y += 24f;

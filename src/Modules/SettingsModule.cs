@@ -156,7 +156,7 @@ namespace ForestOverlay.Modules
             _pageScroll = GUI.BeginScrollView(area, _pageScroll, new Rect(0, 0, w, Mathf.Max(_pageH, _tabH)));
 
             float y = 4f;
-            bool lockPlayer = GUI.Toggle(new Rect(12, y, w - 24, 22),
+            bool lockPlayer = UiKit.Toggle(new Rect(12, y, w - 24, 22),
                                          Host.LockPlayerWhilePanelOpen,
                                          " Hold player and block game input while open");
             if (lockPlayer != Host.LockPlayerWhilePanelOpen) Host.SetLockPlayer(lockPlayer);
@@ -251,7 +251,7 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(4, y, cw - 8, 22), HudWideText, _labelStyle);
             y += 22f;
             Rect compactR = new Rect(4, y, cw - 8, 22);
-            bool compact = GUI.Toggle(compactR, s.Compact, CompactText);
+            bool compact = UiKit.Toggle(compactR, s.Compact, CompactText);
             if (compact != s.Compact) s.Compact = compact;
             UiKit.Hint(compactR, CompactNote);
             y += 24f;
@@ -283,14 +283,14 @@ namespace ForestOverlay.Modules
                 else if (l.External)
                 {
                     bool on = s.ExternalShows;
-                    bool now = GUI.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
+                    bool now = UiKit.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
                     if (now != on) s.SetExternalShows(now);
                 }
                 else
                 {
                     bool on = s.Shows(i);
                     Rect row = new Rect(4, y, cw - 8, 22);
-                    bool now = GUI.Toggle(row, on, _hudNames[i]);
+                    bool now = UiKit.Toggle(row, on, _hudNames[i]);
                     if (now != on) s.SetShows(i, now);
                     UiKit.Hint(row, _hudDescriptions[i]);
                 }

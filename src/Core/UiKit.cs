@@ -37,6 +37,8 @@ namespace ForestOverlay.Core
         public static readonly Color Warn = new Color(1f, 0.55f, 0.2f, 1f);
 
         public const float Pad = 8f;
+        private const int CheckSize = 16;
+        private const float CheckLeft = 3f;
         public const float HeaderH = 24f;
 
         private static bool _built;
@@ -90,61 +92,39 @@ namespace ForestOverlay.Core
             return t;
         }
 
-        /// A 24x24 checkbox drawn at the left of the texture (the toggle
-        /// style's left border keeps it unstretched).
+        /// The checkbox: a 16x16 square texture, drawn unscaled and centred in
+        /// its row by Toggle (T-0021: drawn by the toggle style it was stretched
+        /// to the row's 20 / 22 px, so boxes came out wider than tall). An
+        /// outline when off, a solid yellow square when on (author, 2026-10-11).
         private static Texture2D Check(bool on, bool hover)
         {
-            const int w = 24;
+            const int w = CheckSize, r = 3;
             Texture2D t = new Texture2D(w, w, TextureFormat.ARGB32, false, true);
             t.hideFlags = HideFlags.HideAndDontSave;
             t.wrapMode = TextureWrapMode.Clamp;
             t.filterMode = FilterMode.Bilinear;
-            Color clear = new Color(0f, 0f, 0f, 0f);
+            Color fill = on ? (hover ? AccentHover : Accent) : (hover ? new Color(1f, 1f, 1f, 0.06f) : new Color(0f, 0f, 0f, 0f));
+            Color edge = on ? (hover ? AccentHover : Accent) : (hover ? TextColour : DimColour);
+            float inner = w * 0.5f - r;
             Color[] px = new Color[w * w];
-            for (int i = 0; i < px.Length; i++) px[i] = clear;
-
-            Color fill = on ? (hover ? AccentHover : Accent) : (hover ? CardHover : CardBg);
-            Color edge = on ? Accent : (hover ? DimColour : new Color(0.33f, 0.36f, 0.42f, 1f));
-            const int box = 16, ox = 3, oy = 4, r = 4;
-            float inner = box * 0.5f - r;
-            for (int y = 0; y < box; y++)
+            for (int y = 0; y < w; y++)
             {
-                for (int x = 0; x < box; x++)
+                for (int x = 0; x < w; x++)
                 {
-                    float qx = Mathf.Abs(x + 0.5f - box * 0.5f) - inner;
-                    float qy = Mathf.Abs(y + 0.5f - box * 0.5f) - inner;
+                    float qx = Mathf.Abs(x + 0.5f - w * 0.5f) - inner;
+                    float qy = Mathf.Abs(y + 0.5f - w * 0.5f) - inner;
                     float sd = Mathf.Sqrt(Mathf.Max(qx, 0f) * Mathf.Max(qx, 0f) + Mathf.Max(qy, 0f) * Mathf.Max(qy, 0f))
                                + Mathf.Min(Mathf.Max(qx, qy), 0f) - r;
                     float cover = Mathf.Clamp01(0.5f - sd);
-                    float fa = Mathf.Clamp01(0.5f - (sd + 1.2f));
+                    float fa = Mathf.Clamp01(0.5f - (sd + 1.5f));
                     Color c = Color.Lerp(edge, fill, fa);
                     c.a *= cover;
-                    px[(y + oy) * w + x + ox] = c;
+                    px[y * w + x] = c;
                 }
             }
             t.SetPixels(px);
             t.Apply(false, true);
             return t;
-        }
-
-        private static void Stroke(Color[] px, int w, float x0, float y0, float x1, float y1)
-        {
-            int steps = 24;
-            for (int i = 0; i <= steps; i++)
-            {
-                float f = i / (float)steps;
-                float cx = Mathf.Lerp(x0, x1, f), cy = Mathf.Lerp(y0, y1, f);
-                for (int dy = -1; dy <= 1; dy++)
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        int px0 = Mathf.RoundToInt(cx) + dx, py0 = Mathf.RoundToInt(cy) + dy;
-                        if (px0 < 0 || py0 < 0 || px0 >= w || py0 >= w) continue;
-                        float d = Mathf.Sqrt((px0 - cx) * (px0 - cx) + (py0 - cy) * (py0 - cy));
-                        float a = Mathf.Clamp01(1.4f - d);
-                        Color old = px[py0 * w + px0];
-                        px[py0 * w + px0] = Color.Lerp(old, new Color(1f, 1f, 1f, 1f), a);
-                    }
-            }
         }
 
         // --- build ---------------------------------------------------------------
@@ -221,17 +201,19 @@ namespace ForestOverlay.Core
 
             // Toggle: our checkbox
             GUIStyle t = _skin.toggle;
-            StyleState(t.normal, _tCheckOff, TextColour);
-            StyleState(t.hover, _tCheckOffHover, TextColour);
-            StyleState(t.active, _tCheckOffHover, TextColour);
-            StyleState(t.focused, _tCheckOff, TextColour);
-            StyleState(t.onNormal, _tCheckOn, TextColour);
-            StyleState(t.onHover, _tCheckOnHover, TextColour);
-            StyleState(t.onActive, _tCheckOnHover, TextColour);
-            StyleState(t.onFocused, _tCheckOn, TextColour);
-            t.border = new RectOffset(22, 0, 0, 0);
-            t.padding = new RectOffset(24, 0, 3, 0);
+            // The label only, centred on the row: Toggle draws the box itself.
+            StyleState(t.normal, null, TextColour);
+            StyleState(t.hover, null, TextColour);
+            StyleState(t.active, null, TextColour);
+            StyleState(t.focused, null, TextColour);
+            StyleState(t.onNormal, null, TextColour);
+            StyleState(t.onHover, null, TextColour);
+            StyleState(t.onActive, null, TextColour);
+            StyleState(t.onFocused, null, TextColour);
+            t.border = new RectOffset(0, 0, 0, 0);
+            t.padding = new RectOffset((int)CheckLeft + CheckSize + 5, 0, 0, 0);
             t.overflow = new RectOffset(0, 0, 0, 0);
+            t.alignment = TextAnchor.MiddleLeft;
             t.imagePosition = ImagePosition.ImageLeft;
 
             // Text fields
@@ -358,6 +340,44 @@ namespace ForestOverlay.Core
         }
 
         // --- controls --------------------------------------------------------------
+
+        private static readonly GUIContent _toggleText = new GUIContent();
+
+        /// A checkbox: every GUI.Toggle in the plugin goes through here (the
+        /// skin's toggle style draws only the label). The box is a 16x16 square
+        /// centred on the row whatever the row's height. Another style (a
+        /// toggle drawn as a button) or the default skin passes straight through.
+        public static bool Toggle(Rect r, bool value, string text)
+        {
+            _toggleText.text = text;
+            return Toggle(r, value, _toggleText, GUI.skin.toggle);
+        }
+
+        public static bool Toggle(Rect r, bool value, GUIContent content)
+        {
+            return Toggle(r, value, content, GUI.skin.toggle);
+        }
+
+        public static bool Toggle(Rect r, bool value, string text, GUIStyle style)
+        {
+            _toggleText.text = text;
+            return Toggle(r, value, _toggleText, style);
+        }
+
+        public static bool Toggle(Rect r, bool value, GUIContent content, GUIStyle style)
+        {
+            bool now = GUI.Toggle(r, value, content, style);
+            if (!_built || _skin == null || GUI.skin != _skin || style != _skin.toggle) return now;
+            Event e = Event.current;
+            if (e == null || e.type != EventType.Repaint) return now;
+            bool hover = GUI.enabled && r.Contains(e.mousePosition);
+            Texture2D box = now ? (hover ? _tCheckOnHover : _tCheckOn) : (hover ? _tCheckOffHover : _tCheckOff);
+            Color old = GUI.color;
+            if (!GUI.enabled) GUI.color = new Color(old.r, old.g, old.b, old.a * 0.5f);
+            GUI.DrawTexture(new Rect(r.x + CheckLeft, Mathf.Round(r.y + (r.height - CheckSize) * 0.5f), CheckSize, CheckSize), box);
+            GUI.color = old;
+            return now;
+        }
 
         /// The main call to action.
         public static bool PrimaryButton(Rect r, GUIContent c)

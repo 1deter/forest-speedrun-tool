@@ -301,7 +301,7 @@ namespace ForestOverlay
             if (GUI.Button(new Rect(432, 26, 110, 22), "Dump filtered"))
                 DumpFiltered();
 
-            bool newLock = GUI.Toggle(new Rect(556, 28, 200, 22), LockPlayer, " Lock player while open");
+            bool newLock = Core.UiKit.Toggle(new Rect(556, 28, 200, 22), LockPlayer, " Lock player while open");
             if (newLock != LockPlayer)
             {
                 LockPlayer = newLock;

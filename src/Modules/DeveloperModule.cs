@@ -75,7 +75,7 @@ namespace ForestOverlay.Modules
 
             if (_bridge != null && UiKit.Section(0f, ref y, w, "dev.bridge", TextBridge, null, TipBridge, false))
             {
-                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _bridge.Enabled,
+                bool on = UiKit.Toggle(new Rect(12, y, w - 24, 22), _bridge.Enabled,
                                      " Test bridge: run commands from bridge/in.txt");
                 if (on != _bridge.Enabled) _bridge.Enabled = on;
                 y += 24f;

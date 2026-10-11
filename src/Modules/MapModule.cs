@@ -391,7 +391,7 @@ namespace ForestOverlay.Modules
         {
             float tw = GUI.skin.toggle.CalcSize(label).x + 6f;
             if (x > 0f && x + tw > width) { x = 0f; y += 22f; }
-            bool r = GUI.Toggle(new Rect(x, y, tw, 20f), value, label);
+            bool r = UiKit.Toggle(new Rect(x, y, tw, 20f), value, label);
             x += tw + 10f;
             return r;
         }

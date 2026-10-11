@@ -197,7 +197,7 @@ namespace ForestOverlay.Modules
 
             if (_others.Count > 0)
             {
-                bool on = GUI.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.Runner, " another runner");
+                bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.Runner, " another runner");
                 if (on && _referenceKind != Reference.Runner) PickRunner(_runnerPick < 0 ? 0 : _runnerPick);
                 if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
                 if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);

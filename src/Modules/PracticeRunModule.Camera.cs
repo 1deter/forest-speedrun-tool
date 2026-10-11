@@ -310,8 +310,8 @@ namespace ForestOverlay.Modules
         {
             GUI.Label(new Rect(0, y, 90, 20), "Ghost look:");
             bool figure = FigureLook;
-            if (GUI.Toggle(new Rect(94, y, 80, 20), !figure, " marker") && figure) _ghostLookCfg.Value = GhostMarker;
-            if (GUI.Toggle(new Rect(178, y, 160, 20), figure, " figure (facing)") && !figure) _ghostLookCfg.Value = GhostFigureLook;
+            if (UiKit.Toggle(new Rect(94, y, 80, 20), !figure, " marker") && figure) _ghostLookCfg.Value = GhostMarker;
+            if (UiKit.Toggle(new Rect(178, y, 160, 20), figure, " figure (facing)") && !figure) _ghostLookCfg.Value = GhostFigureLook;
             return y + 24f;
         }
 
@@ -325,13 +325,13 @@ namespace ForestOverlay.Modules
             bool oneRow = w >= 420f;
             float x = 54f;
             ReplayView v = _camView;
-            if (GUI.Toggle(new Rect(x, y, 70, 20), v == ReplayView.Chase, " chase")) v = ReplayView.Chase;
+            if (UiKit.Toggle(new Rect(x, y, 70, 20), v == ReplayView.Chase, " chase")) v = ReplayView.Chase;
             x += 74f;
             if (!oneRow) { y += 20f; x = 54f; }
-            if (GUI.Toggle(new Rect(x, y, 110, 20), v == ReplayView.FirstPerson, " first person")) v = ReplayView.FirstPerson;
+            if (UiKit.Toggle(new Rect(x, y, 110, 20), v == ReplayView.FirstPerson, " first person")) v = ReplayView.FirstPerson;
             x += 114f;
             if (!oneRow) { y += 20f; x = 54f; }
-            if (GUI.Toggle(new Rect(x, y, 100, 20), v == ReplayView.Trajectory, " trajectory")) v = ReplayView.Trajectory;
+            if (UiKit.Toggle(new Rect(x, y, 100, 20), v == ReplayView.Trajectory, " trajectory")) v = ReplayView.Trajectory;
             if (v != _camView) SetView(v);
             y += 24f;
 

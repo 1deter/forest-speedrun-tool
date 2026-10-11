@@ -556,7 +556,7 @@ namespace ForestOverlay.Modules
         /// The section under the Runs tab's status lines; returns the new y.
         public float DrawSection(float y, float w)
         {
-            bool on = GUI.Toggle(new Rect(0, y, w, 20), _enabled.Value, _toggleText);
+            bool on = UiKit.Toggle(new Rect(0, y, w, 20), _enabled.Value, _toggleText);
             if (on != _enabled.Value)
             {
                 _enabled.Value = on;

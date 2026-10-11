@@ -379,7 +379,7 @@ namespace ForestOverlay.Modules
             // opened: the listed attempts are asked about again.
             if (Time.frameCount > _recentDrawnFrame + 2) { _askedThisOpen.Clear(); _recentCheckDue = true; }
             _recentDrawnFrame = Time.frameCount;
-            bool on = GUI.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website");
+            bool on = UiKit.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website");
             UiKit.Hint(new Rect(0, y, w, 20), SendTip);
             if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
             y += 22f;

@@ -309,10 +309,10 @@ namespace ForestOverlay.Modules
             bool oneRow = w >= 400f;
             float x = oneRow ? 108f : 12f;
             if (!oneRow) y += 20f;
-            bool b = GUI.Toggle(new Rect(x, y, 100, 20), _replayBuildingsCfg.Value, " buildings");
+            bool b = UiKit.Toggle(new Rect(x, y, 100, 20), _replayBuildingsCfg.Value, " buildings");
             if (b != _replayBuildingsCfg.Value) _replayBuildingsCfg.Value = b;
             if (!oneRow) y += 20f; else x += 104f;
-            bool m = GUI.Toggle(new Rect(x, y, 180, 20), _replayMarkersCfg.Value, " interaction markers");
+            bool m = UiKit.Toggle(new Rect(x, y, 180, 20), _replayMarkersCfg.Value, " interaction markers");
             if (m != _replayMarkersCfg.Value) _replayMarkersCfg.Value = m;
             y += 22f;
             if (_replayText.text.Length > 0) y += UiText.Draw(0, y, w, _replayText);

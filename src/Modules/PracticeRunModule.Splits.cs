@@ -891,7 +891,7 @@ namespace ForestOverlay.Modules
         public override float DrawHudEditor(float y, float w)
         {
             const float indent = 20f;
-            bool panel = GUI.Toggle(new Rect(0f, y, w, 22f), _splitsPanel.Value, SplitsPanelText);
+            bool panel = UiKit.Toggle(new Rect(0f, y, w, 22f), _splitsPanel.Value, SplitsPanelText);
             if (panel != _splitsPanel.Value) _splitsPanel.Value = panel;
             y += 24f;
             y += UiText.Draw(indent, y, w - indent, SplitsPanelAbout, UiKit.HintStyle) + 2f;
@@ -899,14 +899,14 @@ namespace ForestOverlay.Modules
                 y = DrawSplitsOptions(indent, y, w - indent);
             y += 8f;
 
-            bool results = GUI.Toggle(new Rect(0f, y, w, 22f), _resultsCfg.Value, ResultsPanelText);
+            bool results = UiKit.Toggle(new Rect(0f, y, w, 22f), _resultsCfg.Value, ResultsPanelText);
             if (results != _resultsCfg.Value) { _resultsCfg.Value = results; if (!results) CloseResults(); }
             y += 24f;
             y += UiText.Draw(indent, y, w - indent, ResultsPanelAbout, UiKit.HintStyle) + 2f;
             if (_resultsCfg.Value)
             {
                 Rect loadR = new Rect(indent, y, w - indent, 22f);
-                bool always = GUI.Toggle(loadR, _resLoadAlways.Value, ResLoadAlwaysText);
+                bool always = UiKit.Toggle(loadR, _resLoadAlways.Value, ResLoadAlwaysText);
                 if (always != _resLoadAlways.Value) _resLoadAlways.Value = always;
                 UiKit.Hint(loadR, ResLoadAlwaysTip);
                 y += 24f;
@@ -951,7 +951,7 @@ namespace ForestOverlay.Modules
             int picked = Mathf.Clamp(value, 0, 3);
             for (int i = 0; i < 4; i++)
             {
-                bool on = GUI.Toggle(new Rect(r.x + i * (bw + 2f), r.y, bw, r.height), i == picked, DecimalChoices[i], GUI.skin.button);
+                bool on = UiKit.Toggle(new Rect(r.x + i * (bw + 2f), r.y, bw, r.height), i == picked, DecimalChoices[i], GUI.skin.button);
                 if (on && i != picked) picked = i;
             }
             return picked;
@@ -968,7 +968,7 @@ namespace ForestOverlay.Modules
             {
                 float tw = Mathf.Min(w, toggle.CalcSize(labels[i]).x + 8f);
                 if (x + tw > x0 + w && x > x0) { x = x0; y += 22f; }
-                bool v = GUI.Toggle(new Rect(x, y, tw, 20f), entries[i].Value, labels[i]);
+                bool v = UiKit.Toggle(new Rect(x, y, tw, 20f), entries[i].Value, labels[i]);
                 if (v != entries[i].Value) { entries[i].Value = v; _splitsDirty = true; _playtimeShown = -1; }
                 x += tw + 6f;
             }

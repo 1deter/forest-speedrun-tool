@@ -591,7 +591,7 @@ namespace ForestOverlay.Modules
             if (ci < 0 || ci >= ChoiceLabels.Length) ci = 0;
             for (int i = 0; i < ChoiceLabels.Length; i++)
             {
-                bool on = GUI.Toggle(new Rect(10, y, w - 10, 22), i == ci, ChoiceLabels[i]);
+                bool on = UiKit.Toggle(new Rect(10, y, w - 10, 22), i == ci, ChoiceLabels[i]);
                 if (on && i != ci)
                 {
                     _choiceCfg.Value = (DeathChoice)i;
@@ -607,26 +607,26 @@ namespace ForestOverlay.Modules
             // end in one (picked, or the fallback with no spot).
             if (choice != DeathChoice.GameDeath)
             {
-                bool cap = GUI.Toggle(new Rect(20, y, w - 20, 22), _quickLoadCaptureCfg.Value,
+                bool cap = UiKit.Toggle(new Rect(20, y, w - 20, 22), _quickLoadCaptureCfg.Value,
                                       " Also on the first death (instead of being captured)");
                 if (cap != _quickLoadCaptureCfg.Value) _quickLoadCaptureCfg.Value = cap;
                 y += 26f;
 
-                bool boss = GUI.Toggle(new Rect(20, y, w - 20, 22), _quickLoadBossCfg.Value,
+                bool boss = UiKit.Toggle(new Rect(20, y, w - 20, 22), _quickLoadBossCfg.Value,
                                        " Also in the boss fight (instead of waking up in the boss room)");
                 if (boss != _quickLoadBossCfg.Value) _quickLoadBossCfg.Value = boss;
                 y += 26f;
 
                 GUI.Label(new Rect(20, y, w - 20, 20), ReloadHowTitle);
                 y += 22f;
-                bool withLoad = GUI.Toggle(new Rect(30, y, w - 30, 22), !_inPlaceCfg.Value, ReloadWithLoad);
+                bool withLoad = UiKit.Toggle(new Rect(30, y, w - 30, 22), !_inPlaceCfg.Value, ReloadWithLoad);
                 if (withLoad && _inPlaceCfg.Value) { _inPlaceCfg.Value = false; _nextDeathAt = 0f; }
                 y += 24f;
-                bool skip = GUI.Toggle(new Rect(50, y, w - 50, 22), _skipMenuCfg.Value,
+                bool skip = UiKit.Toggle(new Rect(50, y, w - 50, 22), _skipMenuCfg.Value,
                                        " Skip the title screen (faster; off = load through the menu)");
                 if (skip != _skipMenuCfg.Value) _skipMenuCfg.Value = skip;
                 y += 24f;
-                bool inPlace = GUI.Toggle(new Rect(30, y, w - 30, 22), _inPlaceCfg.Value, ReloadInPlaceLabel);
+                bool inPlace = UiKit.Toggle(new Rect(30, y, w - 30, 22), _inPlaceCfg.Value, ReloadInPlaceLabel);
                 if (inPlace && !_inPlaceCfg.Value) { _inPlaceCfg.Value = true; _nextDeathAt = 0f; }
                 y += 24f;
                 y += UiText.Note(30, y, w - 30, ReloadInPlaceText) + 6f;
@@ -641,15 +641,15 @@ namespace ForestOverlay.Modules
                 y += UiText.Draw(0, y, w, "Run mode: these three follow the run's category (Runs tab) and cannot be changed during a run.") + 2f;
                 GUI.enabled = false;
             }
-            bool noBlood = GUI.Toggle(new Rect(0, y, w, 22), _noBloodCfg.Value,
+            bool noBlood = UiKit.Toggle(new Rect(0, y, w, 22), _noBloodCfg.Value,
                                       " No blood: keep the blood overlay off (practice)");
             if (noBlood != _noBloodCfg.Value) _noBloodCfg.Value = noBlood;
             y += 26f;
-            bool noStagger = GUI.Toggle(new Rect(0, y, w, 22), _noStaggerCfg.Value,
+            bool noStagger = UiKit.Toggle(new Rect(0, y, w, 22), _noStaggerCfg.Value,
                                         " No stagger: skip the hard-landing stagger on every landing (practice)");
             if (noStagger != _noStaggerCfg.Value) _noStaggerCfg.Value = noStagger;
             y += 26f;
-            bool god = GUI.Toggle(new Rect(0, y, w, 22), _godModeCfg.Value,
+            bool god = UiKit.Toggle(new Rect(0, y, w, 22), _godModeCfg.Value,
                                   " God mode: take no damage - the game's own cheat (practice)");
             if (god != _godModeCfg.Value) _godModeCfg.Value = god;
             y += 26f;

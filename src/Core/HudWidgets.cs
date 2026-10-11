@@ -38,11 +38,43 @@ namespace ForestOverlay.Core
         private const float CardPad = 8f;
         private const float HandleSize = 12f;
         private const float ValueBase = 16f, LabelBase = 11f;
-        // Widget values render at ONE font size and are scaled by GUI.matrix:
-        // a font size per widget scale (up to 96 px bold) filled Unity's shared
-        // dynamic-font texture, which then rebuilt every frame and letters
-        // flickered out across the whole UI (author's video, 2026-10-05).
-        private const int ValueRender = 32;
+        // Widget values render at one of THREE font sizes - the smallest at or
+        // above the value's size - and are scaled down by GUI.matrix, so a
+        // large widget stays crisp (T-0022: one 32 px render scaled up to 4.5x
+        // looked choppy, author 2026-10-10). A font size per widget scale (up
+        // to 96 px bold) once filled Unity's shared dynamic-font texture, which
+        // rebuilt every frame and letters flickered out across the whole UI
+        // (author's video, 2026-10-05): the values draw with their own font
+        // instance (own texture), and only these three sizes.
+        private static readonly int[] ValueRenders = { 32, 64, 96 };
+        private static Font _valueFont;
+        private static bool _valueFontTried;
+
+        private static int ValueRenderFor(float size)
+        {
+            for (int i = 0; i < ValueRenders.Length; i++)
+                if (ValueRenders[i] >= size) return ValueRenders[i];
+            return ValueRenders[ValueRenders.Length - 1];
+        }
+
+        /// Arial as its own dynamic font, so the values' large glyphs never share
+        /// the UI's font texture; null (the skin's font) if the OS has no Arial.
+        private Font ValueFont()
+        {
+            if (_valueFontTried) return _valueFont;
+            _valueFontTried = true;
+            try
+            {
+                _valueFont = Font.CreateDynamicFontFromOSFont("Arial", ValueRenders[0]);
+                if (_valueFont != null) _valueFont.hideFlags = HideFlags.HideAndDontSave;
+            }
+            catch (Exception ex)
+            {
+                _valueFont = null;
+                if (_log != null) _log.LogWarning("HUD widgets: no font of their own (" + ex.Message + ") - values share the UI's font.");
+            }
+            return _valueFont;
+        }
 
         private readonly string _path;
         private readonly ManualLogSource _log;
@@ -180,7 +212,6 @@ namespace ForestOverlay.Core
         private sealed class ScaleStyles
         {
             public GUIStyle Label, Value;
-            public GUIStyle Shadow;
             public float ValueScale, ValueSize;
         }
 
@@ -200,14 +231,15 @@ namespace ForestOverlay.Core
             s.Label.wordWrap = false;
             s.Value = new GUIStyle(GUI.skin.label);
             s.ValueSize = Mathf.Max(9f, ValueBase * sc);
-            s.ValueScale = s.ValueSize / ValueRender;
-            s.Value.fontSize = ValueRender;
+            int render = ValueRenderFor(s.ValueSize);
+            s.ValueScale = s.ValueSize / render;
+            Font own = ValueFont();
+            if (own != null) s.Value.font = own;
+            s.Value.fontSize = render;
             s.Value.fontStyle = FontStyle.Bold;
             s.Value.normal.textColor = UiKit.TextColour;
             s.Value.padding = new RectOffset(0, 0, 0, 0);
             s.Value.wordWrap = false;
-            s.Shadow = new GUIStyle(s.Value);
-            s.Shadow.normal.textColor = new Color(0f, 0f, 0f, 0.75f);
             _styles[key] = s;
             return s;
         }
@@ -342,8 +374,8 @@ namespace ForestOverlay.Core
             }
             _rects[i] = rect;
 
-            // No card (author, 2026-10-05: transparent, like Momentum Mod) - a soft
-            // shadow keeps the value readable over snow / bright lab walls.
+            // No card (author, 2026-10-05: transparent, like Momentum Mod) and no
+            // text shadow (author, 2026-10-11, T-0022: plain text for now).
             if (Editing) GUI.Box(rect, GUIContent.none, UiKit.WidgetCard);
             float cy = rect.y + CardPad - 1f;
             float cx = rect.x + CardPad;
@@ -359,7 +391,6 @@ namespace ForestOverlay.Core
                     Matrix4x4 m = GUI.matrix;
                     GUIUtility.ScaleAroundPivot(new Vector2(st.ValueScale, st.ValueScale), new Vector2(cx, cy));
                     Rect vr = new Rect(cx, cy, width / st.ValueScale, valueH / st.ValueScale);
-                    GUI.Label(new Rect(vr.x + 2f, vr.y + 2f, vr.width, vr.height), hud.ValueAt(j), st.Shadow);
                     GUI.Label(vr, hud.ValueAt(j), st.Value);
                     GUI.matrix = m;
                     cy += valueH;
@@ -586,7 +617,7 @@ namespace ForestOverlay.Core
             float x = cw - TextW;
             Rect textR = new Rect(x, ry, TextW, h);
             bool open = _textLine == i;
-            if (GUI.Toggle(textR, open, TextText, GUI.skin.button) != open)
+            if (UiKit.Toggle(textR, open, TextText, GUI.skin.button) != open)
             {
                 if (open) CloseText();
                 else OpenText(i);
@@ -612,7 +643,7 @@ namespace ForestOverlay.Core
             bool external = HudLines.All[i].External;
             bool shown = external ? settings.ExternalShows : settings.Shows(i);
             Rect nameR = new Rect(0f, ry, x - Gap, h);
-            bool now = GUI.Toggle(nameR, shown, _toggleNames[i]);
+            bool now = UiKit.Toggle(nameR, shown, _toggleNames[i]);
             if (now != shown)
             {
                 if (external) settings.SetExternalShows(now);

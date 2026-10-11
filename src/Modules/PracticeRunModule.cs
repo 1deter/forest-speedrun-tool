@@ -1198,7 +1198,7 @@ namespace ForestOverlay.Modules
 
             // --- the essentials, always in view ----------------------------------
             Rect modeR = new Rect(0, 2, 140, 22);
-            bool on = GUI.Toggle(modeR, Enabled, " Practice mode");
+            bool on = UiKit.Toggle(modeR, Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
             UiKit.Hint(modeR, TipPracticeMode);
             GUI.Label(new Rect(150, 2, w - 160, 22), _segmentText);
@@ -1215,10 +1215,10 @@ namespace ForestOverlay.Modules
 
             GUI.Label(new Rect(0, 62, 80, 20), "Compare to");
             Reference kind = _referenceKind;
-            if (GUI.Toggle(new Rect(84, 62, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
-            if (GUI.Toggle(new Rect(148, 62, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
-            if (GUI.Toggle(new Rect(212, 62, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
-            if (GUI.Toggle(new Rect(296, 62, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            if (UiKit.Toggle(new Rect(84, 62, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
+            if (UiKit.Toggle(new Rect(148, 62, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
+            if (UiKit.Toggle(new Rect(212, 62, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
+            if (UiKit.Toggle(new Rect(296, 62, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
             UiKit.Hint(new Rect(0, 62, 420, 20), TipCompare);
             if (kind != _referenceKind)
             {
@@ -1269,12 +1269,12 @@ namespace ForestOverlay.Modules
 
             if (UiKit.Section(0f, ref y, cw, "runs.options", TextOptions, null, TipOptions, false))
             {
-                bool lines = GUI.Toggle(new Rect(0, y, cw, 22), _showLines, " Run lines");
+                bool lines = UiKit.Toggle(new Rect(0, y, cw, 22), _showLines, " Run lines");
                 if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
                 UiKit.Hint(new Rect(0, y, cw, 22), TipLines);
                 y += 24f;
                 if (_showLines) y = DrawLineOptions(20f, y, cw);
-                bool auto = GUI.Toggle(new Rect(0, y, cw, 22), _autoRestart.Value, " Auto-restart when a run finishes");
+                bool auto = UiKit.Toggle(new Rect(0, y, cw, 22), _autoRestart.Value, " Auto-restart when a run finishes");
                 if (auto != _autoRestart.Value) _autoRestart.Value = auto;
                 y += 28f;
                 if (GUI.Button(new Rect(0, y, 120, 24), "Clear times")) ClearTimes();

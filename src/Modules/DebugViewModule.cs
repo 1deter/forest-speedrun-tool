@@ -475,7 +475,7 @@ namespace ForestOverlay.Modules
                 if (_perf.IsExperimental(i) != experimental) continue;
                 bool guiWas = GUI.enabled;
                 if (experimental && _perf.ExperimentalSuspended) GUI.enabled = false;
-                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
+                bool on = UiKit.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
                 GUI.enabled = guiWas;
                 if (on != _perf.IsOn(i)) _perf.Toggle(i);
                 y += Row;
@@ -495,19 +495,19 @@ namespace ForestOverlay.Modules
             float y = 4f;
 
             // --- views ------------------------------------------------------
-            bool freecam = GUI.Toggle(new Rect(12, y, w - 24, 22), _freeCamOn, " Freecam");
+            bool freecam = UiKit.Toggle(new Rect(12, y, w - 24, 22), _freeCamOn, " Freecam");
             if (freecam != _freeCamOn) ToggleFreeCam();
             y += Row;
 
-            bool wire = GUI.Toggle(new Rect(12, y, w - 24, 22), _wireOn, " Wireframe");
+            bool wire = UiKit.Toggle(new Rect(12, y, w - 24, 22), _wireOn, " Wireframe");
             if (wire != _wireOn) SetWireframe(wire);
             y += Row;
 
-            bool cols = GUI.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowColliders, " Colliders (green)");
+            bool cols = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowColliders, " Colliders (green)");
             if (cols != _draw.ShowColliders) { _draw.ShowColliders = cols; _draw.RefreshSoon(); }
             y += Row;
 
-            bool trigs = GUI.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowTriggers, " Triggers (orange)");
+            bool trigs = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowTriggers, " Triggers (orange)");
             if (trigs != _draw.ShowTriggers) { _draw.ShowTriggers = trigs; _draw.RefreshSoon(); }
             y += Row + 6f;
 
@@ -517,7 +517,7 @@ namespace ForestOverlay.Modules
             y += Row + 6f;
 
             // --- filters ----------------------------------------------------
-            bool limit = GUI.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
+            bool limit = UiKit.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
             if (limit != _limitSize) { _limitSize = limit; FiltersChanged(); }
             y += Row;
 
@@ -581,20 +581,20 @@ namespace ForestOverlay.Modules
         // Benchmarks: the game profiler, the frame test, the allocation tracker.
         public float DrawBenchmarks(float y, float w)
         {
-            bool prof = GUI.Toggle(new Rect(12, y, w - 24, 22), _profiler.Active,
+            bool prof = UiKit.Toggle(new Rect(12, y, w - 24, 22), _profiler.Active,
                                    " Game profiler (the game's slowest scripts, in the log every 30 s)");
             if (prof != _profiler.Active) ToggleProfiler();
             y += Row;
             y += UiText.Draw(12, y, w - 24, _profiler.Status);
             y += UiText.Draw(12, y, w - 24, _profiler.LastReport) + 8f;
 
-            bool load = GUI.Toggle(new Rect(12, y, w - 24, 22), FrameTimer.TestLoadMs > 0.0,
+            bool load = UiKit.Toggle(new Rect(12, y, w - 24, 22), FrameTimer.TestLoadMs > 0.0,
                                    " Frame test: add 1 ms of work every frame (for a minute - it lowers your fps)");
             if (load != (FrameTimer.TestLoadMs > 0.0)) ToggleFrameTest();
             y += Row;
             y += UiText.Note(12, y, w - 24, FrameTestNote) + 8f;
 
-            bool alloc = GUI.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
+            bool alloc = UiKit.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
                                     " Allocation tracker (what the game allocates, by type; by method with the profiler)");
             if (alloc != AllocationTracker.Counting) ToggleAllocations();
             y += Row;
@@ -608,7 +608,7 @@ namespace ForestOverlay.Modules
         public float DrawExperimental(float y, float w)
         {
             y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
-            bool traj = GUI.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
+            bool traj = UiKit.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
             if (traj != _trajectoryOn) ToggleTrajectory();
             y += Row;
             if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);

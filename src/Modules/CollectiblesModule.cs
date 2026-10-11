@@ -370,13 +370,13 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
-            bool found = GUI.Toggle(new Rect(0, 2, 110, 20), _showFound, " collected");
+            bool found = UiKit.Toggle(new Rect(0, 2, 110, 20), _showFound, " collected");
             if (found != _showFound) { _showFound = found; _showFoundCfg.Value = found; RebuildRows(); }
 
-            bool missing = GUI.Toggle(new Rect(116, 2, 110, 20), _showMissing, " missing");
+            bool missing = UiKit.Toggle(new Rect(116, 2, 110, 20), _showMissing, " missing");
             if (missing != _showMissing) { _showMissing = missing; _showMissingCfg.Value = missing; RebuildRows(); }
 
-            bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
+            bool pin = UiKit.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) { _pinSummary = pin; _pinSummaryCfg.Value = pin; }
 
             if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
