@@ -194,6 +194,30 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-11 (loop R-0007 + a 12-session cloud batch, author away):**
+  **v0.24.285** - checkpoint captures without the half-second freeze
+  (T-0072, `CheckpointCaptureLean` on; `CheckpointCaptureSpread` off,
+  ~48 ms worst frame but the state ~7 frames late - **author decides**)
+  and the light deleted-attempt check (T-0266); smoke PASS, both
+  confirmed by forest-tester. Cloud batch (prompts were
+  `Desktop/cloud-T-*.txt`, branches `cloud/*`): **on ui-redesign**
+  (42fab3e+) T-0020 snapping, T-0303 Reset = whole profile, T-0023 trend
+  colours, T-0259..T-0264 Settings sweep, T-0289 pin unheld items,
+  T-0254 auto-refresh, T-0295 ModAPI flag - all checker-accepted except
+  T-0020 / T-0023 (words + design Qs parked); every new word is
+  *proposed*, collected with the CHANGELOG lines in
+  `tasks/notes/T-0025.md` - **T-0025 waits for the author's OK**, then QA
+  in game and the merge. **On main, deployed:** T-0084 security fixes
+  (report `docs/security-audit-2026-10.md`; its open Qs + recs: T-0304). **Held off main** on `pending/site-held` (pushed, not
+  deployed): T-0250 / T-0294 / T-0155 (accepted; admin words + T-0294's
+  same-channel routing wait for the author) and T-0281 first-person replay
+  (checker block: the attempt page has no look track - parked Q). Designs
+  parked for the author: T-0292 surprise runs, T-0302 input overlay
+  (their notes). T-0241 / T-0251 blocked (group 4; bot paused). The
+  author's install: the ui-redesign DLL put back after the smoke (copy
+  `plugins/ForestOverlay.dll.redesign-keep`). **Next loop run** would take
+  T-0255 (Map legend, redesign), T-0267, **T-0274** (group 3 perf), T-0290
+  (needs a `Stall:` line first).
 - **2026-10-11 (T-0301, author present):** the stutter on every WASD /
   Space press was the HUD's placed Speed value (scale 6 = 96 px bold, its
   own font from T-0022) rebuilding its font texture (~20 ms) on each start
