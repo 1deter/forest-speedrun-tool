@@ -166,15 +166,20 @@ closing; the code box, `[RunMode] CodeX / CodeY / CodeSize`, drawn by
 checkpoint POST; the outbox `uploads/attempts/*.attempt`, sent oldest
 first, refused ones to `refused/`; `sent.txt` + the Runs tab's last 5
 with **Copy link** - when the tab opens, each one not yet seen on the site
-this session gets one `GET /api/attempts/<id>`: the site's 404 ("no such attempt") takes it off
-`sent.txt`, 200 is not asked again, anything else leaves it, T-0144,
-`Data/SentAttempts`; `[Site] SendAttempts`, on).
+this session is in one `GET /api/attempts/exists?ids=<id>,<id>` (T-0266):
+`gone` takes it off `sent.txt`, `there` is not asked again, anything else
+leaves it; a site from before that answers 404, and then each one gets
+`GET /api/attempts/<id>` for the rest of the session - the site's 404 ("no
+such attempt") takes it off, 200 is not asked again, anything else leaves
+it (T-0144), `Data/SentAttempts`; `[Site] SendAttempts`, on).
 
 **Site**: `POST /api/attempts` (nonce; a retry gets the same one),
 `POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),
 `POST /api/attempts/<id>/log` (judged on arrival; never replaced - the
 same text again is fine, another is 409), `GET /api/attempts/<id>` (the
-public view: verdict, why, report), `GET .../log`,
+public view: verdict, why, report), `GET /api/attempts/exists?ids=`
+(which of at most 20 still exist, `{ there, gone }`, nothing else - the
+Runs tab's check), `GET .../log`,
 `GET .../code/<code>` (where a code from the video shows: phase 3's
 "check a code" box), `DELETE /api/admin/attempts/<id>` (owner only). Rate
 limit `attempt`: 3000 an hour per address. Logs in

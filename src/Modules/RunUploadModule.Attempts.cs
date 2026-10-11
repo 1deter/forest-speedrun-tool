@@ -406,9 +406,11 @@ namespace ForestOverlay.Modules
         private readonly HashSet<string> _askedThisOpen = new HashSet<string>();  // since the tab opened
         private int _recentDrawnFrame = -100;
         private bool _recentCheckDue, _recentCheckBusy;
+        private bool _noExistsCheck;   // the site predates /api/attempts/exists (T-0266)
 
-        /// While the Runs tab shows the list: one GET per listed attempt not
-        /// known to be on the site (at most RecentShown), one at a time.
+        /// While the Runs tab shows the list: the listed attempts not known
+        /// to be on the site (at most RecentShown) in one light question, or
+        /// - on a site from before it - one GET each, one at a time.
         private void CheckRecent()
         {
             _recentCheckDue = false;
@@ -422,6 +424,28 @@ namespace ForestOverlay.Modules
         private IEnumerator CheckSent(List<string> ids)
         {
             string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+            if (!_noExistsCheck)
+            {
+                long code = 0; string answer = null;
+                yield return Ctx.Runner.StartCoroutine(WebRequest.Send("GET", SentAttempts.ExistsUrl(baseUrl, ids), null, null,
+                    null, 10f, delegate(long c, string b, string e) { code = c; answer = b; }));
+                bool oldSite;
+                SentCheck[] meanings = SentAttempts.ExistsMeaning(code, answer, ids, out oldSite);
+                if (!oldSite)
+                {
+                    // Unknown (offline, the site in trouble): stays listed,
+                    // asked again the next time the tab opens.
+                    for (int i = 0; i < ids.Count; i++)
+                    {
+                        if (meanings[i] == SentCheck.There) _sentThere.Add(ids[i]);
+                        else if (meanings[i] == SentCheck.Gone) DropSent(ids[i], "the site's attempt check");
+                    }
+                    _recentCheckBusy = false;
+                    yield break;
+                }
+                _noExistsCheck = true;
+                Ctx.Log.LogInfo("Attempts: the site has no light attempt check yet (404) - each listed attempt is asked about in full this session.");
+            }
             for (int i = 0; i < ids.Count; i++)
             {
                 long code = 0; string answer = null;
@@ -429,7 +453,7 @@ namespace ForestOverlay.Modules
                     null, 10f, delegate(long c, string b, string e) { code = c; answer = b; }));
                 SentCheck meaning = SentAttempts.Meaning(code, answer);
                 if (meaning == SentCheck.There) _sentThere.Add(ids[i]);
-                else if (meaning == SentCheck.Gone) DropSent(ids[i]);
+                else if (meaning == SentCheck.Gone) DropSent(ids[i], "404");
                 // Offline or the site in trouble: the rest stay listed too,
                 // asked again the next time the tab opens.
                 else break;
@@ -437,7 +461,7 @@ namespace ForestOverlay.Modules
             _recentCheckBusy = false;
         }
 
-        private void DropSent(string id)
+        private void DropSent(string id, string how)
         {
             try
             {
@@ -453,7 +477,7 @@ namespace ForestOverlay.Modules
             }
             _recentDirty = true;
             _attemptState = "attempt " + id + " was deleted on the website";
-            Ctx.Log.LogInfo("Attempts: " + id + " was deleted on the site (404) - taken off the Runs tab's list (sent.txt).");
+            Ctx.Log.LogInfo("Attempts: " + id + " was deleted on the site (" + how + ") - taken off the Runs tab's list (sent.txt).");
         }
     }
 }
