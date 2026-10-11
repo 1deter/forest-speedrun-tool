@@ -18,7 +18,10 @@ namespace ForestOverlay.Core
     // f = 1 (the F2 window, sizes in pixels) they are plain GUI calls.
     // The style's fontSize is changed around the call and put back (the
     // trend colour does the same with the text colour), so no style copies
-    // and a palette switch still reaches them. Nothing allocates.
+    // and a palette switch still reaches them; the padding is scaled the
+    // same way, so right-aligned cells keep their margin. The real size is
+    // a whole pixel size, so text can be up to half a pixel per scale step
+    // smaller or larger than the stretched look was. Nothing allocates.
     // ------------------------------------------------------------------
     public static class CrispText
     {
@@ -53,19 +56,38 @@ namespace ForestOverlay.Core
             return size > 0 ? Mathf.Max(1, Mathf.RoundToInt(size * f)) : 0;
         }
 
+        // The style as it was, while it is switched to the real size.
+        private static int _size, _pl, _pr, _pt, _pb;
+
+        private static void Enlarge(GUIStyle s, int real, float f)
+        {
+            _size = s.fontSize;
+            s.fontSize = real;
+            RectOffset pad = s.padding;
+            _pl = pad.left; _pr = pad.right; _pt = pad.top; _pb = pad.bottom;
+            pad.left = Mathf.RoundToInt(_pl * f); pad.right = Mathf.RoundToInt(_pr * f);
+            pad.top = Mathf.RoundToInt(_pt * f); pad.bottom = Mathf.RoundToInt(_pb * f);
+        }
+
+        private static void Restore(GUIStyle s)
+        {
+            s.fontSize = _size;
+            RectOffset pad = s.padding;
+            pad.left = _pl; pad.right = _pr; pad.top = _pt; pad.bottom = _pb;
+        }
+
         public static void Label(Rect r, GUIContent c, GUIStyle s)
         {
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) { GUI.Label(r, c, s); return; }
             Matrix4x4 m = GUI.matrix;
-            int old = s.fontSize;
-            s.fontSize = real;
+            Enlarge(s, real, f);
             Vector3 at = new Vector3(r.x, r.y, 0f);
             GUI.matrix = m * Matrix4x4.TRS(at, Quaternion.identity, new Vector3(1f / f, 1f / f, 1f)) * Matrix4x4.TRS(-at, Quaternion.identity, Vector3.one);
             GUI.Label(new Rect(r.x, r.y, r.width * f, r.height * f), c, s);
             GUI.matrix = m;
-            s.fontSize = old;
+            Restore(s);
         }
 
         public static Vector2 CalcSize(GUIStyle s, GUIContent c)
@@ -73,10 +95,9 @@ namespace ForestOverlay.Core
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) return s.CalcSize(c);
-            int old = s.fontSize;
-            s.fontSize = real;
+            Enlarge(s, real, f);
             Vector2 v = s.CalcSize(c);
-            s.fontSize = old;
+            Restore(s);
             return v / f;
         }
 
@@ -85,10 +106,9 @@ namespace ForestOverlay.Core
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) return s.CalcHeight(c, width);
-            int old = s.fontSize;
-            s.fontSize = real;
+            Enlarge(s, real, f);
             float h = s.CalcHeight(c, width * f);
-            s.fontSize = old;
+            Restore(s);
             return h / f;
         }
     }

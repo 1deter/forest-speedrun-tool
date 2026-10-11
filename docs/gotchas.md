@@ -1053,3 +1053,13 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     keepers' scene searches, ~140 ms) was outside it too. Time an action
     by the frames around it (every frame over a threshold, with its frame
     number), then split the long ones with stopwatches.
+
+109. **A scaled `GUI.matrix` stretches text, it does not re-render it.**
+    (2026-10-11, T-0333.) The HUD draws in a virtual screen through a
+    scaled `GUI.matrix` (T-0318). IMGUI rasterises a glyph at the style's
+    font size and the matrix stretches the bitmap: with a 1366x768
+    reference at 2560x1440 (x1.88) the column, splits and results text was
+    blurry, while a placed value - rendered large and scaled down - was
+    crisp. Text under a scale goes through `Core/CrispText` (font size and
+    padding x scale, inside a local 1/scale) for both drawing and
+    measuring; `UiText.Draw` / `Height` already do.

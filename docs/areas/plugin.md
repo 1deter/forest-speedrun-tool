@@ -237,6 +237,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release. [check: lint.py cfgwrite baseline]
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting. [judgement]
 107. **A dynamic font forgets glyphs not asked for lately** - a large font size whose characters change (Speed 0.00 <-> digits) rebuilt its texture, ~20 ms a time; keep the glyph set requested every repaint (`HudWidgets.KeptGlyphs`). [judgement]
+109. **A scaled `GUI.matrix` stretches text** - glyphs are rasterised at the font size and blurred by the scale (x1.88 at 2560x1440, T-0333); text in the scaled HUD goes through `Core/CrispText` (draw and measure). [judgement]
 
 ### Run mode and detectors
 
