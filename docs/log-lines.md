@@ -590,7 +590,7 @@ Written by GreebleKeeper.cs; info / warning.
 
 ## `HUD column moved to`
 
-Meaning: The column of HUD values was dragged to a new place (window open; in Edit HUD by its grip), with its top-left corner.
+Meaning: The column of HUD values was dragged to a new place (in Edit HUD, by its grip), with its top-left corner.
 Written by Plugin.cs; info.
 
 - info `HUD column moved to (<..>, <..>).`
@@ -1321,7 +1321,7 @@ Written by PracticeRunModule.Results.cs; info.
 
 ## `Results panel moved to`
 
-Meaning: The runner dragged the results panel; its new position.
+Meaning: The runner dragged the results panel in Edit HUD; its new position.
 Written by PracticeRunModule.Results.cs; info.
 
 - info `Results panel moved to (<..>, <..>).`
@@ -1373,7 +1373,7 @@ Written by AuditWatch.cs, RunModeModule.Audit.cs; info / warning.
 
 ## `Run code moved to`
 
-Meaning: The runner dragged the run code box; its new position.
+Meaning: The runner dragged the run code box in Edit HUD; its new position.
 Written by RunModeModule.Codes.cs; info.
 
 - info `Run code moved to (<..>, <..>).`
@@ -1707,7 +1707,7 @@ Written by FrameTimer.cs; info.
 
 ## `Splits panel moved to`
 
-Meaning: The runner dragged the splits panel; its new position.
+Meaning: The runner dragged the splits panel in Edit HUD; its new position.
 Written by PracticeRunModule.Splits.cs; info.
 
 - info `Splits panel moved to (<..>, <..>).`

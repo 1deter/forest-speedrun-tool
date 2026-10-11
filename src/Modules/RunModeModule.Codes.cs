@@ -328,19 +328,25 @@ namespace ForestOverlay.Modules
             HandleCodeDrag(box, w);
 
             GUI.Box(box, GUIContent.none, _boxStyle);
-            if (_dragging) GUI.Box(box, GUIContent.none, UiKit.Outline);
+            if (_dragging || HudEditing) GUI.Box(box, GUIContent.none, UiKit.Outline);
             GUI.Label(new Rect(x, y + 2f, w, size * 1.25f), _codeText, _codeStyle);
             GUI.Label(new Rect(x, y + size * 1.25f + 2f, w, _subStyle.fontSize * 1.6f), _codeSub, _subStyle);
         }
 
-        // Moved like the splits panel: drag it while the F2 window is open.
+        // Moved like every HUD piece: only in Edit HUD (author, 2026-10-11,
+        // T-0317: the F2 window alone moves nothing but itself).
+        private bool HudEditing
+        {
+            get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; }
+        }
+
         private void HandleCodeDrag(Rect box, float w)
         {
             Event e = Event.current;
             if (e == null) return;
             if (_main == null) _main = Host.Find<MainWindowModule>();
             MainWindowModule main = _main;
-            if (main == null || !main.PanelOpen)
+            if (main == null || !HudEditing)
             {
                 if (_dragging) EndCodeDrag(w);
                 return;

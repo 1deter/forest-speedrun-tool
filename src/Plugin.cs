@@ -54,8 +54,8 @@ namespace ForestOverlay
         private GUIStyle _warnStyle;
         private int _hudStyleVersion = -1;
 
-        // Dragging the HUD column (Settings -> HUD): only while the window is
-        // open (the cursor is free then). Kept here while dragging, clamped
+        // Dragging the HUD column: only in Edit HUD, by its grip (T-0317;
+        // the cursor is free then). Kept here while dragging, clamped
         // live, written once on release (gotchas 60-61).
         private MainWindowModule _mainWindow;
         private bool _hudDragging;
