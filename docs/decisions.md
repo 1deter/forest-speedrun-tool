@@ -50,6 +50,10 @@ into the game's own menus / status, an experiment, author 2026-10-11) and
 the P4 idea list (TAS, route optimiser, 1v1, the exact
 3D world, research cards).
 
+Group 4, after-v1 and paused bot tasks carry a hold (`v1 group 4`,
+`after v1`, `bot paused`) that `tasks.py next` skips; `tasks.py lift`
+when the scope starts (T-0314; docs/areas/workflow.md *Not now*).
+
 ### The tool first (author, 2026-10-08)
 
 "Focus development on the tool rather than anything external to it, as i want

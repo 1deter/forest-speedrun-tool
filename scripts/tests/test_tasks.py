@@ -332,6 +332,51 @@ class Next(unittest.TestCase):
     def test_nothing(self):
         self.assertIsNone(T.pick_next([task("T-0001", status="confirmed")]))
 
+    def test_skips_a_held_task(self):
+        ts = [task("T-0001", priority=1, area="harness", hold="v1 group 4"), task("T-0002", priority=4)]
+        self.assertEqual(T.pick_next(ts)["id"], "T-0002")
+        self.assertIsNone(T.pick_next(ts[:1], bridge=True))
+
+
+class Hold(unittest.TestCase):
+    def args(self, hold):
+        return argparse.Namespace(hold=hold)
+
+    def test_set_and_clear(self):
+        t = task("T-0001")
+        T.set_hold(t, self.args(" bot paused "))
+        self.assertEqual(t["hold"], "bot paused")
+        T.set_hold(t, self.args(None))
+        self.assertEqual(t["hold"], "bot paused")
+        T.set_hold(t, self.args("none"))
+        self.assertNotIn("hold", t)
+
+    def test_refuses_an_empty_or_long_hold(self):
+        for bad in ("  ", "x" * (T.HOLD_MAX + 1)):
+            with self.assertRaises(T.TaskError):
+                T.set_hold(task("T-0001"), self.args(bad))
+        with self.assertRaises(T.TaskError):
+            T.validate([task("T-0001", hold="")])
+        T.validate([task("T-0001", hold="after v1")])
+
+    def test_lift_clears_only_its_name(self):
+        ts = [task("T-0001", hold="v1 group 4"), task("T-0002", hold="bot paused"),
+              task("T-0003", hold="v1 group 4")]
+        self.assertEqual([t["id"] for t in T.lift(ts, "v1 group 4")], ["T-0001", "T-0003"])
+        self.assertEqual([t.get("hold") for t in ts], [None, "bot paused", None])
+        self.assertEqual(T.pick_next(ts)["id"], "T-0001")
+        with self.assertRaises(T.TaskError) as e:
+            T.lift(ts, "v1 group 4")
+        self.assertIn("bot paused", str(e.exception))
+
+    def test_render_puts_held_tasks_under_not_now(self):
+        md = T.render([task("T-0001"), task("T-0002", hold="after v1")])
+        todo, not_now = md.index("## To do (1)"), md.index("## Not now (1)")
+        self.assertLess(todo, not_now)
+        self.assertIn("| after v1 | T-0002 |", md[not_now:])
+        self.assertNotIn("T-0002", md[todo:not_now])
+        self.assertIn("(not now: after v1)", T.line(task("T-0002", hold="after v1")))
+
 
 class Views(unittest.TestCase):
     def test_render_lists_questions_first_and_counts(self):

@@ -75,6 +75,17 @@ A release moves its tasks by itself (`bump.py` -> `released`, T-0007; a plugin t
 a check only a tester can do is a `needs: tester` task with a `qa` line,
 which is all the #qa-todo-list message shows (docs/bridge.md).
 
+**Not now** (T-0314, 2026-10-11): a todo task outside the current scope
+(a later v1.0 group, a paused area) carries a hold, `tasks.py set T-n
+--hold "v1 group 4"` (`--hold none` clears it); `next` and the loop never
+pick it, so it costs no round (R-0007 lost three to them). It is not
+`blocked`, which stays a real blocker inside the scope. When the scope
+starts, `tasks.py lift "v1 group 4"` clears every task under that name;
+`list --held [name]` and the *Not now* section of docs/tasks.md show them.
+Holds in use: `v1 group 4`, `after v1` (decisions.md *What v1.0 is*),
+`bot paused` (every bot / knowledge todo; *Knowledge bot*). A new task in
+one of those scopes gets the hold when it is filed.
+
 **The lock** (T-0197, T-0201): every command that changes the task file
 (`tasks.py` writers, `bump.py`, a `loop.py` park) holds `tasks/tasks.jsonl.lock`
 from load to save, so two processes never lose each other's change. It is a

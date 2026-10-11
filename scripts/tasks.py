@@ -4,7 +4,7 @@ tasks/tasks.jsonl holds one task per line (merges cleanly between sessions).
 This script owns it - never edit a status by hand; the gates below are the
 point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
 
-    python scripts/tasks.py list [--open] [--status S] [--area A] [--needs N]
+    python scripts/tasks.py list [--open] [--status S] [--area A] [--needs N] [--held [NAME]]
     python scripts/tasks.py next [--bridge] [--by NAME]
     python scripts/tasks.py show T-0001
     python scripts/tasks.py add "Title" --area plugin --behavior "..." [--priority 2]
@@ -16,13 +16,15 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
     python scripts/tasks.py set T-0001 [--status S] [--needs N] [--question Q | --answer A]
            [--priority P] [--commit SHA ...] [--release vX] [--layer L] [--notes ..]
            [--title ..] [--behavior ..] [--verify ..] [--keep ..] [--blocked-by ID ...]
-           [--tier T] [--route R | --route none] [--by NAME]
+           [--tier T] [--route R | --route none] [--hold NAME | --hold none] [--by NAME]
     python scripts/tasks.py evidence T-0001 "what proves it" --by forest-tester
     python scripts/tasks.py brief T-0001   # what the checker reads: contract + diff + suites
     python scripts/tasks.py review T-0001 --verdict accept|revise|block --by forest-checker
            --scores correctness=2,verification=2,scope=2,restart=n/a,legible=2,handoff=1
            [--faults "file:line - what is wrong" ...]
     python scripts/tasks.py note T-0001 "multi-session notes line"
+    python scripts/tasks.py set T-0001 --hold "v1 group 4"   # not now: next skips it (--hold none clears)
+    python scripts/tasks.py lift "v1 group 4"               # the scope starts: clear every task held under it
     python scripts/tasks.py stats [--since YYYY-MM-DD] [--until YYYY-MM-DD]
            # a window: only tasks finished (first built) in it - the monthly review's before / after
     python scripts/tasks.py check          # validate the file (CI)
@@ -83,10 +85,14 @@ FIRST_AREAS = ("harness",)
 RELEASED_AREAS = ("plugin",)
 # What testers still have to do (author, 2026-10-07: only that, nothing done or planned).
 QA_OPEN = ("todo", "in-progress", "built", "released")
+# A held task is out of the current scope (a later v1.0 group, a paused area; T-0314): it stays todo,
+# next and the loop never pick it, and `lift <name>` clears every task held under one name when that
+# scope starts. Blocked keeps its meaning: a real blocker inside the scope.
+HOLD_MAX = 40
 # Field order in the file, so diffs stay readable.
 ORDER = ["id", "title", "area", "priority", "status", "needs", "question", "behavior",
          "scope", "verify", "keep", "qa", "checker", "source", "owner", "maker", "commits",
-         "release", "evidence", "reviews", "layer", "tier", "route", "blocked_by", "notes", "created", "updated",
+         "release", "evidence", "reviews", "layer", "tier", "route", "hold", "blocked_by", "notes", "created", "updated",
          "log"]
 
 
@@ -312,6 +318,10 @@ def validate(tasks):
                             "`tasks.py set %s --tier <tier>`" % tid)
         if t.get("route"):
             parse_route(t["route"])
+        if "hold" in t and not hold_ok(t["hold"]):
+            raise TaskError("%s has hold %r" % (tid, t["hold"]),
+                            "a hold names the scope the task waits for, 1-%d characters" % HOLD_MAX,
+                            "`tasks.py set %s --hold \"v1 group 4\"` (or --hold none)" % tid)
         if not t.get("title"):
             raise TaskError("%s has no title" % tid, "a task needs a title", "`tasks.py set %s --title`" % tid)
         if t["needs"] == "author-decision" and not t.get("question"):
@@ -353,6 +363,37 @@ def parse_route(text):
         raise TaskError("empty route %r" % text, "a route overrides at least one part",
                         "--route none drops the override")
     return {"agent": agent, "model": model, "effort": effort}
+
+
+def hold_ok(name):
+    return isinstance(name, str) and 0 < len(name) <= HOLD_MAX and name == name.strip()
+
+
+def set_hold(t, a):
+    """--hold on add and set; --hold none drops it."""
+    hold = getattr(a, "hold", None)
+    if hold is None:
+        return
+    if hold.strip().lower() == "none":
+        t.pop("hold", None)
+        return
+    if not hold_ok(hold.strip()):
+        raise TaskError("bad hold %r" % hold, "a hold names the scope the task waits for, 1-%d characters"
+                        % HOLD_MAX, "--hold \"v1 group 4\", --hold \"bot paused\"; --hold none clears it")
+    t["hold"] = hold.strip()
+
+
+def lift(tasks, name):
+    """Clears the hold on every task held under name; returns them. Raises if none is."""
+    held = [t for t in tasks if t.get("hold") == name]
+    if not held:
+        names = sorted({t["hold"] for t in tasks if t.get("hold")})
+        raise TaskError("no task is held under %r" % name, "lift takes a hold name exactly as set",
+                        "one of: " + (", ".join(names) or "(none held)"))
+    for t in held:
+        t.pop("hold", None)
+        t["updated"] = today()
+    return held
 
 
 def set_routing(t, a):
@@ -523,7 +564,8 @@ def pick_next(tasks, bridge=False, by=None, skip=()):
     ids = {t["id"]: t for t in tasks}
     ready = []
     for t in tasks:
-        if t["status"] != "todo" or t["needs"] not in allowed or t.get("question") or t["id"] in skip:
+        if (t["status"] != "todo" or t["needs"] not in allowed or t.get("question") or t.get("hold")
+                or t["id"] in skip):
             continue
         if any(ids[d]["status"] not in ("built", "released", "confirmed") for d in t.get("blocked_by") or []):
             continue
@@ -621,6 +663,8 @@ def line(t):
         flags += " ?"
     if t.get("tier") in ("easy", "hard") or t.get("route"):
         flags += " {%s}" % "/".join(x for x in (t.get("tier"), t.get("route")) if x)
+    if t.get("hold"):
+        flags += " (not now: %s)" % t["hold"]
     return "%s P%s %-11s %-9s %s%s" % (t["id"], t.get("priority", 3), t["status"], t["area"], t["title"], flags)
 
 
@@ -638,7 +682,7 @@ def render(tasks):
               ("Built, not released", lambda t: t["status"] == "built"),
               ("Released, awaiting a check", lambda t: t["status"] == "released"),
               ("Blocked", lambda t: t["status"] == "blocked"),
-              ("To do", lambda t: t["status"] == "todo")]
+              ("To do", lambda t: t["status"] == "todo" and not t.get("hold"))]
     for name, pred in groups:
         rows = sorted([t for t in open_ if pred(t)], key=lambda t: (t.get("priority", 3), id_num(t["id"])))
         if not rows:
@@ -648,6 +692,15 @@ def render(tasks):
         for t in rows:
             out.append("| %s | %s | %s | %s | %s |" % (t["id"], t.get("priority", 3), t["area"], t["needs"],
                                                       t["title"].replace("|", "/")))
+        out.append("")
+    held = [t for t in open_ if t["status"] == "todo" and t.get("hold")]
+    if held:
+        out += ["## Not now (%d)" % len(held), "",
+                "Out of the current scope: `tasks.py next` skips them; `tasks.py lift \"<hold>\"` when it starts.",
+                "", "| Hold | Id | P | Area | Needs | Title |", "|---|---|---|---|---|---|"]
+        for t in sorted(held, key=lambda t: (t["hold"], t.get("priority", 3), id_num(t["id"]))):
+            out.append("| %s | %s | %s | %s | %s | %s |" % (t["hold"].replace("|", "/"), t["id"], t.get("priority", 3),
+                                                           t["area"], t["needs"], t["title"].replace("|", "/")))
         out.append("")
     done = len([t for t in tasks if t["status"] in DONE])
     out.append("%d open, %d done (confirmed or wontfix)." % (len(open_), done))
@@ -832,6 +885,7 @@ def cmd_add(tasks, a):
     if t["question"] and t["needs"] == "none":
         t["needs"] = "author-decision"
     set_routing(t, a)
+    set_hold(t, a)
     tasks.append(t)
     return t
 
@@ -853,6 +907,7 @@ def cmd_set(tasks, a):
     if a.checker is not None:
         t["checker"] = a.checker
     set_routing(t, a)
+    set_hold(t, a)
     if a.question:
         t["question"] = a.question
         if t["needs"] in ("none", "bridge"):
@@ -960,6 +1015,7 @@ def main(argv=None):
         sp.add_argument("--blocked-by", nargs="*")
         sp.add_argument("--question")
         sp.add_argument("--qa")
+        sp.add_argument("--hold", help="not now: the scope it waits for (v1 group 4, bot paused); none clears it")
         routing(sp)
         g = sp.add_mutually_exclusive_group()
         g.add_argument("--checker", dest="checker", action="store_true", default=None)
@@ -970,6 +1026,7 @@ def main(argv=None):
     sp.add_argument("--status", choices=STATUSES)
     sp.add_argument("--area", choices=AREAS)
     sp.add_argument("--needs", choices=NEEDS)
+    sp.add_argument("--held", nargs="?", const="", default=None, help="only held tasks (or those under one hold)")
     sp = sub.add_parser("next")
     sp.add_argument("--bridge", action="store_true")
     sp.add_argument("--by")
@@ -1001,6 +1058,8 @@ def main(argv=None):
     sp.add_argument("id")
     sp.add_argument("text")
     sp.add_argument("--by", required=True)
+    sp = sub.add_parser("lift")
+    sp.add_argument("name")
     sp = sub.add_parser("note")
     sp.add_argument("id")
     sp.add_argument("text")
@@ -1042,7 +1101,8 @@ def run(a):
                     if (not a.open or t["status"] not in DONE)
                     and (not a.status or t["status"] == a.status)
                     and (not a.area or t["area"] == a.area)
-                    and (not a.needs or t["needs"] == a.needs)]
+                    and (not a.needs or t["needs"] == a.needs)
+                    and (a.held is None or (t.get("hold") and a.held in ("", t["hold"])))]
             rows.sort(key=lambda t: (t["status"] in DONE, t.get("priority", 3), id_num(t["id"])))
             print("\n".join(line(t) for t in rows) or "(none)")
         elif a.cmd == "next":
@@ -1070,6 +1130,10 @@ def run(a):
         elif a.cmd == "render":
             save(tasks)
             print("rendered " + os.path.relpath(VIEW, ROOT))
+        elif a.cmd == "lift":
+            held = lift(tasks, a.name.strip())
+            save(tasks)
+            print("\n".join(line(t) for t in held))
         else:
             if a.cmd == "add":
                 if not a.area:
