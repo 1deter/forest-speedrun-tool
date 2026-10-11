@@ -265,6 +265,7 @@ namespace ForestOverlay.Core
         {
             CloseText();
             FlushProfile();
+            ScanNames();   // a file dropped in since Edit HUD opened is not overwritten
             string name = HudProfileNames.Unique("New profile", _names);
             if (!Write(name, new HudProfile())) { ProfileStatus("Could not write the file - see the log."); return; }
             _names.Add(name);
@@ -280,6 +281,7 @@ namespace ForestOverlay.Core
             CloseText();
             FlushProfile();
             string from = _activeCfg.Value;
+            ScanNames();   // a file dropped in since Edit HUD opened is not overwritten
             string name = HudProfileNames.Unique(from + " copy", _names);
             if (!Write(name, Capture())) { ProfileStatus("Could not write the file - see the log."); return; }
             _names.Add(name);
