@@ -188,7 +188,10 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   (researcher stops at the cause, forest-dev builds its plan) accepted,
   stays built until 3 researcher runs re-measure. Author: main-session
   cost first - **T-0319** (main context) ahead of T-0312 / T-0315 (P3).
-  **Next:** T-0313, T-0314, T-0319 (`tasks.py next`).
+  T-0319 (250k cap) and **T-0313** (tier easy / normal / hard + route
+  override; `loop.py` names agent / model / effort; `agent-cost.py
+  --tiers` measures it) confirmed - tiers get set at contract time from
+  now on. **Next:** T-0314, then T-0312 / T-0315 (`tasks.py next`).
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
   redesign (T-0025, worktree `ui-redesign`) waits on the author's OK; bot
