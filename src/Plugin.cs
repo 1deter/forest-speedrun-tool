@@ -488,14 +488,10 @@ namespace ForestOverlay
         {
             Event e = Event.current;
             if (e == null) return;
+            // Called only while editing, and Edit HUD needs the F2 window open
+            // (closing it ends the edit), so no window check here (T-0317).
             if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
-            bool windowOpen = _mainWindow != null && _mainWindow.PanelOpen;
-
-            if (!windowOpen)
-            {
-                if (_hudDragging) EndHudDrag(col, s);
-                return;
-            }
+            if (_mainWindow == null) return;
 
             switch (e.type)
             {

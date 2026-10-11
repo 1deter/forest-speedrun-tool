@@ -23,7 +23,8 @@ namespace ForestOverlay.Modules
     //   starts (ResetSplits); F5 hides it with the rest of the UI.
     // - Buttons only while the cursor is the runner's (the F2 window or the
     //   pause menu): with the game's locked cursor a click lands in the
-    //   middle of the screen and would hit them. Dragged by its title then.
+    //   middle of the screen and would hit them. Dragged by its title in
+    //   Edit HUD only (T-0317).
     // - [Splits] ResultsPanel turns it off; ResultsLoadTimeAlways shows the
     //   load-removed time after a load-free run too.
     // ------------------------------------------------------------------
@@ -74,7 +75,7 @@ namespace ForestOverlay.Modules
 
         private GUIStyle _resHeadStyle, _resHeadGold, _resGoldWrap;
 
-        // Dragging by the title, as the splits panel is dragged.
+        // Dragging by the title in Edit HUD, as the splits panel is dragged.
         private bool _resDragging;
         private Vector2 _resDragOffset;
         private float _resDragX, _resDragY;

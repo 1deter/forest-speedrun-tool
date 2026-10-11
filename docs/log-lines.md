@@ -641,7 +641,7 @@ Written by SettingsModule.cs; info.
 
 ## `HUD widget`
 
-Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of the column), put back in the column, moved or scaled, or the runner's text before / after it set.
+Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of the column), put back in the column, moved or scaled, the runner's text before / after it set, or its trend colour (T-0023) switched on / off.
 Written by HudWidgets.cs; info.
 
 - info `HUD widget '<..>' <..>.`
