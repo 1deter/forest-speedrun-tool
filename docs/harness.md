@@ -680,6 +680,24 @@ after it lands: T-0311 researcher tail 46% (and Opus tokens per research
 task, `--tasks`) after the next 3 researcher runs; T-0312 checker input
 per task; T-0313 Opus share; T-0314 / T-0315 main input per session.
 
+**Where main input goes (2026-10-11, T-0319; `agent-cost.py --levers
+--since 2026-10-05`).** 84 sessions, 14.0M each, median 70 calls (p90
+148), no compactions. A block in context is re-sent on every later call,
+so the levers are what each block costs times the calls left:
+
+| Lever | Share | What it is |
+|---|---|---|
+| Start context | 39% | ~73k at the first call: ~21k seen in the transcript (CLAUDE.md + MEMORY.md 5.3k, skill listing 5.6k - mostly the app's own skills, system prompt 3.8k, deferred tool names 2.7k, agent listing 1.8k, MCP notes 1.1k, the SessionStart hook 0.9k); the other ~50k is tool schemas (built-in + the app's connectors loaded eagerly: browser, docs, visualize, ccd) |
+| Own output | 16% | the session's text, tool calls and thinking, re-sent |
+| Shell output | 16% | file reads (`sed` 4.8%, `grep` 2.8%, `cat` 1.3%) and inline Python; our scripts are small (`tasks.py` all subcommands ~1.5%) |
+| App notes | 12% | token-count, deferred-tool and date reminders the app injects (attribution is by length, so this row also soaks up growth the transcript does not show) |
+| Prompts / notifications | 9% | the author's prompts 6.6%, subagent notifications 1.9%, skill bodies 0.6% |
+| Other tools | 7.5% | `Read` 3.3%, bridge `run` / `ilscan`, `Agent` |
+
+File reads are long-tailed (the top file, this one, is 0.5%), so there is
+no fat target there. Each 10k cut from the start saves ~0.8M a session
+(6%); each call saved saves at least 73k.
+
 ---
 
 ## Decisions (author, 2026-10-07)

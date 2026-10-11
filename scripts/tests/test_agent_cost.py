@@ -145,5 +145,42 @@ class Folders(unittest.TestCase):
             self.assertEqual([r["agent"] for r in runs], ["forest-site"])
 
 
+def call(mid, context, out, tools=()):
+    content = [{"type": "tool_use", "id": i, "name": n, "input": inp} for i, n, inp in tools]
+    return json.dumps({"type": "assistant", "message": {"id": mid, "usage": {
+        "input_tokens": 0, "cache_read_input_tokens": context, "cache_creation_input_tokens": 0,
+        "output_tokens": out}, "content": content}})
+
+
+def result(tid, text):
+    return json.dumps({"type": "user", "message": {"content": [
+        {"type": "tool_result", "tool_use_id": tid, "content": text}]}})
+
+
+class Levers(unittest.TestCase):
+    def test_bash_kind(self):
+        self.assertEqual(A.bash_kind("cd /c/x && python scripts/tasks.py list --open"), "tasks.py list")
+        self.assertEqual(A.bash_kind("python scripts/lint.py"), "lint.py")
+        self.assertEqual(A.bash_kind("python - <<'EOF'"), "python inline")
+        self.assertEqual(A.bash_kind("git diff HEAD"), "git diff")
+        self.assertEqual(A.bash_kind("sed -n 1,40p a.md"), "sed")
+
+    def test_carried(self):
+        lines = [
+            call("m1", 1000, 10, [("t1", "Bash", {"command": "git log"}), ("t2", "Read", {})]),
+            result("t1", "a" * 30), result("t2", "b" * 10),
+            call("m2", 1050, 5),  # grew 50: 10 own output, 40 split 3:1 over the two results
+            call("m3", 1055, 0),  # grew 5: all own output of m2
+            call("m4", 200, 0),   # a compaction: a new base, nothing carried across it
+        ]
+        c = A.carried(lines)
+        self.assertEqual(c["start"], 3 * 1000)
+        self.assertEqual(c["compaction summary"], 200)
+        self.assertAlmostEqual(c["own output"], 10 * 2 + 5 * 1)
+        self.assertAlmostEqual(c["bash: git log"], 30 * 2)
+        self.assertAlmostEqual(c["tool: Read"], 10 * 2)
+        self.assertAlmostEqual(sum(c.values()), 1000 + 1050 + 1055 + 200)
+
+
 if __name__ == "__main__":
     unittest.main()

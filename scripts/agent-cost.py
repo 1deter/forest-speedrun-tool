@@ -1,7 +1,7 @@
 """What each project subagent costs, read from Claude Code's own transcripts.
 
     python scripts/agent-cost.py [--since 2026-10-07] [--until 2026-10-14] [--agent forest-dev]
-                                 [--main] [--runs] [--tasks] [--tail]
+                                 [--main] [--runs] [--tasks] [--tail] [--levers]
 
 Claude Code keeps every subagent run as
 ~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl with a
@@ -13,7 +13,8 @@ minutes (gaps over 5 min - background waits - not counted). --runs adds one
 line per run. --main counts the main sessions too (agent "main"); --tasks
 sums every run whose description names a task (T-0311) by model family;
 --tail gives each agent's share of input sent after its first edit to
-src/, tests/ or patcher/ (the build tail T-0311 hands to forest-dev).
+src/, tests/ or patcher/ (the build tail T-0311 hands to forest-dev);
+--levers splits the main sessions' input by what it re-sends (T-0319).
 Use it to judge a brief / model / tool-list change before and after
 (T-0113; the monthly harness review, docs/harness.md 12d; the usage
 baseline, docs/harness.md *Measuring the harness*).
@@ -98,6 +99,122 @@ def parse_run(lines, meta=None):
         "minutes": active / 60.0,
         "tools": tools,
     }
+
+
+def _text(content):
+    if isinstance(content, str):
+        return content
+    out = []
+    for b in content or []:
+        if isinstance(b, dict):
+            out.append(b.get("text") or _text(b.get("content")) if b.get("type") != "image" else "x" * 6000)
+    return "".join(out)
+
+
+def bash_kind(cmd):
+    """A shell command -> its kind for --levers: 'tasks.py list', 'git diff', 'sed', 'python inline'."""
+    cmd = re.sub(r"^\s*cd\s+\S+\s*(&&|;)\s*", "", cmd)
+    m = re.match(r"(?:python3?|py)\s+(?:-\S+\s+)*(\S+)\s*([\w-]*)", cmd)
+    if m:
+        script = os.path.basename(m.group(1).replace("\\", "/"))
+        if script in ("-", "-c") or not script.endswith(".py"):
+            return "python inline"
+        return script + (" " + m.group(2) if script == "tasks.py" and m.group(2) else "")
+    words = cmd.split()
+    if not words:
+        return "?"
+    if words[0] in ("git", "dotnet", "gh") and len(words) > 1:
+        return words[0] + " " + words[1]
+    return words[0][:16]
+
+
+def carried(lines):
+    """One main transcript -> {lever: input tokens it caused}. A block in the context is re-sent on
+    every later call until a compaction (the context dropping by 40%+), so its cost is its size
+    times the calls left. The growth between two calls is measured, not estimated: the first
+    call's own output (text, tool calls, thinking) first, the rest split over the blocks that
+    arrived in between by their length (T-0319)."""
+    seq, tool_of, calls = [], {}, {}
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        d = json.loads(line)
+        t = d.get("type")
+        if t == "assistant":
+            m = d.get("message", {})
+            for b in m.get("content") or []:
+                if isinstance(b, dict) and b.get("type") == "tool_use":
+                    tool_of[b.get("id")] = (b["name"], b.get("input") or {})
+            if m.get("id") and m.get("usage"):
+                if m["id"] not in calls:
+                    seq.append(("call", m["id"]))
+                calls[m["id"]] = m["usage"]  # the last copy has the final count
+        elif t == "user":
+            content = d.get("message", {}).get("content")
+            for b in content if isinstance(content, list) else [{"type": "text", "text": content or ""}]:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "tool_result":
+                    name, inp = tool_of.get(b.get("tool_use_id"), ("?", {}))
+                    kind = ("bash: " + bash_kind(inp.get("command", ""))
+                            if name in ("Bash", "PowerShell") else "tool: " + name)
+                    seq.append((kind, len(_text(b.get("content")))))
+                elif b.get("type") == "text":
+                    text = b.get("text") or ""
+                    kind = ("user: skill body" if text.startswith("Base directory for this skill")
+                            else "user: agent notification" if "<task-notification" in text[:200]
+                            else "user: prompt")
+                    seq.append((kind, len(text)))
+        elif t == "attachment":
+            a = d.get("attachment") or {}
+            if a.get("type") != "prompt_snapshot":  # a copy of the system prompt, already in the start
+                seq.append(("harness: " + str(a.get("type")), len(json.dumps(a))))
+    idx = [i for i, s in enumerate(seq) if s[0] == "call"]
+    sizes = [_whole(calls[seq[i][1]]) for i in idx]
+    out = {}
+    def add(k, v):
+        out[k] = out.get(k, 0) + v
+    cuts = [0] + [k for k in range(1, len(sizes)) if sizes[k] < 0.6 * sizes[k - 1]] + [len(sizes)]
+    for a, b in zip(cuts, cuts[1:]):
+        add("start" if a == 0 else "compaction summary", sizes[a] * (b - a))
+        for k in range(a, b - 1):
+            left, grow = b - (k + 1), sizes[k + 1] - sizes[k]
+            if grow <= 0:
+                continue
+            own = min(calls[seq[idx[k]][1]].get("output_tokens", 0), grow)
+            add("own output", own * left)
+            blocks = seq[idx[k] + 1:idx[k + 1]]
+            size = float(sum(n for _, n in blocks))
+            if not size:
+                add("unattributed", (grow - own) * left)
+            for kind, n in blocks:
+                if size:
+                    add(kind, (grow - own) * n / size * left)
+    return out
+
+
+def _whole(u):
+    return sum(u.get(k, 0) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+
+
+def load_carried(dirs, since=None, until=None):
+    """(sessions, {lever: tokens}) over the main transcripts in the date range."""
+    total, n = {}, 0
+    for d in dirs:
+        for path in glob.glob(os.path.join(d, "*.jsonl")):
+            with open(path, encoding="utf-8") as f:
+                lines = f.readlines()
+            days = [json.loads(l).get("timestamp", "")[:10] for l in lines[:50] if l.strip()]
+            day = min([x for x in days if x] or [""])
+            if not day or (since and day < since) or (until and day >= until):
+                continue
+            c = carried(lines)
+            if c:
+                n += 1
+            for k, v in c.items():
+                total[k] = total.get(k, 0) + v
+    return n, total
 
 
 def load_runs(dirs, main=False):
@@ -231,7 +348,25 @@ def main(argv=None):
     ap.add_argument("--weeks", action="store_true",
                     help="input per ISO week (main sessions vs agents) and tasks finished; implies --main")
     ap.add_argument("--repo", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    ap.add_argument("--levers", action="store_true",
+                    help="main sessions only: what their input re-sends (start, own output, tool results "
+                         "by tool, shell output by command, harness notes, prompts)")
     args = ap.parse_args(argv)
+
+    if args.levers:
+        n, total = load_carried(project_dirs(args.repo), args.since, args.until)
+        whole = float(sum(total.values()) or 1)
+        groups = {}
+        for k, v in total.items():
+            groups[k.split(":")[0]] = groups.get(k.split(":")[0], 0) + v
+        sys.stdout.write("Main-session input by what it re-sends, %d sessions, %s (%s/session):\n"
+                         % (n, _k(whole), _k(whole / (n or 1))))
+        for k, v in sorted(groups.items(), key=lambda kv: -kv[1]):
+            sys.stdout.write("  %-20s %7s %4.1f%%\n" % (k, _k(v), 100 * v / whole))
+        sys.stdout.write("Largest single levers:\n")
+        for k, v in sorted(total.items(), key=lambda kv: -kv[1])[:20]:
+            sys.stdout.write("  %-34s %7s %4.1f%%\n" % (k[:34], _k(v), 100 * v / whole))
+        return 0
 
     runs = load_runs(project_dirs(args.repo), main=args.main or args.weeks or args.agent == "main")
     if args.since:
