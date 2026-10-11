@@ -394,7 +394,9 @@ namespace ForestOverlay.Modules
                 Ctx.Runner.StartCoroutine(SnapshotsSpread(p));
                 return;
             }
-            for (int i = 0; i < SnapshotSteps; i++) RunSnapshotStep(i, p);
+            // One frame, in the order captures always used: pickups first.
+            RunSnapshotStep(PickupsStep, p);
+            for (int i = 0; i < PickupsStep; i++) RunSnapshotStep(i, p);
             p.Frames = 1;
             p.MaxFrameMs = p.PreMs;
             StartSerialize(p);
@@ -402,11 +404,12 @@ namespace ForestOverlay.Modules
 
         // ------------------------------------------------------------------
         // A capture's snapshots: what the keepers note before the level is
-        // serialized (all outside the save). In this order, in one frame -
-        // or a checkpoint state's over several (SnapshotsSpread). The world
-        // pickups go last, so they are listed in the frame before the
-        // serialize's, as when everything ran in one frame (a pickup taken
-        // in between would be both in the bag and on the ground).
+        // serialized (all outside the save). In one frame: pickups first, then
+        // in this order (as before T-0072). A checkpoint state's over several
+        // frames (SnapshotsSpread): in this order, the world pickups last, so
+        // they are listed in the frame before the serialize's, as when
+        // everything ran in one frame (a pickup taken in between would be
+        // both in the bag and on the ground).
 
         private sealed class CaptureParts
         {
@@ -442,6 +445,7 @@ namespace ForestOverlay.Modules
         }
 
         private const int SnapshotSteps = 15;
+        private const int PickupsStep = 14;
         /// A spread capture's snapshot work a frame: steps run until it is
         /// used (at least one a frame).
         private const double SpreadBudgetMs = 4.0;
