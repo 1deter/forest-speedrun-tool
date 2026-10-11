@@ -31,6 +31,7 @@ namespace ForestOverlay.Modules
         private string _boardFetching;            // key of the request in flight
         private float _boardFetchedAt = -999f;
         private string _boardState = "";
+        private bool _boardFailed;                // the last read failed
 
         private int _runnerPick = -1;              // index into _others
         private string _runnerPickId;              // kept across a re-read
@@ -49,7 +50,9 @@ namespace ForestOverlay.Modules
         private void RunsTabOpened()
         {
             if (_runMode != null) _runMode.RunsTabOpened();
-            if (_recorder.State != RunRecorder.RunState.Running) MaybeFetchBoard();
+            if (_recorder.State == RunRecorder.RunState.Running) return;
+            if (_boardFailed) FetchBoard();
+            else MaybeFetchBoard();
         }
 
         /// On every arm and when the Runs tab opens: a new segment / route
@@ -89,11 +92,12 @@ namespace ForestOverlay.Modules
                 string why = code == 0 ? (error ?? "no answer") : "answer " + code;
                 _boardState = "Other runners: could not read the website (" + why + ")" +
                               (_others.Count > 0 ? " - showing the last list." : ".");
-                _boardFetchedAt = -999f;   // the next arm / Runs tab asks again (no Refresh, T-0254)
+                _boardFailed = true;   // the next Runs tab asks again (no Refresh, T-0254); an arm waits BoardMaxAge
                 Ctx.Log.LogWarning("Site board '" + key + "': " + why + ".");
                 yield break;
             }
 
+            _boardFailed = false;
             _siteOthers.Clear();
             _siteOthers.AddRange(SiteBoard.Others(board, RunnerIdNow(), rows));
             Ctx.Log.LogInfo("Site board '" + key + "': " + board.Count + " runner(s), " + _siteOthers.Count + " to compare with.");
@@ -131,6 +135,7 @@ namespace ForestOverlay.Modules
         private void ClearBoard(string key)
         {
             _boardKey = key;
+            _boardFailed = false;
             _siteOthers.Clear();
             _runnerRuns.Clear();
             _boardState = "";
