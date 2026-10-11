@@ -368,6 +368,17 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   test). Not in the endgame (Claude's narrowing: the lab's exits and
   endings show the outside). **Stays on in run mode** (author, 2026-10-11:
   not Experimental, so run mode does not suspend it).
+- **A setting does exactly what it says; else each thing gets its own
+  toggle** (author, 2026-10-11, T-0326: "update on startup should do just
+  that - everything should have an individual toggle if it isn't clearly
+  communicated"). `Community.UpdateOnStartup` off = nothing fetched at
+  startup.
+- **Always-on HUD lines look like the game's own messages** (author,
+  2026-10-11, T-0325): ON NOW, the practice marker and the run code move
+  toward the game's bottom-left pickup-message style, reusing the game's
+  code, rather than orange overlay text. Feedback adds no clutter (T-0321:
+  a short result line, not a panel); text sizes follow docs/ux.md check 25
+  (T-0324).
 
 ## Run mode
 
