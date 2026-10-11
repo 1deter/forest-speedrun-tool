@@ -399,6 +399,7 @@ namespace ForestOverlay.Modules
                     Ctx.Log.LogInfo("Attempts: Check now - asking the website about the listed attempts.");
                     _askedThisOpen.Clear();
                     CheckRecent();
+                    if (!_recentCheckBusy) _attemptState = "nothing to ask: the website already has every attempt listed";
                 }
                 UiKit.Hint(checkR, RecentCheckTip);
                 GUI.enabled = true;

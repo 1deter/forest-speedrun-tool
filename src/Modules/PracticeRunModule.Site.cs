@@ -233,7 +233,8 @@ namespace ForestOverlay.Modules
                 GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
                 y += 24f;
             }
-            if (!Ctx.Network.Refresh.Value)
+            // Never during a run: its comparison must not change under it.
+            if (!Ctx.Network.Refresh.Value && _recorder.State != RunRecorder.RunState.Running)
             {
                 GUI.enabled = _boardFetching != _boardKey;
                 Rect checkR = new Rect(0, y, 90, 20);
