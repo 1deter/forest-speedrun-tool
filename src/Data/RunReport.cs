@@ -32,11 +32,12 @@ namespace ForestOverlay.Data
         /// prefix as Data/ExternalMods, which the site does not link).
         public const string ModsFlagPrefix = "Mods Detected: ";
 
-        /// The names of the first mods flag ("" when none).
+        /// The names of the last mods flag ("" when none; a mod seen mid-attempt
+        /// appends a longer list).
         public static string ModsOf(IList<string> flags)
         {
             if (flags == null) return "";
-            for (int i = 0; i < flags.Count; i++)
+            for (int i = flags.Count - 1; i >= 0; i--)
                 if (flags[i] != null && flags[i].StartsWith(ModsFlagPrefix, System.StringComparison.Ordinal))
                     return flags[i].Substring(ModsFlagPrefix.Length);
             return "";

@@ -90,11 +90,12 @@ namespace ForestOverlay.Data
             return FlagPrefix + names;
         }
 
-        /// The names part of the first mods flag in `flags` ("" when none).
+        /// The names part of the last mods flag in `flags` ("" when none): a
+        /// mod that turns up mid-attempt appends a longer list.
         public static string FromFlags(IList<string> flags)
         {
             if (flags == null) return "";
-            for (int i = 0; i < flags.Count; i++)
+            for (int i = flags.Count - 1; i >= 0; i--)
                 if (flags[i] != null && flags[i].StartsWith(FlagPrefix, StringComparison.Ordinal))
                     return flags[i].Substring(FlagPrefix.Length);
             return "";

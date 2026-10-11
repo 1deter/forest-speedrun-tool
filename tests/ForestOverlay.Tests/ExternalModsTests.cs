@@ -46,6 +46,14 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ALaterLongerFlagWins()
+        {
+            var flags = new[] { ExternalMods.Flag("A"), "other", ExternalMods.Flag("A, B") };
+            Assert.Equal("A, B", ExternalMods.FromFlags(flags));
+            Assert.Equal("A, B", RunReport.ModsOf(flags));
+        }
+
+        [Fact]
         public void MarkerPutsModsUnderTheModApiFlag()
         {
             Assert.Equal("", HudLines.Marker(false, "", null, null));

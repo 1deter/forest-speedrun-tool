@@ -133,13 +133,12 @@ namespace ForestOverlay.Core
             _log.LogInfo("Run mode: attempt " + Attempt + " used " + feature + " (allowed by the category).");
         }
 
-        /// Other mods turned up while an attempt runs: its mods flag names
-        /// them all (the earlier, shorter one is replaced).
+        /// Other mods turned up while an attempt runs: a new mods flag naming
+        /// them all is appended (flags only grow - the report and the chain
+        /// fold by index); readers take the last one (ExternalMods.FromFlags).
         private void OnModsChanged(string names)
         {
             if (!Active || !AttemptOpen) return;
-            for (int i = _flags.Count - 1; i >= 0; i--)
-                if (_flags[i].StartsWith(ExternalMods.FlagPrefix, System.StringComparison.Ordinal)) _flags.RemoveAt(i);
             Flag(ExternalMods.Flag(names));
         }
 

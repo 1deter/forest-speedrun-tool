@@ -237,6 +237,13 @@ played with ModAPI loaded is marked **ModAPI Detected** beside the title
 attempt of a session whose Assembly-CSharp references ModAPI's BaseModLib,
 `Game/ModApi` - in the chain or the report's flag lines). It is a flag, so
 the receipt is red; the HUD shows `ModAPI` above the marker all session.
+Any other external code (T-0308: a BepInEx plugin, a patcher, a DLL from
+outside the game folders, a foreign Harmony patch; `Game/ExternalModWatch`
+over `RunIntegrity.GatherMods`) is flagged the same way: the HUD line
+`Mods: A, B`, run mode's flag `Mods Detected: A, B` on every attempt
+(appended again, longer, if one turns up mid-attempt; readers take the
+last), `flags|Mods Detected: ...` in the `.run`, a **Mods Detected** tag on
+the board and the attempt page (`Attempts.ModsSession`).
 
 **The verdict = the worse of two halves**, worked out when the page is
 read (so the allow-list applies to old attempts too):
