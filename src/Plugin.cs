@@ -481,6 +481,14 @@ namespace ForestOverlay
                     if (!_hudDragging) return;
                     _hudDragX = HudLines.Clamp(e.mousePosition.x - _hudDragOffset.x, col.width, Screen.width);
                     _hudDragY = HudLines.Clamp(e.mousePosition.y - _hudDragOffset.y, col.height, Screen.height);
+                    // Edit HUD mode: snaps to the screen and the other pieces (T-0020).
+                    HudWidgets widgets = _host.Hud.Widgets;
+                    if (widgets != null)
+                    {
+                        Vector2 at = widgets.SnapDrag(HudWidgets.ColumnPiece, new Rect(_hudDragX, _hudDragY, col.width, col.height));
+                        _hudDragX = at.x;
+                        _hudDragY = at.y;
+                    }
                     e.Use();
                     break;
                 case EventType.MouseUp:
@@ -494,6 +502,7 @@ namespace ForestOverlay
         private void EndHudDrag(Rect col, HudSettings s)
         {
             _hudDragging = false;
+            if (_host.Hud.Widgets != null) _host.Hud.Widgets.EndSnap();
             s.SetPosition(Mathf.Round(HudLines.Clamp(_hudDragX, col.width, Screen.width)),
                           Mathf.Round(HudLines.Clamp(_hudDragY, col.height, Screen.height)));
             Logger.LogInfo("HUD column moved to (" + Mathf.RoundToInt(s.X) + ", " + Mathf.RoundToInt(s.Y) + ").");

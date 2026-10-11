@@ -570,6 +570,9 @@ namespace ForestOverlay.Modules
 
         /// Edit HUD mode (Core/HudWidgets): the panels show even with nothing
         /// in them, with an outline and their resize edges.
+        // The panels' names as Edit HUD pieces (snapping, T-0020).
+        private const string SplitsPiece = "splits", ResultsPiece = "results";
+
         private bool HudEditing
         {
             get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; }
@@ -655,6 +658,7 @@ namespace ForestOverlay.Modules
                 y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
             }
             Rect panel = new Rect(x, y, w, h);
+            if (editing) Host.Hud.Widgets.ReportPiece(SplitsPiece, panel);   // the others snap to it (T-0020)
 
             if (editing) HandleResize(panel);
             if (_resizeMode == 0) HandleDrag(panel);
@@ -707,6 +711,12 @@ namespace ForestOverlay.Modules
                     if (!_dragging) return;
                     _dragX = Mathf.Max(0f, e.mousePosition.x - _dragOffset.x);
                     _dragY = Mathf.Max(0f, e.mousePosition.y - _dragOffset.y);
+                    if (HudEditing)
+                    {
+                        Vector2 at = Host.Hud.Widgets.SnapDrag(SplitsPiece, new Rect(_dragX, _dragY, panel.width, panel.height));
+                        _dragX = at.x;
+                        _dragY = at.y;
+                    }
                     e.Use();
                     break;
                 case EventType.MouseUp:
@@ -720,6 +730,7 @@ namespace ForestOverlay.Modules
         private void EndDrag()
         {
             _dragging = false;
+            if (HudEditing) Host.Hud.Widgets.EndSnap();
             float w = Mathf.Clamp(_panelWidth.Value, MinPanelW, Screen.width);
             _panelX.Value = Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, Screen.width - w));
             _panelY.Value = Mathf.Max(0f, _dragY);

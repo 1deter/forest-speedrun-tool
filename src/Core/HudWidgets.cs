@@ -322,6 +322,7 @@ namespace ForestOverlay.Core
                 if (!any) { UiKit.Ensure(); any = true; }
                 DrawWidget(i, line, hud, blocked, e);
             }
+            DrawGuides(e);
         }
 
         private void DrawWidget(int i, int line, HudBuilder hud, Rect blocked, Event e)
@@ -437,8 +438,11 @@ namespace ForestOverlay.Core
                 case EventType.MouseDrag:
                     if (_dragWidget == i)
                     {
-                        w.X = Mathf.Clamp(e.mousePosition.x - _dragOffset.x, 0f, Mathf.Max(0f, Screen.width - width));
-                        w.Y = Mathf.Clamp(e.mousePosition.y - _dragOffset.y, 0f, Mathf.Max(0f, Screen.height - rect.height));
+                        float dx = Mathf.Clamp(e.mousePosition.x - _dragOffset.x, 0f, Mathf.Max(0f, Screen.width - width));
+                        float dy = Mathf.Clamp(e.mousePosition.y - _dragOffset.y, 0f, Mathf.Max(0f, Screen.height - rect.height));
+                        Vector2 at = Snap(new Rect(dx, dy, width, rect.height), null, i);
+                        w.X = at.x;
+                        w.Y = at.y;
                         DropOnColumn = OverColumn(e.mousePosition);
                         e.Use();
                     }
@@ -456,6 +460,7 @@ namespace ForestOverlay.Core
                         _dragWidget = -1;
                         _resizeWidget = -1;
                         DropOnColumn = false;
+                        EndSnap();
                         if (moved && OverColumn(e.mousePosition))
                         {
                             Attach(line);   // dropped on the column: back in it
@@ -485,6 +490,7 @@ namespace ForestOverlay.Core
             _resizeWidget = -1;
             _pullLine = -1;
             DropOnColumn = false;
+            EndSnap();
         }
 
         // --- the text around a value --------------------------------------------------------
@@ -525,7 +531,8 @@ namespace ForestOverlay.Core
 
         private static readonly GUIContent EditHint = new GUIContent(
             "Drag a value out of the column to place it anywhere; drag the column's grip (the bar beside it) to move the column. " +
-            "Drag a placed value to move it, its corner to resize it; right-click it to put it back.");
+"Drag a placed value to move it, its corner to resize it; right-click it to put it back. " +
+            "Dragged pieces snap to the screen's centre and quarters and to each other; hold Alt to place freely.");
         private static readonly GUIContent LockedNote = new GUIContent(
             "Always shown under the column: ON NOW and the practice marker (a recording must show them).");
         private static readonly GUIContent DoneText = new GUIContent("Done");

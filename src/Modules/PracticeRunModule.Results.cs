@@ -399,6 +399,7 @@ namespace ForestOverlay.Modules
                 y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
             }
             Rect panel = new Rect(x, y, w, h);
+            if (editing) Host.Hud.Widgets.ReportPiece(ResultsPiece, panel);   // the others snap to it (T-0020)
 
             MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
             Event e = Event.current;
@@ -495,6 +496,12 @@ namespace ForestOverlay.Modules
                     if (!_resDragging) return;
                     _resDragX = Mathf.Max(0f, e.mousePosition.x - _resDragOffset.x);
                     _resDragY = Mathf.Max(0f, e.mousePosition.y - _resDragOffset.y);
+                    if (HudEditing)
+                    {
+                        Vector2 at = Host.Hud.Widgets.SnapDrag(ResultsPiece, new Rect(_resDragX, _resDragY, title.width, title.height));
+                        _resDragX = at.x;
+                        _resDragY = at.y;
+                    }
                     e.Use();
                     break;
                 case EventType.MouseUp:
@@ -509,6 +516,7 @@ namespace ForestOverlay.Modules
         private void EndResultsDrag()
         {
             _resDragging = false;
+            if (HudEditing) Host.Hud.Widgets.EndSnap();
             float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
             _resX.Value = Mathf.Clamp(_resDragX, 0f, Mathf.Max(0f, Screen.width - w));
             _resY.Value = Mathf.Max(0f, _resDragY);
