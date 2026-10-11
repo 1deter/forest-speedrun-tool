@@ -85,6 +85,12 @@ namespace ForestOverlay.Core
             for (int i = 0; i < Tracked.Count; i++) Recolour(Tracked[i], from, to);
         }
 
+        /// Apply by variant id (the bridge's way in: `call static:ForestOverlay.Core.UiKit UseVariant warm`).
+        public static void UseVariant(string id)
+        {
+            Apply(UiPalette.Find(id));
+        }
+
         /// A copy of `src` that follows a palette switch: use it for every
         /// style a module builds (instead of new GUIStyle(src)).
         public static GUIStyle Style(GUIStyle src)
@@ -153,7 +159,7 @@ namespace ForestOverlay.Core
                 }
             }
             t.SetPixels(px);
-            t.Apply(false, true);
+            t.Apply(false, false);   // kept readable: a palette switch repaints it (all are 32 px or less)
             return t;
         }
 
@@ -173,7 +179,7 @@ namespace ForestOverlay.Core
         {
             Texture2D t = Tex(reuse, 1);
             t.SetPixel(0, 0, c);
-            t.Apply(false, true);
+            t.Apply(false, false);   // kept readable: a palette switch repaints it (all are 32 px or less)
             return t;
         }
 
@@ -205,7 +211,7 @@ namespace ForestOverlay.Core
                 }
             }
             t.SetPixels(px);
-            t.Apply(false, true);
+            t.Apply(false, false);   // kept readable: a palette switch repaints it (all are 32 px or less)
             return t;
         }
 
