@@ -210,29 +210,38 @@ namespace ForestOverlay.Modules
             UpdateKey();
         }
 
+        /// The zone kinds DrawSegmentZones would draw for s (zone triggers only,
+        /// hidden checkpoints skipped).
+        private static void KeyZones(Segment s, ref bool start, ref bool checks, ref bool end)
+        {
+            if (s == null || !s.IsTimed) return;
+            start |= s.Start.Kind == TriggerKind.Zone;
+            end |= s.End.Kind == TriggerKind.Zone;
+            for (int i = 0; i < s.Checkpoints.Count && !checks; i++)
+                checks = !s.IsCheckpointHidden(i) && s.Checkpoints[i].Kind == TriggerKind.Zone;
+        }
+
         /// Which key rows the map shows now: a mark's row only while it can be drawn.
         private void UpdateKey()
         {
-            bool spot = false, community = false, under = false, zones = false, checks = false;
+            bool spot = false, community = false, under = false, start = false, checks = false, end = false;
             for (int i = 0; i < _spots.Length; i++)
             {
                 if (!SpotShown(i)) continue;
                 if (_community[i]) community = true; else spot = true;
                 if (_under[i]) under = true;
-                if (_allZones && _spots[i].IsTimed) { zones = true; checks |= _spots[i].Checkpoints.Count > 0; }
+                if (_allZones) KeyZones(_spots[i], ref start, ref checks, ref end);
             }
-            Segment sel = _practice != null ? _practice.SelectedSegment : null;
-            Segment timed = _runs != null ? _runs.TimedSegment : null;
-            if (sel != null && sel.IsTimed) { zones = true; checks |= sel.Checkpoints.Count > 0; }
-            if (timed != null && timed.IsTimed) { zones = true; checks |= timed.Checkpoints.Count > 0; }
+            KeyZones(_practice != null ? _practice.SelectedSegment : null, ref start, ref checks, ref end);
+            KeyZones(_runs != null ? _runs.TimedSegment : null, ref start, ref checks, ref end);
             Vector3 ghost;
 
             _keyShown[KeySpot] = spot;
             _keyShown[KeyCommunity] = community;
             _keyShown[KeyUnder] = under;
-            _keyShown[KeyStart] = zones;
+            _keyShown[KeyStart] = start;
             _keyShown[KeyCheck] = checks;
-            _keyShown[KeyEnd] = zones;
+            _keyShown[KeyEnd] = end;
             _keyShown[KeyLine] = _showLine && _lineCount > 1;
             _keyShown[KeyGhost] = _showLine && _runs != null && _runs.GhostOnMap(out ghost);
             _keyShown[KeyYou] = Ctx.Player.Found;
