@@ -410,6 +410,19 @@ Copy-Item $dll $pluginDir -Force   # the DLL
 """
 
 
+class Router(unittest.TestCase):
+    def test_at_the_cap_passes(self):
+        self.assertEqual(L.check_router("x\n" * L.ROUTER_MAX), [])
+
+    def test_over_the_cap_fails_with_fix_text(self):
+        out = text(L.check_router("x\n" * (L.ROUTER_MAX + 1)))
+        self.assertIn("201 lines", out)
+        self.assertIn("session-log.md", out)
+
+    def test_repo_router_is_under_the_cap(self):
+        self.assertEqual(L.check_router(L.read(L.ROUTER)), [])
+
+
 class Deploy(unittest.TestCase):
     def test_dll_only_passes(self):
         self.assertEqual(L.check_deploy(DEPLOY_OK), [])

@@ -953,6 +953,24 @@ def check_deploy(text):
     return probs
 
 
+# ---------------------------------------------------------------- router size
+
+ROUTER = "CLAUDE.md"
+ROUTER_MAX = 200
+
+
+def check_router(text):
+    """The router stays a router: at most ROUTER_MAX lines (author, 2026-10-07; T-0310)."""
+    n = len(text.splitlines())
+    if n <= ROUTER_MAX:
+        return []
+    return [Problem("%s is %d lines (the cap is %d)" % (ROUTER, n, ROUTER_MAX),
+                    "every session and subagent loads the router; at 516 lines it cost ~9k tokens each "
+                    "(T-0310), and facts in it belong one hop away",
+                    "move the older *Where we are* entries word for word to docs/session-log.md (keep the "
+                    "last two handoffs), or move a section to its area doc and leave a pointer")]
+
+
 # ---------------------------------------------------------------- main
 
 def git_show(rev, path):
@@ -994,6 +1012,7 @@ def main(argv=None):
     probs += check_render([h for p, t in src_texts() for h in render_hits(p, t)])
     probs += check_mojibake(tracked_text())
     probs += check_deploy(read(DEPLOY))
+    probs += check_router(read(ROUTER))
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:

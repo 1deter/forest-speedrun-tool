@@ -266,12 +266,37 @@ documentation any further").**
 - **Confirmed -> moved, not marked:** delete the item from every to-test
   list and add a few words to `docs/confirmed.md`; never leave a
   ~~struck~~ or "confirmed" entry in a to-do list.
-- **The router's *Where we are* is replaced at each handoff**, never appended to.
+- **The router's *Where we are* is replaced at each handoff**, never appended to:
+  it keeps the last two handoffs and one *Standing* line; older entries move
+  word for word to the top of `docs/session-log.md` (T-0310).
 - **Size:** the router stays ~100-200 lines (author, 2026-10-07; it was
   "aim for under ~1,000 lines, but never trim for the number" before -
   author, 2026-09-24: "don't trim claude.md pointlessly, if there's
   genuinely only useful information in there don't mind keeping it").
   Nothing useful is cut to get there: it moves one hop away.
+
+## Scripts
+
+The router's *Commands* holds the daily ones; the rest:
+
+```bash
+dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: preview "forest-site" (.claude/launch.json)
+dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
+python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
+python scripts/merge-keepboth.py <files>          # resolve add/add merge conflicts (parallel branches)
+python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (local + origin), __pycache__, scratch > 7 days
+python scripts/loop.py begin                    # the assisted loop (skill work-loop): next / end / intervene / report; tests: test_loop.py
+python scripts/audit.py [--file]                # the weekly cleanup's finder: dead paths / code / files (skill weekly-cleanup)
+python scripts/read-report.py <zip> [--full]  # a tester's report zip in ~50 lines: header, errors, slow ticks, perf, last actions
+python scripts/log-catalogue.py                 # after changing a log line: rewrites docs/log-lines.md (every prefix + meaning; --check in lint.py)
+python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
+python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
+python scripts/agent-cost.py                    # what each subagent costs
+```
+
+The task file's tests: `scripts/tests/test_tasks.py`; the lints' hooks and
+gates: *Gates* above; the e2e suite: docs/bridge.md *The e2e suite*; the
+tests' Unity shim: `tests/CLAUDE.md`.
 
 ## Editing
 
