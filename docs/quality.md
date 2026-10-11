@@ -125,7 +125,7 @@ Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs`
 
 ### Information tabs
 
-Paths: `src/Modules/{CollectiblesModule,InventoryModule,MapModule,RunInfoModule}.cs` `src/Game/{DrawingsReader,InventoryReader,MapRelief,NatureGuideReader,PassengerReader,PlaneSite,SurvivalBookReader}.cs` `src/Data/{CollectionList,HudLines,MapView,ReliefImage}.cs` `collectibles/`
+Paths: `src/Modules/{CollectiblesModule,InventoryModule,MapModule,RunInfoModule}.cs` `src/Game/{DrawingsReader,InventoryReader,MapRelief,NatureGuideReader,PassengerReader,PlaneSite,SurvivalBookReader}.cs` `src/Data/{CollectionList,HudLines,InventoryFilter,MapView,ReliefImage}.cs` `collectibles/`
 
 HUD readouts, inventory, the 100% checklist, nature guide, To Do list,
 the Map tab.
