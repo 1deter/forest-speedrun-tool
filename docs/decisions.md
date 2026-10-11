@@ -44,7 +44,9 @@ v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
    categories is outside our hands.
 
 **After v1:** the bot and knowledge work (paused), T-0046 (maintainability,
-a lighter repo), T-0291 (a light build without the practice tools) and
+a lighter repo), T-0291 (a light build without the practice tools), T-0293
+(icons for the HUD flags, author 2026-10-11), T-0298 (the overlay built
+into the game's own menus / status, an experiment, author 2026-10-11) and
 the P4 idea list (TAS, route optimiser, 1v1, the exact
 3D world, research cards).
 

@@ -194,6 +194,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-11 (author present, design answers):** every v1.0 task that
+  waited on the author has its answers in its notes - T-0019 profiles,
+  T-0020 snapping (Alt = free drag), T-0023 trend colour per value, T-0258
+  palette variants (+ the author's box-art reference in its notes), T-0072
+  (try all three capture ideas, measure, the author decides); their
+  `needs` are now none / bridge, so `tasks.py next` hands out T-0019,
+  T-0020, T-0023, T-0258, then group 3. **T-0021 / T-0022 built** on
+  ui-redesign (8595993: checkboxes true 16x16 squares via `UiKit.Toggle`,
+  outline off / solid yellow on, 3 px corners kept; values render at
+  32/64/96 px with their own font, no shadow) - checker-accepted, author
+  "all good" in game; they ride T-0025. The author's install runs this
+  branch build. T-0293 moved after v1; T-0298 (native-UI concept) filed
+  for after v1. Next: T-0258 in a fresh session (author picks a variant),
+  then the author starts the overnight loop.
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0056,
   T-0058, savestate gaps (T-0029, T-0065, T-0067; T-0269 done in v0.24.282), perf (T-0072,
