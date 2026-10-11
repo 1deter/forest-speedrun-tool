@@ -427,7 +427,7 @@ api.MapGet("/categories.txt", (HttpContext c) =>
     return Results.Text(text, "text/plain; charset=utf-8");
 }).RequireRateLimiting("read");
 api.MapGet("/categories/{id}/{version:int}", (string id, int version) =>
-    Categories.View(categories.Version(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
+    Categories.View(categories.PublishedVersion(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
 
 // --- the knowledge bot (BotSettings; docs/knowledge-bot.md) -----------------------
 // The bot's own token, not an admin's: it can read the settings and report,
