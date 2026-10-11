@@ -155,6 +155,10 @@ namespace ForestOverlay.Game
     //    DelayedCleanUp sweep - ~0.8 s of frames that only free memory.
     //    The capture takes SerializeLevel(false, null)'s bytes (the same
     //    data), cancels its own sweep, and builds the text on a worker.
+    // 22. A checkpoint state's snapshots (T-0072): the keepers' notes before
+    //    the serialize (~15 scene searches, ~0.14 s) run over several
+    //    frames, ~4 ms of work or one step a frame (SavestateModule
+    //    SnapshotsSpread); pickups last, the frame before the serialize.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -169,6 +173,8 @@ namespace ForestOverlay.Game
         public static bool RestoreSkipStreamingSweep;
         /// Fix 21, read by a checkpoint state's capture (T-0072).
         public static bool CheckpointCaptureLean;
+        /// Fix 22, read by a checkpoint state's capture (T-0072).
+        public static bool CheckpointCaptureSpread;
 
         private sealed class Fix
         {
@@ -316,6 +322,12 @@ namespace ForestOverlay.Game
                 "unload of the nearby world detail set off one more asset walk a moment later - all mid-run. Take the same level " +
                 "data without them (the game's own bytes; the text is built on a worker thread).",
                 delegate { CheckpointCaptureLean = true; return ""; }, delegate { CheckpointCaptureLean = false; });
+            Add(config, "CheckpointCaptureSpread", "Checkpoint states: note the capture's extras over several frames",
+                "Before the level is saved, a capture notes what the save leaves out (pickups on the ground, held items, doors, " +
+                "elevators, cut bushes, enemies...) - each a search of the whole scene, ~0.14 s in one frame. For a checkpoint " +
+                "state mid-run, spread them over the frames before it (a few ms each); the state is then a few frames after the " +
+                "checkpoint, not on it (the resumed clock counts them). Off by default until the author picks (T-0072).",
+                delegate { CheckpointCaptureSpread = true; return ""; }, delegate { CheckpointCaptureSpread = false; }, false);
             Add(config, "RestoreSkipSameWreckNav", "Savestates: no enemy-path recalculation for the re-created plane wreck",
                 "A savestate restore brings back a new plane wreck where the old one stands, and the game recalculated enemy " +
                 "paths around it twice - for the new wreck and for the old one going - each a ~0.2 s frame and ~8 MB of garbage, " +

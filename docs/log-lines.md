@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-225 prefixes from 731 log calls.
+226 prefixes from 728 log calls.
 
 ## `Aerial capture`
 
@@ -165,7 +165,7 @@ Written by GameBridge.cs; info.
 Meaning: A run checkpoint's savestate: captured (frame cost), not saved, or its follow-up failed.
 Written by SavestateModule.cs; info / warning.
 
-- info `Checkpoint state <w.Opts.What> captured: <..> ms of frame work on the main thread (snapshots <w.PreMs> ms, serialize <w.SerializeMs> ms<..>), <..> written in <w.WriteMs> ms on a worker thread -> <..>.`
+- info `Checkpoint state <w.Opts.What> captured: <..> ms of frame work on the main thread (snapshots <w.PreMs> ms<..>, serialize <w.SerializeMs> ms<..>), <..> written in <w.WriteMs> ms on a worker thread -> <..>.`
 - warning `Checkpoint state <w.Opts.What> not saved: <w.Error>.`
 - warning `Checkpoint state: continuation failed: <ex.Message>`
 
@@ -1454,20 +1454,16 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - info `Savestate: <what>: <cheats>.`
 - info `Savestate: <why>.`
 - warning `Savestate: an action never finished; buttons re-enabled.`
+- warning `Savestate: capture step '<..>' failed: <ex.Message>`
 - warning `Savestate: continuation failed: <ex.Message>` (x2)
-- warning `Savestate: greeble capture failed: <ex.Message>`
 - info `Savestate: nearest cave panel after the restore: <near>`
 - info `Savestate: nearest cave panel at capture: <near>`
-- warning `Savestate: panel description failed: <ex.Message>`
-- warning `Savestate: panel snapshot failed: <ex.Message>`
 - warning `Savestate: pickup restore failed: <ex.Message>`
-- warning `Savestate: pickup snapshot failed: <ex.Message>`
 - warning `Savestate: removing limbs failed: <ex.Message>`
 - warning `Savestate: removing new logs failed: <ex.Message>`
 - warning `Savestate: removing sapling sticks failed: <ex.Message>`
 - warning `Savestate: removing thrown spears failed: <ex.Message>`
 - warning `Savestate: removing wreck pickups failed: <ex.Message>`
-- warning `Savestate: stalagmite capture failed: <ex.Message>`
 - info `Savestate: start state of '<s.Id>' deleted.`
 - info `Savestate: start state of '<s.Id>' is now <s.StartState> - route <..>.`
 - warning `Savestate: the start state file of '<s.Id>' is not the one the segment expects (<s.StartState>) - recapture it to make it so.`
@@ -1530,7 +1526,7 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - info `Savestate capture: glider dropped for the save, <back>.`
 - info `Savestate capture: <menu> first, as the game's save does.`
 - warning `Savestate capture: could not write the file: <ex.Message>`
-- info `Savestate capture: on a <..> (<ride>) - a restore puts you back on it.`
+- info `Savestate capture: on a <..> (<p.Ride>) - a restore puts you back on it.`
 - info `Savestate capture: the book is open - held items taken from what it put away (<..>).`
 
 ## `Savestate capture failed`
@@ -1545,7 +1541,7 @@ Written by SavestateModule.cs; warning.
 Meaning: A savestate was captured with a warning about its areas.
 Written by SavestateModule.cs; warning.
 
-- warning `Savestate captured '<name>': <areaWarning>.`
+- warning `Savestate captured '<p.Name>': <p.AreaWarning>.`
 
 ## `Savestate restore`
 
@@ -1699,6 +1695,13 @@ Meaning: The bridge's FrameSnapshot (dev): the frame-time report for the window 
 Written by FrameTimer.cs; info.
 
 - info `<..>` *(declared)*
+
+## `Spikes`
+
+Meaning: Dev (bridge `call static:ForestOverlay.Game.FrameTimer Spikes`): every frame of 25 ms or more since the last call, with its frame number - what one action costs frame by frame.
+Written by FrameTimer.cs; info.
+
+- info `Spikes: <text>`
 
 ## `Splits panel moved to`
 
