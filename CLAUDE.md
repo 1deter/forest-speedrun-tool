@@ -181,17 +181,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   `plugins/ForestOverlay.dll.redesign-keep`). **Next loop run** would take
   T-0255 (Map legend, redesign), T-0267, **T-0274** (group 3 perf), T-0290
   (needs a `Stall:` line first).
-- **2026-10-11 (T-0301, author present):** the stutter on every WASD /
-  Space press was the HUD's placed Speed value (scale 6 = 96 px bold, its
-  own font from T-0022) rebuilding its font texture (~20 ms) on each start
-  / stop of walking - not the first-input watch (switched off live: no
-  change). Fix on ui-redesign bdc83dd (`HudWidgets.KeptGlyphs`, gotcha
-  107); proved on a hand deploy (16 injected W presses, no spike; old DLL
-  kept as `plugins/ForestOverlay.dll.pre-T0301`); checker accepted; its
-  CHANGELOG line is in T-0025's notes. The author's install runs this
-  build. Seen on the way: right after a Slot 1 load, the bridge's one
-  command a frame gives a ~85 ms GC every ~1.75 s (test-induced, not
-  filed). **Next: T-0020** (snapping).
+- **2026-10-11 (T-0311, author present):** usage measured before any
+  more harness work: `agent-cost.py --weeks --tail --tasks` (now main
+  sessions too); baseline in docs/harness.md *Measuring the harness* -
+  main sessions 85% of input, W41 14.3M/session (was ~33M). T-0311
+  (researcher stops at the cause, forest-dev builds its plan) accepted,
+  stays built until 3 researcher runs re-measure. Author: main-session
+  cost first - **T-0319** (main context) ahead of T-0312 / T-0315 (P3).
+  **Next:** T-0313, T-0314, T-0319 (`tasks.py next`).
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
   redesign (T-0025, worktree `ui-redesign`) waits on the author's OK; bot
