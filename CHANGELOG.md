@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.287 - 2026-10-11
+
+- Go and Restart inside the endgame no longer cause a short hitch (a teleport there took 40-46 ms, now 1-2 ms).
+
 ## v0.24.286 - 2026-10-11
 
 - Capture at checkpoints now spreads its work over a few frames by default: the worst frame of a capture is about 50 ms instead of about 150 ms (the state is taken a few frames after the checkpoint). Already on 0.24.285? Your config kept it off - turn it on under Performance: 'Checkpoint states: note the capture's extras over several frames'.
