@@ -110,11 +110,21 @@ T-0018 (author, 2026-10-10; decisions.md *The HUD is a column of values*,
   `@Section.Key = value` lines above these):
   ```
   # ForestOverlay HUD layout
-  ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s"
+  ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s", trend
   ShowPosition: before="Pos "
   ```
   Only changed values are listed; unknown tokens are ignored (`label=`
   from the first builds too), numbers clamped, text one line, 40 characters.
+- **Trend colour** (T-0023; author, 2026-10-07: like Momentum Mod, colours
+  customisable, defaults green = gaining, red = losing, white = steady):
+  Speed and Total speed offer it, off until the runner presses *Trend* on
+  the value's row in Edit HUD (kept in the profile's layout as `trend`).
+  The colours are Settings -> HUD -> *Trend colours* (`[HUD] TrendGaining /
+  TrendLosing / TrendSteady`, `#RRGGBB`, in the profile too). The trend is
+  `Data/HudTrend`: the value's rate of change per second on the HUD's
+  10 Hz tick, through a dead-band (0.5 a second) and a hold (0.3 s), so it
+  does not flicker; only the style's text colour changes around the draw
+  (the placed values' font never rebuilds for it, gotcha 107).
 - The run timer as a widget replaces the old black box with yellow text:
   the splits panel also steps aside while the results panel is up (they
   overlapped on small screens).

@@ -426,7 +426,16 @@ namespace ForestOverlay
             for (int i = 0; i < lines; i++)
             {
                 if (widgets != null && widgets.IsFree(hud.LineIndex(i))) continue;
-                GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
+                int trend = hud.TrendAt(i);
+                if (trend >= 0)
+                {
+                    // A value with Trend on (T-0023): its colour only, for this draw.
+                    Color normal = _hudLabelStyle.normal.textColor;
+                    _hudLabelStyle.normal.textColor = s.TrendColour((TrendState)trend);
+                    GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
+                    _hudLabelStyle.normal.textColor = normal;
+                }
+                else GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
                 yy += _colH[i];
             }
 

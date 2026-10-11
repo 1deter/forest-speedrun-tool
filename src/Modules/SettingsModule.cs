@@ -87,6 +87,18 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent CompactNote = new GUIContent(
             "Shorter values (no stack count, no units) and the short title.");
         private static readonly GUIContent LockedNote = new GUIContent("always shown");
+        // The trend colours (T-0023). Words proposed, not yet approved by the author.
+        private static readonly GUIContent TrendTitle = new GUIContent("Trend colours");
+        private static readonly GUIContent TrendTip = new GUIContent(
+            "For the values with Trend on in Edit HUD layout: their colour while gaining, losing or steady. Type a colour as #RRGGBB.");
+        private static readonly GUIContent TrendBad = new GUIContent("Not a colour: type #RRGGBB, e.g. #33DD55.");
+        private static readonly TrendState[] TrendRows = { TrendState.Gaining, TrendState.Losing, TrendState.Steady };
+        private static readonly GUIContent[] TrendNames =
+        {
+            new GUIContent("Gaining"), new GUIContent("Losing"), new GUIContent("Steady"),
+        };
+        private readonly string[] _trendEdit = new string[3];   // the field's text, by row
+        private readonly string[] _trendFrom = new string[3];   // the stored text it was taken from
         private readonly GUIContent _sizeText = new GUIContent("");
         private readonly GUIContent _placeText = new GUIContent("");
         private int _sizeShown = -1;
@@ -316,6 +328,8 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
             y += 30f;
 
+            y = DrawTrendColours(y, cw, s);
+
             GUI.Label(new Rect(4, y, cw - 8, 22), ValuesText, _labelStyle);
             UiKit.Hint(new Rect(4, y, cw - 8, 22), HudIntro);
             y += 22f;
@@ -353,6 +367,46 @@ namespace ForestOverlay.Modules
             UiKit.Hint(resetR, ResetValuesTip);
             y += 30f;
 
+            return y + 6f;
+        }
+
+        // The three trend colours: a swatch, the #RRGGBB field (a valid colour
+        // is written as it is typed - one write per valid edit, not per key)
+        // and its default. A field that is not a colour says so under it.
+        private float DrawTrendColours(float y, float cw, HudSettings s)
+        {
+            GUI.Label(new Rect(4, y, cw - 8, 22), TrendTitle, _labelStyle);
+            UiKit.Hint(new Rect(4, y, cw - 8, 22), TrendTip);
+            y += 22f;
+            for (int r = 0; r < TrendRows.Length; r++)
+            {
+                TrendState state = TrendRows[r];
+                string stored = s.TrendText(state);
+                if (!ReferenceEquals(stored, _trendFrom[r]))
+                {
+                    // A profile switch or a default: the field follows.
+                    _trendFrom[r] = stored;
+                    _trendEdit[r] = stored ?? "";
+                }
+
+                GUI.Label(new Rect(8, y, 80, 22), TrendNames[r], _labelStyle);
+                Color old = GUI.color;
+                GUI.color = s.TrendColour(state);
+                GUI.DrawTexture(new Rect(92, y + 3, 16, 16), Texture2D.whiteTexture);
+                GUI.color = old;
+                string typed = GUI.TextField(new Rect(114, y, 90, 22), _trendEdit[r], 9);
+                if (!string.Equals(typed, _trendEdit[r]))
+                {
+                    _trendEdit[r] = typed;
+                    if (s.SetTrendText(state, typed)) _trendFrom[r] = s.TrendText(state);   // keep the text as typed
+                }
+                if (GUI.Button(new Rect(210, y, 70, 22), "default"))
+                    s.SetTrendText(state, HudTrend.Format(HudSettings.TrendDefaults[(int)state]));
+                y += 24f;
+                uint parsed;
+                if (!HudTrend.TryParse(_trendEdit[r], out parsed))
+                    y += UiText.DrawDim(114, y, cw - 118, TrendBad) + 2f;
+            }
             return y + 6f;
         }
 

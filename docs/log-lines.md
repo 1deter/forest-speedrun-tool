@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-224 prefixes from 700 log calls.
+224 prefixes from 701 log calls.
 
 ## `Aerial capture`
 
@@ -631,6 +631,7 @@ Written by HudWidgets.cs; info.
 - info `HUD widget '<..>' placed on its own at (<..>, <..>).`
 - info `HUD widget '<..>' put back in the column.`
 - info `HUD widget '<..>' text: before "<..>", after "<..>".`
+- info `HUD widget '<..>' trend colour <..>.`
 
 ## `HUD widgets`
 

@@ -17,6 +17,11 @@ namespace ForestOverlay.Core
     // Each Pair is matched to its Settings switch (Data/HudLines) by the
     // module writing it (Source, set by the host) and its label, so a
     // module needs no change for its lines to be switchable.
+    //
+    // A value that offers the trend colour (HudLines.Trend, T-0023) is
+    // written with its number too (the Pair overload); with Trend on in
+    // Edit HUD its tracker (Data/HudTrend) reads it on this tick, and the
+    // column / a placed value draws the slot in TrendAt's colour.
     // ------------------------------------------------------------------
     public sealed class HudBuilder
     {
@@ -39,6 +44,10 @@ namespace ForestOverlay.Core
         private readonly List<int> _lineIndex = new List<int>();
         private readonly List<GUIContent> _labelC = new List<GUIContent>();
         private readonly List<GUIContent> _valueC = new List<GUIContent>();
+        private readonly List<int> _trend = new List<int>();   // TrendState, or -1: no trend colour
+
+        // One tracker per HudLines entry that offers the trend colour.
+        private readonly TrendTracker[] _trackers = new TrendTracker[HudLines.All.Length];
 
         public int Count { get { return _count; } }
 
@@ -74,6 +83,7 @@ namespace ForestOverlay.Core
                 _lines[_count].text = text;
                 _builtLabel[_count] = null;   // not a Pair's text
                 _lineIndex[_count] = -1;
+                _trend[_count] = -1;
             }
             else
             {
@@ -85,6 +95,7 @@ namespace ForestOverlay.Core
                 _lineIndex.Add(-1);
                 _labelC.Add(new GUIContent(""));
                 _valueC.Add(new GUIContent(""));
+                _trend.Add(-1);
             }
 
             _count++;
@@ -94,6 +105,30 @@ namespace ForestOverlay.Core
         {
             int idx = HudLines.Find(Source, label);
             if (Settings != null && !Settings.Shows(idx)) return;
+            PairAt(idx, label, value);
+        }
+
+        /// A value that rises and falls, with the number it shows: coloured
+        /// by its trend when the runner switched that on (T-0023).
+        public void Pair(string label, string value, float number)
+        {
+            int idx = HudLines.Find(Source, label);
+            if (Settings != null && !Settings.Shows(idx)) return;
+            int slot = PairAt(idx, label, value);
+            if (idx < 0 || !HudLines.All[idx].Trend) return;
+            TrendTracker t = _trackers[idx];
+            if (Widgets == null || !Widgets.TrendOn(idx))
+            {
+                if (t != null) t.Reset();
+                return;
+            }
+            if (t == null) _trackers[idx] = t = new TrendTracker();
+            _trend[slot] = (int)t.Update(number, Time.unscaledTime);
+        }
+
+        // The slot's text (kept when nothing changed); returns the slot.
+        private int PairAt(int idx, string label, string value)
+        {
             if (label == null) label = "";
             if (value == null) value = "";
             bool compact = Compact;
@@ -102,8 +137,9 @@ namespace ForestOverlay.Core
             if (slot < _lines.Count && _builtLabel[slot] != null && _builtCompact[slot] == compact && _lineIndex[slot] == idx &&
                 _builtText[slot] == text && string.Equals(_builtLabel[slot], label) && string.Equals(_builtValue[slot], value))
             {
+                _trend[slot] = -1;
                 _count++;
-                return;
+                return slot;
             }
             Line(HudLines.Pair(label, value, compact));
             _builtLabel[slot] = label;
@@ -118,6 +154,8 @@ namespace ForestOverlay.Core
             string shown = value.Trim();
             if (label.Length > 0 && (idx < 0 || HudLines.All[idx].Label == null)) shown = label + " " + shown;
             _valueC[slot].text = Widgets != null ? Widgets.Decorate(idx, shown) : shown;
+            _trend[slot] = -1;
+            return slot;
         }
 
         /// The HudLines index of the line a slot holds, or -1.
@@ -125,6 +163,8 @@ namespace ForestOverlay.Core
         public GUIContent LabelAt(int index) { return _labelC[index]; }
         /// What the column and a widget show for a slot.
         public GUIContent ValueAt(int index) { return _valueC[index]; }
+        /// A slot's trend (TrendState as int), or -1: drawn in its normal colour.
+        public int TrendAt(int index) { return _trend[index]; }
 
         /// The HUD customiser: which values are placed on their own, and
         /// the runner's text around each.

@@ -1,13 +1,14 @@
 using BepInEx.Configuration;
 using ForestOverlay.Data;
+using UnityEngine;
 
 namespace ForestOverlay.Core
 {
     // ------------------------------------------------------------------
     // The HUD's settings, under [HUD] in the config: a switch per value
     // (Data/HudLines) and the HUD-wide compact, text size and position (the
-    // column of values, T-0018). Defaults are the pre-overhaul info box's
-    // values and place.
+    // column of values, T-0018) and the trend colours (T-0023). Defaults are
+    // the pre-overhaul info box's values and place.
     //
     // Every write here is one click (a tick box, a size step) or a drag's
     // release - never per frame or per mouse event: a config write saves
@@ -21,6 +22,7 @@ namespace ForestOverlay.Core
         private readonly ConfigEntry<bool> _compact;
         private readonly ConfigEntry<int> _textSize;
         private readonly ConfigEntry<float> _x, _y;
+        private readonly ConfigEntry<string>[] _trend = new ConfigEntry<string>[3];   // by TrendState
         private readonly ConfigFile _config;
 
         /// Bumped on every change, so a cached look (styles) knows to rebuild.
@@ -41,6 +43,55 @@ namespace ForestOverlay.Core
                 "Text size in px of the column of values and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). A value placed on its own has its own size.");
             _x = config.Bind("HUD", "X", DefaultX, "The column of values: position from the left, in pixels (drag it while the window is open).");
             _y = config.Bind("HUD", "Y", DefaultY, "The column of values: position from the top, in pixels.");
+            _trend[(int)TrendState.Gaining] = config.Bind("HUD", "TrendGaining", HudTrend.Format(HudTrend.DefaultGain),
+                "Trend colour (#RRGGBB) of a value with Trend on (Edit HUD layout) while it rises.");
+            _trend[(int)TrendState.Losing] = config.Bind("HUD", "TrendLosing", HudTrend.Format(HudTrend.DefaultLoss),
+                "Trend colour (#RRGGBB) of a value with Trend on while it falls.");
+            _trend[(int)TrendState.Steady] = config.Bind("HUD", "TrendSteady", HudTrend.Format(HudTrend.DefaultSteady),
+                "Trend colour (#RRGGBB) of a value with Trend on while it holds.");
+        }
+
+        // --- trend colours (T-0023) -------------------------------------------
+
+        public static readonly uint[] TrendDefaults = { HudTrend.DefaultSteady, HudTrend.DefaultGain, HudTrend.DefaultLoss };
+        private readonly string[] _trendSeen = new string[3];
+        private readonly Color[] _trendColour = new Color[3];
+
+        /// The colour a value with Trend on draws in. Read in OnGUI: the
+        /// text is parsed again only when the setting changed (a reference
+        /// compare), so nothing allocates.
+        public Color TrendColour(TrendState state)
+        {
+            int i = (int)state;
+            if (i < 0 || i >= _trend.Length) i = (int)TrendState.Steady;
+            string text = _trend[i].Value;
+            if (!ReferenceEquals(text, _trendSeen[i]))
+            {
+                _trendSeen[i] = text;
+                uint c = HudTrend.ParseOr(text, TrendDefaults[i]);
+                _trendColour[i] = new Color(UiPalette.R(c), UiPalette.G(c), UiPalette.B(c), UiPalette.A(c));
+            }
+            return _trendColour[i];
+        }
+
+        /// The stored text ("#33DD55"), for the Settings field.
+        public string TrendText(TrendState state)
+        {
+            return _trend[(int)state].Value;
+        }
+
+        /// Sets a trend colour from typed text; false (nothing written) when
+        /// it is not a colour or is the one already set.
+        public bool SetTrendText(TrendState state, string text)
+        {
+            uint c;
+            if (!HudTrend.TryParse(text, out c)) return false;
+            string formatted = HudTrend.Format(c);
+            ConfigEntry<string> e = _trend[(int)state];
+            if (string.Equals(e.Value, formatted, System.StringComparison.OrdinalIgnoreCase)) return false;
+            e.Value = formatted;
+            Version++;
+            return true;
         }
 
         /// Whether line i of HudLines.All is shown; locked and externally
@@ -83,6 +134,7 @@ namespace ForestOverlay.Core
             widgets.RegisterProfileEntry(_textSize, null);
             widgets.RegisterProfileEntry(_x, null);
             widgets.RegisterProfileEntry(_y, null);
+            for (int i = 0; i < _trend.Length; i++) widgets.RegisterProfileEntry(_trend[i], null);
         }
 
         /// A profile was switched in: the cached look rebuilds.

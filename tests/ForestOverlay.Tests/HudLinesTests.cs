@@ -67,6 +67,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void OnlyTheSpeedsOfferTheTrendColour()
+        {
+            Assert.True(HudLines.All[HudLines.IndexOfKey("ShowSpeed")].Trend);
+            Assert.True(HudLines.All[HudLines.IndexOfKey("ShowTotalSpeed")].Trend);
+            int offered = 0;
+            for (int i = 0; i < HudLines.All.Length; i++)
+            {
+                if (!HudLines.All[i].Trend) continue;
+                offered++;
+                Assert.NotNull(HudLines.All[i].ConfigKey);   // kept in the layout by its key
+                Assert.False(HudLines.All[i].Locked);
+            }
+            Assert.Equal(2, offered);
+        }
+
+        [Fact]
         public void PairKeepsTheColumnUnlessCompact()
         {
             Assert.Equal("Speed  4.20", HudLines.Pair("Speed", "4.20", false));

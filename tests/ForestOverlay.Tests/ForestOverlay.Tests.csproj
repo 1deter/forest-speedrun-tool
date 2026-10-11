@@ -94,6 +94,7 @@
     <Compile Include="../../src/Data/HudLayout.cs" Link="Linked/HudLayout.cs" />
     <Compile Include="../../src/Data/HudProfile.cs" Link="Linked/HudProfile.cs" />
     <Compile Include="../../src/Data/HudSnap.cs" Link="Linked/HudSnap.cs" />
+    <Compile Include="../../src/Data/HudTrend.cs" Link="Linked/HudTrend.cs" />
     <Compile Include="../../src/Data/TextMemo.cs" Link="Linked/TextMemo.cs" />
     <Compile Include="../../src/Data/ClockText.cs" Link="Linked/ClockText.cs" />
     <Compile Include="../../src/Data/DeathPlan.cs" Link="Linked/DeathPlan.cs" />
