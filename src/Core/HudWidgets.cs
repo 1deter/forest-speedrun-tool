@@ -568,7 +568,7 @@ namespace ForestOverlay.Core
         private static readonly GUIContent TextTip = new GUIContent("Your own text before and after the value, e.g. \"Speed \" or \" u/s\".");
         private static readonly GUIContent BeforeText = new GUIContent("Before");
         private static readonly GUIContent AfterText = new GUIContent("After");
-        // Words proposed (T-0023), not yet approved by the author.
+        // Trend colour toggle (T-0023).
         private static readonly GUIContent TrendText = new GUIContent("Trend");
         private static readonly GUIContent TrendTip = new GUIContent(
             "Colour the value by its trend: gaining, losing or steady. The colours are in Settings -> HUD.");

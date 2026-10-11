@@ -5,6 +5,31 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.288 - 2026-10-11
+
+- The redesign: the F2 window, its buttons, checkboxes and tips have a new look, with 8 preset themes in Settings -> Theme. Checkboxes are true squares - an outline when off, solid yellow when on.
+- The HUD is a column of values at the top left, in the old info box's order with the title first. Every value you tick shows, value only, with your own text before / after it (Edit HUD -> Text). Drag a value out of the column in Edit HUD to place it anywhere; drop it back on the column (or right-click it) to return it. The Info box option and the 'own' toggle are gone.
+- What changes the game and a used practice tool show as short orange flags, one per line, and nothing while clean.
+- HUD values placed large stay sharp at every size, with no text shadow, and no longer stutter when their digits change.
+- HUD profiles: the whole HUD (values and where they sit, their text, Compact, Text size, the splits and results panels) is a named profile, a file in config/ForestOverlay/hud you can share. Pick, add, duplicate, rename or delete profiles in Edit HUD. Your current HUD becomes the profile Default. Reset profile puts it back to the default HUD after a "Sure?".
+- A profile remembers the screen size it was made at: one shared from another resolution puts everything in the same places on your screen.
+- The HUD, splits, results and run code keep their place when you change resolution, and by default their size relative to the screen too (Settings -> HUD -> 'Sizes follow the screen' off keeps pixel sizes).
+- Edit HUD: dragged pieces snap to the screen's centre and quarters and to each other's edges and centres, with a thin guide line; hold Alt to place freely.
+- The HUD column, splits panel, results panel and run code box move only in Edit HUD; opening F2 alone no longer lets you drag them by accident.
+- Speed and Total speed can show a trend colour, switched on per value in Edit HUD: one colour while gaining, one while losing (8 swatches or a typed colour), the theme's text colour while steady.
+- The splits and results panels are switched on and set up in Edit HUD (its Panels group) and resized by dragging their edges. The Runs tab no longer repeats the splits table; Runner name moved to Upload to the website.
+- Practice tab: a start strip on top for the selected spot - Restart, the Practice mode switch and how its run stands, and why Restart is greyed or locked. Restart on a timed segment turns practice mode on; F7 and the Runs tab's Restart follow the spot selected in the list; Go on a row selects it.
+- Practice tab: the Import view closes by itself once a spot is imported, or when you click any spot in the list.
+- Lists keep themselves up to date (the 100% list, the shared and LiveSplit folders, community and website spots, other runners' times, run categories), so their Refresh / Reload / Check buttons are gone.
+- New Settings -> Network: 'Check online at startup' off means nothing is asked online at startup (update check, community spots, run categories); 'Refresh lists automatically' off stops every automatic refresh and puts a Check now button on each list. An Off from the old Community.UpdateOnStartup carries over.
+- Settings: keys and HUD values sit under short headings and every value explains itself on hover. Reset all keys and Reset the values ask "Sure?" first and say what they did. A rebind message shows for 5 seconds. The developer keys and rarely used tools moved to a Developer tab. Paint settings have their own fold.
+- Settings 'Info box (HUD)' is now 'HUD'. New settings [Runs] Ghost, [Runs] ReplayOpacity and [Splits] ResultsLoadTimeAlways carry your old settings over.
+- Tips and messages name your own keys, not F7 / F11.
+- If you had Deaths -> quick load on death off, a death now reloads when no spot applies.
+- Inventory tab: typing in Filter also lists items you don't hold yet (greyed, x0); click one to pin it to the HUD.
+- Map tab: a key on the map shows what each mark means, and how to zoom and pan shows while the pointer is over the map.
+- Sessions with ModAPI or any other mod loaded (another BepInEx plugin, a patcher, an outside DLL, someone else's game patch) are labelled: an orange "ModAPI" / "Mods: ..." line on the HUD, and "ModAPI Detected" / "Mods Detected" on run mode attempts, uploaded practice runs and their page on the website. It is a label only; nothing is blocked.
+
 ## v0.24.287 - 2026-10-11
 
 - Go and Restart inside the endgame no longer cause a short hitch (a teleport there took about 25 ms, now 1-2 ms).

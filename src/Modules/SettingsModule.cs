@@ -137,7 +137,7 @@ namespace ForestOverlay.Modules
             "On: the HUD, splits, results and run code keep the same look at every resolution. " +
             "Off: their sizes stay in pixels. Their places always stay put relative to the screen.");
         private static readonly GUIContent LockedNote = new GUIContent("always shown");
-        // The trend colours (T-0023). Words proposed, not yet approved by the author.
+        // The trend colours (T-0023, T-0306).
         private static readonly GUIContent TrendTitle = new GUIContent("Trend colours");
         private static readonly GUIContent TrendTip = new GUIContent(
             "For the values with Trend on in Edit HUD layout: their colour while gaining or losing (steady uses the theme's text colour). Click a swatch or type a colour as #RRGGBB.");
@@ -562,7 +562,7 @@ namespace ForestOverlay.Modules
             return y + 6f;
         }
 
-        // The three trend colours: a swatch, the #RRGGBB field (a valid colour
+        // The two trend colours (steady uses the theme's text colour): a swatch, the #RRGGBB field (a valid colour
         // is written as it is typed - one write per valid edit, not per key)
         // and its default. A field that is not a colour says so under it.
         private float DrawTrendColours(float y, float cw, HudSettings s)
