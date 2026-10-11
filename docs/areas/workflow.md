@@ -149,6 +149,14 @@ end. Author's calls (2026-10-07, harness.md *Decisions* 7):
 - **The pool is `needs: none`** (+ bridge when the game is up):
   author-present / author-decision tasks are skipped; `loop.py begin`
   lists the parked questions for the author first.
+- **Routing by tier** (author, 2026-10-11, T-0313; harness.md
+  *Decisions*): the contract sets `--tier easy|normal|hard` (unset =
+  normal, the area agent at its defaults) and, for the odd task, `--route
+  agent/model/effort` (an empty part keeps the tier's: `/haiku/`).
+  `loop.py` names the agent plus the model and effort to pass to the Agent
+  call; `begin` lists the run's likely tasks with their tiers, so open
+  tiers and a session bump (a hard task main works itself) are settled
+  before the author leaves. Measured with `agent-cost.py --tiers`.
 - Every round ends with `loop.py end --summary` (one paragraph; an
   in-progress task is refused - pass or park first); a human fix is
   logged with `loop.py intervene`. `loop.py report` is the run, `tasks.py

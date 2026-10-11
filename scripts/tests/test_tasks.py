@@ -61,6 +61,58 @@ class Validate(unittest.TestCase):
             T.validate([task("T-0001", status="confirmed")])
 
 
+class Routing(unittest.TestCase):
+    def test_tier_and_route_are_validated(self):
+        T.validate([task("T-0001"), task("T-0002", tier="hard", route="forest-dev/haiku/low")])
+        for bad in (dict(tier="medium"), dict(route="forest-dev/haiku"), dict(route="bob/-/-"),
+                    dict(route="-/gpt/-"), dict(route="-/-/huge"), dict(route="-/-/-"), dict(route="//")):
+            with self.assertRaises(T.TaskError):
+                T.validate([task("T-0001", **bad)])
+
+    def test_parse_route_keeps_dashes_as_none(self):
+        self.assertEqual(T.parse_route("-/opus/high"), {"agent": None, "model": "opus", "effort": "high"})
+        self.assertEqual(T.parse_route("main/-/-")["agent"], "main")
+        self.assertEqual(T.parse_route("/haiku/"), {"agent": None, "model": "haiku", "effort": None})
+
+    def test_set_and_start_take_tier_and_route_and_none_drops_it(self):
+        ts = [task("T-0001")]
+        a = argparse.Namespace(id="T-0001", tier="easy", route="-/haiku/-", by="main", behavior=None,
+                               scope=None, keep=None, verify=None)
+        T.cmd_start(ts, a)
+        self.assertEqual((ts[0]["tier"], ts[0]["route"]), ("easy", "-/haiku/-"))
+        self.assertIn("{easy/-/haiku/-}", T.line(ts[0]))
+        T.set_routing(ts[0], argparse.Namespace(tier=None, route="none"))
+        self.assertNotIn("route", ts[0])
+        with self.assertRaises(T.TaskError):
+            T.set_routing(ts[0], argparse.Namespace(tier=None, route="x/y"))
+
+    def test_untiered_lines_stay_as_they_were(self):
+        self.assertNotIn("tier", T.dump([task("T-0001")]))
+        self.assertNotIn("{", T.line(task("T-0001")))
+        self.assertNotIn("{", T.line(task("T-0001", tier="normal")))
+
+    def test_the_cli_parses_them(self):
+        # run / locked stubbed: load() and locked() bind the real task file as their default,
+        # so a main() call here must never reach them.
+        seen = []
+        saved = (T.run, T.locked)
+        T.run, T.locked = (lambda a: seen.append(a) or 0), (lambda *a, **k: _Null())
+        try:
+            for cmd in (["set", "T-0001"], ["start", "T-0001", "--by", "main"], ["add", "x", "--area", "docs"]):
+                self.assertEqual(T.main(cmd + ["--tier", "hard", "--route", "//xhigh"]), 0)
+        finally:
+            T.run, T.locked = saved
+        self.assertEqual([(a.tier, a.route) for a in seen], [("hard", "//xhigh")] * 3)
+
+
+class _Null(object):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
 class Gates(unittest.TestCase):
     def test_start_needs_a_worker_and_a_contract(self):
         ts = [task("T-0001", keep=None)]

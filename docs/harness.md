@@ -678,7 +678,9 @@ researcher Opus time; Sonnet agents are not worth trimming.
 Each harness task names the number it should move and is re-measured
 after it lands: T-0311 researcher tail 46% (and Opus tokens per research
 task, `--tasks`) after the next 3 researcher runs; T-0312 checker input
-per task; T-0313 Opus share; T-0314 / T-0315 main input per session.
+per task; T-0313 Opus share and input / first-pass accepts per tier
+(`--tiers`, once ~10 tiered tasks are done); T-0314 / T-0315 main input
+per session.
 
 **Where main input goes (2026-10-11, T-0319; `agent-cost.py --levers
 --since 2026-10-05`).** 84 sessions, 14.0M each, median 70 calls (p90
@@ -793,6 +795,17 @@ Asked after the deeper pass; each replaces an "open question" above.
   session. Researcher model, cloud offload and the cold start stay as
   they are. The bot's full eval runs only after a knowledge / bot change
   and 7 days (docs/decisions.md *Bot review*).
+- **Routing by tier (author, 2026-10-11, T-0313; tasks/notes/T-0313.md):**
+  a task's `tier` (easy / normal / hard, unset = normal = the area agent
+  at its frontmatter defaults) plus an optional `route` override
+  (agent/model/effort) is set at contract time; `loop.py` names the agent,
+  model and effort (easy: Sonnet low or main itself; hard: researcher /
+  area agent on Opus high, main at high effort for harness / docs).
+  `loop.py begin` settles the run's open tiers and session bumps before
+  the author steps away, never mid-run. Measured per tier
+  (`agent-cost.py --tiers`: input by agent / model / effort, first-pass
+  accepts, revises, interventions) and each tier moved to whatever gives
+  the best output per usage; Haiku is a candidate for easy.
 
 ---
 

@@ -17,16 +17,23 @@ again. Never move a task by your own say-so - the gates in `tasks.py` and
    (`--bridge` when the game is up and the bridge answers). It lists the
    parked questions: ask the author them now, record each with
    `tasks.py set T-n --answer "..."` - an answer can free a task for this run.
+   It also lists the run's likely tasks with their tiers (T-0313): settle
+   each unset one with the author now (`tasks.py set T-n --tier
+   easy|normal|hard`), and ask for any session bump it names (a hard task
+   main works itself) - never mid-run, the author may be gone.
 2. **Repeat** `python scripts/loop.py next` and do what it says, until it
    prints `STOP` (exit 3). Each action, in short:
    - **contract** - look first (git log, the code, docs/confirmed.md: a
      migrated task can already be done), then `tasks.py start T-n --by main`
-     with behavior / scope / verify / keep. An open choice is a question,
+     with behavior / scope / verify / keep and `--tier` (`--route
+     agent/model/effort` for one that fits no tier). An open choice is a question,
      not a default: park it (`--question ... --needs author-decision`) and
      end the round; the author can answer at the next run's begin.
    - **do the work** - spawn the agent it names (`run_in_background: false`
      when nothing else can go on), told only `T-n: the contract is
-     tasks.py show T-n`. Tiny docs / harness edits: do them yourself.
+     tasks.py show T-n`, with the `model` and `effort` it names set on the
+     Agent call (none named: leave them off). Tiny docs / harness edits:
+     do them yourself.
      A researcher that reports a build plan (T-0311) hands over: merge
      its branch first (the plan is in it), then spawn forest-dev with
      `T-n: build from tasks/notes/T-n.md (on main)`. Merge

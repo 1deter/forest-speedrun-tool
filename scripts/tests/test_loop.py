@@ -110,6 +110,56 @@ class Actions(unittest.TestCase):
         self.assertIn("loop.py end", self.act(status="confirmed"))
         self.assertIn("parked", self.act(status="built", question="Which?", needs="author-decision"))
 
+    def test_unset_and_normal_route_as_before(self):
+        before = "forest-dev in a worktree (forest-researcher when"
+        self.assertIn("do the work: " + before, self.act(status="in-progress", area="plugin"))
+        normal = self.act(status="in-progress", area="plugin", tier="normal")
+        self.assertIn(before, normal)
+        self.assertIn("tier normal", normal)
+        self.assertNotIn("Agent call with", normal)
+
+    def test_tiers_name_agent_model_and_effort(self):
+        hard = self.act(status="in-progress", area="plugin", tier="hard")
+        self.assertIn('forest-researcher, Agent call with model "opus" and effort "high" (tier hard)', hard)
+        easy = self.act(status="in-progress", area="plugin", tier="easy")
+        self.assertIn('forest-dev in a worktree, Agent call with model "sonnet" and effort "low"', easy)
+        self.assertIn('forest-site in a worktree, Agent call with model "opus"',
+                      self.act(status="in-progress", area="site", tier="hard"))
+        self.assertIn("main itself (tier easy)", self.act(status="in-progress", area="docs", tier="easy"))
+        self.assertIn("must be on high effort", self.act(status="in-progress", area="harness", tier="hard"))
+
+    def test_a_route_overrides_the_tier(self):
+        a = self.act(status="in-progress", area="plugin", tier="easy", route="-/haiku/-")
+        self.assertIn('forest-dev in a worktree, Agent call with model "haiku" and effort "low"', a)
+        self.assertIn("route -/haiku/-", a)
+        a = self.act(status="in-progress", area="plugin", route="-/-/high")  # normal + effort only
+        self.assertIn('forest-dev in a worktree, Agent call with effort "high"', a)
+        self.assertIn("main itself", self.act(status="in-progress", area="plugin", route="main/-/-"))
+
+    def test_begin_lists_the_runs_tiers_and_bumps(self):
+        ts = [task("T-0001", priority=1, tier="hard"), task("T-0002", priority=2, area="plugin"),
+              task("T-0003", priority=3, area="plugin", tier="easy")]
+        text, _ = run([], L.cmd_begin, ts)
+        self.assertIn("T-0001 harness hard - main itself", text)
+        self.assertIn("T-0002 plugin tier unset (= normal)", text)
+        self.assertIn("tiers to settle now", text)
+        self.assertIn(": T-0002", text)
+        self.assertIn("main works T-0001 itself at high effort", text)
+        text, _ = run([], L.cmd_begin, ts, 1)  # one round: only the first is forecast
+        self.assertNotIn("T-0002", text)
+
+    def test_round_start_asks_the_bump_and_end_records_the_route(self):
+        ts = [task("T-0001", tier="hard")]
+        ev = []
+        run(ev, L.cmd_begin, ts)
+        text, _ = run(ev, L.cmd_next, ts)
+        self.assertIn("switch this session to high effort", text)
+        ts[0]["status"] = "confirmed"
+        ts[0]["evidence"] = [{"at": "x", "by": "main", "what": "y"}]
+        run(ev, L.cmd_end, ts, SUMMARY)
+        self.assertEqual((ev[-1]["tier"], ev[-1]["route"]), ("hard", "main/-/high"))
+        self.assertIn("1. T-0001 [hard] -> confirmed", L.report(ev))
+
     def test_revise_goes_back_to_the_maker(self):
         rv = dict(checker=True, commits=["abc"], reviews=[review("revise")])
         self.assertIn("revise 1 of 2", self.act(status="in-progress", **rv))

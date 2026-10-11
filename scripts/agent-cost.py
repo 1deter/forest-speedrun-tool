@@ -14,7 +14,11 @@ line per run. --main counts the main sessions too (agent "main"); --tasks
 sums every run whose description names a task (T-0311) by model family;
 --tail gives each agent's share of input sent after its first edit to
 src/, tests/ or patcher/ (the build tail T-0311 hands to forest-dev);
---levers splits the main sessions' input by what it re-sends (T-0319).
+--levers splits the main sessions' input by what it re-sends (T-0319);
+--tiers joins the runs naming a task with the task's tier (T-0313):
+input per tier x agent x model x effort (the effort each call ran at is in the
+transcript) and per tier the outcomes - checker first-pass accepts,
+revises, loop interventions - to move each tier to the best output per usage.
 Use it to judge a brief / model / tool-list change before and after
 (T-0113; the monthly harness review, docs/harness.md 12d; the usage
 baseline, docs/harness.md *Measuring the harness*).
@@ -51,6 +55,7 @@ def parse_run(lines, meta=None):
     meta = meta or {}
     usage = {}  # message id -> usage; a reply is logged once per content block, the last has the final count
     model, stamps, tools = None, [], {}
+    efforts = {}  # the effort each reply ran at (Claude Code logs it per assistant line)
     first_edit = None  # message id of the first edit to plugin code
     for line in lines:
         line = line.strip()
@@ -64,6 +69,8 @@ def parse_run(lines, meta=None):
         m = d.get("message", {})
         if m.get("model") and m["model"] != "<synthetic>":
             model = m["model"]
+            if d.get("effort"):
+                efforts[d["effort"]] = efforts.get(d["effort"], 0) + 1
         if m.get("id") and m.get("usage"):
             usage[m["id"]] = m["usage"]  # keeps the first-seen order
         for block in m.get("content") or []:
@@ -88,6 +95,7 @@ def parse_run(lines, meta=None):
         "description": meta.get("description", ""),
         "date": stamps and min(stamps)[:10] or "",
         "model": model or "?",
+        "effort": max(sorted(efforts), key=lambda e: efforts[e]) if efforts else "?",
         "calls": len(calls),
         "start": whole(first),
         "input": sum(whole(u) for u in calls),
@@ -283,6 +291,51 @@ def by_task(runs):
     return out
 
 
+def load_jsonl(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+def by_tier(runs, tasks, loop_events):
+    """(routes, outcomes) for the runs naming a task (T-0313). routes: rows of (tier, agent, model
+    family, effort, tasks, runs, input); outcomes: rows of (tier, tasks, checked, first-pass accepts, revises,
+    interventions) over the tasks those runs worked. A task with no tier counts as "unset"."""
+    tier = {t["id"]: t.get("tier") or "unset" for t in tasks}
+    round_task = {}
+    interventions = {}
+    for e in loop_events:
+        if e.get("event") == "round":
+            round_task[(e.get("run"), e.get("round"))] = e.get("task")
+        elif e.get("event") == "intervene":
+            tid = round_task.get((e.get("run"), e.get("round")))
+            if tid:
+                interventions[tid] = interventions.get(tid, 0) + 1
+    groups, worked = {}, {}
+    for r in runs:
+        m = TASK_ID.search(r["description"])
+        if not m or m.group(0) not in tier:
+            continue
+        tid = m.group(0)
+        g = groups.setdefault((tier[tid], r["agent"], family(r["model"]), r.get("effort", "?")), [set(), 0, 0])
+        g[0].add(tid)
+        g[1] += 1
+        g[2] += r["input"]
+        worked.setdefault(tier[tid], set()).add(tid)
+    routes = [k + (len(v[0]), v[1], v[2]) for k, v in sorted(groups.items())]
+    by_id = {t["id"]: t for t in tasks}
+    outcomes = []
+    for name in sorted(worked):
+        ids = worked[name]
+        reviews = [by_id[i].get("reviews") or [] for i in ids]
+        outcomes.append((name, len(ids), len([r for r in reviews if r]),
+                         len([r for r in reviews if r and r[0].get("verdict") == "accept"]),
+                         sum(len([x for x in r if x.get("verdict") == "revise"]) for r in reviews),
+                         sum(interventions.get(i, 0) for i in ids)))
+    return routes, outcomes
+
+
 def tail_share(runs):
     """Rows of (agent, runs, runs that edited code, input, share of it from the first edit on)."""
     by = {}
@@ -343,6 +396,8 @@ def main(argv=None):
     ap.add_argument("--main", action="store_true", help="count the main sessions too")
     ap.add_argument("--runs", action="store_true", help="one line per run too")
     ap.add_argument("--tasks", action="store_true", help="input per task id, by model family")
+    ap.add_argument("--tiers", action="store_true",
+                    help="input per task tier x agent x model x effort, and each tier's checker / loop outcomes")
     ap.add_argument("--tail", action="store_true",
                     help="share of each agent's input from its first src / tests edit on")
     ap.add_argument("--weeks", action="store_true",
@@ -416,14 +471,25 @@ def main(argv=None):
                               for f in ("opus", "sonnet", "haiku", "fable", "other") if t.get(f))
             out.write("%s %2d runs  %-30s out %6s  %s\n"
                       % (tid, t["runs"], split[:30], _k(t["output"]), ",".join(sorted(t["agents"]))))
+    if args.tiers:
+        routes, outcomes = by_tier(runs, load_jsonl(os.path.join(args.repo, "tasks", "tasks.jsonl")),
+                                   load_jsonl(os.path.join(args.repo, "tasks", "loop.jsonl")))
+        out.write("\nPer tier x agent x model x effort (runs naming a task; unset = no tier, routed as normal):\n")
+        for name, agent, fam, effort, n, nruns, inp in routes:
+            out.write("%-7s %-18s %-7s %-7s %3d tasks %4d runs  input %7s  %7s/run\n"
+                      % (name, agent[:18], fam, effort, n, nruns, _k(inp), _k(inp / float(nruns or 1))))
+        out.write("Per tier, outcomes of the tasks worked (first-pass = the first review accepted):\n")
+        for name, n, checked, first, revises, inter in outcomes:
+            out.write("%-7s %3d tasks  %3d checked, %3d first-pass accepts, %3d revises, %3d interventions\n"
+                      % (name, n, checked, first, revises, inter))
     if args.runs:
         out.write("\n")
         for r in sorted(runs, key=lambda r: (r["agent"], r["date"])):
             top = ", ".join("%s %d" % kv for kv in
                             sorted(r["tools"].items(), key=lambda kv: -kv[1])[:4])
             desc = r["description"].encode("ascii", "replace").decode("ascii")[:34]
-            out.write("%-16s %s %-14s %3d calls start %6s reads %6s out %6s %5.1f min  %-34s %s\n"
-                      % (r["agent"][:16], r["date"], r["model"].replace("claude-", "")[:14],
+            out.write("%-16s %s %-14s %-6s %3d calls start %6s reads %6s out %6s %5.1f min  %-34s %s\n"
+                      % (r["agent"][:16], r["date"], r["model"].replace("claude-", "")[:14], r["effort"][:6],
                          r["calls"], _k(r["start"]), _k(r["cache_read"]), _k(r["output"]),
                          r["minutes"], desc, top))
     return 0

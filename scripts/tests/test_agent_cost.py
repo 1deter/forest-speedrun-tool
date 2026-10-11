@@ -116,6 +116,31 @@ class Grouping(unittest.TestCase):
         self.assertEqual(list(t), ["T-0311"])
         self.assertEqual((t["T-0311"]["opus"], t["T-0311"]["sonnet"], t["T-0311"]["runs"]), (100, 40, 2))
 
+    def test_by_tier_joins_runs_with_tiers_and_outcomes(self):
+        runs = [dict(self.run_("forest-researcher", "claude-opus-5-5", "2026-10-11", "Research T-0001"), effort="high"),
+                dict(self.run_("forest-dev", "claude-sonnet-5-5", "2026-10-11", "Build T-0002", 40), effort="low"),
+                dict(self.run_("forest-checker", "claude-sonnet-5-5", "2026-10-11", "Check T-0002", 10), effort="high"),
+                dict(self.run_("forest-dev", "claude-sonnet-5-5", "2026-10-11", "Build T-0003", 7), effort="medium"),
+                dict(self.run_("forest-dev", "claude-sonnet-5-5", "2026-10-11", "Build T-9999"), effort="low")]
+        tasks = [{"id": "T-0001", "tier": "hard", "reviews": [{"verdict": "revise"}, {"verdict": "accept"}]},
+                 {"id": "T-0002", "tier": "easy", "reviews": [{"verdict": "accept"}]},
+                 {"id": "T-0003"}]
+        loop = [{"event": "round", "run": "R-1", "round": 1, "task": "T-0001"},
+                {"event": "intervene", "run": "R-1", "round": 1, "what": "x"},
+                {"event": "intervene", "run": "R-1", "round": None, "what": "between rounds"}]
+        routes, outcomes = A.by_tier(runs, tasks, loop)
+        self.assertEqual(routes, [("easy", "forest-checker", "sonnet", "high", 1, 1, 10),
+                                  ("easy", "forest-dev", "sonnet", "low", 1, 1, 40),
+                                  ("hard", "forest-researcher", "opus", "high", 1, 1, 100),
+                                  ("unset", "forest-dev", "sonnet", "medium", 1, 1, 7)])
+        self.assertEqual(outcomes, [("easy", 1, 1, 1, 0, 0), ("hard", 1, 1, 0, 1, 1), ("unset", 1, 0, 0, 0, 0)])
+
+    def test_effort_is_read_per_reply(self):
+        lines = [json.dumps(dict(json.loads(reply("m%d" % i, "2026-10-07T04:00:0%d.000Z" % i, U1)), effort=e))
+                 for i, e in enumerate(["high", "high", "low"])]
+        self.assertEqual(A.parse_run(lines)["effort"], "high")
+        self.assertEqual(A.parse_run(LINES)["effort"], "?")
+
     def test_by_week_splits_main_from_agents(self):
         rows = A.by_week([self.run_("main", "claude-opus-5-5", "2026-10-04"),
                           self.run_("main", "claude-opus-5-5", "2026-10-06", inp=50),

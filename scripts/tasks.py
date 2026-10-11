@@ -11,11 +11,12 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
            [--source qa:123] [--needs none] [--verify STEP ...] [--keep "..."]
            [--scope "..."] [--question "..."] [--notes "..."] [--checker | --no-checker]
            [--qa "the line testers read + a message link"]
-    python scripts/tasks.py start T-0001 --by main [--scope ..] [--verify ..] [--keep ..]
+    python scripts/tasks.py start T-0001 --by main [--scope ..] [--verify ..] [--keep ..] [--tier T]
+           [--route agent/model/effort]   # how loop.py routes the work (T-0313)
     python scripts/tasks.py set T-0001 [--status S] [--needs N] [--question Q | --answer A]
            [--priority P] [--commit SHA ...] [--release vX] [--layer L] [--notes ..]
            [--title ..] [--behavior ..] [--verify ..] [--keep ..] [--blocked-by ID ...]
-           [--by NAME]
+           [--tier T] [--route R | --route none] [--by NAME]
     python scripts/tasks.py evidence T-0001 "what proves it" --by forest-tester
     python scripts/tasks.py brief T-0001   # what the checker reads: contract + diff + suites
     python scripts/tasks.py review T-0001 --verdict accept|revise|block --by forest-checker
@@ -50,6 +51,14 @@ NEEDS = ["none", "bridge", "author-eyes", "tester", "moderators", "author-decisi
 AREAS = ["plugin", "site", "bot", "knowledge", "harness", "docs", "release", "research"]
 LAYERS = ["spec", "context", "environment", "verification", "state"]
 DONE = ("confirmed", "wontfix")
+# How hard a task is, set at contract time (T-0313, author 2026-10-11): loop.py routes the work by it.
+# Unset = normal = the area agent at its frontmatter defaults.
+TIERS = ["easy", "normal", "hard"]
+# --route agent/model/effort overrides the tier's route for a task that fits none; an empty part
+# (or "-") keeps the tier's: /haiku/, forest-dev//low. Empty, not "-", on the command line: argparse
+# reads a value starting with "-" as an option.
+ROUTE_MODELS = ["haiku", "sonnet", "opus", "fable"]
+ROUTE_EFFORTS = ["low", "medium", "high", "xhigh", "max"]
 # Areas whose behaviour changes get a fresh-context checker (author, 2026-10-07).
 CHECKED_AREAS = ("plugin", "site", "bot")
 # Plugin behaviour needs the game (the system layer, docs/harness.md 7e): the checker's
@@ -77,7 +86,8 @@ QA_OPEN = ("todo", "in-progress", "built", "released")
 # Field order in the file, so diffs stay readable.
 ORDER = ["id", "title", "area", "priority", "status", "needs", "question", "behavior",
          "scope", "verify", "keep", "qa", "checker", "source", "owner", "maker", "commits",
-         "release", "evidence", "reviews", "layer", "blocked_by", "notes", "created", "updated", "log"]
+         "release", "evidence", "reviews", "layer", "tier", "route", "blocked_by", "notes", "created", "updated",
+         "log"]
 
 
 class TaskError(Exception):
@@ -297,6 +307,11 @@ def validate(tasks):
             raise TaskError("%s has layer %r" % (tid, t.get("layer")),
                             "a failure's layer is one of: " + ", ".join(LAYERS),
                             "`tasks.py set %s --layer <layer>`" % tid)
+        if t.get("tier") not in (None,) + tuple(TIERS):
+            raise TaskError("%s has tier %r" % (tid, t.get("tier")), "a tier is one of: " + ", ".join(TIERS),
+                            "`tasks.py set %s --tier <tier>`" % tid)
+        if t.get("route"):
+            parse_route(t["route"])
         if not t.get("title"):
             raise TaskError("%s has no title" % tid, "a task needs a title", "`tasks.py set %s --title`" % tid)
         if t["needs"] == "author-decision" and not t.get("question"):
@@ -318,6 +333,39 @@ def validate(tasks):
             if dep not in {x["id"] for x in tasks}:
                 raise TaskError("%s is blocked by unknown task %s" % (tid, dep), "blocked_by lists task ids",
                                 "`tasks.py set %s --blocked-by <ids>`" % tid)
+
+
+def parse_route(text):
+    """'agent/model/effort' (an empty part or "-" keeps the tier's) -> {"agent", "model", "effort"}
+    with None for a kept part; raises TaskError."""
+    parts = [x.strip() for x in (text or "").split("/")]
+    fix = "--route agent/model/effort, e.g. forest-dev/haiku/low or /opus/high (an empty part keeps the tier's)"
+    if len(parts) != 3:
+        raise TaskError("bad route %r" % text, "a route is three parts: agent/model/effort", fix)
+    agent, model, effort = [None if x in ("", "-") else x for x in parts]
+    if agent and not re.fullmatch(r"main|forest-[a-z]+", agent):
+        raise TaskError("bad route agent %r" % agent, "the agent is main or a forest-* agent (.claude/agents/)", fix)
+    if model and model not in ROUTE_MODELS:
+        raise TaskError("bad route model %r" % model, "the model is one of: " + ", ".join(ROUTE_MODELS), fix)
+    if effort and effort not in ROUTE_EFFORTS:
+        raise TaskError("bad route effort %r" % effort, "the effort is one of: " + ", ".join(ROUTE_EFFORTS), fix)
+    if not (agent or model or effort):
+        raise TaskError("empty route %r" % text, "a route overrides at least one part",
+                        "--route none drops the override")
+    return {"agent": agent, "model": model, "effort": effort}
+
+
+def set_routing(t, a):
+    """--tier / --route on add, set and start; --route none drops the override."""
+    if getattr(a, "tier", None):
+        t["tier"] = a.tier
+    route = getattr(a, "route", None)
+    if route is not None:
+        if route.strip().lower() == "none":
+            t.pop("route", None)
+        else:
+            parse_route(route)
+            t["route"] = route.strip()
 
 
 def contract_problems(t):
@@ -571,6 +619,8 @@ def line(t):
         flags += " [%s]" % t["needs"]
     if t.get("question"):
         flags += " ?"
+    if t.get("tier") in ("easy", "hard") or t.get("route"):
+        flags += " {%s}" % "/".join(x for x in (t.get("tier"), t.get("route")) if x)
     return "%s P%s %-11s %-9s %s%s" % (t["id"], t.get("priority", 3), t["status"], t["area"], t["title"], flags)
 
 
@@ -781,6 +831,7 @@ def cmd_add(tasks, a):
          "created": today(), "updated": today(), "log": []}
     if t["question"] and t["needs"] == "none":
         t["needs"] = "author-decision"
+    set_routing(t, a)
     tasks.append(t)
     return t
 
@@ -801,6 +852,7 @@ def cmd_set(tasks, a):
         t["blocked_by"] = [normalise_id(x) for x in a.blocked_by]
     if a.checker is not None:
         t["checker"] = a.checker
+    set_routing(t, a)
     if a.question:
         t["question"] = a.question
         if t["needs"] in ("none", "bridge"):
@@ -825,6 +877,7 @@ def cmd_start(tasks, a):
             t[field] = v
     if a.verify:
         t["verify"] = a.verify
+    set_routing(t, a)
     if t["status"] not in ("todo", "blocked", "built"):
         raise TaskError("%s is %s" % (t["id"], t["status"]), "only todo, blocked or built (rework) tasks start",
                         "`tasks.py show %s`" % t["id"])
@@ -891,6 +944,10 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    def routing(sp):
+        sp.add_argument("--tier", choices=TIERS, help="easy / normal / hard: how loop.py routes the work (T-0313)")
+        sp.add_argument("--route", help="agent/model/effort override (/haiku/: an empty part keeps the tier's); none drops it")
+
     def common(sp, setting=False):
         sp.add_argument("--behavior")
         sp.add_argument("--scope")
@@ -903,6 +960,7 @@ def main(argv=None):
         sp.add_argument("--blocked-by", nargs="*")
         sp.add_argument("--question")
         sp.add_argument("--qa")
+        routing(sp)
         g = sp.add_mutually_exclusive_group()
         g.add_argument("--checker", dest="checker", action="store_true", default=None)
         g.add_argument("--no-checker", dest="checker", action="store_false")
@@ -928,6 +986,7 @@ def main(argv=None):
     sp.add_argument("--scope")
     sp.add_argument("--verify", nargs="+")
     sp.add_argument("--keep")
+    routing(sp)
     sp = sub.add_parser("set")
     sp.add_argument("id")
     sp.add_argument("--status", choices=STATUSES)

@@ -61,6 +61,21 @@ WORKER = {
     "docs": "main itself",
     "release": "main itself (skill release)",
 }
+# Routing by tier (T-0313, author 2026-10-11; tasks/notes/T-0313.md): normal (or unset) is WORKER at the
+# agents' frontmatter defaults, exactly as before. Each entry: (agent, model, effort); agent "main" =
+# main itself. Measured per tier with `agent-cost.py --tiers`, then moved to the best output per usage.
+ROUTES = {
+    "easy": {"plugin": ("forest-dev", "sonnet", "low"), "research": ("forest-dev", "sonnet", "low"),
+             "bot": ("forest-dev", "sonnet", "low"), "site": ("forest-site", "sonnet", "low"),
+             "knowledge": ("forest-knowledge", "sonnet", "low"), "harness": ("main", None, None),
+             "docs": ("main", None, None), "release": ("main", None, None)},
+    "hard": {"plugin": ("forest-researcher", "opus", "high"), "research": ("forest-researcher", "opus", "high"),
+             "bot": ("forest-dev", "opus", "high"), "site": ("forest-site", "opus", "high"),
+             "knowledge": ("forest-knowledge", "opus", "high"), "harness": ("main", None, "high"),
+             "docs": ("main", None, "high"), "release": ("main", None, "high")},
+}
+# Where an agent works (WORKER's wording), for the routed line.
+WHERE = {"forest-dev": " in a worktree", "forest-site": " in a worktree"}
 
 
 class LoopError(T.TaskError):
@@ -237,6 +252,48 @@ def needs_release(t, files_of=None):
     return T.touches_plugin(commits, files_of or commit_files)
 
 
+def route(t):
+    """How the task's work is routed: {"tier", "agent", "model", "effort", "override"}; agent "main" is main
+    itself, None = WORKER's choice; model / effort None = the agent's frontmatter default (for main: this
+    session's own effort)."""
+    tier = t.get("tier") or "normal"
+    agent, model, effort = ROUTES.get(tier, {}).get(t["area"], (None, None, None))
+    over = T.parse_route(t["route"]) if t.get("route") else {}
+    return {"tier": tier, "agent": over.get("agent") or agent, "model": over.get("model") or model,
+            "effort": over.get("effort") or effort, "override": t.get("route")}
+
+
+def needs_bump(t):
+    """The effort this session must be on before main works the task itself, or None."""
+    r = route(t)
+    if r["agent"] == "main" and r["effort"] in ("high", "xhigh", "max"):
+        return r["effort"]
+    return None
+
+
+def worker_line(t):
+    """(who does the work and how it is called, main works it itself)."""
+    r = route(t)
+    tag = "tier %s%s" % (r["tier"], ", route " + r["override"] if r["override"] else "")
+    if r["agent"] is None:  # normal: today's worker at its defaults
+        who = WORKER.get(t["area"], "main itself")
+        by_main = who.startswith("main itself")
+        if not (r["model"] or r["effort"] or t.get("tier")):
+            return who, by_main
+        if by_main or not (r["model"] or r["effort"]):
+            return "%s (%s)" % (who, tag), by_main
+        agent = who.split(" ")[0]  # an override of model / effort only: the area's first-named agent
+    elif r["agent"] == "main":
+        bump = needs_bump(t)
+        return "main itself (%s)%s" % (tag, " - this session must be on %s effort: ask the author to switch "
+                                       "it before the work (Claude cannot)" % bump if bump else ""), True
+    else:
+        agent = r["agent"]
+    parts = (['model "%s"' % r["model"]] if r["model"] else []) + (['effort "%s"' % r["effort"]] if r["effort"] else [])
+    call = (", Agent call with " + " and ".join(parts)) if parts else ""
+    return "%s%s%s (%s)" % (agent, WHERE.get(agent, ""), call, tag), False
+
+
 def action(t, rnd):
     """The one thing the round's task needs next, from its state alone."""
     tid = t["id"]
@@ -249,7 +306,8 @@ def action(t, rnd):
                 "fix the faults of its last review" % (tid, tid))
     if s == "todo":
         return ("contract: check git, the code and docs/confirmed.md for it first (migrated tasks can be stale), "
-                "then `tasks.py start %s --by main --behavior .. --scope .. --verify .. --keep ..`; an open "
+                "then `tasks.py start %s --by main --behavior .. --scope .. --verify .. --keep .. --tier "
+                "easy|normal|hard` (`--route agent/model/effort` for one that fits no tier); an open "
                 "choice (intent, design, wording, scope) is a question, not a default: "
                 "`tasks.py set %s --question \"...\" --needs author-decision`, then end the round" % (tid, tid))
     if s == "in-progress":
@@ -259,8 +317,8 @@ def action(t, rnd):
                     "maker (SendMessage to the agent that built it, or a fresh one with the faults), commit, "
                     "then `tasks.py set %s --status built --commit <sha> --by main`"
                     % (len(rv), MAX_REVISES, tid, tid))
-        who = WORKER.get(t["area"], "main itself")
-        if who.startswith("main itself"):
+        who, by_main = worker_line(t)
+        if by_main:
             return ("do the work: %s, from the contract (`tasks.py show %s`); commit, then `tasks.py set %s "
                     "--status built --commit <sha> --by main`" % (who, tid, tid))
         return ("do the work: %s, told only \"%s: the contract is `tasks.py show %s`\"; merge its commits, "
@@ -302,8 +360,43 @@ def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main"):
         lines += ["  %s %s\n    Q: %s" % (t["id"], t["title"], t["question"]) for t in parked]
     else:
         lines.append("no parked questions")
+    lines += tier_lines(tasks, max_rounds, bridge)
     lines.append("next: `python scripts/loop.py next`")
     return new, "\n".join(lines), 0
+
+
+def forecast(tasks, max_rounds, bridge):
+    """The tasks the run would take, in order, if each round finishes its task (a forecast: a park or
+    a new task changes it)."""
+    out, skip = [], set()
+    for _ in range(max_rounds):
+        t = T.pick_next(tasks, bridge=bridge, by="main", skip=skip)
+        if t is None:
+            break
+        out.append(t)
+        skip.add(t["id"])
+    return out
+
+
+def tier_lines(tasks, max_rounds, bridge):
+    """begin's list of the run's likely tasks with their routes: open tiers and session bumps are
+    settled now, before the author steps away, never mid-run (author 2026-10-11, T-0313)."""
+    ahead = forecast(tasks, max_rounds, bridge)
+    if not ahead:
+        return []
+    lines = ["the run's likely tasks and their routes:"]
+    for t in ahead:
+        lines.append("  %s %s %s - %s" % (t["id"], t["area"], t.get("tier") or "tier unset (= normal)",
+                                          worker_line(t)[0]))
+    unset = [t["id"] for t in ahead if not t.get("tier")]
+    if unset:
+        lines.append("tiers to settle now, with the author (`tasks.py set T-n --tier easy|normal|hard`): "
+                     + ", ".join(unset))
+    bumps = [(t["id"], needs_bump(t)) for t in ahead if needs_bump(t)]
+    if bumps:
+        lines.append("main works %s itself at %s effort: ask the author to switch this session now"
+                     % (", ".join(b[0] for b in bumps), "/".join(sorted(set(b[1] for b in bumps)))))
+    return lines
 
 
 def cmd_next(events, tasks):
@@ -349,6 +442,10 @@ def cmd_next(events, tasks):
     new.append(start)
     rnd = {"task": t["id"], "round": n, "start": start, "end": None, "park": None}
     out.append("round %d of %d: %s" % (n, run["begin"].get("max_rounds", MAX_ROUNDS), T.line(t)))
+    bump = needs_bump(t)
+    if bump:
+        out.append("tier %s, worked by main: ask the author now to switch this session to %s effort "
+                   "(Claude cannot), before the contract" % (t.get("tier"), bump))
     out.append("next: " + action(t, rnd))
     return new, "\n".join(out), 0
 
@@ -380,8 +477,10 @@ def cmd_end(events, tasks, summary, tid=None):
                         "comprehension rot)",
                         "--summary \"what changed, how it was proved, what is left\" (one paragraph, "
                         "%d+ characters)" % MIN_SUMMARY)
+    r = route(t)
     e = {"at": now(), "event": "end", "run": run["id"], "round": rnd["round"], "task": t["id"],
-         "status": t["status"], "progress": progressed(t), "parked": parked, "summary": summary}
+         "status": t["status"], "progress": progressed(t), "parked": parked, "summary": summary,
+         "tier": r["tier"], "route": "%s/%s/%s" % (r["agent"] or "-", r["model"] or "-", r["effort"] or "-")}
     return [e], "round %d closed: %s %s (%s)\nnext: `python scripts/loop.py next`" % (
         rnd["round"], t["id"], t["status"], "progress" if e["progress"] else "no progress"), 0
 
@@ -432,9 +531,12 @@ def report(events, rid=None):
         lines.append("stopped %s: %s" % (r["stop"]["at"], r["stop"]["reason"]))
     for x in rounds:
         if x["end"]:
-            lines.append("%d. %s -> %s%s: %s" % (x["round"], x["task"], x["end"]["status"],
-                                                 "" if x["end"].get("progress") else " (no progress)",
-                                                 x["end"]["summary"]))
+            lines.append("%d. %s%s -> %s%s: %s" % (x["round"], x["task"],
+                                                   " [%s]" % x["end"]["tier"]
+                                                   if x["end"].get("tier", "normal") != "normal" else "",
+                                                   x["end"]["status"],
+                                                   "" if x["end"].get("progress") else " (no progress)",
+                                                   x["end"]["summary"]))
         else:
             lines.append("%d. %s - open" % (x["round"], x["task"]))
     for i in r["interventions"]:
