@@ -563,7 +563,8 @@ namespace ForestOverlay.Core
         private static readonly GUIContent ResetText = new GUIContent("Reset profile");
         private static readonly GUIContent ResetSureText = new GUIContent("Sure?");
         private static readonly GUIContent ResetTip = new GUIContent(
-            "This profile back to the default HUD: every value in the column with no text, the panels, Compact and Text size.");
+            "This profile back to the default HUD: every value in the column with no text, the panels, Compact and Text size. " +
+            "Click twice; there is no undo.");
         private static readonly GUIContent TextText = new GUIContent("Text");
         private static readonly GUIContent TextTip = new GUIContent("Your own text before and after the value, e.g. \"Speed \" or \" u/s\".");
         private static readonly GUIContent BeforeText = new GUIContent("Before");
@@ -608,7 +609,11 @@ namespace ForestOverlay.Core
             bool resetArmed = Time.unscaledTime <= _resetArmedUntil;
             if (GUI.Button(new Rect(106f, y, 120f, 26f), resetArmed ? ResetSureText : ResetText)) ResetProfile();
             UiKit.Hint(new Rect(106f, y, 120f, 26f), ResetTip);
-            y += 34f;
+            y += 30f;
+            // One short line under Reset profile (T-0321): what it wipes while armed, then that it was done.
+            if (resetArmed) y += UiText.Draw(106f, y, w - 106f, ResetArmedNote, UiKit.HintStyle) + 2f;
+            else if (Time.unscaledTime <= _resetDoneUntil) y += UiText.Draw(106f, y, w - 106f, _resetDoneNote, UiKit.HintStyle) + 2f;
+            y += 4f;
 
             int rows = 0;
             for (int i = 0; i < HudLines.All.Length; i++) if (!HudLines.All[i].Locked) rows++;
