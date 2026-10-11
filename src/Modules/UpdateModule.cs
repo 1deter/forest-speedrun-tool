@@ -174,6 +174,10 @@ namespace ForestOverlay.Modules
             }
             GUI.enabled = true;
 
+            // Kept (T-0254, unlike the other lists' buttons): the check reads
+            // api.github.com's latest release - 60 calls an hour per IP - so
+            // nothing re-asks it by itself beyond the startup check and the
+            // mid-publish retries; a re-check is the runner's click.
             if (GUI.Button(new Rect(210, y, 130, 26), "Check again"))
             {
                 if (Ctx.Runner != null) Ctx.Runner.StartCoroutine(_checker.Check());
