@@ -142,7 +142,7 @@ end. Author's calls (2026-10-07, harness.md *Decisions* 7):
   A loop run is the exception to *one session, one task* below.
 - **Stops by machine check**: 5 rounds done, nothing left in the pool,
   3 rounds in a row without progress, or this session's context past
-  300k (author, 2026-10-10; was 200k) - `begin` refuses a new run then too, so the next run starts in a
+  250k (author, 2026-10-11, T-0319; 300k from 10-10, 200k before); every session, loop or not, gets a hook warning past it (`scripts/hooks/pre_tool.py`) - `begin` refuses a new run then too, so the next run starts in a
   fresh session (author, 2026-10-09, T-0249). A task's 3rd checker revise in
   its round parks it (`needs: author-decision`, the faults as its
   question) and the loop moves on.

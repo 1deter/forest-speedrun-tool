@@ -246,5 +246,34 @@ class StopFindings(unittest.TestCase):
         self.assertIn("forest-checker", out[0])
 
 
+class ContextCap(unittest.TestCase):
+    def write(self, d, context):
+        path = os.path.join(d, "t.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"type": "assistant", "message": {"usage": {
+                "input_tokens": 1, "cache_read_input_tokens": context - 1, "cache_creation_input_tokens": 0}}}) + "\n")
+        return {"transcript_path": path, "session_id": "s1"}
+
+    def test_warns_once_per_step_past_the_cap(self):
+        d = tempfile.mkdtemp()
+        try:
+            self.assertIsNone(P.context_cap(self.write(d, 240000), d))
+            kind, reason = P.context_cap(self.write(d, 251000), d)
+            self.assertEqual(kind, "warn")
+            self.assertIn("251k, past the 250k cap", reason)
+            self.assertIsNone(P.context_cap(self.write(d, 270000), d))  # same 25k step
+            self.assertEqual(P.context_cap(self.write(d, 276000), d)[0], "warn")
+        finally:
+            shutil.rmtree(d)
+
+    def test_no_transcript_is_no_opinion(self):
+        self.assertIsNone(P.context_cap({}))
+
+    def test_same_cap_as_the_loop(self):
+        sys.path.insert(0, os.path.join(HERE, ".."))
+        import loop
+        self.assertEqual(P.CONTEXT_CAP, loop.MAX_CONTEXT)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,9 @@ with the call as JSON on stdin. It answers with a permission decision:
 - refuse a search over a whole drive, the filesystem root or the home folder
   (find / ls -R / grep -r / rg / Get-ChildItem -Recurse / dir /s / where /r /
   a Python walk, deeper than 2) and name where the files are (gotcha 99),
-- warn on Get-Content | Set-Content (router rule 8, gotcha 9).
+- warn on Get-Content | Set-Content (router rule 8, gotcha 9),
+- warn once per 25k step when the session's context is past CONTEXT_CAP
+  (250k, author 2026-10-11, T-0319): finish the step, hand off, end.
 
 Anything else passes silently. A crash here must never block work, so
 every error falls through to "no opinion".
@@ -21,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 FETCHERS = re.compile(r"\b(curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|urllib|requests\.|http\.client|"
                       r"WebClient|HttpClient|fetch\()", re.I)
@@ -227,6 +230,58 @@ def decide(payload, root=None, branch=None):
             or wide_search(command, root) or ps_round_trip(command, tool))
 
 
+CONTEXT_CAP = 250000  # tokens; the same cap as scripts/loop.py MAX_CONTEXT (author, 2026-10-11, T-0319)
+CONTEXT_STEP = 25000  # past the cap, warn again each time the context grows by this much
+
+
+def context_size(transcript):
+    """The context of the transcript's last API call (input + cache reads + writes), or None."""
+    try:
+        with open(transcript, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 1000000))
+            lines = f.read().decode("utf-8", "replace").splitlines()
+    except (OSError, TypeError):
+        return None
+    for line in reversed(lines):
+        if '"usage"' not in line:
+            continue
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        u = (e.get("message") or {}).get("usage") if isinstance(e, dict) else None
+        if e.get("type") == "assistant" and u:
+            return sum(u.get(k) or 0 for k in ("input_tokens", "cache_read_input_tokens",
+                                               "cache_creation_input_tokens"))
+    return None
+
+
+def context_cap(payload, state_dir=None):
+    """A warn when this session's context is past CONTEXT_CAP and has not been warned at this step."""
+    tokens = context_size(payload.get("transcript_path"))
+    if tokens is None or tokens <= CONTEXT_CAP:
+        return None
+    step = (tokens - CONTEXT_CAP) // CONTEXT_STEP
+    mark = os.path.join(state_dir or tempfile.gettempdir(),
+                        "forest-context-%s.txt" % re.sub(r"[^\w-]", "", str(payload.get("session_id") or "x")))
+    try:
+        with open(mark) as f:
+            if int(f.read().strip() or -1) >= step:
+                return None
+    except (OSError, ValueError):
+        pass
+    try:
+        with open(mark, "w") as f:
+            f.write(str(step))
+    except OSError:
+        pass
+    return ("warn", "this session's context is %dk, past the %dk cap (author, 2026-10-11, T-0319). Finish the "
+                    "step in hand, record where the task stands (tasks.py evidence / the handoff), commit, and "
+                    "end: a main session tells the author to continue in a fresh one, a subagent returns its "
+                    "report." % (tokens // 1000, CONTEXT_CAP // 1000))
+
+
 def loop_open(path=None):
     """True while a loop run is open (tasks/loop.jsonl: a begin with no stop
     after it). Nobody is there to answer an ask then."""
@@ -262,7 +317,7 @@ def answer(decision, unattended=False):
 def main():
     try:
         payload = json.load(sys.stdin)
-        d = decide(payload, install_root())
+        d = decide(payload, install_root()) or context_cap(payload)
     except Exception:
         return 0
     if d:

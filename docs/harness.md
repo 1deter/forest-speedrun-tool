@@ -715,6 +715,13 @@ Not built, measured too small: moving CLAUDE.md's *Where we are* out
 (~0.7k) or shortening MEMORY.md (~1.5k) - under 1% a session each. The
 big one left is session length: 41% of main input is sent at > 200k
 context (68% at > 150k, 12% at > 300k), which only a handoff cap can cut.
+**Cap at 250k (author, 2026-10-11, after the measurement).** Sessions
+since 10-09 bleed less (since 10-11: 17% of input sent at > 250k, peak
+median 146k). Replayed on them with a re-learn base of 110-140k, a cap
+keeps 95-96% of the input at 250k (9 handoffs in 42 sessions), 89-93% at
+200k (21-25) and 86-93% at 175k (38-59). So 250k for every session:
+`loop.py` MAX_CONTEXT and a `pre_tool.py` warning (once per 25k past it:
+finish the step, hand off, end). Lower it once the start shrinks.
 
 ---
 
