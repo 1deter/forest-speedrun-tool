@@ -51,6 +51,21 @@ namespace ForestOverlay.Core
         private static Font _valueFont;
         private static bool _valueFontTried;
 
+        // Every printable ASCII glyph, asked of the values' font at each size in
+        // use on every repaint (T-0301). A dynamic font keeps only the glyphs
+        // asked for lately: Speed going 0.00 -> moving digits -> 0.00 rebuilt
+        // its whole texture at 96 px bold, a ~20 ms frame on each start and
+        // stop of walking (author: a spike per WASD press). Asked every frame,
+        // nothing is ever missing; the call costs nothing once they are in.
+        private static readonly string KeptGlyphs = PrintableAscii();
+
+        private static string PrintableAscii()
+        {
+            char[] c = new char[127 - 32];
+            for (int i = 0; i < c.Length; i++) c[i] = (char)(32 + i);
+            return new string(c);
+        }
+
         private static int ValueRenderFor(float size)
         {
             for (int i = 0; i < ValueRenders.Length; i++)
@@ -313,6 +328,8 @@ namespace ForestOverlay.Core
         {
             HudWidgetLayout w = _layout.Widgets[i];
             ScaleStyles st = StylesFor(w.Scale);
+            if (e != null && e.type == EventType.Repaint && _valueFont != null && st.Value.font == _valueFont)
+                _valueFont.RequestCharactersInTexture(KeptGlyphs, st.Value.fontSize, FontStyle.Bold);
 
             // The slots this widget shows (a pinned-items widget has several).
             int slots = 0;
