@@ -68,6 +68,13 @@ namespace ForestOverlay.Tests
         }
 
         [Theory, MemberData(nameof(Variants))]
+        public void Description_DoesNotRepeatTheName(string id)
+        {
+            UiPalette p = UiPalette.Find(id);
+            Assert.DoesNotContain(p.Name, p.Description);
+        }
+
+        [Theory, MemberData(nameof(Variants))]
         public void TextColours_AreDistinct_SoASwitchCanTellThemApart(string id)
         {
             UiPalette p = UiPalette.Find(id);
@@ -78,11 +85,11 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void Ids_AreUnique_AndFindFallsBackToTheSite()
+        public void Ids_AreUnique_AndFindFallsBackToWarm()
         {
             HashSet<string> ids = new HashSet<string>();
             foreach (UiPalette p in UiPalette.All) Assert.True(ids.Add(p.Id), p.Id);
-            Assert.Equal("site", UiPalette.Default.Id);
+            Assert.Equal("warm", UiPalette.Default.Id);
             Assert.Same(UiPalette.Default, UiPalette.Find("nonsense"));
             Assert.Same(UiPalette.Default, UiPalette.Find(null));
             Assert.Equal("warm", UiPalette.Find("warm").Id);

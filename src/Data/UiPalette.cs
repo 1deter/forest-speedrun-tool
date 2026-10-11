@@ -79,7 +79,7 @@ namespace ForestOverlay.Data
             new UiPalette
             {
                 Id = "bluegrey", Name = "Blue-grey (first redesign)",
-                Description = "The redesign's first look: blue-grey panels, yellow accent.",
+                Description = "The redesign's first look: blue-grey panels, a yellow accent.",
                 Panel = 0x17191FFF, Card = 0x20232BFF, CardHover = 0x2A2E38FF, Border = 0x2E323CFF,
                 ButtonBorder = 0x3D424FFF, ButtonHoverBorder = 0x575E6EFF, Field = 0x111217FF,
                 Widget = 0x121317D6, WidgetBorder = 0x333842E6, Tip = 0x0A0B0EFA, TipBorder = 0x4D5463FF,
@@ -93,7 +93,7 @@ namespace ForestOverlay.Data
             new UiPalette
             {
                 Id = "catppuccin-mocha", Name = "Catppuccin Mocha",
-                Description = "Catppuccin Mocha, the darkest of its dark flavours: soft pastels on blue-violet, its yellow as the accent.",
+                Description = "The darkest of Catppuccin's dark flavours: soft pastels on blue-violet, its yellow as the accent.",
                 Panel = 0x181825FF, Card = 0x1E1E2EFF, CardHover = 0x313244FF, Border = 0x313244FF,
                 ButtonBorder = 0x45475AFF, ButtonHoverBorder = 0x585B70FF, Field = 0x11111BFF,
                 Widget = 0x11111BD6, WidgetBorder = 0x313244E6, Tip = 0x11111BFA, TipBorder = 0x585B70FF,
@@ -104,7 +104,7 @@ namespace ForestOverlay.Data
             new UiPalette
             {
                 Id = "catppuccin-macchiato", Name = "Catppuccin Macchiato",
-                Description = "Catppuccin Macchiato, the middle one of its dark flavours: soft pastels on blue-violet, its yellow as the accent.",
+                Description = "The middle one of Catppuccin's dark flavours: soft pastels on blue-violet, its yellow as the accent.",
                 Panel = 0x1E2030FF, Card = 0x24273AFF, CardHover = 0x363A4FFF, Border = 0x363A4FFF,
                 ButtonBorder = 0x494D64FF, ButtonHoverBorder = 0x5B6078FF, Field = 0x181926FF,
                 Widget = 0x181926D6, WidgetBorder = 0x363A4FE6, Tip = 0x181926FA, TipBorder = 0x5B6078FF,
@@ -115,7 +115,7 @@ namespace ForestOverlay.Data
             new UiPalette
             {
                 Id = "catppuccin-frappe", Name = "Catppuccin Frappé",
-                Description = "Catppuccin Frappé, the lightest of its dark flavours: soft pastels on blue-violet, its yellow as the accent.",
+                Description = "The lightest of Catppuccin's dark flavours: soft pastels on blue-violet, its yellow as the accent.",
                 Panel = 0x292C3CFF, Card = 0x303446FF, CardHover = 0x414559FF, Border = 0x414559FF,
                 ButtonBorder = 0x51576DFF, ButtonHoverBorder = 0x626880FF, Field = 0x232634FF,
                 Widget = 0x232634D6, WidgetBorder = 0x414559E6, Tip = 0x232634FA, TipBorder = 0x626880FF,
@@ -125,17 +125,18 @@ namespace ForestOverlay.Data
             },
         };
 
-        /// The site's colours until the author picks (decisions.md: "the
-        /// same palette as the site").
-        public static UiPalette Default { get { return All[0]; } }
+        /// Warm near-black: the author's pick (2026-10-11).
+        public static UiPalette Default { get { return Find("warm"); } }
 
         /// The variant with this id; Default for an unknown or empty one.
         public static UiPalette Find(string id)
         {
             for (int i = 0; i < All.Length; i++)
                 if (All[i].Id == id) return All[i];
-            return Default;
+            return All[DefaultIndex];
         }
+
+        private const int DefaultIndex = 2;   // warm
 
         public static float R(uint c) { return ((c >> 24) & 0xFF) / 255f; }
         public static float G(uint c) { return ((c >> 16) & 0xFF) / 255f; }

@@ -54,7 +54,7 @@ accent `#F5C417` - and *Catppuccin Mocha / Macchiato / Frappé* (mantle
 window, base cards, surface edges, subtext hints, its yellow accent, peach
 warn).
 
-| Token | site (default) | black | warm | translucent |
+| Token | site | black | warm (default) | translucent |
 |---|---|---|---|---|
 | Window / panel | `#000000` | `#000000` | `#0E0E09` | `#000000` @ 78 % |
 | Card / section header | `#0D0D0D` | `#121212` | `#18170F` | `#1A1A1A` @ 71 % |
