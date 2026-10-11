@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-225 prefixes from 731 log calls.
+225 prefixes from 732 log calls.
 
 ## `Aerial capture`
 
@@ -53,7 +53,7 @@ Written by AreaKeeper.cs; warning.
 
 ## `Attempts`
 
-Meaning: A run attempt's log upload to the site: sent (with the site's verdict), refused (moved aside) or retried. Also: a sent attempt deleted on the site, taken off the Runs tab's list (T-0144).
+Meaning: A run attempt's log upload to the site: sent (with the site's verdict), refused (moved aside) or retried. Also: a sent attempt deleted on the site, taken off the Runs tab's list (T-0144; `<how>` = the site's light attempt check, or 404 from a site that predates it - T-0266).
 Written by RunUploadModule.Attempts.cs; info / warning.
 
 - warning `Attempts: <id> is deleted on the site but could not be taken off sent.txt: <ex.Message>`
@@ -61,7 +61,7 @@ Written by RunUploadModule.Attempts.cs; info / warning.
 - warning `Attempts: <id> log refused - <msg> (moved to uploads/attempts/refused).`
 - info `Attempts: <id> log sent - <verdict><..>.`
 - info `Attempts: <id> never ended (the game closed during it) - its log is <..>`
-- info `Attempts: <id> was deleted on the site (404) - taken off the Runs tab's list (sent.txt).`
+- info `Attempts: <id> was deleted on the site (<how>) - taken off the Runs tab's list (sent.txt).`
 - warning `Attempts: cannot read <..>: <ex.Message>`
 - warning `Attempts: checkpoint <attemptId> step <step> not taken: <..>.`
 - info `Attempts: checkpoint <attemptId> step <step> sent.`
@@ -69,6 +69,7 @@ Written by RunUploadModule.Attempts.cs; info / warning.
 - warning `Attempts: could not write the open log of <attemptId>: <ex.Message>`
 - warning `Attempts: no start code for <attemptId> - <..>; the attempt is offline.`
 - warning `Attempts: open logs not recovered: <ex.Message>`
+- info `Attempts: the site has no light attempt check yet (404) - each listed attempt is asked about in full this session.`
 - warning `Attempts: token refused (401); attempt logs wait.`
 
 ## `Awake() threw`
