@@ -568,11 +568,11 @@ namespace ForestOverlay.Modules
             get { return _splitsPanel != null && _splitsPanel.Value && Timing && _segment != null && _shownRows > 0; }
         }
 
-        /// Edit HUD mode (Core/HudWidgets): the panels show even with nothing
-        /// in them, with an outline and their resize edges.
         // The panels' names as Edit HUD pieces (snapping, T-0020).
         private const string SplitsPiece = "splits", ResultsPiece = "results";
 
+        /// Edit HUD mode (Core/HudWidgets): the panels show even with nothing
+        /// in them, with an outline and their resize edges.
         private bool HudEditing
         {
             get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; }

@@ -522,7 +522,7 @@ namespace ForestOverlay.Core
 
         private static readonly GUIContent EditHint = new GUIContent(
             "Drag a value out of the column to place it anywhere; drag the column's grip (the bar beside it) to move the column. " +
-"Drag a placed value to move it, its corner to resize it; right-click it to put it back. " +
+            "Drag a placed value to move it, its corner to resize it; right-click it to put it back. " +
             "Dragged pieces snap to the screen's centre and quarters and to each other; hold Alt to place freely.");
         private static readonly GUIContent LockedNote = new GUIContent(
             "Always shown under the column: ON NOW and the practice marker (a recording must show them).");
