@@ -81,6 +81,16 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent PlaceTip = new GUIContent(
             "Where the column of values sits (top left by default). Drag it while this window is open.");
         private static readonly GUIContent ResetValuesText = new GUIContent("Reset the values");
+        private static readonly GUIContent ResetKeysText = new GUIContent("Reset all keys");
+        private static readonly GUIContent ResetKeysTip = new GUIContent("Every key back to its default.");
+        private static readonly GUIContent SureText = new GUIContent("Sure?");
+        private static readonly GUIContent ValuesResetText = new GUIContent("Values reset to defaults.");
+        // The resets ask once (T-0260): the first click arms "Sure?" for a
+        // few seconds, a second click resets - as Edit HUD's profile Delete.
+        private const float ConfirmSeconds = 3f;
+        private float _resetKeysArmedUntil = -1f;
+        private float _resetValuesArmedUntil = -1f;
+        private float _valuesResetUntil = -1f;
         private static readonly GUIContent ResetValuesTip = new GUIContent(
             "Every value back to its default on / off. Look, position and widgets stay.");
         private static readonly GUIContent EditLayoutText = new GUIContent("Edit HUD layout");
@@ -250,11 +260,19 @@ namespace ForestOverlay.Modules
                 _prompt.text = _message.Length > 0 ? _message : StatusLine();
             }
 
-            if (GUI.Button(new Rect(12, y, 118, 22), "Reset all keys"))
+            Rect resetR = new Rect(12, y, 118, 22);
+            bool armed = Time.unscaledTime <= _resetKeysArmedUntil;
+            if (GUI.Button(resetR, armed ? SureText : ResetKeysText))
             {
-                map.ResetToDefaults();
-                Say("Keys reset to defaults.");
+                if (!armed) _resetKeysArmedUntil = Time.unscaledTime + ConfirmSeconds;
+                else
+                {
+                    _resetKeysArmedUntil = -1f;
+                    map.ResetToDefaults();
+                    Say("Keys reset to defaults.");
+                }
             }
+            UiKit.Hint(resetR, ResetKeysTip);
             y += 26f;
 
             // Where the click was: the prompt / result under the button.
@@ -350,13 +368,23 @@ namespace ForestOverlay.Modules
             }
 
             Rect resetR = new Rect(4, y + 2f, 150, 22);
-            if (GUI.Button(resetR, ResetValuesText))
+            bool armed = Time.unscaledTime <= _resetValuesArmedUntil;
+            if (GUI.Button(resetR, armed ? SureText : ResetValuesText))
             {
-                s.ResetValues();
-                s.SetExternalShows(false);
+                if (!armed) _resetValuesArmedUntil = Time.unscaledTime + ConfirmSeconds;
+                else
+                {
+                    _resetValuesArmedUntil = -1f;
+                    s.ResetValues();
+                    s.SetExternalShows(false);
+                    _valuesResetUntil = Time.unscaledTime + MessageSeconds;
+                }
             }
             UiKit.Hint(resetR, ResetValuesTip);
             y += 30f;
+            // What it did, under the click.
+            if (Time.unscaledTime <= _valuesResetUntil)
+                y += UiText.Draw(4, y, cw - 8, ValuesResetText) + 4f;
 
             return y + 6f;
         }
