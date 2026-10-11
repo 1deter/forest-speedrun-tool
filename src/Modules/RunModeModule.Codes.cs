@@ -291,15 +291,19 @@ namespace ForestOverlay.Modules
             int size = Mathf.Clamp(Mathf.RoundToInt(_codeSize.Value), 16, 120);
             if (_codeStyle != null && _styleSize == size) return;
             _styleSize = size;
-            _codeStyle = UiKit.Style(GUI.skin.label);
+            if (_codeStyle == null)
+            {
+                // Built once (UiKit.Style keeps every style it makes); a size change only resizes.
+                _codeStyle = UiKit.Style(GUI.skin.label);
+                _codeStyle.fontStyle = FontStyle.Bold;
+                _codeStyle.alignment = TextAnchor.MiddleCenter;
+                _codeStyle.normal.textColor = Color.white;
+                _subStyle = UiKit.Style(GUI.skin.label);
+                _subStyle.alignment = TextAnchor.MiddleCenter;
+                _subStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+            }
             _codeStyle.fontSize = size;
-            _codeStyle.fontStyle = FontStyle.Bold;
-            _codeStyle.alignment = TextAnchor.MiddleCenter;
-            _codeStyle.normal.textColor = Color.white;
-            _subStyle = UiKit.Style(GUI.skin.label);
             _subStyle.fontSize = Mathf.Max(11, size / 3);
-            _subStyle.alignment = TextAnchor.MiddleCenter;
-            _subStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
             if (_boxStyle == null)
             {
                 _boxStyle = UiKit.Style(UiKit.WidgetCard);   // the redesign's card

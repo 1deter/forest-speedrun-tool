@@ -69,6 +69,9 @@ with `UiKit.Style(src)` (modules use it instead of `new GUIStyle(src)`), so a
 text colour in a variant must differ from its other text colours - a unit
 test holds it. Semantic colours (split deltas, map markers, QA pass / fail)
 are a module's own and stay.
+
+| Layout | Value |
+|---|---|
 | Radius | 6 px (panels), 4 px (controls) |
 | Spacing | 4 / 8 / 12 px; 8 px window padding |
 | Type scale | 12 body, 11 dim / hints, 13 section title, 26 headline (results), widget value 16-48 by scale |
