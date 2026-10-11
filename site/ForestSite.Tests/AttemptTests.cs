@@ -819,6 +819,48 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void Official_KeepsEachVerdict_EvenWhenTheViewsCacheHoldsNothing()
+    {
+        // Security audit (2026-10-11): with the views' cache full, every new
+        // log made the next /api/official replay every finished log again.
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new Store(dir);
+            var categories = new Categories(store, () => Issued);
+            var cat = new RunCategory { Id = "any-normal", Name = "Any% - Normal", Status = "published", Difficulty = "normal" };
+            Assert.Null(categories.Save("any-normal", cat.Format(), "admin").error);
+            var a = new Attempts(store, dir, () => Issued, categories) { MaxCachedLog = 1 };   // no view is kept
+            string red = Report(r => r.OtherPlugins.Add(Mod));
+            for (int n = 1; n <= 3; n++)
+                Assert.Equal(200, a.Log(Runner, AId(n), FinishedLog(AId(n), "any-normal", 60_000 + n, report: red)).Status);
+            int Listed() => System.Text.Json.JsonSerializer.SerializeToNode(a.Official())!.AsArray().Single()!["count"]!.GetValue<int>();
+
+            Assert.Equal(0, Listed());
+            Assert.Equal(3, a.LogsJudged);
+            // A new log changes the list: only that one is judged.
+            Assert.Equal(200, a.Log(Runner2, AId(4), FinishedLog(AId(4), "any-normal", 70_000, runner: Runner2)).Status);
+            Assert.Equal(1, Listed());
+            Assert.Equal(4, a.LogsJudged);
+            // The allow-list changes every verdict: judged again, once.
+            a.Allow("mod", Mod, "admin");
+            Assert.Equal(2, Listed());
+            Assert.Equal(8, a.LogsJudged);
+            // A view still replays (nothing kept) and agrees.
+            Assert.NotEqual("red", System.Text.Json.JsonSerializer.SerializeToNode(a.View(AId(1)))!["verdict"]!.GetValue<string>());
+            Assert.Equal(9, a.LogsJudged);
+            // A deleted attempt's verdict goes with it.
+            Assert.True(a.Delete(AId(4)));
+            Assert.Equal(1, Listed());
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
     public void PathOf_ReadsTheStepPositions_InMetres_SkippingLoads()
     {
         var c = new AttemptChain();

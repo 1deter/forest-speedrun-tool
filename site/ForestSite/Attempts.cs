@@ -317,7 +317,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             {
                 if (accepted.TryGetValue(id, out bool ok)) return ok;
                 var row = Row(id);
-                ok = row?.LogMs != null && JudgedLog(id, row).Verdict != "red";
+                ok = row?.LogMs != null && VerdictOf(id, row) != "red";
                 accepted[id] = ok;
                 return ok;
             }
@@ -356,22 +356,45 @@ CREATE TABLE IF NOT EXISTS allowed_code (
                                  object Recording, string Report, object Loads, List<double[]> Path);
 
     /// The logs' size the cache may hold (characters of log text); past it,
-    /// it starts again.
-    public const long MaxCachedLog = 64L * 1024 * 1024;
+    /// it starts again. Settable for the tests.
+    public long MaxCachedLog { get; set; } = 64L * 1024 * 1024;
 
     private readonly Dictionary<string, Judged> _judged = new();
+    /// The verdict alone, per attempt: a few bytes each, so it outlives the
+    /// views' cache - the official list asks every finished attempt's
+    /// verdict, and with the views' cache full each new log made it replay
+    /// all of them again (security audit, 2026-10-11: a runner's 500 red
+    /// 4 MB logs were 2 GB of replay per /api/official). Valid as a view is.
+    private readonly Dictionary<string, (long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, string Verdict)> _verdicts = new();
     private long _judgedWeight;
     private int _allowedVersion;
 
     /// How many times a view replayed and judged a log (tests).
     public int LogsJudged;
 
+    /// Whether a judgement made under these still holds: the same log, the
+    /// same allow-list, and the category version it named was there then or
+    /// is still missing now. Under the lock.
+    private bool Holds(AttemptRow row, long logMs, int allowedVersion, string categoryId, int categoryVersion, bool categoryFound) =>
+        logMs == row.LogMs && allowedVersion == _allowedVersion &&
+        (categoryFound || categoryId.Length == 0 || _categories?.Version(categoryId, categoryVersion) == null);
+
+    /// An ended attempt's verdict, from either cache before a replay.
+    private string VerdictOf(string id, AttemptRow row)
+    {
+        lock (_judged)
+        {
+            if (_verdicts.TryGetValue(id, out var v) && Holds(row, v.LogMs, v.AllowedVersion, v.CategoryId, v.CategoryVersion, v.CategoryFound))
+                return v.Verdict;
+        }
+        return JudgedLog(id, row).Verdict;
+    }
+
     private Judged JudgedLog(string id, AttemptRow row)
     {
         lock (_judged)
         {
-            if (_judged.TryGetValue(id, out var hit) && hit.LogMs == row.LogMs && hit.AllowedVersion == _allowedVersion &&
-                (hit.CategoryFound || hit.CategoryId.Length == 0 || _categories?.Version(hit.CategoryId, hit.CategoryVersion) == null))
+            if (_judged.TryGetValue(id, out var hit) && Holds(row, hit.LogMs, hit.AllowedVersion, hit.CategoryId, hit.CategoryVersion, hit.CategoryFound))
                 return hit;
         }
         int allowedVersion = Volatile.Read(ref _allowedVersion);
@@ -407,6 +430,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text));
         lock (_judged)
         {
+            _verdicts[id] = (j.LogMs, j.AllowedVersion, j.CategoryId, j.CategoryVersion, j.CategoryFound, j.Verdict);
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
             if (j.Weight <= MaxCachedLog)
             {
@@ -449,7 +473,10 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private void Forget(string id)
     {
         lock (_judged)
+        {
+            _verdicts.Remove(id);
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
+        }
     }
 
     // --- moves the game saw (pure, tested) -----------------------------------------
