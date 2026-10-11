@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-226 prefixes from 708 log calls.
+227 prefixes from 709 log calls.
 
 ## `Aerial capture`
 
@@ -916,6 +916,13 @@ Meaning: ModAPI's rebuilt Assembly-CSharp (UltimateCheatmenu...) is loaded: at l
 Written by Plugin.cs; warning.
 
 - warning `ModAPI: loaded - this session is flagged (the HUD's ModAPI flag, every run mode attempt).`
+
+## `Mods`
+
+Meaning: Other code was seen beside the game (another BepInEx plugin, a patcher, a DLL from outside the game folders, a Harmony patch owned by someone else; T-0308): the names, listed when a new one turns up. The session stays flagged - the HUD `Mods:` line, `Mods Detected: ...` on every run mode attempt and on uploaded runs.
+Written by ExternalModWatch.cs; warning.
+
+- warning `Mods: other code is running beside the game - this session is flagged (<..>).`
 
 ## `Module`
 

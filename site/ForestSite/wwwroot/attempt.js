@@ -156,7 +156,8 @@ async function attemptPage(id) {
 
   show(
     // Played with ModAPI loaded (T-0295; the author's words).
-    el("h1", null, "Run attempt", a.modApi ? el("span", { class: "tag bad" }, "ModAPI Detected") : null),
+    el("h1", null, "Run attempt", a.modApi ? el("span", { class: "tag bad" }, "ModAPI Detected") : null,
+      a.mods ? el("span", { class: "tag bad", title: "Other mods loaded: " + a.mods }, "Mods Detected: " + a.mods) : null),
     el("p", { class: "sub" }, [catName, a.runnerName || a.runner, when ? date(when) : null].filter(Boolean).join(" · ")),
     el("section", { class: "verdict v-" + (VERDICTS[a.verdict] ? a.verdict : "running") },
       el("div", { class: "vhead" }, el("span", { class: "mark", "aria-hidden": "true" }, MARKS[a.verdict] || "…"), head),

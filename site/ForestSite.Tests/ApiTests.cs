@@ -146,6 +146,22 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Board_NamesTheModsOfARun()
+    {
+        Segment seg = TestSegment();
+        string ta = await Register(A);
+        string tb = await Register(B);
+        string text = RunText(seg, A, 10f, 4f, 1).Replace("duration|", "flags|Mods Detected: Cool Cheats, Foo.dll" + "\n" + "duration|");
+        await Upload(ta, Bundle(seg, text));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 11f, 4f, 2)));
+        JsonObject spot = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        var board = spot["routes"][0]["board"].AsArray();
+        Assert.Equal(2, board.Count);
+        Assert.Equal("Cool Cheats, Foo.dll", board[0]["mods"]?.GetValue<string>());
+        Assert.Null(board[1]["mods"]);
+    }
+
+    [Fact]
     public async Task WebsiteSpots_ListAndFoseg_ForThePlugin()
     {
         Segment seg = TestSegment();

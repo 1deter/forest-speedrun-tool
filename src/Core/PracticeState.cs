@@ -29,7 +29,7 @@ namespace ForestOverlay.Core
 
         /// Draw the HUD line as a warning: practice used outside a run, or
         /// a run that is not valid.
-        public bool Warn { get { return _runText != null ? _runInvalid : _reason != null || _modApi; } }
+        public bool Warn { get { return _runText != null ? _runInvalid : _reason != null || _modApi || _mods.Length > 0; } }
 
         /// Core/RunMode: told of every Mark (a Mark during a run flags it).
         public System.Action<string> MarkedDuringRun;
@@ -64,6 +64,23 @@ namespace ForestOverlay.Core
         {
             _modApi = on;
             Rebuild();
+        }
+
+        // Other mods seen this session (T-0308): the names, "" while none.
+        // Sticky like ModAPI; set by Game/ExternalModWatch.
+        private string _mods = "";
+        public string Mods { get { return _mods; } }
+
+        /// Core/RunMode: told when the names change (a mid-attempt flag).
+        public System.Action<string> ModsChanged;
+
+        public void SetMods(string names)
+        {
+            names = names ?? "";
+            if (names == _mods) return;
+            _mods = names;
+            Rebuild();
+            if (ModsChanged != null && names.Length > 0) ModsChanged(names);
         }
 
         public void Reset()
@@ -110,7 +127,7 @@ namespace ForestOverlay.Core
             // while clean (author, 2026-10-10: no "PRACTICE" word, no count -
             // the flag says it). Each tool logs its own action; Reason /
             // UseCount stay for the bridge. A ModAPI session's flag sits above.
-            _label.text = HudLines.Marker(_modApi, _runText, _reason);
+            _label.text = HudLines.Marker(_modApi, _mods, _runText, _reason);
         }
     }
 }

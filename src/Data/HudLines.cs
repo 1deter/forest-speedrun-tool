@@ -255,8 +255,16 @@ namespace ForestOverlay.Data
         /// ModAPI flag first when the session has it, then the tool's short name.
         public static string Marker(bool modApi, string runText, string reason)
         {
+            return Marker(modApi, "", runText, reason);
+        }
+
+        /// With the external mods seen this session (T-0308; "" none): a
+        /// "Mods: A, B" line under the ModAPI flag.
+        public static string Marker(bool modApi, string mods, string runText, string reason)
+        {
             if (runText != null) return runText;
             string rest = ShortReason(reason);
+            if (!string.IsNullOrEmpty(mods)) rest = rest.Length == 0 ? "Mods: " + mods : "Mods: " + mods + "\n" + rest;
             if (!modApi) return rest;
             return rest.Length == 0 ? ModApiFlag : ModApiFlag + "\n" + rest;
         }

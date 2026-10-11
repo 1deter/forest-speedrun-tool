@@ -185,6 +185,13 @@ namespace ForestOverlay.Game
             r.TypeHashes.Clear();
             List<string> types = _typeHashes;   // set before _gameHash
             if (r.GameHash.Length > 0 && types != null) r.TypeHashes.AddRange(types);
+            GatherMods(r, ownGuid, ownPath);
+        }
+
+        /// The mods half of Gather, shared with Game/ExternalModWatch (T-0308):
+        /// other plugins, patchers, loaded code and foreign patches.
+        public static void GatherMods(Data.RunReport r, string ownGuid, string ownPath)
+        {
             r.OtherPlugins.Clear();
             r.OtherPatchers.Clear();
             r.OtherCode.Clear();

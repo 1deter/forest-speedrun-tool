@@ -28,6 +28,20 @@ namespace ForestOverlay.Data
         /// attempt by it.
         public const string ModApiFlag = "ModAPI Detected";
 
+        /// Other mods in the session (T-0308): "Mods Detected: A, B" (the same
+        /// prefix as Data/ExternalMods, which the site does not link).
+        public const string ModsFlagPrefix = "Mods Detected: ";
+
+        /// The names of the first mods flag ("" when none).
+        public static string ModsOf(IList<string> flags)
+        {
+            if (flags == null) return "";
+            for (int i = 0; i < flags.Count; i++)
+                if (flags[i] != null && flags[i].StartsWith(ModsFlagPrefix, System.StringComparison.Ordinal))
+                    return flags[i].Substring(ModsFlagPrefix.Length);
+            return "";
+        }
+
         public static bool HasModApi(IList<string> flags)
         {
             if (flags == null) return false;
@@ -64,6 +78,7 @@ namespace ForestOverlay.Data
         public readonly List<string> Cheats = new List<string>();         // the game's cheat switches seen on
         public readonly List<string> Flags = new List<string>();          // run mode's flags
         public bool ModApi { get { return HasModApi(Flags); } }
+        public string Mods { get { return ModsOf(Flags); } }
         /// Only when the game's file hash is not a known build: "<top-level
         /// type> <16 hex>" per type of the loaded game code (Game/RunIntegrity.HashTypes),
         /// so the site can name what changed (phase 3). Not a finding here.

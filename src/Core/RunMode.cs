@@ -46,6 +46,7 @@ namespace ForestOverlay.Core
             _notice = notice;
             _practice = practice;
             _practice.MarkedDuringRun = OnPracticeMark;
+            _practice.ModsChanged = OnModsChanged;
             Started = "";
             Label = "";
             EndedWhy = "";
@@ -102,6 +103,8 @@ namespace ForestOverlay.Core
             _refusedAt.Clear();
             // Every attempt of a ModAPI session (T-0295): flagged, not refused.
             if (_practice.ModApi) Flag(RunReport.ModApiFlag);
+            // And of one with other mods loaded (T-0308), naming them.
+            if (_practice.Mods.Length > 0) Flag(ExternalMods.Flag(_practice.Mods));
             Rebuild();
         }
 
@@ -128,6 +131,16 @@ namespace ForestOverlay.Core
             if (!Active || !AttemptOpen || _used.Contains(feature)) return;
             _used.Add(feature);
             _log.LogInfo("Run mode: attempt " + Attempt + " used " + feature + " (allowed by the category).");
+        }
+
+        /// Other mods turned up while an attempt runs: its mods flag names
+        /// them all (the earlier, shorter one is replaced).
+        private void OnModsChanged(string names)
+        {
+            if (!Active || !AttemptOpen) return;
+            for (int i = _flags.Count - 1; i >= 0; i--)
+                if (_flags[i].StartsWith(ExternalMods.FlagPrefix, System.StringComparison.Ordinal)) _flags.RemoveAt(i);
+            Flag(ExternalMods.Flag(names));
         }
 
         /// Adds a reason the attempt is not valid (once each).

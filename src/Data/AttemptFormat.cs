@@ -56,6 +56,10 @@ namespace ForestOverlay.Data
         /// The one flag a .run carries today (the same words as the run mode report's).
         public const string ModApiFlag = "ModAPI Detected";
 
+        /// T-0308: other mods; the same prefix as Data/ExternalMods (this file
+        /// is linked alone by the site).
+        public const string ModsFlagPrefix = "Mods Detected: ";
+
         public static string Write(Attempt attempt)
         {
             StringBuilder sb = new StringBuilder();
@@ -90,8 +94,14 @@ namespace ForestOverlay.Data
             if (!string.IsNullOrEmpty(attempt.RunnerId))
                 sb.Append("runner|").Append(Clean(attempt.RunnerId)).Append('|').Append(Clean(attempt.RunnerName)).Append(NL);
 
-            if (attempt.ModApi)
-                sb.Append("flags|").Append(ModApiFlag).Append(NL);
+            bool mods = !string.IsNullOrEmpty(attempt.Mods);
+            if (attempt.ModApi || mods)
+            {
+                sb.Append("flags");
+                if (attempt.ModApi) sb.Append('|').Append(ModApiFlag);
+                if (mods) sb.Append('|').Append(ModsFlagPrefix).Append(Clean(attempt.Mods));
+                sb.Append(NL);
+            }
 
             if (attempt.HasPlane)
                 sb.Append("plane|").Append(F(attempt.Plane.x)).Append('|').Append(F(attempt.Plane.y)).Append('|')
@@ -216,7 +226,10 @@ namespace ForestOverlay.Data
                 else if (p[0] == "flags")
                 {
                     for (int c = 1; c < p.Length; c++)
+                    {
                         if (p[c] == ModApiFlag) a.ModApi = true;
+                        else if (p[c].StartsWith(ModsFlagPrefix, StringComparison.Ordinal)) a.Mods = p[c].Substring(ModsFlagPrefix.Length);
+                    }
                 }
                 else if (p[0] == "plane" && p.Length >= 5)
                 {

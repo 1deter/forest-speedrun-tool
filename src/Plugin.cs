@@ -43,6 +43,7 @@ namespace ForestOverlay
         private InventoryReader _inventory;
         private PlayerStateReader _playerState;
         private PracticeState _practice;
+        private ExternalModWatch _modWatch;
         private readonly Notice _notice = new Notice();
         private GUIStyle _noticeStyle;
         private GameEvents _events;
@@ -102,6 +103,9 @@ namespace ForestOverlay
                     Logger.LogWarning("ModAPI: loaded - this session is flagged (the HUD's ModAPI flag, every run mode attempt).");
                     _practice.SetModApi(true);
                 }
+                // Other plugins / DLLs / patches (T-0308): looked at on the
+                // first Update, when every plugin has loaded.
+                _modWatch = new ExternalModWatch(Logger, _practice, PluginGuid, System.Reflection.Assembly.GetExecutingAssembly().Location);
 
                 // Read-only postfixes on the endgame cutscene methods.
                 // Installed before modules so none can miss an event.
@@ -188,6 +192,7 @@ namespace ForestOverlay
             try
             {
                 if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
+                if (_modWatch != null) _modWatch.Tick(Time.realtimeSinceStartup);
                 if (_host == null) return;
 
                 _player.Tick();

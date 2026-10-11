@@ -187,6 +187,10 @@ public sealed class AttemptTests : IDisposable
             Assert.True(Attempts.ModApiSession(plain, RunReport.Parse(Report(r => r.Flags.Add(RunReport.ModApiFlag)))));
             Assert.True(Attempts.ModApiSession(AttemptChain.Read(c.Text), RunReport.Parse(Report())));
             Assert.False(Attempts.ModApiSession(plain, RunReport.Parse(Report(r => r.Flags.Add("the test bridge is on")))));
+
+            // T-0308: other mods are named from the chain's flag or the report's.
+            Assert.Equal("A, B", Attempts.ModsSession(plain, RunReport.Parse(Report(r => r.Flags.Add("Mods Detected: A, B")))));
+            Assert.Equal("", Attempts.ModsSession(plain, RunReport.Parse(Report(r => r.Flags.Add(RunReport.ModApiFlag)))));
         }
         finally
         {
