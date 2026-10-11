@@ -4247,7 +4247,17 @@ position, rotation, scale) after two separate loads of Slot 1 (a restart
 from the cave floor in one, from the surface in the other) - only the pool
 clone numbers differ; from the surface
 all 20 piles were up within 0.5 s of the restart. So a bouncy body slide
-(T-0267) is not a pile that moved.
+(T-0267) is not a pile that moved. Live 2026-10-11 (T-0267): the
+author's one recorded bounce (fall stopped at ~40 m/s, then +22 m/s up
+on the next 30 Hz sample, no jump input) was not reproduced in 34
+driven tries (7 on a plain Slot 1 load, 27 after the spot restore):
+peak upward speed after the landing 4.5-8.5 m/s. The player's physics
+state is the same on a plain load and after the restore (mass 7, drag
+0, Discrete, `maxDepenetrationVelocity` 1e32, capsule material
+bounciness 0 / Minimum - non-zero only while riding a turtle shell);
+the fall accelerates at 26 m/s2 (`Physics.gravity` 16 +
+`FirstPersonCharacter.gravity` 10 applied in `FixedUpdate`). Taken as a
+one-off PhysX contact quirk.
 
 **Breakable stalagmites move between visits** (live). Cave 5's swim room
 and secret channel and Cave 6's corridor (two zones beside the rope
