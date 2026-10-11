@@ -365,7 +365,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
                                  object Recording, string Report, object Loads, List<double[]> Path,
-                                 ILookup<string, AttemptChain.StepInfo> Codes);
+                                 ILookup<string, (int N, long RealMs, long TimerMs)> Codes);
 
     /// The logs' size the cache may hold (characters of log text); past it,
     /// it starts again. Settable for the tests.
@@ -440,7 +440,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
             new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text),
-            replay.Steps.ToLookup(st => st.Code ?? ""));
+            replay.Steps.ToLookup(st => st.Code ?? "", st => (st.N, st.RealMs, st.TimerMs)));
         lock (_judged)
         {
             _verdicts[id] = (j.LogMs, j.AllowedVersion, j.CategoryId, j.CategoryVersion, j.CategoryFound, j.Verdict);
