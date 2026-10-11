@@ -56,7 +56,7 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
             _auto = ctx.Config.Bind("Community", "UpdateOnStartup", true,
-                                    "Fetch the community spots / segments a few seconds after the game starts.");
+                                    "Fetch the community spots / segments a few seconds after the game starts, and again when the Import view opens. Off = no automatic community check.");
             _url = ctx.Config.Bind("Community", "Url", DefaultUrl,
                                    "Folder holding the community index.txt and .foseg files (ends with /).");
             _cache = Path.Combine(ctx.ConfigDirectory, "community");
@@ -76,7 +76,9 @@ namespace ForestOverlay.Modules
         /// when their last answer is old enough.
         public void ImportViewOpened()
         {
-            if (!Busy && (_checkedAt < 0f || Time.unscaledTime >= _checkedAt + RecheckAfter)) CheckNow();
+            // UpdateOnStartup off stops this check too (author, 2026-10-11); the Import
+            // view's own button-less list still follows the website's spots.
+            if (_auto.Value && !Busy && (_checkedAt < 0f || Time.unscaledTime >= _checkedAt + RecheckAfter)) CheckNow();
             WebOpened();
         }
 
