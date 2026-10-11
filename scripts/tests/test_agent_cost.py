@@ -73,6 +73,49 @@ class Summary(unittest.TestCase):
         self.assertEqual((dev[1], dev[2], dev[3], dev[7]), (2, "sonnet-5-5", 3.0, 500.0))
 
 
+def edit(mid, ts, usage, path):
+    return json.dumps({"type": "assistant", "timestamp": ts, "message": {
+        "id": mid, "model": "claude-opus-5-5", "usage": usage,
+        "content": [{"type": "tool_use", "name": "Edit", "input": {"file_path": path}}]}})
+
+
+class Tail(unittest.TestCase):
+    def test_tail_starts_at_the_first_code_edit(self):
+        lines = [reply("m1", "2026-10-07T04:00:00.000Z", U1, ["Bash"]),
+                 edit("m2", "2026-10-07T04:01:00.000Z", U2, r"C:\repo\docs\game-notes.md"),
+                 edit("m3", "2026-10-07T04:02:00.000Z", U2, r"C:\repo\src\Modules\X.cs"),
+                 reply("m4", "2026-10-07T04:03:00.000Z", U2, ["Bash"])]
+        r = A.parse_run(lines, {"agentType": "forest-researcher"})
+        self.assertEqual(r["input"], 13003 + 3 * 13501)
+        self.assertEqual(r["tail"], 2 * 13501)  # the docs edit does not start it
+        (row,) = A.tail_share([r])
+        self.assertEqual(row[:3], ("forest-researcher", 1, 1))
+
+    def test_no_code_edit_no_tail(self):
+        self.assertEqual(A.parse_run(LINES)["tail"], 0)
+
+
+class Grouping(unittest.TestCase):
+    def run_(self, agent, model, date, desc="", inp=100):
+        return {"agent": agent, "model": model, "date": date, "description": desc,
+                "input": inp, "output": 1}
+
+    def test_by_task_sums_by_model_family(self):
+        t = A.by_task([self.run_("forest-researcher", "claude-opus-5-5", "2026-10-11", "Research T-0311 x"),
+                       self.run_("forest-dev", "claude-sonnet-5-5", "2026-10-11", "Build T-0311", 40),
+                       self.run_("forest-dev", "claude-sonnet-5-5", "2026-10-11", "no task")])
+        self.assertEqual(list(t), ["T-0311"])
+        self.assertEqual((t["T-0311"]["opus"], t["T-0311"]["sonnet"], t["T-0311"]["runs"]), (100, 40, 2))
+
+    def test_by_week_splits_main_from_agents(self):
+        rows = A.by_week([self.run_("main", "claude-opus-5-5", "2026-10-04"),
+                          self.run_("main", "claude-opus-5-5", "2026-10-06", inp=50),
+                          self.run_("forest-researcher", "claude-opus-5-5", "2026-10-06", inp=7),
+                          self.run_("forest-checker", "claude-sonnet-5-5", "2026-10-06", inp=3)],
+                         ["2026-10-06", "2026-10-07", "2026-01-01"])
+        self.assertEqual(rows, [("2026-W40", 1, 100, 0, 0, 0), ("2026-W41", 1, 50, 7, 3, 2)])
+
+
 class Folders(unittest.TestCase):
     def test_finds_the_repo_and_its_worktrees_only(self):
         with tempfile.TemporaryDirectory() as home:

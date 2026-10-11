@@ -184,7 +184,9 @@ is gone from the other's new list (tell the author what belongs where).
 list and a short brief naming the docs to read and the report to return:
 `forest-dev` (Sonnet: plugin features / fixes whose game side is known),
 `forest-researcher` (Opus, high: game internals, live research, hard
-restore / physics / render bugs), `forest-tester` (Sonnet: in-game checks
+restore / physics / render bugs; T-0311: it stops at the proved cause
+and a build plan in `tasks/notes/T-n.md` that forest-dev builds, unless
+the fix must be tuned live), `forest-tester` (Sonnet: in-game checks
 over the bridge, writes docs/confirmed.md), `forest-site` (Sonnet: site/),
 `forest-knowledge` (Sonnet: bot cards + the 👎 queue), `forest-qa` (Haiku:
 the QA Discord), `forest-checker` (Sonnet, high - author, 2026-10-07: the

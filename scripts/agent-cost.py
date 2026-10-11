@@ -1,6 +1,7 @@
 """What each project subagent costs, read from Claude Code's own transcripts.
 
-    python scripts/agent-cost.py [--since 2026-10-07] [--agent forest-dev] [--runs]
+    python scripts/agent-cost.py [--since 2026-10-07] [--until 2026-10-14] [--agent forest-dev]
+                                 [--main] [--runs] [--tasks] [--tail]
 
 Claude Code keeps every subagent run as
 ~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl with a
@@ -9,8 +10,13 @@ repo (worktree sessions included) and prints, per agent type: runs, model,
 API calls, the context at the first call (the cold start: system prompt,
 tools, CLAUDE.md, the brief), cache reads / writes, output and active
 minutes (gaps over 5 min - background waits - not counted). --runs adds one
-line per run. Use it to judge a brief / model / tool-list change before and
-after (T-0113; the monthly harness review, docs/harness.md 12d).
+line per run. --main counts the main sessions too (agent "main"); --tasks
+sums every run whose description names a task (T-0311) by model family;
+--tail gives each agent's share of input sent after its first edit to
+src/, tests/ or patcher/ (the build tail T-0311 hands to forest-dev).
+Use it to judge a brief / model / tool-list change before and after
+(T-0113; the monthly harness review, docs/harness.md 12d; the usage
+baseline, docs/harness.md *Measuring the harness*).
 Tests: scripts/tests/test_agent_cost.py.
 """
 import argparse
@@ -22,6 +28,8 @@ import sys
 from datetime import datetime
 
 GAP_CAP = 300  # seconds; a longer gap is the agent waiting, not working
+CODE_DIRS = re.compile(r"[/\\](src|tests|patcher)[/\\]")
+TASK_ID = re.compile(r"\bT-\d{4}\b")
 
 
 def project_dirs(repo, home=None):
@@ -41,6 +49,7 @@ def parse_run(lines, meta=None):
     meta = meta or {}
     usage = {}  # message id -> usage; a reply is logged once per content block, the last has the final count
     model, stamps, tools = None, [], {}
+    first_edit = None  # message id of the first edit to plugin code
     for line in lines:
         line = line.strip()
         if not line:
@@ -58,20 +67,29 @@ def parse_run(lines, meta=None):
         for block in m.get("content") or []:
             if isinstance(block, dict) and block.get("type") == "tool_use":
                 tools[block["name"]] = tools.get(block["name"], 0) + 1
-    calls = list(usage.values())
+                if (first_edit is None and block["name"] in ("Edit", "Write")
+                        and CODE_DIRS.search((block.get("input") or {}).get("file_path", ""))):
+                    first_edit = m.get("id")
+    ids = list(usage)
+    calls = [usage[i] for i in ids]
     first = calls[0] if calls else {}
     active = 0.0
     times = sorted(_time(s) for s in stamps)
     for a, b in zip(times, times[1:]):
         active += min((b - a).total_seconds(), GAP_CAP)
+    def whole(u):
+        return sum(u.get(k, 0) for k in
+                   ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    tail_from = ids.index(first_edit) if first_edit in usage else len(ids)
     return {
         "agent": meta.get("agentType", "?"),
         "description": meta.get("description", ""),
         "date": stamps and min(stamps)[:10] or "",
         "model": model or "?",
         "calls": len(calls),
-        "start": sum(first.get(k, 0) for k in
-                     ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")),
+        "start": whole(first),
+        "input": sum(whole(u) for u in calls),
+        "tail": sum(whole(u) for u in calls[tail_from:]),
         "cache_read": sum(u.get("cache_read_input_tokens", 0) for u in calls),
         "cache_write": sum(u.get("cache_creation_input_tokens", 0) for u in calls),
         "output": sum(u.get("output_tokens", 0) for u in calls),
@@ -80,9 +98,14 @@ def parse_run(lines, meta=None):
     }
 
 
-def load_runs(dirs):
+def load_runs(dirs, main=False):
     runs = []
     for d in dirs:
+        if main:  # the main sessions: <project>/<session>.jsonl
+            for path in glob.glob(os.path.join(d, "*.jsonl")):
+                with open(path, encoding="utf-8") as f:
+                    runs.append(parse_run(f, {"agentType": "main",
+                                              "description": os.path.basename(path)[:8]}))
         for path in glob.glob(os.path.join(d, "*", "subagents", "agent-*.jsonl")):
             meta_path = path[:-len(".jsonl")] + ".meta.json"
             meta = {}
@@ -118,17 +141,99 @@ def summarize(runs):
     return rows
 
 
+def family(model):
+    for name in ("opus", "sonnet", "haiku", "fable"):
+        if name in model:
+            return name
+    return "other"
+
+
+def by_task(runs):
+    """{task id: {"runs", "agents", "<family>": input tokens, "output"}} for runs naming a task."""
+    out = {}
+    for r in runs:
+        m = TASK_ID.search(r["description"])
+        if not m:
+            continue
+        t = out.setdefault(m.group(0), {"runs": 0, "agents": set(), "output": 0})
+        t["runs"] += 1
+        t["agents"].add(r["agent"])
+        f = family(r["model"])
+        t[f] = t.get(f, 0) + r["input"]
+        t["output"] += r["output"]
+    return out
+
+
+def tail_share(runs):
+    """Rows of (agent, runs, runs that edited code, input, share of it from the first edit on)."""
+    by = {}
+    for r in runs:
+        by.setdefault(r["agent"], []).append(r)
+    rows = []
+    for agent in sorted(by):
+        rs = by[agent]
+        total = sum(r["input"] for r in rs)
+        rows.append((agent, len(rs), sum(1 for r in rs if r["tail"]), total,
+                     sum(r["tail"] for r in rs) / float(total or 1)))
+    return rows
+
+
+def week(day):
+    y, w, _ = datetime.strptime(day, "%Y-%m-%d").isocalendar()
+    return "%d-W%02d" % (y, w)
+
+
+def by_week(runs, finished_days=()):
+    """Rows of (week, main sessions, main input, agent opus input, agent other input, tasks finished)."""
+    rows = {}
+    for r in runs:
+        if not r["date"]:
+            continue
+        row = rows.setdefault(week(r["date"]), [0, 0, 0, 0, 0])
+        if r["agent"] == "main":
+            row[0] += 1
+            row[1] += r["input"]
+        elif family(r["model"]) == "opus":
+            row[2] += r["input"]
+        else:
+            row[3] += r["input"]
+    for day in finished_days:
+        wk = week(day)
+        if wk in rows:
+            rows[wk][4] += 1
+    return [(wk,) + tuple(rows[wk]) for wk in sorted(rows)]
+
+
+def finished_days(repo):
+    """The day each task first reached built, from the task file (empty when it cannot be read)."""
+    try:
+        sys.path.insert(0, os.path.join(repo, "scripts"))
+        import tasks as T
+        return [d for d in (T.finished_on(t) for t in T.load()) if d]
+    except Exception:  # noqa: BLE001 - the token report stands without it
+        return []
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--since", help="only runs on or after this date (YYYY-MM-DD)")
-    ap.add_argument("--agent", help="only this agent type (forest-dev, general-purpose, ...)")
+    ap.add_argument("--until", help="only runs before this date (YYYY-MM-DD, exclusive)")
+    ap.add_argument("--agent", help="only this agent type (forest-dev, general-purpose, main, ...)")
+    ap.add_argument("--main", action="store_true", help="count the main sessions too")
     ap.add_argument("--runs", action="store_true", help="one line per run too")
+    ap.add_argument("--tasks", action="store_true", help="input per task id, by model family")
+    ap.add_argument("--tail", action="store_true",
+                    help="share of each agent's input from its first src / tests edit on")
+    ap.add_argument("--weeks", action="store_true",
+                    help="input per ISO week (main sessions vs agents) and tasks finished; implies --main")
     ap.add_argument("--repo", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     args = ap.parse_args(argv)
 
-    runs = load_runs(project_dirs(args.repo))
+    runs = load_runs(project_dirs(args.repo), main=args.main or args.weeks or args.agent == "main")
     if args.since:
         runs = [r for r in runs if r["date"] >= args.since]
+    if args.until:
+        runs = [r for r in runs if r["date"] < args.until]
     if args.agent:
         runs = [r for r in runs if r["agent"] == args.agent]
     if not runs:
@@ -143,6 +248,33 @@ def main(argv=None):
     for a, n, models, calls, start, cr, cw, o, mins in summarize(runs):
         out.write("%-18s %4d %-20s %6.1f %7s %7s %7s %7s %6.1f\n"
                   % (a[:18], n, models[:20], calls, _k(start), _k(cr), _k(cw), _k(o), mins))
+    total = float(sum(r["input"] for r in runs) or 1)
+    fams = {}
+    for r in runs:
+        fams[family(r["model"])] = fams.get(family(r["model"]), 0) + r["input"]
+    out.write("Input by model family: %s\n" % ", ".join(
+        "%s %s (%.0f%%)" % (f, _k(n), 100 * n / total)
+        for f, n in sorted(fams.items(), key=lambda kv: -kv[1])))
+    if args.weeks:
+        out.write("\nPer week: main sessions, input (main / Opus agents / other agents), tasks first built\n"
+                  "(the task file starts 2026-10-07; that week's count includes the migration):\n")
+        for wk, n, m, o, s, done in by_week(runs, finished_days(args.repo)):
+            out.write("%s %4d sessions  main %7s (%5s/session)  opus agents %7s  other agents %7s  tasks %3d\n"
+                      % (wk, n, _k(m), _k(m / float(n or 1)), _k(o), _k(s), done))
+    if args.tail:
+        out.write("\nInput from the first src / tests / patcher edit on (the build tail):\n")
+        for a, n, edited, inp, share in tail_share(runs):
+            out.write("%-18s %4d runs, %3d edited code  input %7s  tail %3.0f%%\n"
+                      % (a[:18], n, edited, _k(inp), 100 * share))
+    if args.tasks:
+        out.write("\nPer task (input tokens by model family, every run naming it):\n")
+        tasks = by_task(runs)
+        for tid in sorted(tasks):
+            t = tasks[tid]
+            split = ", ".join("%s %s" % (f, _k(t[f]))
+                              for f in ("opus", "sonnet", "haiku", "fable", "other") if t.get(f))
+            out.write("%s %2d runs  %-30s out %6s  %s\n"
+                      % (tid, t["runs"], split[:30], _k(t["output"]), ",".join(sorted(t["agents"]))))
     if args.runs:
         out.write("\n")
         for r in sorted(runs, key=lambda r: (r["agent"], r["date"])):

@@ -657,6 +657,27 @@ passed their first check, rounds per task, author interventions, and
 failures by layer (1c). A harness change (a new hook, the slimmed
 router) is judged by these, before and after - not by how it reads.
 
+**Usage baseline (2026-10-11, T-0311; author: "ensure the changes have
+tangible impact").** `python scripts/agent-cost.py --weeks --tail
+[--tasks]` reads every transcript (main sessions + subagents). Up to
+2026-10-11, 5.4G input tokens, 97% Opus:
+
+| | Share | Note |
+|---|---|---|
+| Main sessions | 85% (4.6G, 186 sessions) | 24.5M reads / 111 calls / 82k start each; 37% of main input is sent at > 300k context |
+| forest-researcher | 7.5% (405M, 16 runs) | 46% of it from the first `src/` edit on (T-0311's target) |
+| general-purpose (old Opus runs) | 8% | retired by T-0113 |
+| All Sonnet agents | 3% | checker 132 runs at 0.35M each |
+
+Per week, main input per session: W39 34.0M, W40 31.9M, **W41 14.3M** (the
+router trim, one task per session and the loop's 300k cap landed in
+W41). So the levers in order: the main session's context (length and
+start), then researcher Opus time; Sonnet agents are not worth trimming.
+Each harness task names the number it should move and is re-measured
+after it lands: T-0311 researcher tail 46% (and Opus tokens per research
+task, `--tasks`) after the next 3 researcher runs; T-0312 checker input
+per task; T-0313 Opus share; T-0314 / T-0315 main input per session.
+
 ---
 
 ## Decisions (author, 2026-10-07)

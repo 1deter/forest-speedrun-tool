@@ -51,11 +51,12 @@ EXIT_STOP = 3
 PROGRESS = ("built", "released", "confirmed", "wontfix")
 # Who does the work, by area (docs/areas/workflow.md *Subagents*).
 WORKER = {
-    "plugin": "forest-dev in a worktree (forest-researcher when the game side is unknown or it needs live proof)",
+    "plugin": "forest-dev in a worktree (forest-researcher when the game side is unknown or it needs live proof;"
+              " its build plan in tasks/notes/ then goes to forest-dev)",
     "site": "forest-site in a worktree",
     "bot": "forest-knowledge (small bot/ fixes) or forest-dev",
     "knowledge": "forest-knowledge",
-    "research": "forest-researcher",
+    "research": "forest-researcher (a plain fix: its build plan in tasks/notes/ goes to forest-dev)",
     "harness": "main itself (forest-dev for a large script)",
     "docs": "main itself",
     "release": "main itself (skill release)",
