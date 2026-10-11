@@ -345,7 +345,8 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   default**, though from a cave mouth the outside ground and distant trees
   are missing (chosen over off-by-default and over a distance-to-mouth
   test). Not in the endgame (Claude's narrowing: the lab's exits and
-  endings show the outside).
+  endings show the outside). **Stays on in run mode** (author, 2026-10-11:
+  not Experimental, so run mode does not suspend it).
 
 ## Run mode
 
