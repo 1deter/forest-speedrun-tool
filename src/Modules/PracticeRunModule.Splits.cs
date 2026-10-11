@@ -88,7 +88,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _noSteamHint = new GUIContent(
             "Steam was not found - type the name your times should carry.");
 
-        // Dragging the panel: only while the window is open (the cursor is
+        // Dragging the panel: only in Edit HUD, T-0317 (the cursor is
         // free then). The position is kept here while dragging and written
         // to the config once, on release - a config write per mouse event
         // would rewrite the file dozens of times a second.

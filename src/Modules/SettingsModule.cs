@@ -94,7 +94,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent SizeTip = new GUIContent(
             "The column of values and the practice / ON NOW warnings. A value placed on its own is sized in Edit HUD layout.");
         private static readonly GUIContent PlaceTip = new GUIContent(
-            "Where the column of values sits (top left by default). Drag it while this window is open.");
+            "Where the column of values sits (top left by default). Drag it with Edit HUD on.");
         private static readonly GUIContent ResetValuesText = new GUIContent("Reset the values");
         private static readonly GUIContent ResetKeysText = new GUIContent("Reset all keys");
         private static readonly GUIContent ResetKeysTip = new GUIContent("Every key back to its default.");
