@@ -176,6 +176,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   (`Data/UiPalette`). Warm near-black is the default - the author's favourite ("a bias
   towards the soft-mocha style themes"). Customisable colours: after
   v1.0, if this theming stays.
+- **HUD profiles** (author, 2026-10-11, T-0019; Momentum Mod style): a
+  profile is the whole HUD - which values show, the column's place,
+  Compact, Text size, placed values and their text, the splits + results
+  panels (on / off, place, width, rows) - one file each in
+  `config/ForestOverlay/hud/` so it can be shared. Switched only from the
+  picker in Edit HUD (New / Duplicate / Rename / Delete); the layout a
+  runner had becomes `Default` on the first launch.
 - **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
   the goal is a tool that looks good and is easy to learn without
   flooding a new runner. Less on screen, fewer things to click, is faster
