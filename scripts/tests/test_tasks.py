@@ -270,6 +270,35 @@ class Checker(unittest.TestCase):
         self.assertIn("cut at 100", text)
         self.assertTrue(all(":(exclude)tasks/tasks.jsonl" in c for c in calls))
 
+    def test_brief_over_several_tasks_shows_each_contract_and_the_diff_once(self):
+        a = self.built()[0]
+        b = dict(task("T-0002", status="built", maker="main", behavior="does y"), commits=["abc1234", "def5678"])
+        a["commits"] = ["abc1234"]
+        calls = []
+
+        def show(args):
+            calls.append(args)
+            if "--name-only" in args:
+                return "site/x.js\n" if "def5678" in args else "src/Modules/Runs.cs\n"
+            return "diff of %s" % args[4]
+
+        text = T.brief([a, b], show=show)
+        self.assertIn("## T-0001", text)
+        self.assertIn("## T-0002", text)
+        self.assertIn("behavior: does x", text)
+        self.assertIn("behavior: does y", text)
+        self.assertIn("one `tasks.py review` per task", text)
+        self.assertEqual(text.count("diff of abc1234"), 1)
+        self.assertEqual(text.count("diff of def5678"), 1)
+        self.assertEqual(len([c for c in calls if "--patch" in c]), 2)
+        self.assertIn("ForestOverlay.Tests", text)
+        self.assertIn("ForestSite.Tests", text)
+
+    def test_brief_over_several_tasks_needs_commits_on_each(self):
+        a = self.built()[0]
+        with self.assertRaises(T.TaskError):
+            T.brief([a, task("T-0002", status="built")], show=lambda args: "")
+
     def test_brief_without_commits_says_so(self):
         with self.assertRaises(T.TaskError):
             T.brief(task("T-0001"), show=lambda a: "")

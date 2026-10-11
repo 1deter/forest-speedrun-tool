@@ -119,8 +119,9 @@ for it first - the migration copied lists that were partly stale.
 Every behaviour change (`checker: true`: plugin, site, bot tasks) is
 reviewed by **`forest-checker`** (Sonnet, read + Bash, never edits) once
 it is built and **before it is pushed or released** (author,
-2026-10-07). Spawn it with only `Check T-n`; it reads `tasks.py brief
-T-n` (contract, evidence, earlier reviews, the diff without the task
+2026-10-07). Spawn it with only `Check T-n` - or `Check T-a T-b ...`
+for the tasks of one branch (T-0312: the diff read once, one review per
+task) - it reads `tasks.py brief T-n` (contract, evidence, earlier reviews, the diff without the task
 files, the suites to re-run), re-runs those suites, scores the rubric
 (correctness, verification, scope, restart, legible, handoff: 0-2 or
 n/a) and records `tasks.py review`:

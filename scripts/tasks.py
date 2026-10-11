@@ -18,7 +18,7 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
            [--title ..] [--behavior ..] [--verify ..] [--keep ..] [--blocked-by ID ...]
            [--tier T] [--route R | --route none] [--hold NAME | --hold none] [--by NAME]
     python scripts/tasks.py evidence T-0001 "what proves it" --by forest-tester
-    python scripts/tasks.py brief T-0001   # what the checker reads: contract + diff + suites
+    python scripts/tasks.py brief T-0001 [T-0002 ..]   # what the checker reads: contract(s) + diff + suites
     python scripts/tasks.py review T-0001 --verdict accept|revise|block --by forest-checker
            --scores correctness=2,verification=2,scope=2,restart=n/a,legible=2,handoff=1
            [--faults "file:line - what is wrong" ...]
@@ -812,29 +812,44 @@ def git_out(args):
     return r.stdout
 
 
-def brief(t, show=git_out, limit=BRIEF_LIMIT):
+def brief(ts, show=git_out, limit=BRIEF_LIMIT):
     """What a fresh-context checker reads: the contract, the maker's evidence, earlier reviews,
-    the task's diff (bookkeeping files left out, cut at limit) and the suites to re-run."""
-    tid = t["id"]
-    commits = t.get("commits") or []
-    if not commits:
-        raise TaskError("%s has no commits" % tid, "the checker reviews the task's diff",
-                        "`tasks.py set %s --commit <sha>`" % tid)
-    out = ["# Checker brief: %s %s" % (tid, t["title"]), "",
-           "area %s, status %s, maker %s, commits %s" % (t["area"], t["status"], t.get("maker") or "?",
-                                                          " ".join(commits)), "",
-           "## Contract", "", "behavior: %s" % (t.get("behavior") or "-"),
-           "scope: %s" % (t.get("scope") or "-"), "keep: %s" % (t.get("keep") or "-"), "verify:"]
-    out += ["  - " + v for v in t.get("verify") or []]
-    if t.get("notes"):
-        out.append("notes: %s" % t["notes"])
-    out += ["", "## Evidence recorded so far", ""]
-    out += ["- %s (%s): %s" % (e.get("at"), e.get("by"), e.get("what")) for e in t.get("evidence") or []] or ["- none"]
-    if t.get("reviews"):
-        out += ["", "## Earlier reviews (check these faults are fixed)", ""]
-        for r in t["reviews"]:
-            out.append("- %s %s by %s: %s" % (r.get("at"), r.get("verdict"), r.get("by"),
-                                              "; ".join(r.get("faults") or []) or "no faults"))
+    the task's diff (bookkeeping files left out, cut at limit) and the suites to re-run.
+    Several tasks (one branch, T-0312): each one's contract, then their commits' diff once."""
+    ts = [ts] if isinstance(ts, dict) else list(ts)
+    for t in ts:
+        if not t.get("commits"):
+            raise TaskError("%s has no commits" % t["id"], "the checker reviews the task's diff",
+                            "`tasks.py set %s --commit <sha>`" % t["id"])
+    if len(ts) == 1:
+        out = ["# Checker brief: %s %s" % (ts[0]["id"], ts[0]["title"]), ""]
+    else:
+        out = ["# Checker brief: %s" % " ".join(t["id"] for t in ts), "",
+               "One diff for %d tasks: judge each against its own contract and record one "
+               "`tasks.py review` per task; a fault in shared code goes on every task it touches." % len(ts), ""]
+    for t in ts:
+        h = "##" if len(ts) == 1 else "###"
+        if len(ts) > 1:
+            out += ["## %s %s" % (t["id"], t["title"]), ""]
+        out += ["area %s, status %s, maker %s, commits %s" % (t["area"], t["status"], t.get("maker") or "?",
+                                                               " ".join(t["commits"])), "",
+                h + " Contract", "", "behavior: %s" % (t.get("behavior") or "-"),
+                "scope: %s" % (t.get("scope") or "-"), "keep: %s" % (t.get("keep") or "-"), "verify:"]
+        out += ["  - " + v for v in t.get("verify") or []]
+        if t.get("notes"):
+            out.append("notes: %s" % t["notes"])
+        out += ["", h + " Evidence recorded so far", ""]
+        out += ["- %s (%s): %s" % (e.get("at"), e.get("by"), e.get("what"))
+                for e in t.get("evidence") or []] or ["- none"]
+        if t.get("reviews"):
+            out += ["", h + " Earlier reviews (check these faults are fixed)", ""]
+            for r in t["reviews"]:
+                out.append("- %s %s by %s: %s" % (r.get("at"), r.get("verdict"), r.get("by"),
+                                                  "; ".join(r.get("faults") or []) or "no faults"))
+        out.append("")
+    commits = []
+    for t in ts:
+        commits += [c for c in t["commits"] if c not in commits]
     skip = [":(exclude)" + p for p in BRIEF_SKIP]
     paths = []
     diffs = []
@@ -842,7 +857,7 @@ def brief(t, show=git_out, limit=BRIEF_LIMIT):
         names = show(["show", "--name-only", "--format=", sha, "--", "."] + skip)
         paths += [p for p in names.splitlines() if p.strip() and p not in paths]
         diffs.append(show(["show", "--stat", "--patch", "--format=commit %H%n%n%B", sha, "--", "."] + skip))
-    out += ["", "## Re-run (from the repo root)", ""] + ["    " + c for c in suites_for(paths)]
+    out += ["## Re-run (from the repo root)", ""] + ["    " + c for c in suites_for(paths)]
     diff = "\n".join(diffs)
     out += ["", "## Diff", ""]
     if len(diff) > limit:
@@ -1064,7 +1079,7 @@ def main(argv=None):
     sp.add_argument("id")
     sp.add_argument("text")
     sp = sub.add_parser("brief")
-    sp.add_argument("id")
+    sp.add_argument("ids", nargs="+", metavar="id")
     sp = sub.add_parser("review")
     sp.add_argument("id")
     sp.add_argument("--verdict", choices=VERDICTS, required=True)
@@ -1111,7 +1126,7 @@ def run(a):
         elif a.cmd == "show":
             print(json.dumps(find(tasks, a.id), ensure_ascii=False, indent=1))
         elif a.cmd == "brief":
-            print(brief(find(tasks, a.id)))
+            print(brief([find(tasks, i) for i in a.ids]))
         elif a.cmd == "stats":
             for d in (a.since, a.until):
                 if d and not re.match(r"^\d{4}-\d{2}-\d{2}$", d):
