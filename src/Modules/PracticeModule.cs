@@ -1010,8 +1010,14 @@ namespace ForestOverlay.Modules
                 Rect r = new Rect(2f, rowY, content.width - 52f, RowHeight - 2f);
                 bool isSelected = ReferenceEquals(entry, _selected);
 
-                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle) && !isSelected)
-                    Select(entry);
+                // A click on the selected row too closes the Import view: an
+                // import selects its spot, so that is the row clicked next
+                // (author, 2026-10-11, T-0307).
+                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
+                {
+                    if (isSelected) _importing = false;
+                    else Select(entry);
+                }
 
                 GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
@@ -1019,6 +1025,7 @@ namespace ForestOverlay.Modules
                     // Go selects its row too (author, 2026-10-10, T-0271): the
                     // strip, F7 and the HUD's Spot then name the same spot.
                     if (!isSelected) Select(entry);
+                    else _importing = false;
                     Teleport(entry);
                 }
                 GUI.enabled = true;
@@ -2733,6 +2740,10 @@ namespace ForestOverlay.Modules
                                 System.IO.Path.GetFileName(e.Path) + " (" + what + ").");
                 for (int i = 0; i < _imports.Count; i++)
                     if (_imports[i].Bundle != null) _imports[i].Label.text = ImportLabel(_imports[i].Bundle);
+                // Done: the view closes on the imported spot, its result
+                // over the spot panel (author, 2026-10-11, T-0307).
+                _importing = false;
+                _status = _importStatus.text;
             }
             catch (Exception ex)
             {
@@ -2796,6 +2807,8 @@ namespace ForestOverlay.Modules
                                      LssPlan(e) + " Compare to shows the file's PB" + (runs != null ? "" : " once linked in Runs") +
                                      ". Practice mode (F9) times it; F7 brings you back here." +
                                      (saved ? "" : " Writing " + s.SourceFile + " failed - see the log.");
+                _importing = false;
+                _status = _importStatus.text;
                 Ctx.Log.LogInfo("Practice: LiveSplit file " + file + " -> '" + s.Id + "' (" + s.Name + "): start " +
                                 TriggerParser.Write(s.Start) + ", " + (s.Checkpoints.Count + 1) + " splits, autosplit = " +
                                 (s.AutoSplit.Count == 0 ? "(none)" : SegmentFormat.AutoSplitText(s)) +
