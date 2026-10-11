@@ -43,6 +43,20 @@ namespace ForestOverlay.Modules
         private GUIStyle _lockedNameStyle;
         private GUIStyle _lockedStyle;
         private readonly GUIContent _prompt = new GUIContent();
+        private readonly GUIContent _devPrompt = new GUIContent();
+        private string _promptText = "";
+        private bool _messageDev;   // the message is about a developer key (shown in the Developer tab)
+
+        // The key list in groups (T-0263, Data/KeyGroups): each binding's
+        // group, worked out once; the developer group is drawn by the
+        // Developer tab (DrawDeveloperKeys).
+        private int[] _groupOf = new int[0];
+        private readonly int[] _groupCount = new int[KeyGroups.Headings.Length];
+        private GUIContent[] _groupHeadings;
+        private GUIContent[] _hudHeadings;
+        private GUIStyle _groupStyle;
+        // The frame each list's rows were last drawn (0 Settings, 1 Developer).
+        private readonly int[] _rowsDrawnFrame = new int[2];
         // A rebind / reset result, shown in place of the Game input status
         // for a few seconds, then the status comes back (T-0261).
         private const float MessageSeconds = 5f;
@@ -151,10 +165,14 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
-            // Never leave a capture armed once the tab is gone; it would eat
-            // the next key press the moment the window reopened. (This was
-            // OnPanelToggled, which never fires for a tab.)
-            if (Host.Hotkeys.AwaitingRebind != null && !TabShowing) Host.Hotkeys.AwaitingRebind = null;
+            // Never leave a capture armed once its row is off screen (the
+            // tab, the fold or the window gone); it would eat the next key
+            // press the moment the row came back. (This was OnPanelToggled,
+            // which never fires for a tab.) The row can be in Settings or in
+            // the Developer tab (T-0263).
+            HotkeyMap.Binding awaiting = Host.Hotkeys.AwaitingRebind;
+            if (awaiting != null && Time.frameCount - _rowsDrawnFrame[KeyGroups.IsDeveloper(awaiting.Id) ? 1 : 0] > 2)
+                Host.Hotkeys.AwaitingRebind = null;
 
             // The HUD view's changing text, built here (not in OnGUI) and
             // only when it changed.
@@ -206,6 +224,11 @@ namespace ForestOverlay.Modules
             // "always shown" dim - locked, not a warning (author: dim grey,
             // tentative).
             _lockedNameStyle = UiKit.Style(GUI.skin.toggle);
+
+            // Group headings in both lists (T-0263).
+            _groupStyle = UiKit.Style(_labelStyle);
+            _groupStyle.fontStyle = FontStyle.Bold;
+            _groupStyle.normal.textColor = UiKit.SoftColour;
             _lockedStyle = UiKit.Style(_labelStyle);
             _lockedStyle.normal.textColor = UiKit.DimColour;
         }
@@ -231,7 +254,7 @@ namespace ForestOverlay.Modules
 
             if (UiKit.Section(0f, ref y, w, "settings.keys", TextKeys, null, TipKeys, true))
                 y = DrawKeys(y, w, map);
-            else if (map.AwaitingRebind != null)
+            else if (map.AwaitingRebind != null && !KeyGroups.IsDeveloper(map.AwaitingRebind.Id))
                 map.AwaitingRebind = null;   // a closed fold never keeps a capture armed
 
             if (UiKit.Section(0f, ref y, w, "settings.hud", TextHud, null, TipHud, false))
@@ -251,24 +274,12 @@ namespace ForestOverlay.Modules
 
             // Capture has to run before DragWindow, or dragging swallows
             // the key event we are waiting for.
-            if (map.AwaitingRebind != null) CaptureKey(map);
+            if (map.AwaitingRebind != null) CaptureKey(map, false);
         }
 
         private float DrawKeys(float y, float w, HotkeyMap map)
         {
-            bool rebinding = map.AwaitingRebind != null;
-            if (rebinding && !ReferenceEquals(_promptFor, map.AwaitingRebind))
-            {
-                _promptFor = map.AwaitingRebind;
-                _prompt.text = "Press a key for: " + _promptFor.Description + "      Esc cancels, Backspace unbinds";
-            }
-            else if (!rebinding)
-            {
-                _promptFor = null;
-                if (_message.Length > 0 && Time.unscaledTime > _messageUntil) _message = "";
-                _prompt.text = _message.Length > 0 ? _message : StatusLine();
-            }
-
+            EnsureGroups(map);
             Rect resetR = new Rect(12, y, 118, 22);
             bool armed = Time.unscaledTime <= _resetKeysArmedUntil;
             if (GUI.Button(resetR, armed ? SureText : ResetKeysText))
@@ -285,15 +296,81 @@ namespace ForestOverlay.Modules
             y += 26f;
 
             // Where the click was: the prompt / result under the button.
+            y = DrawPrompt(y, w, map, false, _prompt);
+
+            // The runner's keys under short headings (T-0263); the
+            // developer keys are in the Developer tab.
+            for (int o = 0; o < KeyGroups.Order.Length; o++)
+            {
+                int g = KeyGroups.Order[o];
+                if (_groupCount[g] == 0) continue;
+                GUI.Label(new Rect(12, y, w - 24f, 22f), _groupHeadings[g], _groupStyle);
+                y += 22f;
+                y = DrawBindRows(y, w, map, g) + 4f;
+            }
+            return y + 2f;
+        }
+
+        /// The developer keys (dumps, type explorer, TAS, QA) for the
+        /// Developer tab's Keys fold (T-0263): the same rows, rebinding and
+        /// messages as the runner's keys here. Returns the y under them.
+        public float DrawDeveloperKeys(float y, float w)
+        {
+            EnsureStyles();
+            HotkeyMap map = Host.Hotkeys;
+            EnsureGroups(map);
+            y = DrawPrompt(y, w, map, true, _devPrompt);
+            y = DrawBindRows(y, w, map, KeyGroups.Developer);
+            if (map.AwaitingRebind != null) CaptureKey(map, true);
+            return y + 6f;
+        }
+
+        private void EnsureGroups(HotkeyMap map)
+        {
+            IList<HotkeyMap.Binding> binds = map.Bindings;
+            if (_groupHeadings == null)
+            {
+                _groupHeadings = new GUIContent[KeyGroups.Headings.Length];
+                for (int g = 0; g < _groupHeadings.Length; g++) _groupHeadings[g] = new GUIContent(KeyGroups.Headings[g]);
+            }
+            if (_groupOf.Length == binds.Count) return;
+            _groupOf = new int[binds.Count];
+            for (int g = 0; g < _groupCount.Length; g++) _groupCount[g] = 0;
+            for (int i = 0; i < binds.Count; i++)
+            {
+                _groupOf[i] = KeyGroups.Of(binds[i].Id);
+                _groupCount[_groupOf[i]]++;
+            }
+        }
+
+        /// The capture prompt while one of this list's keys waits for a
+        /// press, else the last message about this list; Settings shows the
+        /// Game input status when there is none. Returns the y under it.
+        private float DrawPrompt(float y, float w, HotkeyMap map, bool dev, GUIContent prompt)
+        {
+            HotkeyMap.Binding awaiting = map.AwaitingRebind;
+            bool rebinding = awaiting != null && KeyGroups.IsDeveloper(awaiting.Id) == dev;
+            if (rebinding)
+            {
+                if (!ReferenceEquals(_promptFor, awaiting))
+                {
+                    _promptFor = awaiting;
+                    _promptText = "Press a key for: " + awaiting.Description + "      Esc cancels, Backspace unbinds";
+                }
+                prompt.text = _promptText;
+            }
+            else
+            {
+                if (_message.Length > 0 && Time.unscaledTime > _messageUntil) _message = "";
+                prompt.text = _message.Length > 0 && _messageDev == dev ? _message : (dev ? "" : StatusLine());
+            }
+
+            if (prompt.text.Length == 0) return y;
             GUIStyle promptStyle = rebinding ? _promptStyle : _labelStyle;
             float promptW = w - 24f;
-            float promptH = _prompt.text.Length == 0
-                ? 0f
-                : Mathf.Max(20f, promptStyle.CalcHeight(_prompt, promptW));
-            GUI.Label(new Rect(12, y, promptW, promptH), _prompt, promptStyle);
-            y += promptH + 4f;
-
-            return DrawBindList(y, w, map) + 6f;
+            float promptH = Mathf.Max(20f, promptStyle.CalcHeight(prompt, promptW));
+            GUI.Label(new Rect(12, y, promptW, promptH), prompt, promptStyle);
+            return y + promptH + 4f;
         }
 
         // --- the HUD values -------------------------------------------
@@ -306,8 +383,13 @@ namespace ForestOverlay.Modules
             if (_hudNames == null)
             {
                 _hudNames = new GUIContent[HudLines.All.Length];
+                _hudHeadings = new GUIContent[HudLines.All.Length];
                 for (int i = 0; i < HudLines.All.Length; i++)
+                {
                     _hudNames[i] = new GUIContent(" " + HudLines.All[i].Name);
+                    string heading = HudLines.HeadingAt(i);
+                    if (heading != null) _hudHeadings[i] = new GUIContent(heading);
+                }
             }
             // The tips name the runner's keys, not the defaults (T-0262).
             GUIContent[] tips = HudLineTips.Get(Host.Hotkeys);
@@ -352,6 +434,12 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < HudLines.All.Length; i++)
             {
                 HudLine l = HudLines.All[i];
+                // The values under short headings (T-0263).
+                if (_hudHeadings[i] != null)
+                {
+                    GUI.Label(new Rect(4, y + 2f, cw - 8, 22), _hudHeadings[i], _groupStyle);
+                    y += 24f;
+                }
                 // Every row's description is its hover tip (T-0259).
                 Rect row = new Rect(4, y, cw - 8, 22);
                 if (l.Locked)
@@ -399,7 +487,13 @@ namespace ForestOverlay.Modules
 
         private void Say(string message)
         {
+            Say(message, false);
+        }
+
+        private void Say(string message, bool dev)
+        {
             _message = message;
+            _messageDev = dev;
             _messageUntil = Time.unscaledTime + MessageSeconds;
         }
 
@@ -418,41 +512,46 @@ namespace ForestOverlay.Modules
             return _statusLine;
         }
 
-        // The rows, inline in the page (the page scrolls). Returns the y under them.
-        private float DrawBindList(float top, float w, HotkeyMap map)
+        // One group's rows, inline in the page (the page scrolls). Returns
+        // the y under them.
+        private float DrawBindRows(float top, float w, HotkeyMap map, int group)
         {
             IList<HotkeyMap.Binding> binds = map.Bindings;
+            bool dev = group == KeyGroups.Developer;
+            _rowsDrawnFrame[dev ? 1 : 0] = Time.frameCount;
 
-            Rect content = new Rect(8, top, w - 16f, binds.Count * RowHeight);
+            float contentW = w - 16f;
+            float y = top;
 
             for (int i = 0; i < binds.Count; i++)
             {
+                if (_groupOf[i] != group) continue;
                 HotkeyMap.Binding b = binds[i];
-                float y = top + i * RowHeight;
 
-                GUI.Label(new Rect(12, y, content.width - 252f, RowHeight), b.Description, _labelStyle);
+                GUI.Label(new Rect(12, y, contentW - 252f, RowHeight), b.Description, _labelStyle);
 
                 HotkeyMap.Binding clash = map.Conflict(b.Key, b);
                 if (clash != null)
                 {
-                    GUI.Label(new Rect(content.width - 236f, y, 60f, RowHeight), "clash", _warnStyle);
+                    GUI.Label(new Rect(contentW - 236f, y, 60f, RowHeight), "clash", _warnStyle);
                 }
 
                 bool waiting = map.AwaitingRebind == b;
                 GUIContent label = waiting ? PressText : (b.Key == KeyCode.None ? UnboundText : KeyLabel(b.Key));
 
                 // Wide enough for the longest key name (KeypadMultiply was cut off).
-                if (GUI.Button(new Rect(content.width - 172f, y + 2f, 124f, RowHeight - 6f), label))
+                if (GUI.Button(new Rect(contentW - 172f, y + 2f, 124f, RowHeight - 6f), label))
                     map.AwaitingRebind = waiting ? null : b;
 
-                if (GUI.Button(new Rect(content.width - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
+                if (GUI.Button(new Rect(contentW - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
                 {
                     b.Key = b.Default;
-                    Say(b.Description + " reset to " + b.Default + ".");
+                    Say(b.Description + " reset to " + b.Default + ".", dev);
                 }
+                y += RowHeight;
             }
 
-            return top + binds.Count * RowHeight;
+            return y;
         }
 
         private GUIContent KeyLabel(KeyCode key)
@@ -462,17 +561,19 @@ namespace ForestOverlay.Modules
             return c;
         }
 
-        private void CaptureKey(HotkeyMap map)
+        // `dev`: the list drawing this pass; a capture belongs to its row's list.
+        private void CaptureKey(HotkeyMap map, bool dev)
         {
             Event e = Event.current;
             if (e == null || e.type != EventType.KeyDown) return;
 
             HotkeyMap.Binding target = map.AwaitingRebind;
+            if (KeyGroups.IsDeveloper(target.Id) != dev) return;
 
             if (e.keyCode == KeyCode.Escape)
             {
                 map.AwaitingRebind = null;
-                Say("Rebind cancelled.");
+                Say("Rebind cancelled.", dev);
                 e.Use();
                 return;
             }
@@ -482,7 +583,7 @@ namespace ForestOverlay.Modules
                 target.Key = KeyCode.None;
                 map.AwaitingRebind = null;
                 map.Swallow(KeyCode.Backspace);
-                Say(target.Description + " unbound.");
+                Say(target.Description + " unbound.", dev);
                 e.Use();
                 return;
             }
@@ -503,7 +604,7 @@ namespace ForestOverlay.Modules
             // the press would be worse than a warning.
             Say(clash == null
                 ? target.Description + " -> " + e.keyCode
-                : target.Description + " -> " + e.keyCode + "  (also used by '" + clash.Description + "')");
+                : target.Description + " -> " + e.keyCode + "  (also used by '" + clash.Description + "')", dev);
 
             e.Use();
         }

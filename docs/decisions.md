@@ -125,6 +125,14 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   one (radio), or picking one disables the other (the Deaths tab's
   *Reload save on death* toggle went for this). The Info box and the
   legacy `locations/*.txt` import stay.
+- **Settings' long lists are grouped; developer keys live in the
+  Developer tab** (author, 2026-10-09, T-0263 answer (c)): Settings > Keys
+  and Settings > HUD's values sit under short headings, and the
+  developer-only keys (dumps, type explorer, TAS, QA) are rebound in the
+  Developer tab's *Keys* fold, not in the runner's list. Groups by hotkey
+  id in `Data/KeyGroups` (an unknown id shows under *Other*, never
+  hidden), the values' in `Data/HudLines`. Heading words proposed by the
+  builder (tasks/notes/T-0263.md), the author to OK.
 - **A quick load during the game's own death cleans it up in place**
   (author, 2026-10-09, T-0248): F7 / a restart / a Go while the death
   plays (the fall, the drag-away, the capture's hanging, the dead cam)

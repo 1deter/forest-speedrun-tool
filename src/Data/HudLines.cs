@@ -147,6 +147,24 @@ namespace ForestOverlay.Data
               "Always shown during a run, even with every overlay hidden (run mode's anti-splice code)."),
         };
 
+        /// Settings > HUD's value list under short headings (T-0263): the
+        /// line each group starts at (by Name, so a reorder cannot shift
+        /// them) and its heading (proposed words, tasks/notes/T-0263.md).
+        private static readonly string[] GroupFirst =
+            { "Title", "Speed", "Items carried", "Freecam", "Current spot", "Run timer", "ON NOW" };
+        private static readonly string[] GroupHeadings =
+            { "Overlay", "Movement", "Inventory and 100%", "Tools", "Practice", "Runs", "Always shown" };
+
+        /// The heading drawn above line `index`, or null (not a group's first line).
+        public static string HeadingAt(int index)
+        {
+            if (index < 0 || index >= All.Length) return null;
+            string name = All[index].Name;
+            for (int g = 0; g < GroupFirst.Length; g++)
+                if (string.Equals(GroupFirst[g], name, StringComparison.Ordinal)) return GroupHeadings[g];
+            return null;
+        }
+
         /// The line's description with the runner's key in it: `keyName` is
         /// the current key of the line's KeyId (null / "" = unbound).
         public static string Describe(HudLine line, string keyName)
