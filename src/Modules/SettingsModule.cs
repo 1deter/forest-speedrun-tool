@@ -119,12 +119,12 @@ namespace ForestOverlay.Modules
         // The trend colours (T-0023). Words proposed, not yet approved by the author.
         private static readonly GUIContent TrendTitle = new GUIContent("Trend colours");
         private static readonly GUIContent TrendTip = new GUIContent(
-            "For the values with Trend on in Edit HUD layout: their colour while gaining, losing or steady. Type a colour as #RRGGBB.");
+            "For the values with Trend on in Edit HUD layout: their colour while gaining or losing (steady uses the theme's text colour). Click a swatch or type a colour as #RRGGBB.");
         private static readonly GUIContent TrendBad = new GUIContent("Not a colour: type #RRGGBB, e.g. #33DD55.");
-        private static readonly TrendState[] TrendRows = { TrendState.Gaining, TrendState.Losing, TrendState.Steady };
+        private static readonly TrendState[] TrendRows = { TrendState.Gaining, TrendState.Losing };
         private static readonly GUIContent[] TrendNames =
         {
-            new GUIContent("Gaining"), new GUIContent("Losing"), new GUIContent("Steady"),
+            new GUIContent("Gaining"), new GUIContent("Losing"),
         };
         private readonly string[] _trendEdit = new string[3];   // the field's text, by row
         private readonly string[] _trendFrom = new string[3];   // the stored text it was taken from
@@ -538,6 +538,23 @@ namespace ForestOverlay.Modules
                     _trendEdit[r] = _trendFrom[r] ?? "";
                 }
                 y += 24f;
+                // The presets: one click sets the colour (the field follows).
+                for (int k = 0; k < HudTrend.Presets.Length; k++)
+                {
+                    Rect sw = new Rect(114 + k * 22, y + 1, 18, 18);
+                    uint pc = HudTrend.Presets[k];
+                    Color keep = GUI.color;
+                    GUI.color = new Color(UiPalette.R(pc), UiPalette.G(pc), UiPalette.B(pc), 1f);
+                    GUI.DrawTexture(sw, Texture2D.whiteTexture);
+                    GUI.color = keep;
+                    if (GUI.Button(sw, GUIContent.none, GUIStyle.none))
+                    {
+                        s.SetTrendText(state, HudTrend.Format(pc));
+                        _trendFrom[r] = s.TrendText(state);
+                        _trendEdit[r] = _trendFrom[r] ?? "";
+                    }
+                }
+                y += 22f;
                 uint parsed;
                 if (!HudTrend.TryParse(_trendEdit[r], out parsed))
                     y += UiText.DrawDim(114, y, cw - 118, TrendBad) + 2f;

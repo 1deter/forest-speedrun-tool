@@ -116,11 +116,12 @@ T-0018 (author, 2026-10-10; decisions.md *The HUD is a column of values*,
   Only changed values are listed; unknown tokens are ignored (`label=`
   from the first builds too), numbers clamped, text one line, 40 characters.
 - **Trend colour** (T-0023; author, 2026-10-07: like Momentum Mod, colours
-  customisable, defaults green = gaining, red = losing, white = steady):
+  customisable, defaults green = gaining, red = losing; steady = the theme's text colour, author 2026-10-11):
   Speed and Total speed offer it, off until the runner presses *Trend* on
   the value's row in Edit HUD (kept in the profile's layout as `trend`).
   The colours are Settings -> HUD -> *Trend colours* (`[HUD] TrendGaining /
-  TrendLosing / TrendSteady`, `#RRGGBB`, in the profile too). The trend is
+  TrendLosing`, `#RRGGBB`, in the profile too; 8 preset swatches or a typed
+  colour; steady has no setting). The trend is
   `Data/HudTrend`: the value's rate of change per second on the HUD's
   10 Hz tick, through a dead-band (0.5 a second) and a hold (0.3 s), so it
   does not flicker; only the style's text colour changes around the draw

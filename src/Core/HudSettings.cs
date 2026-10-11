@@ -47,13 +47,11 @@ namespace ForestOverlay.Core
                 "Trend colour (#RRGGBB) of a value with Trend on (Edit HUD layout) while it rises.");
             _trend[(int)TrendState.Losing] = config.Bind("HUD", "TrendLosing", HudTrend.Format(HudTrend.DefaultLoss),
                 "Trend colour (#RRGGBB) of a value with Trend on while it falls.");
-            _trend[(int)TrendState.Steady] = config.Bind("HUD", "TrendSteady", HudTrend.Format(HudTrend.DefaultSteady),
-                "Trend colour (#RRGGBB) of a value with Trend on while it holds.");
         }
 
         // --- trend colours (T-0023) -------------------------------------------
 
-        public static readonly uint[] TrendDefaults = { HudTrend.DefaultSteady, HudTrend.DefaultGain, HudTrend.DefaultLoss };
+        public static readonly uint[] TrendDefaults = { 0, HudTrend.DefaultGain, HudTrend.DefaultLoss };   // Steady: no setting
         private readonly string[] _trendSeen = new string[3];
         private readonly Color[] _trendColour = new Color[3];
 
@@ -62,8 +60,9 @@ namespace ForestOverlay.Core
         /// compare), so nothing allocates.
         public Color TrendColour(TrendState state)
         {
+            // Steady is the theme's text colour (author, 2026-10-11): no setting of its own.
             int i = (int)state;
-            if (i < 0 || i >= _trend.Length) i = (int)TrendState.Steady;
+            if (i < 0 || i >= _trend.Length || _trend[i] == null) return UiKit.TextColour;
             string text = _trend[i].Value;
             if (!ReferenceEquals(text, _trendSeen[i]))
             {
@@ -77,7 +76,8 @@ namespace ForestOverlay.Core
         /// The stored text ("#33DD55"), for the Settings field.
         public string TrendText(TrendState state)
         {
-            return _trend[(int)state].Value;
+            ConfigEntry<string> e = _trend[(int)state];
+            return e == null ? null : e.Value;
         }
 
         /// Sets a trend colour from typed text; false (nothing written) when
@@ -88,6 +88,7 @@ namespace ForestOverlay.Core
             if (!HudTrend.TryParse(text, out c)) return false;
             string formatted = HudTrend.Format(c);
             ConfigEntry<string> e = _trend[(int)state];
+            if (e == null) return false;
             if (string.Equals(e.Value, formatted, System.StringComparison.OrdinalIgnoreCase)) return false;
             e.Value = formatted;
             Version++;
@@ -134,7 +135,7 @@ namespace ForestOverlay.Core
             widgets.RegisterProfileEntry(_textSize, null);
             widgets.RegisterProfileEntry(_x, null);
             widgets.RegisterProfileEntry(_y, null);
-            for (int i = 0; i < _trend.Length; i++) widgets.RegisterProfileEntry(_trend[i], null);
+            for (int i = 0; i < _trend.Length; i++) if (_trend[i] != null) widgets.RegisterProfileEntry(_trend[i], null);
         }
 
         /// A profile was switched in: the cached look rebuilds.

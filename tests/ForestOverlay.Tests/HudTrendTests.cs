@@ -208,7 +208,19 @@ namespace ForestOverlay.Tests
         {
             Assert.Equal(HudTrend.DefaultGain, HudTrend.ParseOr(HudTrend.Format(HudTrend.DefaultGain), 0));
             Assert.Equal(HudTrend.DefaultLoss, HudTrend.ParseOr(HudTrend.Format(HudTrend.DefaultLoss), 0));
-            Assert.Equal(HudTrend.DefaultSteady, HudTrend.ParseOr(HudTrend.Format(HudTrend.DefaultSteady), 0));
+        }
+
+        [Fact]
+        public void EightDistinctPresetsStartingWithTheDefaults()
+        {
+            Assert.Equal(8, HudTrend.Presets.Length);
+            Assert.Equal(HudTrend.DefaultGain, HudTrend.Presets[0]);
+            Assert.Equal(HudTrend.DefaultLoss, HudTrend.Presets[1]);
+            for (int i = 0; i < HudTrend.Presets.Length; i++)
+            {
+                Assert.Equal(HudTrend.Presets[i], HudTrend.ParseOr(HudTrend.Format(HudTrend.Presets[i]), 0));
+                for (int j = i + 1; j < HudTrend.Presets.Length; j++) Assert.NotEqual(HudTrend.Presets[i], HudTrend.Presets[j]);
+            }
         }
     }
 }

@@ -97,7 +97,17 @@ namespace ForestOverlay.Data
         /// The defaults (author, 2026-10-07), 0xRRGGBBAA.
         public const uint DefaultGain = 0x33DD55FF;
         public const uint DefaultLoss = 0xFF4444FF;
-        public const uint DefaultSteady = 0xFFFFFFFF;
+
+        // Steady has no colour of its own: it draws in the theme's text colour
+        // (author, 2026-10-11).
+
+        /// The swatches Settings offers for gaining and losing (0xRRGGBBAA):
+        /// the two defaults first.
+        public static readonly uint[] Presets =
+        {
+            0x33DD55FF, 0xFF4444FF, 0x3399FFFF, 0xFFDD33FF,
+            0xFF9933FF, 0x33DDDDFF, 0xDD55DDFF, 0xFFFFFFFF
+        };
 
         /// "#RRGGBB" (the # optional) as an opaque 0xRRGGBBAA; false for anything
         /// else. No alpha: a see-through value would be one that seems gone.
