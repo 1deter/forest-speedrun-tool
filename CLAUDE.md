@@ -164,9 +164,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0250 / T-0294 / T-0155 were already on main and deployed (a61a68d7);
   pending/site-held + cloud/fp-replay kept only for T-0281 (checker
   block). Merged cloud/* branches, ui-redesign and its worktree deleted.
-  **Next:** T-0025's in-game QA (the "In its QA" items in
-  tasks/notes/T-0025.md), then forest-ux findings T-0320..T-0324, T-0332
-  (Map slate), group 3's last savestate / hang tasks.
+  **Later (same day):** T-0025 QA done (forest-tester over the bridge +
+  the author's drags) - confirmed. New: T-0333 (column / splits / results
+  text blurry at 2560x1440). T-0320 sent to a cloud session (branch
+  cloud/t-0320 to merge + check). **Next:** T-0333, forest-ux findings
+  T-0321..T-0324, T-0332 (Map slate), T-0316 (needs the author: what
+  replaces Automatic as default), group 3's savestate / hang tasks.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
