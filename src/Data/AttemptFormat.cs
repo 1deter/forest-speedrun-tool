@@ -27,6 +27,9 @@ namespace ForestOverlay.Data
     //   runner|<id>|<name>                  who ran it (v0.24.146; older
     //                                       ones get it on export / upload)
     //   plane|<x>|<y>|<z>|<yaw>             the save's plane crash site (v0.24.163)
+    //   flags|<flag>|...                    labels on the run; today only
+    //                                       "ModAPI Detected" (T-0295), the
+    //                                       board marks the run. No line = none.
     //   channels|Health|Stamina|Energy|...
     //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
     //   v|<t>|<v0>|<v1>|...                state,    5 Hz
@@ -49,6 +52,9 @@ namespace ForestOverlay.Data
     public static class AttemptFormat
     {
         private const char NL = (char)10;
+
+        /// The one flag a .run carries today (the same words as the run mode report's).
+        public const string ModApiFlag = "ModAPI Detected";
 
         public static string Write(Attempt attempt)
         {
@@ -83,6 +89,9 @@ namespace ForestOverlay.Data
 
             if (!string.IsNullOrEmpty(attempt.RunnerId))
                 sb.Append("runner|").Append(Clean(attempt.RunnerId)).Append('|').Append(Clean(attempt.RunnerName)).Append(NL);
+
+            if (attempt.ModApi)
+                sb.Append("flags|").Append(ModApiFlag).Append(NL);
 
             if (attempt.HasPlane)
                 sb.Append("plane|").Append(F(attempt.Plane.x)).Append('|').Append(F(attempt.Plane.y)).Append('|')
@@ -203,6 +212,11 @@ namespace ForestOverlay.Data
                 {
                     a.RunnerId = p[1];
                     a.RunnerName = p.Length > 2 ? p[2] : "";
+                }
+                else if (p[0] == "flags")
+                {
+                    for (int c = 1; c < p.Length; c++)
+                        if (p[c] == ModApiFlag) a.ModApi = true;
                 }
                 else if (p[0] == "plane" && p.Length >= 5)
                 {

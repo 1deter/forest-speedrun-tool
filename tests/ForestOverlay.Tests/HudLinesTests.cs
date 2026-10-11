@@ -15,7 +15,9 @@ namespace ForestOverlay.Tests
             // Sticky: shown while clean too, above the tool or run mode's line.
             Assert.Equal("ModAPI", HudLines.Marker(true, null, null));
             Assert.Equal("ModAPI\nteleport", HudLines.Marker(true, null, "teleport: Cave 5 (top)"));
-            Assert.Equal("ModAPI\nRUN MODE - attempt 1", HudLines.Marker(true, "RUN MODE - attempt 1", null));
+            // In run mode the run line says it (NOT VALID: ModAPI Detected): once, not twice.
+            Assert.Equal("RUN MODE - attempt 1 - NOT VALID: ModAPI Detected",
+                HudLines.Marker(true, "RUN MODE - attempt 1 - NOT VALID: ModAPI Detected", null));
         }
 
         [Fact]

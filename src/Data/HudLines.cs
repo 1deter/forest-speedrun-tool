@@ -250,11 +250,13 @@ namespace ForestOverlay.Data
         /// author's word, 2026-10-10).
         public const string ModApiFlag = "ModAPI";
 
-        /// The practice marker: the ModAPI flag first when the session has
-        /// it, then run mode's line, else the tool's short name.
+        /// The practice marker: run mode's line when there is one (it names
+        /// "ModAPI Detected" itself - said once, author 2026-10-11), else the
+        /// ModAPI flag first when the session has it, then the tool's short name.
         public static string Marker(bool modApi, string runText, string reason)
         {
-            string rest = runText ?? ShortReason(reason);
+            if (runText != null) return runText;
+            string rest = ShortReason(reason);
             if (!modApi) return rest;
             return rest.Length == 0 ? ModApiFlag : ModApiFlag + "\n" + rest;
         }

@@ -239,6 +239,7 @@ namespace ForestOverlay.Modules
             }
             done.RunnerId = RunnerIdNow();
             done.RunnerName = RunnerNameNow();
+            done.ModApi = Ctx.Practice != null && Ctx.Practice.ModApi;
             Vector3 plane;
             float yaw;
             if (PlaneSite.TryRead(Ctx.Log, out plane, out yaw)) { done.HasPlane = true; done.Plane = plane; done.PlaneYaw = yaw; }
