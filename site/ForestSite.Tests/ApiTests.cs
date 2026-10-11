@@ -1043,6 +1043,8 @@ public sealed class ApiTests : IDisposable
 
     private const string OfficialHook = "https://discord.invalid/api/webhooks/test";
     private const string OwnHook = "https://discord.com/api/webhooks/1234567890/run-spot_TOKEN";
+    private const string CommunityHook = "https://discord.com/api/webhooks/2234567890/community_TOKEN";
+    private const string RunSpotsHook = "https://discord.com/api/webhooks/3234567890/run-spots_TOKEN";
 
     /// A fake Discord behind the site's HttpClient: every POST it got (URL + JSON body); it answers
     /// with Answer (204 by default). No real Discord call is ever made.
@@ -1360,6 +1362,73 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Webhook_CommunityAndRunSpots_TheirOwnWebhooks_TheEnvOneTheFallback()
+    {
+        FakeDiscord discord = FakeWebhook();   // FOREST_DISCORD_WEBHOOK = OfficialHook
+        string ta = await Register(A);
+        var com = TestSegment("s-111111111111");
+        MakeCommunity(com);
+        var put = new HttpRequestMessage(HttpMethod.Put, "/api/admin/categories/any-normal")
+        {
+            Content = new StringContent(new RunCategory { Id = "any-normal", Name = "Any% - Normal", Status = "published" }.Format(), Encoding.UTF8),
+        };
+        put.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(put)).StatusCode);
+        var run = TestSegment("s-222222222222");
+        run.RunCategory = "any-normal";
+        var own = TestSegment("s-333333333333");
+
+        // Nothing set on /admin (a site from before T-0294): both kinds post to the env webhook.
+        await Upload(ta, Bundle(com, RunText(com, A, 10f, 5f, 1)));
+        await Upload(ta, Bundle(run, RunText(run, A, 10f, 5f, 2)));
+        await Until(() => discord.Contents().Count >= 2);
+        Assert.Equal(new[] { "Community spot", "Run category" }, discord.Contents(OfficialHook).Select(Foot));
+
+        // Each kind its own channel; runners' spots on "the same channel" follow the community spots'.
+        var both = new JsonObject
+        {
+            ["runnerSpots"] = true, ["channel"] = "same", ["webhook"] = "", ["communityWebhook"] = " " + CommunityHook + " ", ["runSpotsWebhook"] = RunSpotsHook,
+        };
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(both.ToJsonString())).StatusCode);
+        await Upload(ta, Bundle(com, RunText(com, A, 9f, 5f, 3)));
+        await Upload(ta, Bundle(run, RunText(run, A, 9f, 5f, 4)));
+        await Upload(ta, Bundle(own, RunText(own, A, 9f, 5f, 5)));
+        await Until(() => discord.Contents().Count >= 5);
+        Assert.Equal(2, discord.Contents(OfficialHook).Count);
+        Assert.Equal(new[] { "Community spot", "Runner's spot" }, discord.Contents(CommunityHook).Select(Foot).OrderBy(f => f));
+        Assert.Equal("Run category", Foot(Assert.Single(discord.Contents(RunSpotsHook))));
+        var view = (await Admin("/api/admin/pbposts")).AsObject();
+        Assert.Equal(CommunityHook, (string)view["settings"]["communityWebhook"]);
+        Assert.Equal(RunSpotsHook, (string)view["settings"]["runSpotsWebhook"]);
+
+        // A page from before T-0294 leaves them out: kept. Empty: back to the env webhook.
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(false, "same", ""))).StatusCode);
+        Assert.Equal(CommunityHook, _factory.Services.GetRequiredService<PbPosts>().Settings.Current.CommunityWebhook);
+        both["communityWebhook"] = "";
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(both.ToJsonString())).StatusCode);
+        await Upload(ta, Bundle(com, RunText(com, A, 8f, 4f, 6)));
+        await Until(() => discord.Contents(OfficialHook).Count >= 3);
+        Assert.Equal("Community spot", Foot(discord.Contents(OfficialHook)[2]));
+
+        // Validated like their own channel's: Discord webhooks only (no SSRF); a string or null.
+        foreach (string bad in new[]
+        {
+            "{\"runnerSpots\":false,\"communityWebhook\":\"https://example.com/api/webhooks/1/x\"}",
+            "{\"runnerSpots\":false,\"runSpotsWebhook\":\"http://discord.com/api/webhooks/1/x\"}",
+            "{\"runnerSpots\":false,\"runSpotsWebhook\":5}",
+        })
+            Assert.Equal(HttpStatusCode.BadRequest, (await PutPbPosts(bad)).StatusCode);
+        Assert.Equal(RunSpotsHook, _factory.Services.GetRequiredService<PbPosts>().Settings.Current.RunSpotsWebhook);
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts("{\"runnerSpots\":false,\"runSpotsWebhook\":null}")).StatusCode);
+        Assert.Equal("", _factory.Services.GetRequiredService<PbPosts>().Settings.Current.RunSpotsWebhook);
+
+        // Secrets: never in the activity log.
+        string log = (await Admin("/api/admin/log")).ToJsonString();
+        Assert.DoesNotContain("community_TOKEN", log);
+        Assert.DoesNotContain("run-spots_TOKEN", log);
+    }
+
+    [Fact]
     public async Task Webhook_Sender_RetriesA429_AndLogsNoUrl()
     {
         var fake = new FakeDiscord();
@@ -1404,17 +1473,29 @@ public sealed class ApiTests : IDisposable
         var off = PbSettings.Values.Off;
         var same = new PbSettings.Values(true, false, OwnHook);
         var own = new PbSettings.Values(true, true, OwnHook);
-        // Community / run spots: the official webhook, whatever runners' spots do.
-        Assert.Equal(OfficialHook, PbNews.Target(true, off, OfficialHook));
-        Assert.Equal(OfficialHook, PbNews.Target(true, own, OfficialHook));
-        Assert.Null(PbNews.Target(true, own, ""));
+        // Community / run spots with nothing set on /admin: FOREST_DISCORD_WEBHOOK, whatever runners' spots do.
+        Assert.Equal(OfficialHook, PbNews.Target(true, false, off, OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(true, true, off, OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(true, false, own, OfficialHook));
+        Assert.Null(PbNews.Target(true, false, own, ""));
+        Assert.Null(PbNews.Target(true, true, own, ""));
         // Runners' spots: off, the same channel, their own.
-        Assert.Null(PbNews.Target(false, off, OfficialHook));
-        Assert.Null(PbNews.Target(false, new PbSettings.Values(false, true, OwnHook), OfficialHook));
-        Assert.Equal(OfficialHook, PbNews.Target(false, same, OfficialHook));
-        Assert.Null(PbNews.Target(false, same, ""));                 // the same channel, and there is none
-        Assert.Equal(OwnHook, PbNews.Target(false, own, ""));        // their own works without the official one
-        Assert.Null(PbNews.Target(false, new PbSettings.Values(true, true, ""), OfficialHook));
+        Assert.Null(PbNews.Target(false, false, off, OfficialHook));
+        Assert.Null(PbNews.Target(false, false, new PbSettings.Values(false, true, OwnHook), OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(false, false, same, OfficialHook));
+        Assert.Null(PbNews.Target(false, false, same, ""));                 // the same channel, and there is none
+        Assert.Equal(OwnHook, PbNews.Target(false, false, own, ""));        // their own works without the official one
+        Assert.Null(PbNews.Target(false, false, new PbSettings.Values(true, true, ""), OfficialHook));
+
+        // T-0294: each kind's own webhook from /admin wins over the env one; an empty one falls back.
+        var kinds = new PbSettings.Values(true, false, "", CommunityHook, RunSpotsHook);
+        Assert.Equal(CommunityHook, PbNews.Target(true, false, kinds, OfficialHook));
+        Assert.Equal(RunSpotsHook, PbNews.Target(true, true, kinds, OfficialHook));
+        Assert.Equal(RunSpotsHook, PbNews.Target(true, true, kinds, ""));   // no env needed
+        Assert.Equal(CommunityHook, PbNews.Target(false, false, kinds, OfficialHook));   // "the same channel" = the community spots'
+        var communityOnly = new PbSettings.Values(false, false, "", CommunityHook, "");
+        Assert.Equal(OfficialHook, PbNews.Target(true, true, communityOnly, OfficialHook));
+        Assert.Null(PbNews.Target(true, true, communityOnly, ""));
     }
 
     // --- security audit (2026-10-04) -------------------------------------------------

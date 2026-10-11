@@ -45,20 +45,24 @@ New repository secret, three times:
   `X-Admin-Token` header to `/api/admin/...` (flagged runs, hide / delete a
   run, spot submissions, reset a runner's token, ban).
 - Back up: `/var/lib/forest-site` (the database and every uploaded run).
-- **Discord PB posts** (off until set): make a webhook in the Discord
-  channel (Channel settings -> Integrations -> Webhooks -> New Webhook ->
-  Copy Webhook URL), then on the VPS
-  `sudo sh -c 'echo FOREST_DISCORD_WEBHOOK=<the URL> >> /opt/forest-site/.env'`
-  and `cd /opt/forest-site && sudo docker compose up -d --force-recreate`
-  (a restart does not re-read `.env`). The log's startup line says
-  `Discord PB posts on`. Remove the line and recreate to switch it off.
-  Optional `FOREST_SITE_URL` sets the address the posts link to (default
-  `https://forest.deter.cloud`). The webhook URL is a secret: anyone with
-  it can post in that channel. PBs on runners' own spots are set on
-  `/admin` -> **PB posts** (the owner's token; off until saved on): the
-  same channel, or their own webhook URL pasted there (kept in the
-  database, no restart). The startup line ends `runners' spots off` /
-  `same channel` / `own channel`.
+- **Discord PB posts** (T-0294: set in the web panel, nothing on the
+  server): make a webhook in the Discord channel (Channel settings ->
+  Integrations -> Webhooks -> New Webhook -> Copy Webhook URL) and paste
+  it on `/admin` -> **PB posts** (the owner's token) - one for community
+  spots, one for run spots (they may be the same URL), kept in the
+  database, applied to the next PB, no restart. PBs on runners' own
+  spots are set there too (off until saved on): the community spots'
+  channel, or their own webhook URL. **The fallback:**
+  `FOREST_DISCORD_WEBHOOK=<the URL>` in `/opt/forest-site/.env` (then
+  `cd /opt/forest-site && sudo docker compose up -d --force-recreate` - a
+  restart does not re-read `.env`) is used by whichever of the two the
+  page leaves empty - so the live site kept its posts across the T-0294
+  deploy; once both are set on the page the line can go. The log's
+  startup line says `Discord PB posts: community spots admin webhook |
+  env webhook | off, run spots ..., runners' spots off | same channel |
+  own channel`. Optional `FOREST_SITE_URL` sets the address the posts
+  link to (default `https://forest.deter.cloud`). A webhook URL is a
+  secret: anyone with it can post in that channel.
 - Roll back: `ls /opt/forest-site/app/releases`, then as root
   `ln -sfn releases/<older> /opt/forest-site/app/current && docker restart forest-site`.
 

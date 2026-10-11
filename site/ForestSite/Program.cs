@@ -21,11 +21,12 @@ using Microsoft.AspNetCore.RateLimiting;
 //   FOREST_BOT_TOKEN    the knowledge bot's own token (X-Bot-Token): it reads its
 //                       settings and reports what it applies (BotSettings).
 //                       Unset = those two endpoints answer 403.
-//   FOREST_DISCORD_WEBHOOK  a Discord webhook URL: a new PB on a community
-//                       spot or a run spot is posted there (PbWebhook).
-//                       Unset = off. Env or appsettings.json. PBs on runners'
-//                       own spots: the owner's PB posts tab on /admin
-//                       (PbSettings - there, or to their own webhook).
+//   FOREST_DISCORD_WEBHOOK  a Discord webhook URL, the fallback: a new PB on
+//                       a community spot or a run spot is posted there
+//                       while the owner's PB posts tab on /admin leaves that
+//                       kind's webhook empty (PbSettings, T-0294). Unset and
+//                       empty = off. Env or appsettings.json. PBs on runners'
+//                       own spots: that tab too (PbSettings).
 //   FOREST_SITE_URL     the public address for links in those posts and
 //                       in link previews' og:url (default
 //                       https://forest.deter.cloud) - never the request's
@@ -250,8 +251,8 @@ if (Environment.GetEnvironmentVariable("FOREST_SRC_SYNC") != "off")
 }
 
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
-app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}; Discord PB posts {hook}, runners' spots {spots}", dataDir, packs,
-                          adminToken.Length > 0 ? "on" : "off", webhook.On ? "on" : "off", pbPosts.RunnerSpotsState());
+app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}; Discord PB posts: community spots {community}, run spots {runSpots}, runners' spots {spots}",
+                          dataDir, packs, adminToken.Length > 0 ? "on" : "off", pbPosts.KindState(false), pbPosts.KindState(true), pbPosts.RunnerSpotsState());
 // The world uploaded before Brotli has .gz copies only: its .br ones, once.
 _ = Task.Run(() =>
 {
@@ -543,9 +544,9 @@ admin.MapPut("/bot", async (HttpContext c) =>
     return error == null ? Results.Json(new { rev }) : Problem(400, error);
 });
 
-// Discord PB posts from runners' own spots (T-0232): the owner only - the
-// answer holds their own channel's webhook URL, a secret. `official` says
-// whether FOREST_DISCORD_WEBHOOK is set (never its URL).
+// Discord PB posts (T-0232, T-0294): the owner only - the answer holds the
+// webhook URLs set here, secrets. `official` says whether
+// FOREST_DISCORD_WEBHOOK is set (never its URL): the fallback for an empty one.
 admin.MapGet("/pbposts", (HttpContext c) =>
 {
     if (!IsOwner(c)) return Problem(403, "only the owner changes the PB posts");
@@ -637,7 +638,13 @@ admin.MapPut("/categories/{id}", async (HttpContext c, string id) =>
     var (saved, error) = categories.Save(id, await Body(c.Request), c.Items["admin"] as string ?? "?");
     return error != null ? Problem(400, error) : Results.Json(new { id = saved.Id, version = saved.Version });
 });
-admin.MapPost("/categories/{id}/accept", (HttpContext c, string id) =>
+// T-0250: refused (409) while any attempt names the category.
+admin.MapDelete("/categories/{id}", (string id) =>
+{
+    var (error, notFound) = categories.Delete(id);
+    return error == null ? Results.Ok() : Problem(notFound ? 404 : 409, error);
+});
+admin.MapPost("/categories/{id}/accept",(HttpContext c, string id) =>
     categories.AcceptSource(id, c.Items["admin"] as string ?? "?") is { } s ? Results.Json(new { id = s.Id, version = s.Version }) : Problem(404, "no change from speedrun.com waiting"));
 admin.MapPost("/categories/{id}/dismiss", (string id) =>
     categories.DismissSource(id) ? Results.Ok() : Problem(404, "no change from speedrun.com waiting"));

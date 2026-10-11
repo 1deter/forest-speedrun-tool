@@ -326,8 +326,8 @@ namespace ForestOverlay.Game
                 "Before the level is saved, a capture notes what the save leaves out (pickups on the ground, held items, doors, " +
                 "elevators, cut bushes, enemies...) - each a search of the whole scene, ~0.14 s in one frame. For a checkpoint " +
                 "state mid-run, spread them over the frames before it (a few ms each); the state is then a few frames after the " +
-                "checkpoint, not on it (the resumed clock counts them). Off by default until the author picks (T-0072).",
-                delegate { CheckpointCaptureSpread = true; return ""; }, delegate { CheckpointCaptureSpread = false; }, false);
+                "checkpoint, not on it (the resumed clock counts them). On by default (author, 2026-10-11, T-0072).",
+                delegate { CheckpointCaptureSpread = true; return ""; }, delegate { CheckpointCaptureSpread = false; });
             Add(config, "RestoreSkipSameWreckNav", "Savestates: no enemy-path recalculation for the re-created plane wreck",
                 "A savestate restore brings back a new plane wreck where the old one stands, and the game recalculated enemy " +
                 "paths around it twice - for the new wreck and for the old one going - each a ~0.2 s frame and ~8 MB of garbage, " +
