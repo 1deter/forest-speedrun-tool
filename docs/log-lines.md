@@ -597,7 +597,7 @@ Written by Plugin.cs; info.
 
 ## `HUD layout reset`
 
-Meaning: Edit HUD's Reset layout (after its Sure?): the active profile back to the default look - every value in the column with no text, its settings (values shown, column place, Compact, Text size, the splits + results panels) at their defaults (T-0303).
+Meaning: Edit HUD's Reset profile (after its Sure?): the active profile back to the default look - every value in the column with no text, its settings (values shown, column place, Compact, Text size, the splits + results panels) at their defaults (T-0303).
 Written by HudWidgets.Profiles.cs; info.
 
 - info `HUD layout reset: profile <name> back to the default look (values, column, panels, Compact, Text size).`

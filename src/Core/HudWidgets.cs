@@ -558,7 +558,7 @@ namespace ForestOverlay.Core
         private static readonly GUIContent LockedNote = new GUIContent(
             "Always shown under the column: ON NOW and the practice marker (a recording must show them).");
         private static readonly GUIContent DoneText = new GUIContent("Done");
-        private static readonly GUIContent ResetText = new GUIContent("Reset layout");
+        private static readonly GUIContent ResetText = new GUIContent("Reset profile");
         private static readonly GUIContent ResetSureText = new GUIContent("Sure?");
         private static readonly GUIContent ResetTip = new GUIContent(
             "This profile back to the default HUD: every value in the column with no text, the panels, Compact and Text size.");

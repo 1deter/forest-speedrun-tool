@@ -29,7 +29,7 @@ namespace ForestOverlay.Data
         public HudLayout Layout = new HudLayout();
 
         /// The default look: no setting of its own (each takes its default)
-        /// and no value changed - what New makes, what Reset layout puts back
+        /// and no value changed - what New makes, what Reset profile puts back
         /// (T-0303, author 2026-10-11: "Everything in the profile") and what a
         /// first Default is on a fresh install.
         public static HudProfile DefaultLook()

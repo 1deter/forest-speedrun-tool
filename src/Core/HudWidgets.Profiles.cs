@@ -300,7 +300,7 @@ namespace ForestOverlay.Core
         private float _deleteArmedUntil = -1f;
         private float _resetArmedUntil = -1f;
 
-        /// Reset layout (T-0303): the active profile back to the default look -
+        /// Reset profile (T-0303): the active profile back to the default look -
         /// every setting it holds (values shown, the column's place, Compact,
         /// Text size, the splits + results panels and their options) and every
         /// value back in the column with no text. A second click within 3 s,
