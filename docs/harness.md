@@ -706,7 +706,8 @@ its context (proved with `claude -p --disallowedTools` and a project
 agents did not call since 2026-09-20 (`claude-in-chrome`: 2 calls on 10-07;
 the built-in browser does that job): `Artifact`, `ReportFindings`,
 `SearchPlugins`, `SuggestPluginInstall`, `SuggestSkills`, `ScheduleWakeup`,
-the Claude Docs and visualize connectors, and the deferred `claude-in-chrome`,
+the Claude Docs (`mcp__1a59c906-...`) and visualize (`mcp__visualize`,
+`mcp__6f616b42-...`) connectors, and the deferred `claude-in-chrome`,
 `scheduled-tasks`, `mcp-registry`, `potassium`, `roblox-explorer`. Undo a
 line when one is needed. Re-measure: the `start` column of
 `agent-cost.py --agent main --since 2026-10-12 --runs` against ~73k.
