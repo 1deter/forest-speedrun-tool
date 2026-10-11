@@ -188,6 +188,12 @@ namespace ForestOverlay.Modules
 
         private string _sharedDir;
         private bool _importing;
+        // The Import view follows its folders and asks the community /
+        // website for their lists when it opens (T-0254: no Refresh,
+        // Check community now or Website spots button).
+        private const float ImportCheckInterval = 2f;
+        private bool _importWasShowing;
+        private FolderStamp _sharedFiles, _lssFiles;
         private readonly List<ImportEntry> _imports = new List<ImportEntry>();
         private readonly GUIContent _importStatus = new GUIContent("");
         private GUIContent _importHeader = new GUIContent("");
@@ -246,6 +252,8 @@ namespace ForestOverlay.Modules
             }
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
             _lssDir = System.IO.Path.Combine(ctx.ConfigDirectory, "livesplit");
+            _sharedFiles = new FolderStamp(_sharedDir, ImportCheckInterval, "*" + SegmentBundle.Extension);
+            _lssFiles = new FolderStamp(_lssDir, ImportCheckInterval, "*.lss", "*.lsl");
             _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir +
                                            ", or a LiveSplit splits file (.lss) from " + _lssDir +
                                            " - that one makes a timed spot where you stand, split like your autosplitter.");
@@ -292,6 +300,26 @@ namespace ForestOverlay.Modules
                 _regroupAt = -1f;
                 RebuildVisible();
             }
+
+            TickImportView();
+        }
+
+        /// While the Import view shows: a file dropped in (or changed) in
+        /// shared/ or livesplit/ lists itself; opening it asks the community
+        /// and the website again when their last answer is old enough.
+        private void TickImportView()
+        {
+            bool showing = _importing && TabShowing;
+            if (showing && !_importWasShowing)
+            {
+                _sharedFiles.CheckNow();
+                _lssFiles.CheckNow();
+                if (_community != null) _community.ImportViewOpened();
+            }
+            _importWasShowing = showing;
+            if (!showing) return;
+            float now = Time.unscaledTime;
+            if (_sharedFiles.Changed(now) | _lssFiles.Changed(now)) ScanImports();   // | : both keep their stamp
         }
 
         public override void Shutdown()
@@ -2404,6 +2432,9 @@ namespace ForestOverlay.Modules
 
         private void ScanImports()
         {
+            // Taken first: a file written while it is read is seen next time.
+            _sharedFiles.Take(Time.unscaledTime);
+            _lssFiles.Take(Time.unscaledTime);
             _imports.Clear();
             _importArmedPath = null;
             int bad = 0;
@@ -2437,7 +2468,7 @@ namespace ForestOverlay.Modules
             bad += ScanLiveSplitFiles();
 
             _importStatus.text = _imports.Count == 0
-                ? "No .foseg or .lss files there yet - put a shared file or a LiveSplit splits file in its folder (Open folder), then Refresh."
+                ? "No .foseg or .lss files there yet - put a shared file or a LiveSplit splits file in its folder (Open folder)."
                 : _imports.Count + " file" + (_imports.Count == 1 ? "" : "s") + " to import." +
                   (bad > 0 ? " " + bad + " could not be read - see the log." : "");
         }
@@ -2547,9 +2578,8 @@ namespace ForestOverlay.Modules
             GUI.BeginGroup(area);
             float y = 2f;
             y += UiText.Draw(0, y, w - 10, _importHeader);
-            if (GUI.Button(new Rect(0, y + 2, 70, 22), "Refresh")) ScanImports();
-            if (GUI.Button(new Rect(74, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
-            if (GUI.Button(new Rect(174, y + 2, 60, 22), "Close")) _importing = false;
+            if (GUI.Button(new Rect(0, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
+            if (GUI.Button(new Rect(100, y + 2, 60, 22), "Close")) _importing = false;
             y += 28f;
             if (_community != null)
             {
@@ -2559,18 +2589,10 @@ namespace ForestOverlay.Modules
                     _communityStatusFor = _community.Status;
                     _communityStatus.text = "Community spots: " + _community.Status;
                 }
-                GUI.enabled = !_community.Busy;
-                if (GUI.Button(new Rect(0, y + 2, 160, 22), "Check community now")) _community.CheckNow();
-                GUI.enabled = true;
-                y += 28f;
                 y += UiText.Draw(0, y, w - 10, _communityStatus) + 4f;
 
-                // Runners' spots on the website: the list on a click, one
-                // click adds one (read-only, "Website").
-                GUI.enabled = !_community.WebBusy;
-                if (GUI.Button(new Rect(0, y + 2, 160, 22), "Website spots")) _community.WebRefresh();
-                GUI.enabled = true;
-                y += 28f;
+                // Runners' spots on the website: listed when the view
+                // opens, one click adds one (read-only, "Website").
                 if (!ReferenceEquals(_webStatusFor, _community.WebStatus))
                 {
                     _webStatusFor = _community.WebStatus;

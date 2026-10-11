@@ -18,8 +18,9 @@ namespace ForestOverlay.Modules
     // site's board - their best run - compares on it as before).
     //
     // Only what the site keeps: the segment, no start state, no attempts
-    // (Data/SiteSpots). Written to segments/website.txt; nothing is
-    // fetched unless the runner clicks.
+    // (Data/SiteSpots). Written to segments/website.txt. The list is asked
+    // for when the Import view opens, at most every WebRecheckAfter
+    // (T-0254, no button); a spot is fetched only on its Add / Update.
     // ------------------------------------------------------------------
     public sealed partial class CommunityModule
     {
@@ -34,6 +35,15 @@ namespace ForestOverlay.Modules
         public string WebStatus = "";
         public bool WebBusy { get; private set; }
 
+        private const float WebRecheckAfter = 120f;
+        private float _webAskedAt = -1f;
+
+        private void WebOpened()
+        {
+            if (WebBusy || (_webAskedAt >= 0f && Time.unscaledTime < _webAskedAt + WebRecheckAfter)) return;
+            WebRefresh();
+        }
+
         private string WebBase
         {
             get
@@ -43,12 +53,13 @@ namespace ForestOverlay.Modules
             }
         }
 
-        public void WebRefresh()
+        private void WebRefresh()
         {
             if (WebBusy) return;
             string site = WebBase;
             if (string.IsNullOrEmpty(site)) { WebStatus = "No website address set (Settings)."; return; }
             WebBusy = true;
+            _webAskedAt = Time.unscaledTime;
             WebStatus = "Asking the website...";
             Ctx.Runner.StartCoroutine(WebListRoutine(SiteSpots.ListUrl(site)));
         }
