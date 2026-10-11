@@ -191,7 +191,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0319 (250k cap) and **T-0313** (tier easy / normal / hard + route
   override; `loop.py` names agent / model / effort; `agent-cost.py
   --tiers` measures it) confirmed - tiers get set at contract time from
-  now on. T-0314, T-0312 (`Check T-a T-b ...`), T-0315 (`forest-integrator`: a batch merge costs main one report; replay matched 924aa22) done. **Next:** T-0306.
+  now on. T-0314, T-0312 (`Check T-a T-b ...`), T-0315 (`forest-integrator`: a batch merge costs main one report; replay matched 924aa22) done. T-0306 (redesign follow-ups) built + checker-accepted, ui-redesign at acd6249 (the install runs it; `plugins/ForestOverlay.dll.redesign-keep`); forest-ux findings T-0320..T-0324 parked. **Next:** T-0307.
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
   redesign (T-0025, worktree `ui-redesign`) waits on the author's OK; bot

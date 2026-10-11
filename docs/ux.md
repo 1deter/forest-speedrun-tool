@@ -190,6 +190,11 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
    scale to 1080p for check 25; read every `set` flag back at the end
    (`fields` on the module); `Hotkeys.Bindings.Count` and `HudLines.All`
    give the true list sizes for check 23.
+   Method notes (2026-10-11): the bridge has no click and `set` cannot index a dictionary, so a fold (`UiKit.Open`) or a
+   button cannot be reached by it; when the game is closed, launch via `steam://rungameid/242760`, press the launcher's Play with a
+   WM_COMMAND to its button (Launcher.cs does the same) and click / scroll the window with `mouse_event` (client origin from
+   `ClientToScreen`; the window is not at 0,0). Edit HUD is not an `open_tab` name: open it from Settings > HUD. A confirm
+   button (Sure?) can be tested by one click: it lapses after 3 s.
 6. Adds what it learned to this file (a new check, a sharper one, a
    section for a new surface) and a line to the log below.
 
@@ -211,3 +216,4 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
 - 2026-10-10 - T-0256 design proposal (not a review): Practice + Runs flow read on ui-redesign, toured on v0.24.267; 3 options in tasks/notes/T-0256.md, parked; 0 findings filed. Click baseline for check 6 / 32 added.
 - 2026-10-10 - T-0256 review (dcc4161, code only: PracticeModule strip, StartStrip, Runs Restart; branch not in game): 3 findings (T-0270..T-0272, 2 parked), note on T-0262. First-run counts for check 32 from code: timed start 2 (was 5).
 - 2026-10-10 - T-0232 review (Discord PB embed, code + test JSON only, no render): 4 findings (T-0285..T-0288, all parked for the author), note on T-0232. Section J added (checks 39-41).
+- 2026-10-11 - T-0306 (t0306 build on ui-redesign): Settings > HUD (trend swatches, value headings), Edit HUD (Reset profile, headings), Developer (Experimental, Keys), run-mode marker (code only: no ModAPI session); checks A-F + first run; 5 tasks (T-0320..T-0324, all parked), a note on T-0264 (on ui-redesign). Method: game was closed - launched it by hand (see method notes).
