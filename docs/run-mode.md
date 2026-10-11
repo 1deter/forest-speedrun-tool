@@ -231,7 +231,12 @@ the link preview, `Pages.AttemptSummary`): the verdict in plain words
 plugin), a **check a code** box (where a code from the video shows in
 the log, real time and timer), *What the site saw during the run* (the
 receipt's lines) and *What ran in the game* (the report's findings),
-the report as written behind a fold, and the log's download.
+the report as written behind a fold, and the log's download. An attempt
+played with ModAPI loaded is marked **ModAPI Detected** beside the title
+(T-0295, `Attempts.ModApiSession`: run mode's flag of that name - every
+attempt of a session whose Assembly-CSharp references ModAPI's BaseModLib,
+`Game/ModApi` - in the chain or the report's flag lines). It is a flag, so
+the receipt is red; the HUD shows `ModAPI` above the marker all session.
 
 **The verdict = the worse of two halves**, worked out when the page is
 read (so the allow-list applies to old attempts too):

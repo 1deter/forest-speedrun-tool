@@ -158,6 +158,43 @@ public sealed class AttemptTests : IDisposable
         Assert.Contains("the test bridge is on", why[0]);
     }
 
+    // T-0295: a ModAPI session's attempts carry run mode's "ModAPI Detected"
+    // flag; the attempt page marks them by it.
+    [Fact]
+    public void ModApiFlag_MarksTheAttempt_FromTheChainOrTheReport()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new Attempts(new Store(dir), dir, () => Issued);
+            var c = new AttemptChain();
+            c.Header(AId(1), Runner, "Runner", "test", "Any%", "-", "-", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+            c.Step(1000, -1, false, 0, 0, 0);
+            c.Flag(1000, RunReport.ModApiFlag);
+            c.End(2000, "reset", -1);
+            string log = c.Text + AttemptChain.ReportMarker + "\n" + Report(r => r.Flags.Add(RunReport.ModApiFlag));
+            Assert.Equal(200, a.Log(Runner, AId(1), log).Status);
+            Assert.Equal(200, a.Log(Runner, AId(2), ResetLog(AId(2))).Status);
+
+            var marked = System.Text.Json.JsonSerializer.SerializeToNode(a.View(AId(1)))!;
+            Assert.True(marked["modApi"]!.GetValue<bool>());
+            Assert.Equal("red", marked["verdict"]!.GetValue<string>());
+            Assert.Contains(marked["why"]!.AsArray(), w => w!.GetValue<string>() == "Run mode flagged the attempt: ModAPI Detected.");
+            Assert.False(System.Text.Json.JsonSerializer.SerializeToNode(a.View(AId(2)))!["modApi"]!.GetValue<bool>());
+
+            // Either half alone is enough (a report written before the chain folded its flag).
+            var plain = AttemptChain.Read(ResetLog(AId(3)));
+            Assert.True(Attempts.ModApiSession(plain, RunReport.Parse(Report(r => r.Flags.Add(RunReport.ModApiFlag)))));
+            Assert.True(Attempts.ModApiSession(AttemptChain.Read(c.Text), RunReport.Parse(Report())));
+            Assert.False(Attempts.ModApiSession(plain, RunReport.Parse(Report(r => r.Flags.Add("the test bridge is on")))));
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
     [Fact]
     public void Moves_NeverChangeTheVerdict()
     {
