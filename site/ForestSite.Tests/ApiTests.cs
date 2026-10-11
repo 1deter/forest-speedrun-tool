@@ -104,6 +104,11 @@ public sealed class ApiTests : IDisposable
 
         var bad = await _http.PostAsJsonAsync("/api/register", new { runner = "76561198000000000", name = "x" });
         Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        // The same id in upper case is not a second runner (security audit, 2026-10-11).
+        var upper = await _http.PostAsJsonAsync("/api/register", new { runner = A.ToUpperInvariant().Replace("R-", "r-"), name = "Thief" });
+        Assert.Equal(HttpStatusCode.BadRequest, upper.StatusCode);
+        Assert.True(RunnerIds.Valid("r-0123456789abcdef"));
+        Assert.False(RunnerIds.Valid("r-0123456789ABCDEF"));
     }
 
     [Fact]

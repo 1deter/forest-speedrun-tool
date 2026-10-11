@@ -322,7 +322,7 @@ api.MapPost("/register", async (HttpRequest req) =>
     RegisterRequest body;
     try { body = await req.ReadFromJsonAsync<RegisterRequest>(); }
     catch { return Problem(400, "expected JSON { runner, name }"); }
-    if (body == null || !RunnerIds.Valid(body.runner)) return Problem(400, "runner must be r- and 16 hex digits");
+    if (body == null || !RunnerIds.Valid(body.runner)) return Problem(400, "runner must be r- and 16 lowercase hex digits");
     string name = ForestOverlay.Data.AttemptFormat.Clean(body.name ?? "");
     if (name.Length > 40) name = name.Substring(0, 40);
     string token = store.Register(body.runner, name);
@@ -790,12 +790,15 @@ public static class Pages
 
 public static class RunnerIds
 {
-    /// `r-` + 16 hex digits (Game/RunnerIdentity).
+    /// `r-` + 16 lowercase hex digits (Game/RunnerIdentity writes them so).
+    /// Upper case was taken too: `r-00AB..` was a second runner beside
+    /// `r-00ab..`, the same id to anyone reading it (security audit,
+    /// 2026-10-11), as attempt ids already refuse.
     public static bool Valid(string id)
     {
         if (id == null || id.Length != 18 || !id.StartsWith("r-", StringComparison.Ordinal)) return false;
         for (int i = 2; i < id.Length; i++)
-            if (!Uri.IsHexDigit(id[i])) return false;
+            if (!Uri.IsHexDigit(id[i]) || char.IsUpper(id[i])) return false;
         return true;
     }
 }
