@@ -288,6 +288,12 @@ Test away from cannibals (they stagger the player and cut actions).
 OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, restart.
 
+**What one action costs, frame by frame** (T-0072): `call
+static:ForestOverlay.Game.FrameTimer Spikes` returns (and logs `Spikes:`)
+every frame of 25 ms or more since the last call with its frame number
+(`set static:ForestOverlay.Game.FrameTimer SpikeMs 16` for another
+threshold) - call it, act, wait a few seconds, call it again. A stopwatch
+around a call misses what it sets off for later frames (gotcha 108).
 **Who makes Unity objects** (T-0149): count them cheaply with `call
 static:ForestOverlay.Game.RenderProbe TextureUsers zzz _MainTex` (logs
 "in N materials"; a census gives every type) against `get

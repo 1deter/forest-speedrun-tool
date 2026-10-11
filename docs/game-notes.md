@@ -1887,6 +1887,31 @@ PerformSaveCheckPoint)` → `CreateSaveEntry(name, urgent)` (a `SaveEntry`:
 → `SerializeLevelToBytes` → base64 → the slot file. `GC.Collect()` four
 times on the way.
 
+**What a serialize costs, by part** (source + bridge, 2026-10-11, T-0072,
+Slot 5 on the surface, 167 identifiers, 173 stored components, 251 KB).
+`SerializeLevel(bool urgent)` (the string) is a wrapper: `Resources.
+UnloadUnusedAssets()`, `GC.Collect()`, **`SerializeLevel(false, null)`**
+(`byte[]`, the level itself), `GC.Collect()`, `"NOCOMPRESSION" +
+Convert.ToBase64String(bytes)`, and a third `GC.Collect()` when
+`ShouldCollect`. The bytes overload alone: 39-47 ms warm (78 ms the first
+time) - the object listing with every `OnSerializing` ~27 ms, the 173
+components ~8 ms (largest ~6), packing the `LevelData` ~4 ms - split by
+`LevelSerializer.Progress` (a static `Action<string, float>` event,
+raised `("Storing", n / count)` after each component). The wrapper took
+252 ms inside the call (3 collections) but the frames around it were 570
+and 327 ms: `UnloadUnusedAssets` is asynchronous, its walk (here merged
+with the streaming unload's sweep by `PerfPatches` 5) runs after the call
+returns - a stopwatch around the call misses it. Alone, the call
+`UnloadUnusedAssets` was one 355 ms frame and `GC.Collect` 83 ms. The data line is
+the same either way (`NOCOMPRESSION` + base64 of a `SerV10` stream). Not
+thread-safe: `UnitySerializer` keeps its scope in statics (`_seenObjects`,
+`_nextId`, `SerializationScope._counter`), so a serialize stays on the main
+thread; `OnlyInRangeManager` / `SaveAndLoad` (the other SerializeLevel
+callers) have no instance in ForestMain. The savestates' streaming
+force-unload of `MainSceneGreebles` + `MainSceneWorldStorySpots` costs ~9
+ms, its queued `DelayedCleanUp` sweep ~320 ms over 2 frames (cancelled by
+the plugin, *Performance*), the reload a ~35 ms frame.
+
 **Loading** — the title screen sets `LoadSave.ShouldLoad` and loads the game
 scene. In it, `LoadSave.Awake`: `ShouldLoad && CanResume` →
 `ShouldLoad = false`, `LevelSerializer.Resume()` → reads the slot file, sets
