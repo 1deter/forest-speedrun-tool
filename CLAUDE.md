@@ -194,6 +194,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-11 (T-0019, author present):** HUD profiles on ui-redesign
+  (559b2dd + 03d7186) - the whole HUD (values, column, Compact, Text
+  size, placed values, splits + results panels' on/off / place / width /
+  rows) is a named file in `config/ForestOverlay/hud/`, picked in Edit
+  HUD (New / Duplicate / Rename / Delete); the old layout becomes
+  `Default` (decisions.md *HUD profiles*). Checker accepted; waits for
+  the author's wording OK, in game, forest-ux (notes). **Next: T-0301**
+  (P1, author: the input stutters first). New QA task T-0302 (input
+  overlay).
 - **2026-10-11 (T-0258, author present):** preset themes on ui-redesign
   (5827004) - Settings -> Theme, 8 themes in `Data/UiPalette` (site,
   black, **warm near-black = default**, translucent, blue-grey = the first
