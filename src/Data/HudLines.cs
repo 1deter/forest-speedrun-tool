@@ -246,6 +246,19 @@ namespace ForestOverlay.Data
             return reason.Substring(0, cut).Trim();
         }
 
+        /// The short flag of a session with ModAPI loaded (T-0295; the
+        /// author's word, 2026-10-10).
+        public const string ModApiFlag = "ModAPI";
+
+        /// The practice marker: the ModAPI flag first when the session has
+        /// it, then run mode's line, else the tool's short name.
+        public static string Marker(bool modApi, string runText, string reason)
+        {
+            string rest = runText ?? ShortReason(reason);
+            if (!modApi) return rest;
+            return rest.Length == 0 ? ModApiFlag : ModApiFlag + "\n" + rest;
+        }
+
         /// The update check's message; compact drops the version an
         /// up-to-date install already shows in the title.
         public static string Update(string message, bool compact)

@@ -7,6 +7,18 @@ namespace ForestOverlay.Tests
     public class HudLinesTests
     {
         [Fact]
+        public void MarkerPutsTheModApiFlagFirst()
+        {
+            Assert.Equal("", HudLines.Marker(false, null, null));
+            Assert.Equal("teleport", HudLines.Marker(false, null, "teleport: Cave 5 (top)"));
+            Assert.Equal("RUN MODE - attempt 1", HudLines.Marker(false, "RUN MODE - attempt 1", "teleport: x"));
+            // Sticky: shown while clean too, above the tool or run mode's line.
+            Assert.Equal("ModAPI", HudLines.Marker(true, null, null));
+            Assert.Equal("ModAPI\nteleport", HudLines.Marker(true, null, "teleport: Cave 5 (top)"));
+            Assert.Equal("ModAPI\nRUN MODE - attempt 1", HudLines.Marker(true, "RUN MODE - attempt 1", null));
+        }
+
+        [Fact]
         public void ShortReasonIsTheToolsName()
         {
             Assert.Equal("test bridge", HudLines.ShortReason("test bridge: screenshot"));

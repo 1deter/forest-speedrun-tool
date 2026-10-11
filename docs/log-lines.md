@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-224 prefixes from 701 log calls.
+225 prefixes from 702 log calls.
 
 ## `Aerial capture`
 
@@ -909,6 +909,13 @@ Meaning: The memory census threw.
 Written by SavestateModule.cs; warning.
 
 - warning `Memory census failed: <ex>`
+
+## `ModAPI`
+
+Meaning: ModAPI's rebuilt Assembly-CSharp (UltimateCheatmenu...) is loaded: at launch, the session is flagged - the HUD's `ModAPI` flag and run mode's `ModAPI Detected` flag on every attempt (T-0295). With the patcher (T-0246): its repair did not run this launch or failed, so the overlay stays off.
+Written by Plugin.cs; warning.
+
+- warning `ModAPI: loaded - this session is flagged (the HUD's ModAPI flag, every run mode attempt).`
 
 ## `Module`
 

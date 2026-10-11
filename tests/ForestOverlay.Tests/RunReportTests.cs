@@ -126,6 +126,30 @@ namespace ForestOverlay.Tests
             Assert.Equal(r.TypeHashes, back.TypeHashes);
         }
 
+        // T-0295: a ModAPI session's flag goes through the report's flag lines.
+        [Fact]
+        public void ModApiFlagIsAFlagLineReadBack()
+        {
+            RunReport r = Clean();
+            Assert.False(r.ModApi);
+            r.Flags.Add(RunReport.ModApiFlag);
+            Assert.True(r.ModApi);
+            Assert.False(r.Clean);
+            string text = r.Format();
+            Assert.Contains("flag = ModAPI Detected\n", text);
+            Assert.Contains("# NOT OK  ModAPI Detected.\n", text);
+            Assert.True(RunReport.Parse(text).ModApi);
+        }
+
+        [Fact]
+        public void HasModApiIsTheExactFlag()
+        {
+            Assert.True(RunReport.HasModApi(new[] { "the test bridge is on", "ModAPI Detected" }));
+            Assert.False(RunReport.HasModApi(new[] { "practice action during the run: ModAPI Detected" }));
+            Assert.False(RunReport.HasModApi(new string[0]));
+            Assert.False(RunReport.HasModApi(null));
+        }
+
         [Fact]
         public void ParseOfNothingIsPending()
         {
