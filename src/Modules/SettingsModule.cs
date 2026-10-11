@@ -73,7 +73,6 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipLoads = new GUIContent(
             "What a restore puts back, and two fixes for what the game leaves behind after a load.");
         private GUIContent[] _hudNames;
-        private GUIContent[] _hudDescriptions;
         private static readonly GUIContent HudIntro = new GUIContent(
             "Tick the values you want on screen. Hover one for what it shows.");
         private static readonly GUIContent HudWideText = new GUIContent("The whole HUD");
@@ -307,13 +306,11 @@ namespace ForestOverlay.Modules
             if (_hudNames == null)
             {
                 _hudNames = new GUIContent[HudLines.All.Length];
-                _hudDescriptions = new GUIContent[HudLines.All.Length];
                 for (int i = 0; i < HudLines.All.Length; i++)
-                {
                     _hudNames[i] = new GUIContent(" " + HudLines.All[i].Name);
-                    _hudDescriptions[i] = new GUIContent(HudLines.All[i].Description);
-                }
             }
+            // The tips name the runner's keys, not the defaults (T-0262).
+            GUIContent[] tips = HudLineTips.Get(Host.Hotkeys);
 
             Rect editR = new Rect(4, y, 170, 28);
             if (UiKit.PrimaryButton(editR, EditLayoutText))
@@ -372,7 +369,7 @@ namespace ForestOverlay.Modules
                     Rect row = new Rect(4, y, cw - 8, 22);
                     bool now = UiKit.Toggle(row, on, _hudNames[i]);
                     if (now != on) s.SetShows(i, now);
-                    UiKit.Hint(row, _hudDescriptions[i]);
+                    UiKit.Hint(row, tips[i]);
                 }
                 y += 24f;
             }

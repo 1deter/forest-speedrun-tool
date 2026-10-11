@@ -115,6 +115,14 @@ namespace ForestOverlay.Core
             return null;
         }
 
+        /// The binding with this id, or null (its module is not loaded).
+        public Binding Find(string id)
+        {
+            for (int i = 0; i < _bindings.Count; i++)
+                if (string.Equals(_bindings[i].Id, id, StringComparison.Ordinal)) return _bindings[i];
+            return null;
+        }
+
         public void ResetToDefaults()
         {
             for (int i = 0; i < _bindings.Count; i++)

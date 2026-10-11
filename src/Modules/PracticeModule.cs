@@ -263,6 +263,15 @@ namespace ForestOverlay.Modules
             map.Add("tab.practice", KeyCode.None, "Open Practice tab", OpenMyTab);
         }
 
+        /// "restart (R)": the runner's Restart key, not the default (T-0262).
+        /// Built on a refusal only, never per frame.
+        private string RestartWhat()
+        {
+            HotkeyMap.Binding b = Host.Hotkeys.Find("practice.goToSpot");
+            KeyCode key = b != null ? b.Key : KeyCode.None;
+            return KeyText.With("restart", key == KeyCode.None ? null : key.ToString());
+        }
+
         private void Reload()
         {
             // Reload rebuilds every Segment object, so a remembered
@@ -491,7 +500,7 @@ namespace ForestOverlay.Modules
             // A run spot's Restart starts (or resets) a run - the one Restart
             // run mode allows.
             bool runStart = _runMode != null && s.RunCategory.Length > 0 && _savestates != null && _savestates.HasStartState(s);
-            if (!runStart && Ctx.Run.Refuse("restart", "restart (F7)")) { _status = _refusedByRun = Ctx.Run.RefusedText("Restart"); return; }
+            if (!runStart && Ctx.Run.Refuse("restart", RestartWhat())) { _status = _refusedByRun = Ctx.Run.RefusedText("Restart"); return; }
 
             // The pause menu and the inventory stop game time, and a restore
             // runs over game time: F7 in the ESC menu sat half-loaded until

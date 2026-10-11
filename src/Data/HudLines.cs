@@ -35,10 +35,22 @@ namespace ForestOverlay.Data
         public readonly bool Locked;
         /// Switched by its own module's setting (the 100% tab's), not by [HUD].
         public readonly bool External;
+        /// The hotkey id whose key the description names (KeyText.Slot), or
+        /// null; Unbound is the description while that action has no key.
+        public readonly string KeyId;
+        public readonly string Unbound;
 
         public HudLine(string module, string label, string configKey, string name, string description,
                        bool defaultOn, bool locked, bool external)
+            : this(module, label, configKey, name, description, defaultOn, locked, external, null, null)
         {
+        }
+
+        public HudLine(string module, string label, string configKey, string name, string description,
+                       bool defaultOn, bool locked, bool external, string keyId, string unbound)
+        {
+            KeyId = keyId;
+            Unbound = unbound;
             Module = module;
             Label = label;
             ConfigKey = configKey;
@@ -62,6 +74,13 @@ namespace ForestOverlay.Data
         private static HudLine L(string module, string label, string key, string name, string description)
         {
             return new HudLine(module, label, key, name, description, true, false, false);
+        }
+
+        /// A line whose description names a hotkey's current key (T-0262).
+        private static HudLine K(string module, string label, string key, string name, string description,
+                                 string keyId, string unbound)
+        {
+            return new HudLine(module, label, key, name, description, true, false, false, keyId, unbound);
         }
 
         private static HudLine Always(string name, string description)
@@ -102,10 +121,12 @@ namespace ForestOverlay.Data
               "Where you come down (distance, time, speed) while the trajectory preview (Developer tab, Experimental) is on."),
             L("debugview", "Boost", "ShowBoostPreview", "Bomb boost preview",
               "The piled-up speed and distance in the pause menu during a knockback, while the trajectory preview is on."),
-            L("dumps", "Dump", "ShowDumps", "Dump status",
-              "What the F11 dumps are doing."),
-            L("practice", "Spot", "ShowSpot", "Current spot",
-              "The spot F7 restarts."),
+            K("dumps", "Dump", "ShowDumps", "Dump status",
+              "What the " + KeyText.Slot + " dumps are doing.", "dump.write",
+              "What the dumps are doing."),
+            K("practice", "Spot", "ShowSpot", "Current spot",
+              "The spot " + KeyText.Slot + " restarts.", "practice.goToSpot",
+              "The spot the Practice tab's Restart restarts."),
             L("practice", "Prac", "ShowPracticeStatus", "Practice messages",
               "The last practice action's result (teleport, restart, save)."),
             L("practicerun", "Run", "ShowRunTimer", "Run timer",
@@ -125,6 +146,13 @@ namespace ForestOverlay.Data
             Always("Run code",
               "Always shown during a run, even with every overlay hidden (run mode's anti-splice code)."),
         };
+
+        /// The line's description with the runner's key in it: `keyName` is
+        /// the current key of the line's KeyId (null / "" = unbound).
+        public static string Describe(HudLine line, string keyName)
+        {
+            return line.KeyId == null ? line.Description : KeyText.Fill(line.Description, keyName, line.Unbound);
+        }
 
         /// Index of the line a module's Pair writes, or -1 (not listed:
         /// always shown).

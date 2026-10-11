@@ -552,16 +552,14 @@ namespace ForestOverlay.Core
         /// The value list in the window's body; true when Done was pressed.
         public bool DrawEditor(Rect area, HudSettings settings, Rect windowRect, ModuleHost host)
         {
-            if (_descriptions == null)
+            if (_toggleNames == null)
             {
-                _descriptions = new GUIContent[HudLines.All.Length];
                 _toggleNames = new GUIContent[HudLines.All.Length];
-                for (int i = 0; i < _descriptions.Length; i++)
-                {
-                    _descriptions[i] = new GUIContent(HudLines.All[i].Description);
+                for (int i = 0; i < _toggleNames.Length; i++)
                     _toggleNames[i] = new GUIContent(HudLines.All[i].Name);
-                }
             }
+            // The tips name the runner's keys (T-0262).
+            _descriptions = HudLineTips.Get(host != null ? host.Hotkeys : null);
 
             bool done = false;
             float w = area.width;
