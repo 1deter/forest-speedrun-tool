@@ -257,8 +257,8 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   px to the screen's 25 / 50 / 75 % lines and to the other pieces' edges
   and centres, a thin guide line at the target while it holds; **Alt**
   held drags freely. The resize keeps its 0.25 steps.
-- **Reset layout resets the whole profile** (author, 2026-10-11, T-0303:
-  "Everything in the profile"): values, column, Compact, Text size,
+- **Reset profile resets the whole profile** (author, 2026-10-11, T-0303:
+  "Everything in the profile"; button renamed from Reset layout, T-0306): values, column, Compact, Text size,
   placed values and their text, the splits + results panels - the look
   of a New profile; asks Sure? first, as Delete.
 
