@@ -26,7 +26,7 @@ server), **Low** (needs an account and effort, or a small impact), **Info**
 | 1 | Medium | `/api/official` replays every finished log again once the judged-log cache is full | Fixed 8b257aa9 |
 | 2 | Medium | Any runner can make their copy of another runner's spot the one the site serves | **Open - Q1** |
 | 3 | Low-Medium | An attempt view replays its log on every cache miss; the cache clears whole when full | **Open - Q5** |
-| 4 | Low | A code look-up replays the whole log on every request | Fixed a3768341 |
+| 4 | Low | A code look-up replays the whole log on every request | Fixed a3768341, e27079df |
 | 5 | Low | Two first uploads of one attempt's log at once: both written | Fixed 72e854b8 |
 | 6 | Low | `GET /api/categories/<id>/<v>` answers draft and hidden categories | Fixed 85445b79 |
 | 7 | Low | An attempt page shows the rules of any category version its log names, drafts included | **Open - Q3** |
@@ -72,7 +72,7 @@ server), **Low** (needs an account and effort, or a small impact), **Info**
 - **Exploit sketch:** any visitor, 600 requests a minute per address, on an
   attempt with a 4 MB log: each one replays the whole log.
 - **Fix:** the judged log keeps the steps by code (`Judged.Codes`); a look-up
-  reads it. Test `FindCode_ReadsTheJudgedLog_NotAReplayPerLookUp`.
+  reads it (step, real and timer ms only, e27079df). Test `FindCode_ReadsTheJudgedLog_NotAReplayPerLookUp`.
 
 ### 5. Low - concurrent first log uploads
 
