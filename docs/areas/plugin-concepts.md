@@ -129,8 +129,8 @@ concept before changing its feature. Where the code lives:
   lists that folder; the same id = the same original (a second click
   replaces). Community packs: the repo's `community/*.foseg` +
   `index.txt` (hash per file, `scripts/community-index.py`; CI checks
-  it), fetched from raw.githubusercontent 5 s after startup and on
-  *Check community now*; written to `segments/community.txt`, shown
+  it), fetched from raw.githubusercontent 5 s after startup and when
+  the Practice tab's Import view opens (at most every 10 min, T-0254); written to `segments/community.txt`, shown
   under **Community**, read-only (Duplicate = own copy, start state
   included); the runner's ids win; attempts ignored.
   **Website spots** (Import view, `CommunityModule.Website`) carry the
