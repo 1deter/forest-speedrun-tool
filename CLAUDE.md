@@ -197,13 +197,24 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0056,
   T-0058, savestate gaps (T-0029, T-0065, T-0067; T-0269 done in v0.24.282), perf (T-0072,
-  T-0274, T-0277, T-0280; T-0278 done in v0.24.281, T-0275 in v0.24.283 - T-0280's
-  answer reads as "keep the forced GC", so it looks like a wontfix + a decisions.md line); T-0290 waits for a `Stall:` line); group
+  T-0274, T-0198, T-0203; T-0277 done in v0.24.284, T-0280 wontfix - the forced GC
+  stays, decisions.md); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.284 (2026-10-11, T-0277):** in a cave (not the endgame) the
+  main camera skips the terrain (layer 26 off its mask) and the 25
+  `Tree_BillBoards` renderers, back in the frame you leave
+  (`[Performance] CaveSurfaceOff`, on, also in run mode - author;
+  `Game/CameraTrim` 5; game-notes *The main camera's draw calls*).
+  Measured, Cave 6, force-gfx-direct: MainCamNew ~1.78 -> ~1.49 ms,
+  picture the same; wording approved; checker accepted; smoke PASS. To
+  confirm (not its maker): forest-tester - a restore / death reload while
+  in a cave logs the cut again (`a load in the cave`), switching it off
+  in a cave puts the terrain back at once, a cave mouth shows the outside
+  missing (expected).
 - **v0.24.283 (2026-10-11, T-0275):** the player's stats are found
   through `LocalPlayer.Stats`, not a `FindObjectOfType` walk (20-25 ms,
   measured) - no hitch on the frame practice mode comes on, nor on the
