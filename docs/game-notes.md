@@ -819,9 +819,14 @@ state, not scenes (areas: `same as at capture`).
   postfix on `GotoRemotePoint` (`Game/ElevatorRides`), as did a bridge
   `call ... GotoRemotePoint`. A `FindObjectsOfType(ElevatorSystem)` costs
   24-26 ms in ForestMain even with none loaded (the surface) - it was the
-  whole of a Go's 23-24 ms. In the endgame a Go still costs ~25 ms:
-  `AreaKeeper.InsideASection` scans the 27 `AreaMembers` (all active, on
-  the `Sections/*` roots).
+  whole of a Go's 23-24 ms. In the endgame a Go still cost ~25 ms:
+  `AreaKeeper.InsideASection` scanned the 27 `AreaMembers` (all active, on
+  the `Sections/*` roots). They never change between scene events (bridge
+  + ilscan, 2026-10-11, T-0274): `type AreaMembers all` = the active
+  count, the same handles across an elevator ride to the overlook, an
+  area entered and Go's, and no game code makes, finds or switches one on
+  (`ToggleMembers` switches renderers / lights / probes only) - so
+  `SceneCache.Sections` keeps them and an endgame Go is 1-2 ms.
 - **Keypad doors the same way** (bridge + IL, v0.24.81-82).
   `activateKeypadDoor` (vault `EndgameEntrance/keypadDoor_animate/
   doorTrigger`, gold `Sections/ArtifactRoom/ElevatorCardReader/Trigger`

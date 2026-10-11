@@ -217,7 +217,8 @@ namespace ForestOverlay.Game
                 if (_members != null) _renderers = _members.GetField("_renderers", Inst);
             }
             if (_members == null || _renderers == null) return true;   // unknown: leave it
-            UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_members);
+            // Kept between scene events (T-0274): a scene walk was 24 ms of every Go here.
+            UnityEngine.Object[] all = SceneCache.Sections(_members);
             for (int i = 0; i < all.Length; i++)
             {
                 Renderer[] rs = _renderers.GetValue(all[i]) as Renderer[];

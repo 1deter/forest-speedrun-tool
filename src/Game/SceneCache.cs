@@ -31,6 +31,14 @@ namespace ForestOverlay.Game
     //   (CoopPlayerCallbacks.AllTrees: FindObjectsOfType<CoopTreeId> once).
     //   Anything that can appear without a scene event (the elevators) is
     //   searched every time.
+    // - Sections(type) the same, for the endgame's AreaMembers (T-0274):
+    //   27, on the Sections/* roots of endgame_streaming, all active (`type
+    //   AreaMembers all` = the active count) and the same handles across an
+    //   elevator ride to the overlook, an area entered and Go's (bridge,
+    //   2026-10-11); no game code makes, finds or switches one on (ilscan
+    //   refs AreaMembers: only its own ToggleMembers, which switches
+    //   renderers, lights and probes, never the GameObject). A Go in the
+    //   endgame searched them every time: 24 ms of its frame.
     // - Everything is forgotten when a scene loads or unloads (a Full load,
     //   the caves' and the endgame's streaming); nothing found is never
     //   kept.
@@ -81,7 +89,14 @@ namespace ForestOverlay.Game
         /// UnityEngine.Object.FindObjectsOfType(t) for the scene's trees
         /// (see above - nothing else). The array is the cache's own: read
         /// it, never change it.
-        public static UnityEngine.Object[] Trees(Type t)
+        public static UnityEngine.Object[] Trees(Type t) { return Kept(t); }
+
+        /// UnityEngine.Object.FindObjectsOfType(t) for the endgame's
+        /// AreaMembers (see above - nothing else). The array is the cache's
+        /// own: read it, never change it.
+        public static UnityEngine.Object[] Sections(Type t) { return Kept(t); }
+
+        private static UnityEngine.Object[] Kept(Type t)
         {
             if (t == null) return new UnityEngine.Object[0];
             if (!_hooked) return UnityEngine.Object.FindObjectsOfType(t);
