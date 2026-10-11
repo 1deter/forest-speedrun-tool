@@ -352,6 +352,8 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < HudLines.All.Length; i++)
             {
                 HudLine l = HudLines.All[i];
+                // Every row's description is its hover tip (T-0259).
+                Rect row = new Rect(4, y, cw - 8, 22);
                 if (l.Locked)
                 {
                     GUI.Label(new Rect(4, y, 208, 22), _hudNames[i], _lockedNameStyle);
@@ -360,17 +362,16 @@ namespace ForestOverlay.Modules
                 else if (l.External)
                 {
                     bool on = s.ExternalShows;
-                    bool now = UiKit.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
+                    bool now = UiKit.Toggle(row, on, _hudNames[i]);
                     if (now != on) s.SetExternalShows(now);
                 }
                 else
                 {
                     bool on = s.Shows(i);
-                    Rect row = new Rect(4, y, cw - 8, 22);
                     bool now = UiKit.Toggle(row, on, _hudNames[i]);
                     if (now != on) s.SetShows(i, now);
-                    UiKit.Hint(row, tips[i]);
                 }
+                UiKit.Hint(row, tips[i]);
                 y += 24f;
             }
 
