@@ -20,7 +20,7 @@ namespace ForestOverlay.Tests
         [InlineData("run.toggleMode", KeyGroups.Practice)]
         [InlineData("run.restartCheckpoint", KeyGroups.Practice)]
         [InlineData("debug.freecam", KeyGroups.Practice)]
-        [InlineData("debug.trajectory", KeyGroups.Practice)]
+        [InlineData("debug.trajectory", KeyGroups.Developer)]
         [InlineData("run.manualSplit", KeyGroups.Runs)]
         [InlineData("run.abort", KeyGroups.Runs)]
         [InlineData("run.cycleComparison", KeyGroups.Runs)]

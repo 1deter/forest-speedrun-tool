@@ -155,9 +155,9 @@ namespace ForestOverlay.Data
         /// line each group starts at (by Name, so a reorder cannot shift
         /// them) and its heading (proposed words, tasks/notes/T-0263.md).
         private static readonly string[] GroupFirst =
-            { "Title", "Speed", "Items carried", "Freecam", "Current spot", "Run timer", "ON NOW" };
+            { "Title", "Speed", "Items carried", "Freecam", "Current spot", "Run timer" };
         private static readonly string[] GroupHeadings =
-            { "Overlay", "Movement", "Inventory and 100%", "Tools", "Practice", "Runs", "Always shown" };
+            { "Overlay", "Movement", "Inventory and 100%", "Tools", "Practice", "Runs" };
 
         /// The heading drawn above line `index`, or null (not a group's first line).
         public static string HeadingAt(int index)

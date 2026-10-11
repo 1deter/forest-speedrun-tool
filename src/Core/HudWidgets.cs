@@ -582,7 +582,9 @@ namespace ForestOverlay.Core
         private static readonly GUIContent PanelsTitle = new GUIContent("Panels");
         private static readonly GUIContent ValuesTitle = new GUIContent("Values");
 
-        private const float RowH = 26f, TextRowH = 28f;
+        private const float RowH = 26f, TextRowH = 28f, HeadH = 24f;
+        private GUIStyle _headStyle;
+        private object _headFor;
 
         /// The value list in the window's body; true when Done was pressed.
         public bool DrawEditor(Rect area, HudSettings settings, Rect windowRect, ModuleHost host)
@@ -611,7 +613,17 @@ namespace ForestOverlay.Core
             float noteH = UiText.Height(w - 20f, LockedNote, UiKit.HintStyle);
             // The panels' rows (the modules') are as tall as their open
             // folds: last pass's height sizes the scroll view.
-            float contentH = _panelsH + rows * RowH + (_textLine >= 0 ? TextRowH : 0f) + noteH + 8f;
+            int heads = 0;
+            for (int i = 0; i < HudLines.All.Length; i++)
+                if (!HudLines.All[i].Locked && HudLines.HeadingAt(i) != null) heads++;
+            float contentH = _panelsH + rows * RowH + heads * HeadH + (_textLine >= 0 ? TextRowH : 0f) + noteH + 8f;
+            if (_headStyle == null || !ReferenceEquals(_headFor, UiKit.Palette))
+            {
+                _headFor = UiKit.Palette;
+                _headStyle = UiKit.Style(GUI.skin.label);
+                _headStyle.fontStyle = FontStyle.Bold;
+                _headStyle.normal.textColor = UiKit.SoftColour;
+            }
             float viewH = area.height - y;
             bool scrolls = contentH > viewH;
             float cw = scrolls ? w - 18f : w;
@@ -631,6 +643,13 @@ namespace ForestOverlay.Core
             {
                 HudLine l = HudLines.All[i];
                 if (l.Locked) continue;
+                // The same headings as Settings > HUD's list (T-0263).
+                string heading = HudLines.HeadingAt(i);
+                if (heading != null)
+                {
+                    GUI.Label(new Rect(0f, ry + 2f, cw, 22f), heading, _headStyle);
+                    ry += HeadH;
+                }
                 ry = DrawRow(i, ry, cw, settings);
             }
             UiText.Draw(0f, ry + 4f, cw - 4f, LockedNote, UiKit.HintStyle);

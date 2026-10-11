@@ -324,7 +324,7 @@ namespace ForestOverlay.Modules
             return y + 2f;
         }
 
-        /// The developer keys (dumps, type explorer, TAS, QA) for the
+        /// The developer keys (dumps, type explorer, trajectory preview, TAS, QA) for the
         /// Developer tab's Keys fold (T-0263): the same rows, rebinding and
         /// messages as the runner's keys here. Returns the y under them.
         public float DrawDeveloperKeys(float y, float w)

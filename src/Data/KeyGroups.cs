@@ -43,12 +43,14 @@ namespace ForestOverlay.Data
             "dump.write", "panel.explorer", "tab.qa",
             "run.toggleMode", "run.restartCheckpoint",
             "panel.main",
+            "debug.trajectory",
         };
         private static readonly int[] ExactGroups =
         {
             Developer, Developer, Developer,
             Practice, Practice,
             Window,
+            Developer,   // the trajectory preview is Experimental (author, 2026-10-11)
         };
         private static readonly string[] Prefixes = { "tas.", "qa.", "practice.", "debug.", "run.", "timer.", "tab.", "ui." };
         private static readonly int[] PrefixGroups = { Developer, Developer, Practice, Practice, Runs, Runs, Window, Window };
