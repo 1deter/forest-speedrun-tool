@@ -149,6 +149,12 @@ namespace ForestOverlay.Game
     //    same box with the same cutter in it (~180 ms + ~7.7 MB each) -
     //    skipped while a wreck at the same pose keeps the cut
     //    (Game/WreckNav, Data/WreckCuts).
+    // 21. A checkpoint state's capture (T-0072): LevelSerializer's
+    //    SerializeLevel(bool) wraps the level's bytes in UnloadUnusedAssets
+    //    and two or three GC.Collect, and the streaming unload queues a
+    //    DelayedCleanUp sweep - ~0.8 s of frames that only free memory.
+    //    The capture takes SerializeLevel(false, null)'s bytes (the same
+    //    data), cancels its own sweep, and builds the text on a worker.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -161,6 +167,8 @@ namespace ForestOverlay.Game
         public static bool RestoreRemoveWreckCutters;
         /// Fix 19, read by the savestate restore (T-0279).
         public static bool RestoreSkipStreamingSweep;
+        /// Fix 21, read by a checkpoint state's capture (T-0072).
+        public static bool CheckpointCaptureLean;
 
         private sealed class Fix
         {
@@ -302,6 +310,12 @@ namespace ForestOverlay.Game
                 "freeing memory the scenes take back a moment later. Skip that walk for the restore's own unload; the game's " +
                 "clean-ups on entering a cave are unchanged.",
                 delegate { RestoreSkipStreamingSweep = true; return ""; }, delegate { RestoreSkipStreamingSweep = false; });
+            Add(config, "CheckpointCaptureLean", "Checkpoint states: capture without the save's memory clean-up",
+                "Capture at checkpoints took each state through the game's save text, which first walks every loaded asset to " +
+                "free unused ones (a ~0.35 s frame) and runs two or three full garbage collections (~0.08 s each), and its " +
+                "unload of the nearby world detail set off one more asset walk a moment later - all mid-run. Take the same level " +
+                "data without them (the game's own bytes; the text is built on a worker thread).",
+                delegate { CheckpointCaptureLean = true; return ""; }, delegate { CheckpointCaptureLean = false; });
             Add(config, "RestoreSkipSameWreckNav", "Savestates: no enemy-path recalculation for the re-created plane wreck",
                 "A savestate restore brings back a new plane wreck where the old one stands, and the game recalculated enemy " +
                 "paths around it twice - for the new wreck and for the old one going - each a ~0.2 s frame and ~8 MB of garbage, " +

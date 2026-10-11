@@ -165,7 +165,7 @@ Written by GameBridge.cs; info.
 Meaning: A run checkpoint's savestate: captured (frame cost), not saved, or its follow-up failed.
 Written by SavestateModule.cs; info / warning.
 
-- info `Checkpoint state <w.Opts.What> captured: <w.FramesMs> ms of frame work on the main thread (serialize <w.SerializeMs> ms, no memory clean-up), <..> written in <w.WriteMs> ms on a worker thread -> <..>.`
+- info `Checkpoint state <w.Opts.What> captured: <..> ms of frame work on the main thread (snapshots <w.PreMs> ms, serialize <w.SerializeMs> ms<..>), <..> written in <w.WriteMs> ms on a worker thread -> <..>.`
 - warning `Checkpoint state <w.Opts.What> not saved: <w.Error>.`
 - warning `Checkpoint state: continuation failed: <ex.Message>`
 

@@ -373,6 +373,8 @@ namespace ForestOverlay.Modules
             string menu = MenuClose.IfOpen();
             if (menu.Length > 0) Ctx.Log.LogInfo("Savestate capture: " + menu + " first, as the game's save does.");
 
+            // The capture's first frame: the keepers' snapshots below (T-0072).
+            System.Diagnostics.Stopwatch pre = System.Diagnostics.Stopwatch.StartNew();
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             Ctx.Practice.Mark("savestate capture");
@@ -458,6 +460,7 @@ namespace ForestOverlay.Modules
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel description failed: " + ex.Message); }
 
             bool light = opts != null && opts.Light;
+            if (opts != null) opts.PreMs = pre.ElapsedMilliseconds;
             Ctx.Runner.StartCoroutine(_bridge.Capture(light, delegate(SavestateBridge.Result r)
             {
                 string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, broken, stance, rope, ride, logs, blueprints, weather, opts);
@@ -525,6 +528,8 @@ namespace ForestOverlay.Modules
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
+                // A lean capture's text is built by the write's worker.
+                if (r.Data == null && r.Bytes != null && (opts == null || !opts.Background)) r.Data = SavestateBridge.DataText(r.Bytes);
                 f.Data = r.Data;
 
                 if (path == null)
@@ -1906,6 +1911,8 @@ namespace ForestOverlay.Modules
             public Func<SavestateBridge.Result, string> Meta;
             /// For the one log line.
             public string What = "";
+            /// The keepers' snapshots before the serialize, ms (same frame).
+            internal long PreMs;
             internal bool Queued;
             internal Action<string> After;
         }
@@ -1915,8 +1922,13 @@ namespace ForestOverlay.Modules
             public string Path, MetaPath, MetaText, Error;
             public SavestateFile File;
             public CaptureOptions Opts;
-            public long SerializeMs, FramesMs, WriteMs;
+            public long SerializeMs, FramesMs, WriteMs, PreMs;
             public int Chars;
+            /// A lean capture's level bytes: the worker builds File.Data.
+            public byte[] Bytes;
+            public string Parts = "";
+            public int Gcs;
+            public bool Lean;
         }
 
         // Paths a worker is writing (main thread only), and the finished
@@ -2067,7 +2079,12 @@ namespace ForestOverlay.Modules
             w.Opts = opts;
             w.SerializeMs = r.SerializeMs;
             w.FramesMs = r.TotalMs;
-            w.Chars = r.Data != null ? r.Data.Length : 0;
+            w.Chars = SavestateBridge.DataChars(r);
+            w.Bytes = r.Bytes;
+            w.Lean = r.Bytes != null;
+            w.Parts = r.SerializeParts;
+            w.Gcs = r.SerializeGcs;
+            w.PreMs = opts.PreMs;
             try { w.MetaText = opts.Meta != null ? opts.Meta(r) : null; }
             catch (Exception ex) { w.Error = "could not build its meta: " + ex.Message; }
             opts.Queued = true;
@@ -2084,6 +2101,7 @@ namespace ForestOverlay.Modules
             try
             {
                 if (w.MetaPath != null && File.Exists(w.MetaPath)) File.Delete(w.MetaPath);
+                if (w.Bytes != null) { w.File.Data = SavestateBridge.DataText(w.Bytes); w.Bytes = null; }
                 string tmp = w.Path + ".tmp";
                 File.WriteAllText(tmp, w.File.Write(), new UTF8Encoding(false));
                 if (File.Exists(w.Path)) File.Delete(w.Path);
@@ -2113,8 +2131,11 @@ namespace ForestOverlay.Modules
                 PendingWrite w = done[i];
                 _writing.Remove(w.Path);
                 if (w.Error == null)
-                    Ctx.Log.LogInfo("Checkpoint state " + w.Opts.What + " captured: " + w.FramesMs + " ms of frame work on the main thread (serialize " +
-                                    w.SerializeMs + " ms, no memory clean-up), " + SavestateBridge.Kb(w.Chars) + " written in " +
+                    Ctx.Log.LogInfo("Checkpoint state " + w.Opts.What + " captured: " + (w.PreMs + w.FramesMs) + " ms of frame work on the main thread (" +
+                                    "snapshots " + w.PreMs + " ms, serialize " + w.SerializeMs + " ms" +
+                                    (w.Parts.Length > 0 ? " - " + w.Parts : "") + (w.Gcs > 0 ? ", GC x" + w.Gcs : "") +
+                                    (w.Lean ? ", no memory clean-up, no asset sweep" : ", no memory clean-up") + "), " +
+                                    SavestateBridge.Kb(w.Chars) + " written in " +
                                     w.WriteMs + " ms on a worker thread -> " + Path.GetFileName(w.Path) + ".");
                 else
                     Ctx.Log.LogWarning("Checkpoint state " + w.Opts.What + " not saved: " + w.Error + ".");
