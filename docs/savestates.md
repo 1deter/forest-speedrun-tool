@@ -288,8 +288,8 @@ the Savestates test panel (author's call), not for a fault.
   costs*), cancels the asset sweep its streaming unload queues, and builds
   the data text with the file on a ThreadPool thread (the old meta deleted
   first, the state via `.tmp` + move, the meta last, so a cut write is never
-  offered). **Spread** (`[Performance] CheckpointCaptureSpread`, **off**
-  until the author picks): the keepers' snapshots before the serialize
+  offered). **Spread** (`[Performance] CheckpointCaptureSpread`, **on**
+  since v0.24.286 - author, 2026-10-11): the keepers' snapshots before the serialize
   (`SavestateModule.CaptureParts` / `SnapshotStep`, ~15 scene searches) run
   ~4 ms of work or one step a frame, world pickups last (the frame before
   the serialize, as before); the state is then ~7 frames after the
