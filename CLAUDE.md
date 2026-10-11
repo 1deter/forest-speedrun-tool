@@ -196,8 +196,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **2026-10-11 (loop R-0007 + a 12-session cloud batch, author away):**
   **v0.24.285** - checkpoint captures without the half-second freeze
-  (T-0072, `CheckpointCaptureLean` on; `CheckpointCaptureSpread` off,
-  ~48 ms worst frame but the state ~7 frames late - **author decides**)
+  (T-0072, `CheckpointCaptureLean` on; `CheckpointCaptureSpread` on by default from
+  v0.24.286 - author 2026-10-11, T-0305; ~48 ms worst frame, state ~7 frames late)
   and the light deleted-attempt check (T-0266); smoke PASS, both
   confirmed by forest-tester. Cloud batch (prompts were
   `Desktop/cloud-T-*.txt`, branches `cloud/*`): **on ui-redesign**
