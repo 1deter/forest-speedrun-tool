@@ -140,7 +140,9 @@ namespace ForestOverlay.Modules
         // The trend colours (T-0023, T-0306).
         private static readonly GUIContent TrendTitle = new GUIContent("Trend colours");
         private static readonly GUIContent TrendTip = new GUIContent(
-            "For the values with Trend on in Edit HUD layout: their colour while gaining or losing (steady uses the theme's text colour). Click a swatch or type a colour as #RRGGBB.");
+            "The colour of a value with Trend on while it is gaining or losing (steady uses the theme's text colour). Click a swatch or type a colour as #RRGGBB.");
+        private static readonly GUIContent TrendWhere = new GUIContent(
+            "Only values with Trend on use these colours. Trend is off by default: turn it on per value in Edit HUD layout.");
         private static readonly GUIContent TrendBad = new GUIContent("Not a colour: type #RRGGBB, e.g. #33DD55.");
         private static readonly TrendState[] TrendRows = { TrendState.Gaining, TrendState.Losing };
         private static readonly GUIContent[] TrendNames =
@@ -570,6 +572,7 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(4, y, cw - 8, 22), TrendTitle, _labelStyle);
             UiKit.Hint(new Rect(4, y, cw - 8, 22), TrendTip);
             y += 22f;
+            y += UiText.DrawDim(8, y, cw - 12, TrendWhere) + 4f;
             for (int r = 0; r < TrendRows.Length; r++)
             {
                 TrendState state = TrendRows[r];
@@ -601,12 +604,22 @@ namespace ForestOverlay.Modules
                     _trendEdit[r] = _trendFrom[r] ?? "";
                 }
                 y += 24f;
-                // The presets: one click sets the colour (the field follows).
+                // The presets: one click sets the colour (the field follows); the
+                // one that is the current colour has a ring (light, then dark, so it
+                // shows around any swatch).
+                uint current = HudTrend.ParseOr(s.TrendText(state), HudSettings.TrendDefaults[(int)state]);
                 for (int k = 0; k < HudTrend.Presets.Length; k++)
                 {
-                    Rect sw = new Rect(114 + k * 22, y + 1, 18, 18);
+                    Rect sw = new Rect(117 + k * 28, y + 3, 22, 22);
                     uint pc = HudTrend.Presets[k];
                     Color keep = GUI.color;
+                    if (pc == current)
+                    {
+                        GUI.color = UiKit.TextColour;
+                        GUI.DrawTexture(new Rect(sw.x - 3, sw.y - 3, sw.width + 6, sw.height + 6), Texture2D.whiteTexture);
+                        GUI.color = Color.black;
+                        GUI.DrawTexture(new Rect(sw.x - 1, sw.y - 1, sw.width + 2, sw.height + 2), Texture2D.whiteTexture);
+                    }
                     GUI.color = new Color(UiPalette.R(pc), UiPalette.G(pc), UiPalette.B(pc), 1f);
                     GUI.DrawTexture(sw, Texture2D.whiteTexture);
                     GUI.color = keep;
@@ -617,7 +630,7 @@ namespace ForestOverlay.Modules
                         _trendEdit[r] = _trendFrom[r] ?? "";
                     }
                 }
-                y += 22f;
+                y += 30f;
                 uint parsed;
                 if (!HudTrend.TryParse(_trendEdit[r], out parsed))
                     y += UiText.DrawDim(114, y, cw - 118, TrendBad) + 2f;
