@@ -188,6 +188,14 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   `config/ForestOverlay/hud/` so it can be shared. Switched only from the
   picker in Edit HUD (New / Duplicate / Rename / Delete); the layout a
   runner had becomes `Default` on the first launch.
+- **The Map tab is a minor view, kept for now** (author, 2026-10-11, T-0332):
+  it mostly repeats the Practice tab as a picture, so it stays without
+  growing: no comparison line or ghost on it (redundant; only 100% might
+  use one, and whether 100% keeps the map is the admins' call), no 'Only
+  cave spots' (a 2D map cannot show caves; no cave view planned). Its look
+  follows the UI (mockup A 'slate': UI navy water, grey-blue shaded land,
+  thin tan coast); the colours are the builder's call, zone colours used
+  by nothing else.
 - **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
   the goal is a tool that looks good and is easy to learn without
   flooding a new runner. Less on screen, fewer things to click, is faster
