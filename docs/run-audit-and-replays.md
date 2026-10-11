@@ -211,8 +211,13 @@ scrub time; hover / tap for the label, a tap moves the clock there), with
 each event's group and each building's box centre, tilt and blueprint end
 - docs/website.md *Buildings and interaction markers on the maps*.
 
-**Next steps (not built):** the look track on the site (a first-person
-view over the 3D world; `/api/runs/<id>` does not carry it yet); the
+**Built (2026-10-11, site, branch `cloud/fp-replay`, T-0281 step 1): the
+look track on the site** - `/api/runs/<id>` carries it and the 3D view
+has a *First person* camera on the scrub bar's clock (docs/website.md
+*First person replay*); the attempt page's 3D view faces where the route
+moved (its log has no look).
+
+**Next steps (not built):** the
 arms / animations in first person (needs the animator in the recording,
 *Order* 5); the trajectory view's other variants (the predicted arc beside
 the real one, marks for blast / pause / unpause / peak / landing, a slow-

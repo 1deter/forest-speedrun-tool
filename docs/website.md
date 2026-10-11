@@ -759,7 +759,40 @@ section**, apart from the runners' spots.
   skipped; not in `AttemptChain.Replay`, so no `src/Data` change) - and the
   page draws it on `RunMap` (the spot page's map: photo / ground / relief
   layers, line and dot) with play, a scrub bar and 1-8x speed. No map when
-  the log has fewer than two positions.
+  the log has fewer than two positions. Since T-0281 (branch
+  `cloud/fp-replay`) it has the spot page's 3D view too (`mapViews`: Follow,
+  First person - *First person replay* below); a click on the line sets the
+  time.
+
+## First person replay (2026-10-11, T-0281 step 1, branch `cloud/fp-replay`)
+
+The 3D view's **First person** button (beside Follow, one or the other;
+`mapViews` in `app.js`, `Map3D` mode `"eyes"` in `map3d.js`): the camera at
+the focused run's recorded eye, looking where the runner looked, on the
+scrub bar's clock - the in-game replay camera's first person
+(`Data/ReplayCamera.PoseAt` / `FirstPerson`) over the site's world, no
+arms.
+
+- **Data**: `GET /api/runs/<id>` carries `look` - `[t, yaw, pitch, eye]`
+  per `l|` line of the `.run` (30 Hz, plugin v0.24.243+; Unity's angles,
+  yaw 0 = north, pitch + = down, eye = metres above the path's point);
+  empty for older runs. Tested in `ApiTests.Upload_ThenBoardShowsEachRunnersBest`.
+- **Pose** (`map3d.js` `lookAt`, `Map3D.eyesCamera`): position from the
+  path (`RunMap.at`), look interpolated between samples (yaw the short way
+  round), not smoothed; no ball over the view's own run; the terrain fades
+  when that run is underground, as Follow. **No look track** (a run from
+  before v0.24.243, and every attempt page - the attempt log has no look):
+  facing the way it moved over 0.25 s either side (one sample's spacing for
+  a sparser path: the attempt's 1 Hz route), level, eye 1.6 m - as the
+  in-game camera with no look - and the note under the view says so.
+- **View**: vertical FOV 95 (the author's game at 16:10, the like-for-like
+  setting in *The 3D world*), near plane 0.2 m; back to 55 for orbit /
+  Follow. Drag turns the view around the runner's look, double-click goes
+  back to it; no zoom or pan. Leaving it for orbit starts 8 m behind the eye.
+- Checked headless (software GL) on a made-up run with a look track and an
+  attempt along the same route, desktop and 375 px: shots in
+  `tasks/notes/shots/2026-10-11-t0281-*`. Not yet on a real GPU, nor with a real
+  run's look track (`tasks/notes/T-0281.md`).
 
 ## Compare: two YouTube runs side by side (2026-10-04)
 

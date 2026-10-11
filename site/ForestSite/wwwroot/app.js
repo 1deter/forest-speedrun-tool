@@ -336,19 +336,26 @@ function mapViews(canvas, map, hint, empty, hooks) {
   const canvas3d = el("canvas", { class: "map3d", hidden: true, "aria-label": "3D view of the spot's zones and the runs shown" });
   const HINT2 = hint.textContent;
   const HINT3 = "click a line · drag to turn · right-drag to move · scroll to zoom · double-click to fit";
-  let view = null, loading = null, on = false, gone = false;
+  const HINT_EYES = "the runner's view · drag to look around · double-click to look where they looked";
+  let view = null, loading = null, on = false, gone = false, mode = "orbit";
   const b2 = el("button", { type: "button", onclick: () => show(false) }, "2D");
   const b3 = el("button", { type: "button", onclick: () => show(true) }, "3D");
-  const follow = el("button", { type: "button", hidden: true, title: "Ride behind the focused run's ghost", onclick: () => setFollow(!follow.classList.contains("on")) }, "Follow");
-  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map view" }, b2, b3, follow);
+  const follow = el("button", { type: "button", hidden: true, title: "Ride behind the focused run's ghost",
+    onclick: () => setMode(mode === "follow" ? "orbit" : "follow") }, "Follow");
+  // First person (T-0281): the focused run's own view - where it looked,
+  // from the run's look track; Follow and First person are one or the other.
+  const eyes = el("button", { type: "button", hidden: true, title: "See the focused run through the runner's eyes: where they looked, as the game recorded it",
+    onclick: () => setMode(mode === "eyes" ? "orbit" : "eyes") }, "First person");
+  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map view" }, b2, b3, follow, eyes);
   function mark() {
-    for (const [b, v] of [[b2, !on], [b3, on]]) { b.classList.toggle("on", v); b.setAttribute("aria-pressed", v); }
-    follow.hidden = !on;
-    hint.textContent = on ? HINT3 : HINT2;
+    for (const [b, v] of [[b2, !on], [b3, on], [follow, mode === "follow"], [eyes, mode === "eyes"]]) { b.classList.toggle("on", v); b.setAttribute("aria-pressed", v); }
+    follow.hidden = eyes.hidden = !on;
+    hint.textContent = !on ? HINT2 : mode === "eyes" ? HINT_EYES : HINT3;
   }
-  function setFollow(v) {
-    follow.classList.toggle("on", v); follow.setAttribute("aria-pressed", v);
-    if (view) view.setMode(v ? "follow" : "orbit");
+  function setMode(m) {
+    mode = m;
+    if (view) view.setMode(m);
+    mark();
   }
   async function show(want) {
     if (want === on) return;
@@ -594,7 +601,10 @@ async function spotPage(id, routeId) {
   async function refreshMap(refit) {
     const ids = [...state.shown.keys()];
     await Promise.all(ids.map(id => load(id, false)));
-    shownRuns = ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id), plane: (state.runs.get(id) || {}).plane }));
+    shownRuns = ids.filter(id => state.shown.has(id)).map(id => {
+      const run = state.runs.get(id) || {};
+      return { id, color: state.shown.get(id), path: pathOf(id), plane: run.plane, look: run.look };
+    });
     map.setRuns(shownRuns, refit);
     if (views && views.view) views.view.setRuns(shownRuns, refit);
     updateMarks();

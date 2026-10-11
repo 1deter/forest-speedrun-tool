@@ -148,14 +148,18 @@ async function attemptPage(id) {
   }
 
   // The route on the map (the log's 1 Hz positions): the spot page's map,
-  // line and ghost dot, with a play / scrub bar. Not for a log with no
-  // positions (still running, or from before they were kept).
+  // line and ghost dot, with a play / scrub bar, and its 3D view (Follow,
+  // First person - T-0281: the attempt's look when it carries one, else
+  // facing the way it moved). Not for a log with no positions (still
+  // running, or from before they were kept).
   let replay = null;
   const path = a.path || [];
   if (path.length >= 2) {
     const canvas = el("canvas", { "aria-label": "Map of the attempt's route" });
     const map = new RunMap(canvas);
-    const layers = mapLayers(map, null);
+    let views = null;
+    const layers = mapLayers(map, layer => { if (views && views.view) views.view.setLayer(layer); });
+    const run = { id: "attempt", color: "#e5c501", path, look: a.look || [] };
     const end = path[path.length - 1][0];
     const clk = el("span", { class: "clock" }, clock(0));
     const slider = el("input", { type: "range", min: 0, max: 1000, value: 0, step: 1, "aria-label": "Time" });
@@ -167,6 +171,7 @@ async function attemptPage(id) {
       clk.textContent = clock(t * 1000);
       slider.value = Math.round(t / end * 1000);
       map.setTime(t);
+      if (views && views.view) views.view.setTime(t);
     };
     const tick = now => {
       if (!playing) return;
@@ -182,12 +187,22 @@ async function attemptPage(id) {
       if (playing) { if (t >= end) setTime(0); last = 0; raf = requestAnimationFrame(tick); }
     });
     slider.addEventListener("input", () => { playing = false; play.textContent = "▶"; setTime(slider.value / 1000 * end); });
-    cleanup = () => { playing = false; cancelAnimationFrame(raf); };
-    map.setRuns([{ color: "#e5c501", path }], true);
+    const pause = () => { playing = false; play.textContent = "▶"; play.setAttribute("aria-label", "Play"); };
+    // A click on the line: that moment.
+    map.onPick = (_, at) => { pause(); setTime(at); };
+    const mapEmpty = el("div", { class: "mapempty" });
+    const hint = el("div", { class: "maphint" }, "click the line · drag · scroll to zoom · double-click to fit");
+    views = mapViews(canvas, map, hint, mapEmpty, {
+      onPick: map.onPick,
+      empty: () => { if (!mapEmpty.dataset.busy) mapEmpty.textContent = ""; },
+      sync(v) { v.setLayer(map.layer); v.setZones([]); v.setFocus(run.id); v.setRuns([run], true); v.setTime(t); },
+    });
+    cleanup = () => { playing = false; cancelAnimationFrame(raf); views.dispose(); };
+    map.setRuns([run], true);
     replay = el("section", null,
       el("h2", null, "The route"),
       el("p", { class: "note" }, "Where the runner was each second of the attempt (real time, the same clock as the codes). Drag to pan, scroll to zoom."),
-      el("div", { class: "mapwrap" }, canvas, el("div", { class: "maptools" }, layers),
+      el("div", { class: "mapwrap" }, canvas, views.canvas, mapEmpty, el("div", { class: "maptools" }, views.box, layers, hint),
         el("div", { class: "scrub" }, play, slider, clk, speed)));
   }
 
