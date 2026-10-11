@@ -42,8 +42,19 @@ namespace ForestOverlay.Modules
 
         private string SiteUrl { get { return _upload != null ? _upload.SiteUrl : null; } }
 
-        /// On every arm: a new segment / route reads the board at once, the
-        /// same one again after BoardMaxAge (new PBs by others).
+        /// The Runs tab came into view (T-0254: no Refresh button): the board
+        /// is read again once BoardMaxAge has passed - never during a run,
+        /// whose comparison must not change under it - and the run
+        /// categories are checked.
+        private void RunsTabOpened()
+        {
+            if (_runMode != null) _runMode.RunsTabOpened();
+            if (_recorder.State != RunRecorder.RunState.Running) MaybeFetchBoard();
+        }
+
+        /// On every arm and when the Runs tab opens: a new segment / route
+        /// reads the board at once, the same one again after BoardMaxAge
+        /// (new PBs by others).
         private void MaybeFetchBoard()
         {
             if (_segment == null) return;
@@ -202,14 +213,7 @@ namespace ForestOverlay.Modules
                 if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
                 if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);
                 GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
-                if (GUI.Button(new Rect(w - 80, y, 80, 20), "Refresh")) FetchBoard();
                 y += 24f;
-            }
-            else if (_boardFetching == null && !string.IsNullOrEmpty(_boardState))
-            {
-                if (GUI.Button(new Rect(w - 80, y, 80, 20), "Refresh")) FetchBoard();
-                y += UiText.Draw(0, y, w - 86f, _boardText);
-                return y;
             }
             if (_boardState.Length > 0) y += UiText.Draw(0, y, w, _boardText);
             return y;

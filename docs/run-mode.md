@@ -320,7 +320,8 @@ How it works:
   amber red. The attempt page shows the version's rules, banned moves and
   unlocked features.
 - **Plugin** (`Modules/RunModeModule.Categories`): fetched 6 s after
-  startup and on *Check categories*, kept in
+  startup, every 2 minutes, when an attempt ends and when the Runs tab
+  opens (T-0254; no *Check categories* button), kept in
   `config/ForestOverlay/categories.txt`; picked with `<` `>` (config
   `RunMode.Category`). `Core/RunMode`: `Begin(..., category)`,
   `Refuse(feature, what)`, `Locks` / `Forces`, `Use` (an allowed

@@ -16,8 +16,9 @@ namespace ForestOverlay.Modules
     // The moderators publish them on the site (/admin, seeded from
     // speedrun.com). Fetched a few seconds after startup, every 2 minutes,
     // when an attempt ends or a run spot starts one (author, 2026-10-02:
-    // "Check categories" may never be pressed) and on the button - with
-    // the last answer's ETag, so an unchanged list is a 304 and no body.
+    // "Check categories" may never be pressed) and when the Runs tab opens
+    // (T-0254: the button went) - with the last answer's ETag, so an
+    // unchanged list is a 304 and no body.
     // A new version reaches the next attempt, never the running one (the
     // attempt holds its category). Kept in
     // config/ForestOverlay/categories.txt for offline starts. A run spot's `run = ...` names its category (by id or name);
@@ -31,6 +32,9 @@ namespace ForestOverlay.Modules
         private const float FetchDelay = 6f;
         private const float RefreshEvery = 120f;
         private float _refreshAt = -1f;
+        // The Runs tab opening checks again once this has passed (T-0254).
+        private const float RecheckOnOpen = 30f;
+        private float _fetchedAt = -1f;
         private string _etag;
         private bool _fetchFailed;   // logged once until the next success
 
@@ -91,9 +95,17 @@ namespace ForestOverlay.Modules
             if (!_fetching) _fetchAt = Time.unscaledTime;
         }
 
+        /// The Runs tab came into view (PracticeRunModule).
+        public void RunsTabOpened()
+        {
+            if (_fetching || (_fetchedAt >= 0f && Time.unscaledTime < _fetchedAt + RecheckOnOpen)) return;
+            CheckCategoriesSoon();
+        }
+
         private void FetchCategories()
         {
             string site = _upload != null ? _upload.SiteUrl : null;
+            _fetchedAt = Time.unscaledTime;
             _refreshAt = Time.unscaledTime + RefreshEvery;
             if (string.IsNullOrEmpty(site)) { _catStatus = "No site address set (Settings) - categories not checked."; return; }
             _fetching = true;
@@ -242,9 +254,6 @@ namespace ForestOverlay.Modules
             {
                 if (GUI.Button(new Rect(0, y + 2, 28, 22), "<")) Pick(-1);
                 if (GUI.Button(new Rect(32, y + 2, 28, 22), ">")) Pick(1);
-                GUI.enabled = !_fetching;
-                if (GUI.Button(new Rect(64, y + 2, 160, 22), "Check categories")) FetchCategories();
-                GUI.enabled = true;
                 y += 28f;
             }
             y += UiText.Draw(0, y, w, _catText) + 2f;
