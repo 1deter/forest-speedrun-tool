@@ -84,6 +84,10 @@ namespace ForestOverlay.Game
             return c != null ? c : null;   // fake-null -> null
         }
 
+        // Capture's FindObjectOfType, for UnenteredSection in the same frame.
+        private int _searchedFrame = -1;
+        private bool _searchFound;
+
         /// The header value at capture: the active area's path, `none`, or
         /// "" when areas are unknown (no endgame loaded, or not bound).
         public string Capture()
@@ -91,7 +95,9 @@ namespace ForestOverlay.Game
             try
             {
                 if (!Bind()) return "";
-                if (UnityEngine.Object.FindObjectOfType(_type) == null) return "";
+                _searchedFrame = Time.frameCount;
+                _searchFound = UnityEngine.Object.FindObjectOfType(_type) != null;
+                if (!_searchFound) return "";
                 Component live = Live();
                 return live != null ? ObjectProbe.PathOf(live.transform) : None;
             }
@@ -110,7 +116,9 @@ namespace ForestOverlay.Game
             try
             {
                 if (!Bind() || Live() != null) return "";
-                if (UnityEngine.Object.FindObjectOfType(_type) == null) return "";
+                // Capture's search this frame answers it (a scene walk, ~20 ms).
+                bool found = _searchedFrame == Time.frameCount ? _searchFound : UnityEngine.Object.FindObjectOfType(_type) != null;
+                if (!found) return "";
                 if (_members == null) InsideASection(p);
                 if (_members == null || _renderers == null || !InsideASection(p)) return "";
                 return "the endgame section around you is not turned on (walls, lamps, doors not drawn - " +

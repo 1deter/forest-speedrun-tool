@@ -64,6 +64,29 @@ namespace ForestOverlay.Game
             /// capture's main-thread time (its frames, not the waits).
             public long SerializeMs;
             public long TotalMs;
+            /// A lean checkpoint capture (PerfPatches.CheckpointCaptureLean):
+            /// the level's bytes, Data still null - DataText(Bytes) builds
+            /// it, on a worker thread.
+            public byte[] Bytes;
+            /// The serialize's frame: collections that ran in it, and its
+            /// parts from the game's Progress event ("" if unknown).
+            public int SerializeGcs;
+            public string SerializeParts = "";
+        }
+
+        /// The level text a savestate holds, from the level's bytes - what
+        /// LevelSerializer.SerializeLevel(bool) returns around the same
+        /// bytes (source): "NOCOMPRESSION" + base64. Thread-safe.
+        public static string DataText(byte[] bytes)
+        {
+            return "NOCOMPRESSION" + Convert.ToBase64String(bytes);
+        }
+
+        /// The data's length in characters, built or not.
+        public static int DataChars(Result r)
+        {
+            if (r.Data != null) return r.Data.Length;
+            return r.Bytes != null ? 13 + (r.Bytes.Length + 2) / 3 * 4 : 0;
         }
 
         private const float LoadTimeout = 120f;
@@ -75,7 +98,17 @@ namespace ForestOverlay.Game
 
         // LevelSerializer
         private MethodInfo _serializeLevel;      // static string SerializeLevel(bool urgent)
-        private MethodInfo _loadNow;             // static void LoadNow(object, bool, bool, Action<LevelLoader>)
+        // static byte[] SerializeLevel(bool urgent, string id): the level's
+        // bytes alone - the string overload wraps it in UnloadUnusedAssets,
+        // two or three GC.Collect and "NOCOMPRESSION" + base64 (source).
+        private MethodInfo _serializeLevelBytes;
+        // static event Action<string, float> Progress: ("Storing", share)
+        // after each component's data is written (source) - the serialize's
+        // timing by part.
+        private EventInfo _progress;
+        private readonly SerializeTiming _timing = new SerializeTiming();
+        private Action<string, float> _onProgress;
+        private MethodInfo _loadNow;            // static void LoadNow(object, bool, bool, Action<LevelLoader>)
         private MethodInfo _loadSavedLevel;      // static LevelLoader LoadSavedLevel(string)
         private MethodInfo _resume;              // static void Resume()
         private PropertyInfo _isSuspended;
@@ -208,6 +241,10 @@ namespace ForestOverlay.Game
             if (ls != null)
             {
                 _serializeLevel = ls.GetMethod("SerializeLevel", stat, null, new[] { typeof(bool) }, null);
+                _serializeLevelBytes = ls.GetMethod("SerializeLevel", stat, null, new[] { typeof(bool), typeof(string) }, null);
+                if (_serializeLevelBytes != null && _serializeLevelBytes.ReturnType != typeof(byte[])) _serializeLevelBytes = null;
+                _progress = ls.GetEvent("Progress", stat);
+                if (_progress != null && _progress.EventHandlerType != typeof(Action<string, float>)) _progress = null;
                 _loadSavedLevel = ls.GetMethod("LoadSavedLevel", stat, null, new[] { typeof(string) }, null);
                 _resume = ls.GetMethod("Resume", stat, null, Type.EmptyTypes, null);
                 _isSuspended = ls.GetProperty("IsSuspended", stat);
@@ -542,6 +579,12 @@ namespace ForestOverlay.Game
         /// the capture's longest frames, which only free memory - and keeps
         /// everything the data depends on (streaming unloaded as the game's
         /// save does, held items re-parented).
+        /// `light` + PerfPatches.CheckpointCaptureLean (T-0072): the
+        /// SerializeLevel(string) wrapper's own clean-up goes too (its
+        /// UnloadUnusedAssets, a ~0.35 s frame after, and two or three
+        /// GC.Collect, ~80 ms each), and so does the asset sweep the
+        /// streaming unload queues (~0.35 s, 0.1 s later): the level's bytes
+        /// are taken alone (Result.Bytes) and their text built on a worker.
         public IEnumerator Capture(bool light, Action<Result> done)
         {
             Result r = new Result();
@@ -550,11 +593,12 @@ namespace ForestOverlay.Game
             if (IsDeserializing) { r.Message = "the game is loading"; done(r); yield break; }
             if (ReadBool(_inOverlook)) { r.Message = "the game refuses to save in the overlook area"; done(r); yield break; }
 
+            bool lean = light && PerfPatches.CheckpointCaptureLean && _serializeLevelBytes != null;
             Stopwatch total = Stopwatch.StartNew();
             // Main-thread work only, the frames' cost (not the waits).
             Stopwatch work = Stopwatch.StartNew();
 
-            bool unloaded = ForceUnloadStreaming(true, true);
+            bool unloaded = ForceUnloadStreaming(true, true, lean);
             work.Stop();
             yield return null;
             if (!light)
@@ -600,9 +644,20 @@ namespace ForestOverlay.Game
                     glider = RideModes.DropForSave();
                     // GameStats.OnSerializing would rewrite the slot's info (T-0214).
                     SlotInfoGuard.Capturing = true;
-                    try { r.Data = _serializeLevel.Invoke(null, new object[] { false }) as string; }
-                    finally { SlotInfoGuard.Capturing = false; }
-                    r.Ok = !string.IsNullOrEmpty(r.Data);
+                    int gcs = GC.CollectionCount(0);
+                    TimingOn(serialize);
+                    try
+                    {
+                        if (lean) r.Bytes = _serializeLevelBytes.Invoke(null, new object[] { false, null }) as byte[];
+                        else r.Data = _serializeLevel.Invoke(null, new object[] { false }) as string;
+                    }
+                    finally
+                    {
+                        SlotInfoGuard.Capturing = false;
+                        r.SerializeParts = TimingOff(serialize);
+                        r.SerializeGcs = GC.CollectionCount(0) - gcs;
+                    }
+                    r.Ok = lean ? r.Bytes != null && r.Bytes.Length > 0 : !string.IsNullOrEmpty(r.Data);
                     if (!r.Ok) r.Message = "SerializeLevel returned nothing";
                 }
             }
@@ -640,9 +695,11 @@ namespace ForestOverlay.Game
             r.TotalMs = work.ElapsedMilliseconds;
             if (r.Ok)
             {
-                r.Message = "serialized in " + serialize.ElapsedMilliseconds + " ms (total " +
+                r.Message = "serialized in " + serialize.ElapsedMilliseconds + " ms (" +
+                            (r.SerializeParts.Length > 0 ? r.SerializeParts + ", " : "") +
+                            (r.SerializeGcs > 0 ? "GC x" + r.SerializeGcs + ", " : "") + "total " +
                             total.ElapsedMilliseconds + " ms, frames' work " + work.ElapsedMilliseconds + " ms" +
-                            (light ? ", light: no memory clean-up" : "") + "), " + Kb(r.Data.Length) +
+                            (lean ? ", lean: no memory clean-up, no asset sweep" : light ? ", light: no memory clean-up" : "") + "), " + Kb(DataChars(r)) +
                             ", streaming " + (unloaded ? "force-unloaded" : "unload FAILED (kept)") +
                             ", " + IdentifierCount + " identifiers";
             }
@@ -2228,6 +2285,66 @@ namespace ForestOverlay.Game
             int depth = 0;
             while (t.parent != null && depth++ < 4) { t = t.parent; s = t.name + "/" + s; }
             return s;
+        }
+
+        // ------------------------------------------------------------------
+        // The serialize's parts, from LevelSerializer.Progress: raised with
+        // ("Storing", n / count) after each component's data is written, so
+        // the first call ends the object listing (plus one component), the
+        // last ends the components, and the call's return ends the packing
+        // of the whole level (UnitySerializer.Serialize of the LevelData) -
+        // plus, for SerializeLevel(bool), the wrapper's clean-up and base64.
+        private sealed class SerializeTiming
+        {
+            public Stopwatch Clock;
+            public long First = -1, Last, MaxGap;
+            public int Calls;
+
+            public void OnProgress(string section, float share)
+            {
+                if (Clock == null || section != "Storing") return;
+                long now = Clock.ElapsedTicks;
+                if (Calls == 0) First = now;
+                else if (now - Last > MaxGap) MaxGap = now - Last;
+                Last = now;
+                Calls++;
+            }
+        }
+
+        private void TimingOn(Stopwatch clock)
+        {
+            _timing.Clock = clock;
+            _timing.First = -1;
+            _timing.Last = _timing.MaxGap = 0;
+            _timing.Calls = 0;
+            if (_progress == null) return;
+            try
+            {
+                if (_onProgress == null) _onProgress = _timing.OnProgress;
+                _progress.AddEventHandler(null, _onProgress);
+            }
+            catch (Exception) { _progress = null; }
+        }
+
+        /// "" if the event was not seen, else the parts in ms.
+        private string TimingOff(Stopwatch clock)
+        {
+            long end = clock.ElapsedTicks;
+            if (_progress != null)
+            {
+                try { _progress.RemoveEventHandler(null, _onProgress); }
+                catch (Exception) { _progress = null; }
+            }
+            SerializeTiming t = _timing;
+            t.Clock = null;
+            if (t.Calls == 0) return "";
+            return "objects listed + 1st component " + Ms(t.First) + " ms, " + t.Calls + " components " + Ms(t.Last - t.First) +
+                   " ms (largest " + Ms(t.MaxGap) + " ms), packed " + Ms(end - t.Last) + " ms";
+        }
+
+        private static string Ms(long ticks)
+        {
+            return (ticks * 1000.0 / Stopwatch.Frequency).ToString("0.0");
         }
 
         public static string Kb(int chars)

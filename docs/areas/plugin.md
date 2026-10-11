@@ -216,6 +216,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared. [judgement]
 101. **A swallowed exception is garbage nobody sees** - binding by shape, check the member's type too; an exception type in an allocation report is a bug looking for its catch. [judgement]
 105. **A forced collection can be in the right place** - the collector's own trigger may be a couple of restores away; skipping the game's `GC.Collect` moved the pause into play (T-0202). Measure the trigger and where the pause lands; cut garbage instead. [judgement]
+108. **A stopwatch around a call misses the frames it sets off** - `UnloadUnusedAssets` and a queued `Invoke` land frames later; time an action by its frames (`FrameTimer.Spikes`), then split the long ones (T-0072). [judgement]
 
 ### UI
 

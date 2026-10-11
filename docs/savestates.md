@@ -277,20 +277,44 @@ the Savestates test panel (author's call), not for a fault.
   counts them). **Newest wins**: holding every run's captures until a PB
   is known would cost files and hitches, and the state you want is the
   one you just played into.
-- **The hitch**: the level is still serialized on the main thread
-  (Unity's serializer). A checkpoint capture is "light" -
-  `SavestateBridge.Capture(light)` skips the save routine's
-  `UnloadUnusedAssets` and forced GC (memory only; streaming is still
-  force-unloaded and held items re-parented, as the data needs) - and
-  the file's text is built and written on a ThreadPool thread (the old
-  meta deleted first, the state via `.tmp` + move, the meta last, so a
-  cut write is never offered). Never in run mode (`Ctx.Run.Active`),
-  skipped with the pause menu / inventory open (`MenuClose.AnyOpen`, not
-  closed mid-run) or another savestate action running. One log line
-  each: `Checkpoint state checkpoint 2/5 of 's-...' captured: N ms of
-  frame work on the main thread (serialize N ms, no memory clean-up), N KB
-  written in N ms on a worker thread` (plus the usual `Savestate captured`
-  line); a skip logs `Run '<id>': checkpoint N state not captured - why`.
+- **The hitch** (T-0072, measured frame by frame with `FrameTimer.Spikes`,
+  Slot 5 surface, 5 captures each): the level is serialized on the main
+  thread (Unity's serializer keeps its state in statics - never on a
+  worker). A checkpoint capture is "light" - `SavestateBridge.Capture(light)`
+  skips the save routine's `UnloadUnusedAssets` and forced GC - and
+  **lean** (`[Performance] CheckpointCaptureLean`, on): it takes
+  `SerializeLevel(false, null)`'s bytes instead of the string wrapper (no
+  `UnloadUnusedAssets`, no 2-3 `GC.Collect` - game-notes *What a serialize
+  costs*), cancels the asset sweep its streaming unload queues, and builds
+  the data text with the file on a ThreadPool thread (the old meta deleted
+  first, the state via `.tmp` + move, the meta last, so a cut write is never
+  offered). **Spread** (`[Performance] CheckpointCaptureSpread`, **off**
+  until the author picks): the keepers' snapshots before the serialize
+  (`SavestateModule.CaptureParts` / `SnapshotStep`, ~15 scene searches) run
+  ~4 ms of work or one step a frame, world pickups last (the frame before
+  the serialize, as before); the state is then ~7 frames after the
+  checkpoint (the resumed clock counts them).
+
+  | Capture | Frames of 25 ms or more | Worst | Sum |
+  |---|---|---|---|
+  | before (string wrapper) | 156, 570, 327, 35 | 570 | ~1090 ms |
+  | lean | 137-151, 46-48, 33-36 | ~150 | ~225 ms |
+  | lean + spread | 7 of 25-41, 42-48, 34-35 | ~48 | ~250 ms over ~9 frames |
+
+  The parts: snapshots 122-140 ms (one scene search each, 14-20 ms: Megan,
+  elevators, sliding doors, area, bushes, greebles, pickups), the
+  serialize 39-47 ms (listing 27, components 8, packing 4), the streaming
+  reload ~35 ms. Under one frame is out of reach: the searches and the
+  listing alone are ~150 ms. Never in run mode (`Ctx.Run.Active`), skipped
+  with the pause menu / inventory open (`MenuClose.AnyOpen`, not closed
+  mid-run) or another savestate action running. One log line each:
+  `Checkpoint state checkpoint 2/5 of 's-...' captured: N ms of frame work
+  on the main thread (snapshots N ms (megan 20, ...; over 7 frames, 34 ms
+  the most in one), serialize N ms - objects listed + 1st component N ms,
+  173 components N ms (largest N ms), packed N ms, no memory clean-up, no
+  asset sweep), N KB written in N ms on a worker thread` (plus the usual
+  `Savestate captured` line); a skip logs `Run '<id>': checkpoint N state
+  not captured - why`.
 - **Restart from checkpoint N** (Runs tab, a button per checkpoint; key
   `run.restartCheckpoint`, unbound = the last one used, else the latest):
   a Quick load of that state (a Full load only where `MustLoad` says),

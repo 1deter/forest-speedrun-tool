@@ -379,107 +379,232 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = true;
             SetStatus("capturing...");
 
-            Vector3 pos = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
-            bool inCave = Ctx.Bridge.IsInCaves();
+            CaptureParts p = new CaptureParts();
+            p.Name = name;
+            p.Path = path;
+            p.Opts = opts;
+            p.After = after;
+            p.Pos = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
+            p.InCave = Ctx.Bridge.IsInCaves();
 
-            // Before the capture unloads streaming, while every pickup here is
-            // still loaded.
-            List<string> pickups = new List<string>();
-            try { _keeper.Snapshot(pickups); }
-            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup snapshot failed: " + ex.Message); }
-
-            string bookNote;
-            string book = _book.Capture(out bookNote);
-            List<int> held = _bridge.HeldIds();
-            List<string> heldBefore = _bridge.PreviousHeld();
-            // A ride / climb is outside the save: noted here, before the
-            // capture's frames move the player on (RideModes).
-            string ride = RideModes.Capture(pos);
-            string blueprints = BlueprintKeeper.Capture(Ctx.Player.Found ? Ctx.Player.Transform.root : null);
-            if (ride.Length > 0)
-                Ctx.Log.LogInfo("Savestate capture: on a " + RideModes.Current() + " (" + ride + ") - a restore puts you back on it.");
-            // The book stows the hands: the save then says nothing is held,
-            // and what closing the book would take back out is the
-            // inventory's "previously equipped" memory. A capture with the
-            // book open restored with empty hands (Quick load audit,
-            // 2026-10-01) - so those are the held items.
-            if (held.Count == 0 && heldBefore.Count > 0 && BookClose.IsOpen())
+            // A checkpoint state mid-run (T-0072, PerfPatches 22): the
+            // snapshots spread over frames, a few ms of them each.
+            if (opts != null && opts.Background && PerfPatches.CheckpointCaptureSpread)
             {
-                for (int i = 0; i < heldBefore.Count; i++)
+                Ctx.Runner.StartCoroutine(SnapshotsSpread(p));
+                return;
+            }
+            for (int i = 0; i < SnapshotSteps; i++) RunSnapshotStep(i, p);
+            p.Frames = 1;
+            p.MaxFrameMs = p.PreMs;
+            StartSerialize(p);
+        }
+
+        // ------------------------------------------------------------------
+        // A capture's snapshots: what the keepers note before the level is
+        // serialized (all outside the save). In this order, in one frame -
+        // or a checkpoint state's over several (SnapshotsSpread). The world
+        // pickups go last, so they are listed in the frame before the
+        // serialize's, as when everything ran in one frame (a pickup taken
+        // in between would be both in the bag and on the ground).
+
+        private sealed class CaptureParts
+        {
+            public string Name, Path;
+            public CaptureOptions Opts;
+            public Action<string> After;
+            public Vector3 Pos;
+            public bool InCave;
+            public List<string> Pickups = new List<string>();
+            public string Book = "", BookNote = "";
+            public List<int> Held = new List<int>();
+            public List<string> HeldBefore = new List<string>();
+            public string Ride = "", Blueprints = "";
+            public string Cutscene;
+            public float CutsceneAt = -1f;
+            public string Megan = "", Elevators = "", SlidingDoors = "", Weather = "", KeypadDoor = "";
+            public string ActiveArea = "", AreaWarning = "";
+            public string Blueprint = "", Stance = "", Rope = "";
+            public int Logs;
+            public string Bushes = "";
+            public List<string> CutBushes, Greebles, Broken;
+            public string Areas = "", EnemyNote = "";
+            public List<string> Enemies = new List<string>();
+            public List<string> Families = new List<string>();
+            public List<string> Panels = new List<string>();
+            // The snapshots' cost: all steps, the steps of a ms or more, the
+            // frames they took and the largest frame's share.
+            public long PreTicks;
+            public readonly StringBuilder Laps = new StringBuilder();
+            public int Frames;
+            public long MaxFrameMs;
+            public long PreMs { get { return PreTicks * 1000 / System.Diagnostics.Stopwatch.Frequency; } }
+        }
+
+        private const int SnapshotSteps = 15;
+        /// A spread capture's snapshot work a frame: steps run until it is
+        /// used (at least one a frame).
+        private const double SpreadBudgetMs = 4.0;
+
+        private static readonly string[] SnapshotStepNames =
+        {
+            "book, held, ride, blueprints", "megan", "elevators", "doors", "weather", "area",
+            "build, stance, logs, rope", "bushes", "greebles", "stalagmites", "areas", "enemies", "panels",
+            "nearest panel", "pickups",
+        };
+
+        /// One step, timed; a step that throws is logged and the capture
+        /// goes on (its part stays empty).
+        private double RunSnapshotStep(int i, CaptureParts p)
+        {
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            try { SnapshotStep(i, p); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: capture step '" + SnapshotStepNames[i] + "' failed: " + ex.Message); }
+            long dt = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+            p.PreTicks += dt;
+            double ms = dt * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            if (ms >= 1.0) p.Laps.Append(p.Laps.Length > 0 ? ", " : "").Append(SnapshotStepNames[i]).Append(' ').Append(ms.ToString("0"));
+            return ms;
+        }
+
+        private void SnapshotStep(int i, CaptureParts p)
+        {
+            switch (i)
+            {
+                case 0:
                 {
-                    string e = heldBefore[i];
-                    int colon = e.IndexOf(':'), id;
-                    if (colon > 0 && int.TryParse(e.Substring(colon + 1), out id) && id > 0 && !held.Contains(id)) held.Add(id);
+                    p.Book = _book.Capture(out p.BookNote);
+                    p.Held = _bridge.HeldIds();
+                    p.HeldBefore = _bridge.PreviousHeld();
+                    // A ride / climb is outside the save: noted here, before the
+                    // capture's frames move the player on (RideModes).
+                    p.Ride = RideModes.Capture(p.Pos);
+                    p.Blueprints = BlueprintKeeper.Capture(Ctx.Player.Found ? Ctx.Player.Transform.root : null);
+                    if (p.Ride.Length > 0)
+                        Ctx.Log.LogInfo("Savestate capture: on a " + RideModes.Current() + " (" + p.Ride + ") - a restore puts you back on it.");
+                    // The book stows the hands: the save then says nothing is held,
+                    // and what closing the book would take back out is the
+                    // inventory's "previously equipped" memory. A capture with the
+                    // book open restored with empty hands (Quick load audit,
+                    // 2026-10-01) - so those are the held items.
+                    List<int> held = p.Held;
+                    List<string> heldBefore = p.HeldBefore;
+                    if (held.Count == 0 && heldBefore.Count > 0 && BookClose.IsOpen())
+                    {
+                        for (int k = 0; k < heldBefore.Count; k++)
+                        {
+                            string e = heldBefore[k];
+                            int colon = e.IndexOf(':'), id;
+                            if (colon > 0 && int.TryParse(e.Substring(colon + 1), out id) && id > 0 && !held.Contains(id)) held.Add(id);
+                        }
+                        if (held.Count > 0)
+                            Ctx.Log.LogInfo("Savestate capture: the book is open - held items taken from what it put away (" + HeldNames(held) + ").");
+                    }
+                    break;
                 }
-                if (held.Count > 0)
-                    Ctx.Log.LogInfo("Savestate capture: the book is open - held items taken from what it put away (" + HeldNames(held) + ").");
+                case 1:
+                    // Captured during an endgame cutscene: note which and how far in,
+                    // so a restore can fast-forward the replay to this moment.
+                    p.Cutscene = Ctx.Events != null ? Ctx.Events.CutsceneRunning : null;
+                    p.CutsceneAt = p.Cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
+                    p.Megan = _megan.Capture();
+                    break;
+                case 2:
+                {
+                    float rideAge = Ctx.Events != null && Ctx.Events.RedElevatorAt >= 0f ? Time.time - Ctx.Events.RedElevatorAt : -1f;
+                    p.Elevators = _elevators.Capture(rideAge);
+                    break;
+                }
+                case 3: p.SlidingDoors = _slidingDoors.Capture(); break;
+                case 4: p.Weather = _weather.Capture(); break;
+                case 5:
+                    p.KeypadDoor = p.Cutscene == GameEvents.KeycardDoor ? _doors.Capture(GameEvents.LastDoorPos) : "";
+                    p.ActiveArea = _area.Capture();
+                    p.AreaWarning = p.ActiveArea == AreaKeeper.None ? _area.UnenteredSection(p.Pos) : "";
+                    break;
+                case 6:
+                    p.Blueprint = BuildMode.Capture();
+                    p.Stance = Stance.Capture();
+                    p.Logs = LogStore.Stored();
+                    p.Rope = RopeClimb.Capture();
+                    break;
+                case 7:
+                    p.Bushes = _nature.CaptureMark();
+                    p.CutBushes = _nature.CaptureCuts();
+                    break;
+                case 8: p.Greebles = _greebles.Capture(); break;
+                case 9: p.Broken = _breakables.Capture(); break;
+                // Before the capture force-unloads streaming: what is loaded as
+                // the player sees it.
+                case 10: p.Areas = AreaReport.Describe(); break;
+                case 11: _enemies.Capture(p.Enemies, p.Families, out p.EnemyNote); break;
+                case 12: _panels.Snapshot(p.Panels); break;
+                case 13:
+                {
+                    string near = Ctx.Player.Found ? _panels.DescribeNearest(Ctx.Player.Transform.position) : null;
+                    if (near != null) Ctx.Log.LogInfo("Savestate: nearest cave panel at capture: " + near);
+                    break;
+                }
+                // Before the capture unloads streaming, while every pickup here is
+                // still loaded.
+                case 14: _keeper.Snapshot(p.Pickups); break;
             }
+        }
 
-            // Captured during an endgame cutscene: note which and how far in,
-            // so a restore can fast-forward the replay to this moment.
-            string cutscene = Ctx.Events != null ? Ctx.Events.CutsceneRunning : null;
-            float cutsceneAt = cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
-            string megan = _megan.Capture();
-            float rideAge = Ctx.Events != null && Ctx.Events.RedElevatorAt >= 0f ? Time.time - Ctx.Events.RedElevatorAt : -1f;
-            string elevators = _elevators.Capture(rideAge);
-            string slidingDoors = _slidingDoors.Capture();
-            string weather = _weather.Capture();
-            string keypadDoor = cutscene == GameEvents.KeycardDoor ? _doors.Capture(GameEvents.LastDoorPos) : "";
-            string activeArea = _area.Capture();
-            string areaWarning = activeArea == AreaKeeper.None ? _area.UnenteredSection(pos) : "";
-            string blueprint = BuildMode.Capture();
-            string stance = Stance.Capture();
-            int logs = LogStore.Stored();
-            string rope = RopeClimb.Capture();
-            string bushes = _nature.CaptureMark();
-            List<string> cutBushes = _nature.CaptureCuts();
-            List<string> greebles = null;
-            try { greebles = _greebles.Capture(); }
-            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: greeble capture failed: " + ex.Message); }
-            List<string> broken = null;
-            try { broken = _breakables.Capture(); }
-            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: stalagmite capture failed: " + ex.Message); }
-
-            // Before the capture force-unloads streaming: what is loaded as
-            // the player sees it.
-            string areas = AreaReport.Describe();
-            string enemyNote;
-            List<string> enemies = new List<string>();
-            List<string> families = new List<string>();
-            _enemies.Capture(enemies, families, out enemyNote);
-            List<string> panels = new List<string>();
-            try { _panels.Snapshot(panels); }
-            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel snapshot failed: " + ex.Message); }
-            try
+        private IEnumerator SnapshotsSpread(CaptureParts p)
+        {
+            int i = 0;
+            while (i < SnapshotSteps)
             {
-                string near = Ctx.Player.Found ? _panels.DescribeNearest(Ctx.Player.Transform.position) : null;
-                if (near != null) Ctx.Log.LogInfo("Savestate: nearest cave panel at capture: " + near);
+                double frame = 0.0;
+                do frame += RunSnapshotStep(i++, p);
+                while (i < SnapshotSteps && frame < SpreadBudgetMs);
+                p.Frames++;
+                if ((long)frame > p.MaxFrameMs) p.MaxFrameMs = (long)frame;
+                yield return null;
             }
-            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel description failed: " + ex.Message); }
+            StartSerialize(p);
+        }
 
+        private void StartSerialize(CaptureParts p)
+        {
+            CaptureOptions opts = p.Opts;
             bool light = opts != null && opts.Light;
+            if (opts != null)
+            {
+                opts.PreMs = p.PreMs;
+                opts.PreParts = p.Laps.ToString() + (p.Frames > 1 ? (p.Laps.Length > 0 ? "; " : "") + "over " + p.Frames + " frames, " + p.MaxFrameMs + " ms the most in one" : "");
+            }
             Ctx.Runner.StartCoroutine(_bridge.Capture(light, delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, broken, stance, rope, ride, logs, blueprints, weather, opts);
+                string error = OnCaptured(r, p);
                 // Written on a worker thread: `after` runs once the file is
                 // on disk (DrainWrites, main thread).
-                if (error == null && opts != null && opts.Queued) { opts.After = after; return; }
-                if (error == null && areaWarning.Length > 0)
+                if (error == null && opts != null && opts.Queued) { opts.After = p.After; return; }
+                if (error == null && p.AreaWarning.Length > 0)
                 {
-                    Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
-                    Ctx.Notice.Show("Captured - but " + areaWarning + ".", 10f);
+                    Ctx.Log.LogWarning("Savestate captured '" + p.Name + "': " + p.AreaWarning + ".");
+                    Ctx.Notice.Show("Captured - but " + p.AreaWarning + ".", 10f);
                 }
-                if (after != null) after(error);
+                if (p.After != null) p.After(error);
             }));
         }
 
-        private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
-                                  string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
-                                  string cutscene, float cutsceneAt, string megan, string elevators, string slidingDoors, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
-                                  List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, List<string> broken, string stance, string rope, string ride, int logs, string blueprints,
-                                  string weather, CaptureOptions opts)
+        private string OnCaptured(SavestateBridge.Result r, CaptureParts p)
         {
+            string name = p.Name, path = p.Path;
+            Vector3 pos = p.Pos;
+            bool inCave = p.InCave;
+            List<string> pickups = p.Pickups, heldBefore = p.HeldBefore, panels = p.Panels;
+            List<int> held = p.Held;
+            string book = p.Book, bookNote = p.BookNote, cutscene = p.Cutscene, megan = p.Megan, elevators = p.Elevators;
+            string slidingDoors = p.SlidingDoors, activeArea = p.ActiveArea, keypadDoor = p.KeypadDoor, blueprint = p.Blueprint;
+            string areas = p.Areas, enemyNote = p.EnemyNote ?? "", bushes = p.Bushes, stance = p.Stance, rope = p.Rope, ride = p.Ride;
+            string blueprints = p.Blueprints, weather = p.Weather;
+            float cutsceneAt = p.CutsceneAt;
+            List<string> enemies = p.Enemies, families = p.Families, cutBushes = p.CutBushes, greebles = p.Greebles, broken = p.Broken;
+            int logs = p.Logs;
+            CaptureOptions opts = p.Opts;
             _busy = false;
             if (!r.Ok)
             {
@@ -525,6 +650,8 @@ namespace ForestOverlay.Modules
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
+                // A lean capture's text is built by the write's worker.
+                if (r.Data == null && r.Bytes != null && (opts == null || !opts.Background)) r.Data = SavestateBridge.DataText(r.Bytes);
                 f.Data = r.Data;
 
                 if (path == null)
@@ -1906,6 +2033,10 @@ namespace ForestOverlay.Modules
             public Func<SavestateBridge.Result, string> Meta;
             /// For the one log line.
             public string What = "";
+            /// The keepers' snapshots before the serialize, ms (same frame),
+            /// and the ones of a ms or more ("pickups 12, panels 80").
+            internal long PreMs;
+            internal string PreParts = "";
             internal bool Queued;
             internal Action<string> After;
         }
@@ -1915,8 +2046,14 @@ namespace ForestOverlay.Modules
             public string Path, MetaPath, MetaText, Error;
             public SavestateFile File;
             public CaptureOptions Opts;
-            public long SerializeMs, FramesMs, WriteMs;
+            public long SerializeMs, FramesMs, WriteMs, PreMs;
             public int Chars;
+            /// A lean capture's level bytes: the worker builds File.Data.
+            public byte[] Bytes;
+            public string Parts = "";
+            public int Gcs;
+            public bool Lean;
+            public string PreParts = "";
         }
 
         // Paths a worker is writing (main thread only), and the finished
@@ -2067,7 +2204,13 @@ namespace ForestOverlay.Modules
             w.Opts = opts;
             w.SerializeMs = r.SerializeMs;
             w.FramesMs = r.TotalMs;
-            w.Chars = r.Data != null ? r.Data.Length : 0;
+            w.Chars = SavestateBridge.DataChars(r);
+            w.Bytes = r.Bytes;
+            w.Lean = r.Bytes != null;
+            w.Parts = r.SerializeParts;
+            w.Gcs = r.SerializeGcs;
+            w.PreMs = opts.PreMs;
+            w.PreParts = opts.PreParts;
             try { w.MetaText = opts.Meta != null ? opts.Meta(r) : null; }
             catch (Exception ex) { w.Error = "could not build its meta: " + ex.Message; }
             opts.Queued = true;
@@ -2084,6 +2227,7 @@ namespace ForestOverlay.Modules
             try
             {
                 if (w.MetaPath != null && File.Exists(w.MetaPath)) File.Delete(w.MetaPath);
+                if (w.Bytes != null) { w.File.Data = SavestateBridge.DataText(w.Bytes); w.Bytes = null; }
                 string tmp = w.Path + ".tmp";
                 File.WriteAllText(tmp, w.File.Write(), new UTF8Encoding(false));
                 if (File.Exists(w.Path)) File.Delete(w.Path);
@@ -2113,8 +2257,11 @@ namespace ForestOverlay.Modules
                 PendingWrite w = done[i];
                 _writing.Remove(w.Path);
                 if (w.Error == null)
-                    Ctx.Log.LogInfo("Checkpoint state " + w.Opts.What + " captured: " + w.FramesMs + " ms of frame work on the main thread (serialize " +
-                                    w.SerializeMs + " ms, no memory clean-up), " + SavestateBridge.Kb(w.Chars) + " written in " +
+                    Ctx.Log.LogInfo("Checkpoint state " + w.Opts.What + " captured: " + (w.PreMs + w.FramesMs) + " ms of frame work on the main thread (" +
+                                    "snapshots " + w.PreMs + " ms" + (w.PreParts.Length > 0 ? " (" + w.PreParts + ")" : "") + ", serialize " + w.SerializeMs + " ms" +
+                                    (w.Parts.Length > 0 ? " - " + w.Parts : "") + (w.Gcs > 0 ? ", GC x" + w.Gcs : "") +
+                                    (w.Lean ? ", no memory clean-up, no asset sweep" : ", no memory clean-up") + "), " +
+                                    SavestateBridge.Kb(w.Chars) + " written in " +
                                     w.WriteMs + " ms on a worker thread -> " + Path.GetFileName(w.Path) + ".");
                 else
                     Ctx.Log.LogWarning("Checkpoint state " + w.Opts.What + " not saved: " + w.Error + ".");

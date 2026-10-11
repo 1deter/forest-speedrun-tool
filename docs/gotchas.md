@@ -1041,3 +1041,15 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     cost is native, in our OnGUI). Fix: ask `RequestCharactersInTexture`
     for every printable ASCII glyph at each size in use, every repaint.
     A spike tied to a value changing: suspect the font texture first.
+
+108. **A stopwatch around a call misses the frames it sets off.**
+    (2026-10-11, T-0072.) A checkpoint state's capture logged "~295 ms of
+    frame work" (a Stopwatch around `SerializeLevel(bool)`), and it was
+    taken as the hitch. Frame by frame (`FrameTimer.Spikes`) it was 156 +
+    570 + 327 + 35 ms: the serialize's own `Resources.UnloadUnusedAssets`
+    runs its walk in the frames after the call returns, and the streaming
+    unload's queued `Invoke("DelayedCleanUp", 0.1)` lands 0.1 s later -
+    neither inside any stopwatch. And the capture's first frame (the
+    keepers' scene searches, ~140 ms) was outside it too. Time an action
+    by the frames around it (every frame over a threshold, with its frame
+    number), then split the long ones with stopwatches.

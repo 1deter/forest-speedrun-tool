@@ -35,6 +35,15 @@ namespace ForestOverlay.Game
         public static double TestLoadMs;
         private static FrameTimer _instance;
 
+        /// Dev (bridge, T-0072): every frame at least this long is kept
+        /// (its length and frame number) until Spikes() reads them - what
+        /// one action costs frame by frame, which a 30 s worst cannot say.
+        public static float SpikeMs = 25f;
+        private const int SpikeCap = 64;
+        private static readonly int[] _spikeFrame = new int[SpikeCap];
+        private static readonly float[] _spikeLen = new float[SpikeCap];
+        private static int _spikes, _spikesLost;
+
         private Camera.CameraCallback _pre, _post;
         private float _snapshotStart;
 
@@ -100,6 +109,12 @@ namespace ForestOverlay.Game
                 long now = Stopwatch.GetTimestamp();
                 MarkStart(now);
                 Timeline.Update(now);
+                float dt = Time.unscaledDeltaTime * 1000f;
+                if (dt >= SpikeMs)
+                {
+                    if (_spikes < SpikeCap) { _spikeFrame[_spikes] = Time.frameCount - 1; _spikeLen[_spikes] = dt; _spikes++; }
+                    else _spikesLost++;
+                }
                 // The load test: a fixed cost on the main thread, inside the
                 // "Update to LateUpdate" phase (Diagnostics, off by default).
                 if (TestLoadMs > 0.0)
@@ -150,6 +165,21 @@ namespace ForestOverlay.Game
             try { name = cam.name; }
             catch (Exception) { name = "?"; }
             return Timeline.AddCamera(id, name);
+        }
+
+        /// Dev (bridge): the frames of at least SpikeMs since the last call
+        /// ("frame N: M ms", the frame that took them), then a new list.
+        public static string Spikes()
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append(_spikes + _spikesLost).Append(" frame(s) of ").Append(SpikeMs.ToString("0")).Append(" ms or more");
+            for (int i = 0; i < _spikes; i++)
+                sb.Append(i == 0 ? ": " : ", ").Append(_spikeLen[i].ToString("0")).Append(" ms (frame ").Append(_spikeFrame[i]).Append(')');
+            if (_spikesLost > 0) sb.Append(", ").Append(_spikesLost).Append(" more not kept");
+            _spikes = _spikesLost = 0;
+            string text = sb.ToString();
+            if (Log != null) Log.LogInfo("Spikes: " + text);
+            return text;
         }
 
         /// Dev (bridge): the window since the last call, as text (and in
