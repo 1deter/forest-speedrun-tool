@@ -157,18 +157,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-14 (session start, author present, no code):** 13 QA
-  messages (the author's own, 10-11..10-13) filed as T-0334..T-0345.
-  The author answered T-0336 (run timer in the splits panel by default,
-  pop-out allowed; one number one value, no filler text), T-0338 (as
-  close to LiveSplit's feel as possible, order free), T-0316 (death
-  default = vanilla game) - decisions.md *Plugin*. No parked questions
-  left. Weekly cleanup done 10-14 (T-0346..T-0350 filed, 13 rows
-  re-graded; T-0334 held until 1-2 harness reviews). Unchanged from
-  10-11: T-0333 (v0.24.289, crisp text) needs a non-maker confirmation;
-  cloud/t-0320 and cloud/t-0321 to merge + check. **Next:** T-0336 (run
-  timer in the splits panel, lean HUD profile; design work, high
-  effort); T-0337 (3 decimals) is a quick P2.
+- **2026-10-14 (T-0336 built, not pushed):** run timer in the splits
+  panel (LiveSplit's Timer, coloured ahead / behind, pop-out to the HUD's
+  Run timer value), Delta its own value, lean labelled default look
+  (New / Reset profile / fresh install; saved profiles unchanged).
+  Commit `e833705b` on local main, **ahead of origin - not pushed**
+  (rule 10). Maker's look over the bridge passed (task evidence, shots
+  `bridge/t0336-*.png`). **Next:** `Check T-0336` (forest-checker), then
+  push + release + forest-tester; e2e `timed` fails only because the
+  author's config has PracticeMode = false (task note). Then T-0337
+  (3 decimals, quick P2). Unchanged: T-0333 needs a non-maker
+  confirmation; cloud/t-0320 and cloud/t-0321 to merge + check.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
