@@ -277,6 +277,10 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
     left off out of doubt. The runner name goes to the Runs tab's *Upload
     to the website*; the PB / golds "when set" line tops *Attempts*
     (provisional - forest-ux reviews it in game).
+  - **The results panel has its own decimals, 3 by default** (author,
+    2026-10-14, T-0337: an 11.197 PB read "0.02 slower" against 11.22 at
+    2): `[Splits] ResultsDecimals`, set under Results panel in Edit HUD;
+    the splits panel's Time / Delta decimals stay its own (default 2).
   - **The HUD is a column of values** (author, 2026-10-10, T-0018): every
     ticked value shows; by default in one column at the top left in the
     pre-overhaul box's order, title first (on by default), no backing,
