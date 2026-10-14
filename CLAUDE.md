@@ -157,22 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-11 (T-0025 merge + release, author present):** ui-redesign
-  merged onto main by forest-integrator (b579bf71; 20 conflicts, Paint
-  settings got their own Settings fold - author to confirm the home) and
-  **released v0.24.288** (35 tasks, smoke PASS; the install runs it).
-  T-0250 / T-0294 / T-0155 were already on main and deployed (a61a68d7);
-  pending/site-held + cloud/fp-replay kept only for T-0281 (checker
-  block). Merged cloud/* branches, ui-redesign and its worktree deleted.
-  **Later (same day):** T-0025 QA done (forest-tester over the bridge +
-  the author's drags) - confirmed. T-0320 sent to a cloud session (branch
-  cloud/t-0320 to merge + check). **Last:** T-0333 released in
-  **v0.24.289** - blurry HUD text was the scaled GUI.matrix stretching
-  glyphs (author's reference 1366x768 -> x1.88); `Core/CrispText` draws
-  at the real size (gotcha 109); bridge-checked at 2560x1440; needs a
-  non-maker confirmation. **Next:** forest-ux findings T-0321..T-0324,
-  T-0332 (Map slate), T-0316 (needs the author: what replaces Automatic
-  as default), group 3's savestate / hang tasks.
+- **2026-10-14 (session start, author present, no code):** 13 QA
+  messages (the author's own, 10-11..10-13) filed as T-0334..T-0345.
+  The author answered T-0336 (run timer in the splits panel by default,
+  pop-out allowed; one number one value, no filler text), T-0338 (as
+  close to LiveSplit's feel as possible, order free), T-0316 (death
+  default = vanilla game) - decisions.md *Plugin*. No parked questions
+  left. Weekly cleanup still due. Unchanged from 10-11: T-0333
+  (v0.24.289, crisp text) needs a non-maker confirmation; cloud/t-0320
+  and cloud/t-0321 to merge + check. **Next:** weekly cleanup, then
+  `tasks.py next` (T-0036); T-0337 (3 decimals) is a quick P2.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

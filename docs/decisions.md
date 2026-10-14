@@ -147,6 +147,19 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## Plugin
 
+- **Built around LiveSplit** (author, 2026-10-14, T-0336 / T-0338): most
+  users are speedrunners who know LiveSplit, so the run timer sits
+  **inside the splits panel by default** and can be popped out. The
+  splits panel is reworked to feel as close to LiveSplit as possible
+  (component order does not matter); info readouts (ASL var viewer etc.)
+  can be appended to it or placed on their own.
+- **One number, one value; no filler text** (author, 2026-10-14, T-0336):
+  a value like the timer carries nothing appended - the delta to the
+  comparison is its own value - and text that bloats the screen rather
+  than informs goes.
+- **Death behaviour defaults to the vanilla game** (author, 2026-10-14,
+  T-0316): the Deaths tab's default is whatever the game does on death;
+  any other behaviour is an opt-in the runner picks.
 - **Developer tab and settings that never contradict** (author, 2026-10-08,
   T-0226): developer-only = the bridge, memory census, benchmarks and the
   experimental features runners would not risk a run on - they live in the

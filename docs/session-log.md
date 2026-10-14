@@ -2,6 +2,25 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-14 (session-start handoff)
+
+- **2026-10-11 (T-0025 merge + release, author present):** ui-redesign
+  merged onto main by forest-integrator (b579bf71; 20 conflicts, Paint
+  settings got their own Settings fold - author to confirm the home) and
+  **released v0.24.288** (35 tasks, smoke PASS; the install runs it).
+  T-0250 / T-0294 / T-0155 were already on main and deployed (a61a68d7);
+  pending/site-held + cloud/fp-replay kept only for T-0281 (checker
+  block). Merged cloud/* branches, ui-redesign and its worktree deleted.
+  **Later (same day):** T-0025 QA done (forest-tester over the bridge +
+  the author's drags) - confirmed. T-0320 sent to a cloud session (branch
+  cloud/t-0320 to merge + check). **Last:** T-0333 released in
+  **v0.24.289** - blurry HUD text was the scaled GUI.matrix stretching
+  glyphs (author's reference 1366x768 -> x1.88); `Core/CrispText` draws
+  at the real size (gotcha 109); bridge-checked at 2560x1440; needs a
+  non-maker confirmation. **Next:** forest-ux findings T-0321..T-0324,
+  T-0332 (Map slate), T-0316 (needs the author: what replaces Automatic
+  as default), group 3's savestate / hang tasks.
+
 ## Moved out 2026-10-11 (T-0025 handoff)
 
 - **2026-10-11 (loop R-0007 + a 12-session cloud batch, author away):**
