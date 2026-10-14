@@ -187,8 +187,15 @@ namespace ForestOverlay.Core
 
         public void Detach(int lineIndex, float x, float y)
         {
+            Detach(lineIndex, x, y, 1f);
+        }
+
+        /// Placed on its own at (x, y) in reference pixels, `scale` big (the
+        /// splits panel's popped-out timer, T-0336).
+        public void Detach(int lineIndex, float x, float y, float scale)
+        {
             if (lineIndex < 0 || lineIndex >= HudLines.All.Length || HudLines.All[lineIndex].ConfigKey == null) return;
-            _layout.Detach(HudLines.All[lineIndex].ConfigKey, x, y);
+            _layout.Detach(HudLines.All[lineIndex].ConfigKey, x, y).Scale = HudLayout.ClampScale(scale);
             Rebuild();
             Save();
             if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' placed on its own at (" + Mathf.RoundToInt(x) + ", " + Mathf.RoundToInt(y) + ").");
@@ -563,7 +570,7 @@ namespace ForestOverlay.Core
         private static readonly GUIContent ResetText = new GUIContent("Reset profile");
         private static readonly GUIContent ResetSureText = new GUIContent("Sure?");
         private static readonly GUIContent ResetTip = new GUIContent(
-            "This profile back to the default HUD: every value in the column with no text, the panels, Compact and Text size.");
+            "This profile back to the default HUD: every value in the column with its label, the panels, Compact and Text size.");
         private static readonly GUIContent TextText = new GUIContent("Text");
         private static readonly GUIContent TextTip = new GUIContent("Your own text before and after the value, e.g. \"Speed \" or \" u/s\".");
         private static readonly GUIContent BeforeText = new GUIContent("Before");

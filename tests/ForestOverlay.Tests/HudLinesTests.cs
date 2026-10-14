@@ -62,8 +62,29 @@ namespace ForestOverlay.Tests
             Assert.Equal(-1, HudLines.Find(HudLines.PluginModule, null));
         }
 
+        private static readonly string[] LeanOff =
+        {
+            "ShowUpdate", "ShowTotalSpeed", "ShowVelocity", "ShowPosition", "ShowItems",
+            "ShowRunDelta", "ShowLoadRemoved", "ShowNextSplit", "ShowLastTime",
+        };
+
         [Fact]
-        public void ConfigKeysAreUniqueAndDefaultsKeepTheOldLook()
+        public void EveryDefaultLabelIsAValueAndEndsInASpace()
+        {
+            foreach (string[] t in HudLines.DefaultText)
+            {
+                int i = HudLines.IndexOfKey(t[0]);
+                Assert.True(i >= 0, t[0]);
+                Assert.False(HudLines.All[i].Locked);
+                Assert.EndsWith(" ", t[1]);
+                Assert.Equal(t[1], HudLayout.CleanText(t[1]));
+            }
+            // The clock says what it is (and is LiveSplit's big number when popped out).
+            Assert.DoesNotContain(HudLines.DefaultText, t => t[0] == "ShowRunTimer");
+        }
+
+        [Fact]
+        public void ConfigKeysAreUniqueAndDefaultsAreLean()
         {
             HashSet<string> keys = new HashSet<string>();
             foreach (HudLine l in HudLines.All)
@@ -72,8 +93,9 @@ namespace ForestOverlay.Tests
                 // Every value has a layout key (T-0018: the 100% totals too).
                 Assert.True(keys.Add(l.ConfigKey), l.ConfigKey);
                 if (!l.Switchable) continue;
-                // Lines added after the HUD settings are opt-in.
-                Assert.Equal(l.ConfigKey != "ShowLoadRemoved" && l.ConfigKey != "ShowTotalSpeed", l.DefaultOn);
+                // The lean default (T-0336): these are ticked by the runner.
+                bool off = System.Array.IndexOf(LeanOff, l.ConfigKey) >= 0;
+                Assert.Equal(!off, l.DefaultOn);
                 Assert.False(string.IsNullOrEmpty(l.Description));
             }
             Assert.True(HudLines.IndexOfKey("ShowTitle") >= 0);

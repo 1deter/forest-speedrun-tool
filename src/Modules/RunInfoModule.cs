@@ -91,8 +91,10 @@ namespace ForestOverlay.Modules
 
             // Lock state is reported because a failure here used to be
             // invisible - the explorer toggle simply looked dead when the
-            // controller had not been bound.
-            if (Ctx.Bridge != null && !Ctx.Bridge.PlayerLockAvailable)
+            // controller had not been bound. Only while the window is open,
+            // when holding the player matters (T-0336: on the title screen it
+            // was a line of "unavailable (searching...)" that told nothing).
+            if (Ctx.Bridge != null && !Ctx.Bridge.PlayerLockAvailable && WindowOpen())
             {
                 string status = Ctx.Bridge.LockStatus;
                 if (_lockText == null || !string.Equals(status, _lockFor))
@@ -102,6 +104,14 @@ namespace ForestOverlay.Modules
                 }
                 hud.Pair("Lock", _lockText);
             }
+        }
+
+        private MainWindowModule _main;
+
+        private bool WindowOpen()
+        {
+            if (_main == null && Host != null) _main = Host.Find<MainWindowModule>();
+            return _main != null && _main.PanelOpen;
         }
 
         // Component-wise, not Vector3's == (which is "closer than 1e-5").

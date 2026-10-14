@@ -31,19 +31,12 @@ namespace ForestOverlay.Data
             return n < 0 ? Fallback(seconds) : new string(Buffer, 0, n);
         }
 
-        /// "01:05.250   +0.45": the clock, three spaces, the signed delta.
-        public static string ClockWithDelta(float seconds, float delta)
-        {
-            int n = WriteClock(0, seconds);
-            if (n < 0) return Fallback(seconds) + "   " + Signed(delta);
-            int m = WriteSigned(n, "   ", delta);
-            return m < 0 ? new string(Buffer, 0, n) + "   " + Signed(delta) : new string(Buffer, 0, m);
-        }
-
-        /// "+1.23" / "-0.45".
+        /// "+1.23" / "-0.45": the HUD's Delta value, its own value since the
+        /// clock carries nothing appended (author, 2026-10-14, T-0336).
         public static string Signed(float d)
         {
-            return (d >= 0f ? "+" : "-") + Math.Abs(d).ToString("0.00");
+            int n = WriteSigned(0, "", d);
+            return n < 0 ? (d >= 0f ? "+" : "-") + Math.Abs(d).ToString("0.00") : new string(Buffer, 0, n);
         }
 
         // Digits at `at`; the end index, or -1 when the value is not a plain

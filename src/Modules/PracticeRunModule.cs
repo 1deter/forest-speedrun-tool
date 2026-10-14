@@ -1083,25 +1083,20 @@ namespace ForestOverlay.Modules
 
             if (_segment == null)
             {
-                hud.Pair("Run", "no timed segment selected");
+                hud.Pair("Run", "no timed segment selected");   // why there is no timer (no splits panel either)
                 return;
             }
 
-            if (_recorder.State == RunRecorder.RunState.Armed)
+            // One number, one value, nothing appended (author, 2026-10-14,
+            // T-0336): the clock is the Run timer - here only when it is not
+            // in the splits panel - and the delta its own value.
+            bool running = _recorder.State == RunRecorder.RunState.Running;
+            if (!TimerInPanel) hud.Pair("Run", HudClock(running));
+            if (running)
             {
-                if (!ReferenceEquals(_hudArmedFor, _segment.Name)) { _hudArmedFor = _segment.Name; _hudArmed = "armed - " + _segment.Name; }
-                hud.Pair("Run", _hudArmed);
-                if (_attempts.Count > 0 && hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLastLrt());
-            }
-            else if (_recorder.State == RunRecorder.RunState.Running)
-            {
-                // One string for the clock and the delta (Data/ClockText): this
-                // line changes every refresh while a run is on.
-                string run = _hasDelta ? ClockText.ClockWithDelta(_recorder.Elapsed, _delta) : ClockText.Clock(_recorder.Elapsed);
-                if (Resumed) run += "   (from checkpoint " + (_resumedFrom + 1) + ")";
-                hud.Pair("Run", run);
+                if (_hasDelta && hud.Shows(DeltaLabel)) hud.Pair(DeltaLabel, ClockText.Signed(_delta));
                 // Built only when shown (off by default): a string a refresh.
-                if (hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLrtRunning());
+                if (hud.Shows(LrtLabel)) hud.Pair(LrtLabel, ClockText.Clock(_recorder.Lrt));
 
                 if (_sequence.OnlyEndLeft) hud.Pair("Next", "finish");
                 else
@@ -1115,46 +1110,29 @@ namespace ForestOverlay.Modules
                     }
                     hud.Pair("Next", _hudNext);
                 }
-                // The previous time stays in view while the next one runs
-                // (runners: the HUD showed only the current one).
-                if (_attempts.Count > 0) hud.Pair("Last", HudLast());
             }
-            else
-            {
-                Attempt best = RunCompare.Best(_attempts);
-                int started = Mathf.Max(_started, _attempts.Count);
-                float bestTime = best != null ? best.Duration : float.NaN;
-                if (_hudIdle == null || started != _hudIdleStarted || _attempts.Count != _hudIdleCount ||
-                    !(bestTime == _hudIdleBest || (float.IsNaN(bestTime) && float.IsNaN(_hudIdleBest))))
-                {
-                    _hudIdleStarted = started;
-                    _hudIdleCount = _attempts.Count;
-                    _hudIdleBest = bestTime;
-                    _hudIdle = AttemptsText() + (best != null ? "   best " + Format(best.Duration) : "");
-                }
-                hud.Pair("Run", _hudIdle);
-                if (_attempts.Count > 0) hud.Pair("Last", HudLast());
-                if (_attempts.Count > 0 && hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLastLrt());
-            }
+            else if (_attempts.Count > 0 && hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLastLrt());
+            // The previous time stays in view while the next one runs
+            // (runners: the HUD showed only the current one).
+            if (_attempts.Count > 0) hud.Pair("Last", HudLast());
         }
 
-        // The HUD's load-removed time line (Data/HudLines "LRT").
-        private const string LrtLabel = "LRT";
-        private string _hudLrtLast;
+        // The HUD's Delta and load-removed time values (Data/HudLines).
+        private const string DeltaLabel = "Delta", LrtLabel = "LRT";
+        private string _hudLrtLast, _hudClock;
         private Attempt _hudLrtLastFor;
-        private int _hudLrtLoads = -1;
-        private string _hudLrtSuffix = "";
+        private float _hudClockFor = float.NaN;
 
-        private string HudLrtRunning()
+        /// The Run timer value: the panel timer's text (LiveSplit's look, the
+        /// splits' time decimals) - running, a string a refresh as before;
+        /// between runs kept until it moves.
+        private string HudClock(bool running)
         {
-            int loads = _recorder.LoadClock.Loads;
-            if (loads != _hudLrtLoads)
-            {
-                _hudLrtLoads = loads;
-                _hudLrtSuffix = loads == 0 ? "" : loads == 1 ? "   (1 load)" : "   (" + loads + " loads)";
-            }
-            string clock = ClockText.Clock(_recorder.Lrt);
-            return _hudLrtSuffix.Length == 0 ? clock : clock + _hudLrtSuffix;
+            float t = TimerSeconds(running);
+            if (!running && _hudClock != null && t == _hudClockFor) return _hudClock;
+            _hudClockFor = t;
+            _hudClock = new string(_timerChars, 0, TimerText.Write(_timerChars, t, _timeDecimals.Value));
+            return _hudClock;
         }
 
         // The last attempt's, kept until another attempt is the last.
@@ -1164,16 +1142,16 @@ namespace ForestOverlay.Modules
             if (_hudLrtLast == null || !ReferenceEquals(a, _hudLrtLastFor))
             {
                 _hudLrtLastFor = a;
-                _hudLrtLast = "last " + Format(LoadClock.LrtOf(a)) + "   (" + LoadClock.Describe(a.Loads, a.LoadTime) + ")";
+                _hudLrtLast = ClockText.Clock(LoadClock.LrtOf(a));
             }
             return _hudLrtLast;
         }
 
         // The HUD's texts that only change with the run's state, kept until
         // they do (the HUD refreshes ten times a second).
-        private string _hudArmedFor, _hudArmed, _hudNext, _hudIdle, _hudLast;
-        private int _hudNextAt = -1, _hudNextOf = -1, _hudIdleStarted, _hudIdleCount;
-        private float _hudIdleBest, _hudLastFor = float.NaN;
+        private string _hudNext, _hudLast;
+        private int _hudNextAt = -1, _hudNextOf = -1;
+        private float _hudLastFor = float.NaN;
 
         private string HudLast()
         {

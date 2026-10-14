@@ -262,6 +262,32 @@ namespace ForestOverlay.Data
             return gaining ? SplitColour.BehindGaining : SplitColour.BehindLosing;
         }
 
+        /// The splits panel timer's colour (T-0336), as LiveSplit's Timer:
+        /// while running, ahead / behind the comparison at the current row
+        /// and gaining / losing on that row so far; once the end is reached,
+        /// the final delta; otherwise (not started, cut short) None.
+        /// `rows` is what Fill made, `times` this run's splits.
+        public static SplitColour TimerColour(SplitRow[] rows, float[] times, bool running, float elapsed)
+        {
+            int n = rows == null || times == null ? 0 : Math.Min(rows.Length, times.Length);
+            if (n == 0) return SplitColour.None;
+            if (running)
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    if (!rows[i].Current) continue;
+                    if (float.IsNaN(rows[i].Compare)) return SplitColour.None;
+                    float prev = i == 0 ? 0f : times[i - 1];
+                    float segDelta = float.IsNaN(rows[i].CompareSegment) || float.IsNaN(prev)
+                        ? float.NaN : (elapsed - prev) - rows[i].CompareSegment;
+                    return ColourOf(elapsed - rows[i].Compare, segDelta, float.NaN, float.NaN);
+                }
+                return SplitColour.None;
+            }
+            if (float.IsNaN(times[n - 1]) || float.IsNaN(rows[n - 1].Compare)) return SplitColour.None;
+            return ColourOf(times[n - 1] - rows[n - 1].Compare, float.NaN, float.NaN, float.NaN);
+        }
+
         // --- text -----------------------------------------------------------
 
         /// "12.34", "1:02.34", "1:02:03.45" at 2 decimals; "-" when unknown.

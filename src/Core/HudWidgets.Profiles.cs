@@ -110,6 +110,7 @@ namespace ForestOverlay.Core
         {
             if (_settings != null) _settings.Scale();   // the reference exists before Capture writes it
             HudProfile p = Capture();
+            p.Layout = HudProfile.DefaultLayout();   // the labels (T-0336), unless an old layout is read
             string old = Path.Combine(_configDir, OldLayoutFile);
             try
             {
@@ -346,7 +347,7 @@ namespace ForestOverlay.Core
         /// Reset profile (T-0303): the active profile back to the default look -
         /// every setting it holds (values shown, the column's place, Compact,
         /// Text size, the splits + results panels and their options) and every
-        /// value back in the column with no text. A second click within 3 s,
+        /// value back in the column with its label (T-0336). A second click within 3 s,
         /// as Delete (author, 2026-10-11).
         private void ResetProfile()
         {
@@ -363,7 +364,7 @@ namespace ForestOverlay.Core
             _dirty = false;
             SaveProfile();
             ProfileStatus("");
-            if (_log != null) _log.LogInfo("HUD layout reset: profile " + name + " back to the default look (values, column, panels, Compact, Text size).");
+            if (_log != null) _log.LogInfo("HUD layout reset: profile " + name + " back to the default look (values, labels, column, panels, Compact, Text size).");
         }
 
         private void DeleteProfile()

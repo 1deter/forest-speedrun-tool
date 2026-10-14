@@ -80,6 +80,13 @@ namespace ForestOverlay.Data
             return new HudLine(module, label, key, name, description, true, false, false);
         }
 
+        /// Off in the lean default (author, 2026-10-14, T-0336: "a lot more
+        /// lean"): a runner ticks it in Edit HUD or Settings > HUD.
+        private static HudLine Off(string module, string label, string key, string name, string description)
+        {
+            return new HudLine(module, label, key, name, description, false, false, false);
+        }
+
         /// A line whose description names a hotkey's current key (T-0262).
         private static HudLine K(string module, string label, string key, string name, string description,
                                  string keyId, string unbound)
@@ -97,20 +104,21 @@ namespace ForestOverlay.Data
         {
             L(PluginModule, TitleLabel, "ShowTitle", "Title",
               "The box's title: Forest Overlay and its version."),
-            L("update", "Update", "ShowUpdate", "Update check",
+            // A newer version also opens the Updates tab with a notice.
+            Off("update", "Update", "ShowUpdate", "Update check",
               "Whether a newer version is out (or that the check worked)."),
             new HudLine("runinfo", "Speed", "ShowSpeed", "Speed",
               "Horizontal speed (u/s).", true, false, false, trend: true),
             // One value per line (author, 2026-10-05: no "(tot x)" inside the speed).
             new HudLine("runinfo", "Total", "ShowTotalSpeed", "Total speed",
               "Speed including falling and jumping (u/s).", false, false, false, trend: true),
-            L("runinfo", "Vel", "ShowVelocity", "Velocity",
+            Off("runinfo", "Vel", "ShowVelocity", "Velocity",
               "Velocity along x, y and z."),
-            L("runinfo", "Pos", "ShowPosition", "Position",
+            Off("runinfo", "Pos", "ShowPosition", "Position",
               "Where you stand (x, y, z)."),
             L("runinfo", "Lock", "ShowLockWarning", "Player hold warning",
-              "Only when the window cannot hold the player - says why."),
-            L("inventory", "Items", "ShowItems", "Items carried",
+              "Only while the window is open and cannot hold the player - says why."),
+            Off("inventory", "Items", "ShowItems", "Items carried",
               "How many items you carry, and in how many stacks."),
             L("inventory", "Logs", "ShowLogs", "Logs",
               "Logs carried / cap, while logs in the inventory is on."),
@@ -133,15 +141,19 @@ namespace ForestOverlay.Data
               "The spot the Practice tab's Restart restarts."),
             L("practice", "Prac", "ShowPracticeStatus", "Practice messages",
               "The last practice action's result (teleport, restart, save)."),
+            // The clock only (author, 2026-10-14, T-0336): it sits in the
+            // splits panel by default and shows here when popped out.
             L("practicerun", "Run", "ShowRunTimer", "Run timer",
-              "The timed segment: timer and delta, or armed / attempts and best."),
+              "The run's clock, when it is not in the splits panel (Edit HUD: Splits panel, Run timer); or why there is no timer."),
+            Off("practicerun", "Delta", "ShowRunDelta", "Delta",
+              "How far ahead (-) or behind (+) the comparison you are, while a run is on."),
             // Off until ticked (added after the HUD settings: the old look stays).
             new HudLine("practicerun", "LRT", "ShowLoadRemoved", "Load-removed time",
-              "The timer with the game's loads taken out (LRT), while a run is on; the last run's after it.",
+              "The run's clock with the game's loads taken out (LRT); the last run's between runs.",
               false, false, false),
-            L("practicerun", "Next", "ShowNextSplit", "Next split",
+            Off("practicerun", "Next", "ShowNextSplit", "Next split",
               "The next checkpoint while a run is on."),
-            L("practicerun", "Last", "ShowLastTime", "Last time",
+            Off("practicerun", "Last", "ShowLastTime", "Last time",
               "Your previous time on the segment."),
             Always("ON NOW",
               "Always shown while on: what changes the game right now (god mode, item caps...), one orange name each. A recording must show it."),
@@ -149,6 +161,27 @@ namespace ForestOverlay.Data
               "Always shown once a practice tool was used: its name, orange (nothing while clean); or the run line. A recording must show it."),
             Always("Run code",
               "Always shown during a run, even with every overlay hidden (run mode's anti-splice code)."),
+        };
+
+        /// The default look's text before each value (author, 2026-10-14,
+        /// T-0336: the default was "confusing without properly labelled
+        /// values"): what a new profile and Reset profile start with. It is
+        /// the runner's text like any other - Edit HUD's Text changes or
+        /// clears it. A value that says what it is (a clock, a status, a
+        /// name with its own words) has none.
+        public static readonly string[][] DefaultText =
+        {
+            new[] { "ShowSpeed", "Speed " },
+            new[] { "ShowTotalSpeed", "Total " },
+            new[] { "ShowVelocity", "Vel " },
+            new[] { "ShowPosition", "Pos " },
+            new[] { "ShowItems", "Items " },
+            new[] { "ShowLogs", "Logs " },
+            new[] { "ShowSpot", "Spot " },
+            new[] { "ShowRunDelta", "Delta " },
+            new[] { "ShowLoadRemoved", "LRT " },
+            new[] { "ShowNextSplit", "Next " },
+            new[] { "ShowLastTime", "Last " },
         };
 
         /// Settings > HUD's value list under short headings (T-0263): the

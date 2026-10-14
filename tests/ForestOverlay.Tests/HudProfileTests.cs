@@ -127,25 +127,39 @@ namespace ForestOverlay.Tests
             HudProfile look = HudProfile.DefaultLook();
             HudProfile reset = Written(Applied(look), look.Layout);
 
-            // A fresh install's Default: the config's defaults, no old layout file.
-            HudProfile fresh = Written(Defaults, HudLayout.Parse(""));
+            // A fresh install's Default: the config's defaults and the
+            // default labels (HudWidgets.MigrateToDefault), no old layout file.
+            HudProfile fresh = Written(Defaults, HudProfile.DefaultLayout());
 
             Assert.Equal(fresh.Format(), reset.Format());
-            Assert.Empty(reset.Layout.Widgets);
+            Assert.Equal(HudLines.DefaultText.Length, reset.Layout.Widgets.Count);
+            Assert.False(reset.Layout.IsFree("ShowSpeed"));
             for (int i = 0; i < Keys.Length; i++) Assert.Equal(Defaults[i], reset.Get(Keys[i]));
         }
 
         [Fact]
-        public void TheDefaultLookHasNoSettingAndNoValueOfItsOwn()
+        public void TheDefaultLookHasNoSettingOfItsOwnAndLabelsEveryValue()
         {
             HudProfile look = HudProfile.Parse(HudProfile.DefaultLook().Format());
             Assert.Equal(0, look.Count);
-            Assert.Empty(look.Layout.Widgets);
+            // T-0336: labels as the values' text, every value in the column.
+            Assert.Equal(HudLines.DefaultText.Length, look.Layout.Widgets.Count);
+            foreach (string[] t in HudLines.DefaultText)
+            {
+                HudWidgetLayout w = look.Layout.Find(t[0]);
+                Assert.NotNull(w);
+                Assert.False(w.Free);
+                Assert.Equal(t[1], w.Before);
+                Assert.Equal("", w.After);
+            }
+            Assert.Equal("Speed 3.21", HudLayout.Decorate(look.Layout.Find("ShowSpeed").Before, "3.21", ""));
             // Two calls never share a layout (a reset profile edited later must
             // not change the next New).
             HudProfile a = HudProfile.DefaultLook();
             a.Layout.Detach("ShowSpeed", 1f, 2f);
-            Assert.Empty(HudProfile.DefaultLook().Layout.Widgets);
+            a.Layout.SetText("ShowSpot", "", "");
+            Assert.False(HudProfile.DefaultLook().Layout.IsFree("ShowSpeed"));
+            Assert.Equal("Spot ", HudProfile.DefaultLook().Layout.Find("ShowSpot").Before);
         }
     }
 }

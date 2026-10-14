@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-238 prefixes from 774 log calls.
+239 prefixes from 776 log calls.
 
 ## `Aerial capture`
 
@@ -620,7 +620,7 @@ Written by Plugin.cs; info.
 Meaning: Edit HUD's Reset profile (after its Sure?): the active profile back to the default look - every value in the column with no text, its settings (values shown, column place, Compact, Text size, the splits + results panels) at their defaults (T-0303).
 Written by HudWidgets.Profiles.cs; info.
 
-- info `HUD layout reset: profile <name> back to the default look (values, column, panels, Compact, Text size).`
+- info `HUD layout reset: profile <name> back to the default look (values, labels, column, panels, Compact, Text size).`
 
 ## `HUD profile`
 
@@ -1805,6 +1805,14 @@ Meaning: Dev (bridge `call static:ForestOverlay.Game.FrameTimer Spikes`): every 
 Written by FrameTimer.cs; info.
 
 - info `Spikes: <text>`
+
+## `Splits panel`
+
+Meaning: The runner picked where the run timer shows in Edit HUD (T-0336): inside the splits panel, or on its own as the HUD's Run timer value (placed under the panel).
+Written by PracticeRunModule.Splits.cs; info.
+
+- info `Splits panel: run timer in the panel.`
+- info `Splits panel: run timer on its own (the HUD's Run timer value).`
 
 ## `Splits panel moved to`
 

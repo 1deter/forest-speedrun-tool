@@ -51,11 +51,13 @@ namespace ForestOverlay.Tests
         [Fact]
         public void DeltaIsSignedWithTwoDecimals()
         {
+            // Its own value since T-0336: nothing is appended to the clock.
             string sep = NumberFormatInfo.CurrentInfo.NumberDecimalSeparator;
-            Assert.Equal("00:12" + sep + "500   +1" + sep + "25", ClockText.ClockWithDelta(12.5f, 1.25f));
-            Assert.Equal("00:12" + sep + "500   -0" + sep + "45", ClockText.ClockWithDelta(12.5f, -0.45f));
-            Assert.Equal("00:12" + sep + "500   +0" + sep + "00", ClockText.ClockWithDelta(12.5f, 0f));
+            Assert.Equal("+1" + sep + "25", ClockText.Signed(1.25f));
+            Assert.Equal("-0" + sep + "45", ClockText.Signed(-0.45f));
+            Assert.Equal("+0" + sep + "00", ClockText.Signed(0f));
             Assert.Equal("+12" + sep + "30", ClockText.Signed(12.3f));
+            Assert.Equal("-75" + sep + "50", ClockText.Signed(-75.5f));
         }
 
         [Fact]
@@ -63,7 +65,7 @@ namespace ForestOverlay.Tests
         {
             Assert.Equal(Old(-1f), ClockText.Clock(-1f));
             Assert.Equal(Old(float.NaN), ClockText.Clock(float.NaN));
-            Assert.NotNull(ClockText.ClockWithDelta(1f, float.NaN));
+            Assert.NotNull(ClockText.Signed(float.NaN));
         }
 
         [Fact]

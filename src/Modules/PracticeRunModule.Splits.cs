@@ -41,7 +41,7 @@ namespace ForestOverlay.Modules
             "PB chance", "Total playtime"
         };
 
-        private ConfigEntry<bool> _splitsPanel;
+        private ConfigEntry<bool> _splitsPanel, _timerInPanel;
         private ConfigEntry<float> _panelX, _panelY, _panelWidth, _panelOpacity;
         private ConfigEntry<int> _panelRows, _timeDecimals, _deltaDecimals;
         private readonly ConfigEntry<bool>[] _cols = new ConfigEntry<bool>[ColCount];
@@ -133,6 +133,7 @@ namespace ForestOverlay.Modules
         private readonly TextMemo _cellText = new TextMemo();
         private readonly TextMemo _lineText = new TextMemo();
         private string _titleFor, _titleVs, _previousFor;
+        private int _titleFrom = -1;
         private bool _previousLive;
         private int _attemptsLineStarted = -1, _attemptsLineCount = -1;
         private int _shownRows;
@@ -152,6 +153,8 @@ namespace ForestOverlay.Modules
             _timeDecimals = c.Bind("Splits", "TimeDecimals", 2, "Decimal places for split times (0-3). Attempts always save milliseconds.");
             _deltaDecimals = c.Bind("Splits", "DeltaDecimals", 2, "Decimal places for deltas (0-3).");
             _panelOpacity = c.Bind("Splits", "PanelOpacity", 0.82f, "Opacity of the panel's background, 0 (none) to 1 (solid). The text stays solid.");
+            _timerInPanel = c.Bind("Splits", "TimerInPanel", true,
+                "The run timer inside the splits panel, as in LiveSplit (false: on its own - the HUD's Run timer value).");
             bool[] colDefaults = { true, true, false, false, false, false, false };
             for (int i = 0; i < ColCount; i++)
             {
@@ -182,6 +185,7 @@ namespace ForestOverlay.Modules
         {
             HudWidgets profiles = Host.Hud.Widgets;
             profiles.RegisterProfileEntry(_splitsPanel, null);
+            profiles.RegisterProfileEntry(_timerInPanel, SplitsOptionApplier(_timerInPanel));
             profiles.RegisterProfileEntry(_panelX, null, ProfileUnit.X);
             profiles.RegisterProfileEntry(_panelY, null, ProfileUnit.Y);
             profiles.RegisterProfileEntry(_panelWidth, null, ProfileUnit.Size);
@@ -495,11 +499,15 @@ namespace ForestOverlay.Modules
 
             _summary = SplitTable.Fill(_stats, compare, _times, running, _recorder.Elapsed, _rowsData);
             string compareName = ComparisonName();
-            if (!ReferenceEquals(_segment.Name, _titleFor) || !string.Equals(compareName, _titleVs))
+            // A run resumed from a checkpoint says so here (it was appended
+            // to the HUD's clock before T-0336).
+            int from = running && Resumed ? _resumedFrom : -1;
+            if (!ReferenceEquals(_segment.Name, _titleFor) || !string.Equals(compareName, _titleVs) || from != _titleFrom)
             {
                 _titleFor = _segment.Name;
                 _titleVs = compareName;
-                _compareTitle.text = _segment.Name + "  -  vs " + compareName;
+                _titleFrom = from;
+                _compareTitle.text = _segment.Name + "  -  vs " + compareName + (from >= 0 ? "  -  from checkpoint " + (from + 1) : "");
             }
             if (_rowColours.Length != rows) { _rowColours = new SplitColour[rows]; _rowCurrent = new bool[rows]; }
             while (_rowNames.Count < rows) _rowNames.Add(new GUIContent(""));
@@ -530,6 +538,7 @@ namespace ForestOverlay.Modules
                 _cells[c0 + (int)Col.Lrt].text = _cellText.TimeOrEmpty(c0 + (int)Col.Lrt, lrt, td);
             }
             _shownRows = rows;
+            _timerColour = SplitTable.TimerColour(_rowsData, _times, running, _recorder.Elapsed);
 
             int tdl = _timeDecimals.Value, ddl = _deltaDecimals.Value;
             string previous = _lineText.Delta(0, _summary.PreviousSegment, ddl);
@@ -537,7 +546,8 @@ namespace ForestOverlay.Modules
             {
                 _previousFor = previous;
                 _previousLive = _summary.PreviousLive;
-                _lineValues[(int)Line.Previous].text = previous + (_summary.PreviousLive ? " (live)" : "");
+                // The label says "Live segment"; the number carries nothing (T-0336).
+                _lineValues[(int)Line.Previous].text = previous;
             }
             _lineLabels[(int)Line.Previous].text = _summary.PreviousLive ? "Live segment" : "Previous segment";
             _lineValues[(int)Line.SumOfBest].text = _lineText.Time(1, _summary.SumOfBest, tdl);
@@ -560,10 +570,99 @@ namespace ForestOverlay.Modules
 
         // --- drawing ---------------------------------------------------------------
 
-        private const float RowH = 18f;
+        private const float RowH = 18f, TimerH = 34f;
         private const float MinPanelW = 160f, MaxPanelW = 900f;
         private const int MinPanelRows = 3, MaxPanelRows = 40;
         private const float EdgeGrab = 5f, CornerSize = 12f;
+
+        // --- the timer (T-0336) ------------------------------------------------------------
+        //
+        // LiveSplit's Timer component, in the panel by default (author,
+        // 2026-10-14: built around what LiveSplit users know) or popped out:
+        // then it is the HUD's Run timer value, placed on its own. Drawn every
+        // frame from TimerText's characters, one cached GUIContent each, so
+        // the hundredths run smoothly and nothing allocates.
+
+        /// The clock is drawn in the splits panel (else the HUD's Run timer shows it).
+        private bool TimerInPanel
+        {
+            get { return _splitsPanel != null && _splitsPanel.Value && _timerInPanel.Value; }
+        }
+
+        private SplitColour _timerColour;
+        private readonly char[] _timerChars = new char[TimerText.MaxLength];
+        private static readonly GUIContent[] TimerGlyphs = MakeTimerGlyphs();
+        private GUIStyle _timerStyle;
+        private GUIStyle[] _timerColours;
+        private float _timerMeasuredAt = -1f, _digitW, _colonW, _dotW;
+
+        private static GUIContent[] MakeTimerGlyphs()
+        {
+            GUIContent[] g = new GUIContent[128];
+            const string chars = "0123456789:.";
+            for (int i = 0; i < chars.Length; i++) g[chars[i]] = new GUIContent(chars[i].ToString());
+            return g;
+        }
+
+        /// What the timer shows: the running clock; between runs the time
+        /// of the run whose splits the panel still shows (it finished), as
+        /// LiveSplit keeps it until a reset; else 0.
+        private float TimerSeconds(bool running)
+        {
+            if (running) return _recorder.Elapsed;
+            int n = _times.Length;
+            return n > 0 && !float.IsNaN(_times[n - 1]) ? _times[n - 1] : 0f;
+        }
+
+        /// The timer right-aligned in (x, y, w): digits in equal cells so
+        /// they never shift while it runs.
+        private void DrawTimer(float x, float y, float w)
+        {
+            if (_timerStyle == null)
+            {
+                // The results panel's headline size: no new size of the
+                // shared font (gotcha 107).
+                _timerStyle = UiKit.Style(_cellStyle);
+                _timerStyle.fontSize = 26;
+                _timerStyle.fontStyle = FontStyle.Bold;
+                _timerStyle.alignment = TextAnchor.MiddleCenter;
+                _timerStyle.padding = new RectOffset(0, 0, 0, 0);
+                _timerColours = new GUIStyle[_colourStyles.Length];
+                for (int i = 0; i < _timerColours.Length; i++)
+                {
+                    _timerColours[i] = UiKit.Style(_timerStyle);
+                    _timerColours[i].normal.textColor = _colourStyles[i].normal.textColor;
+                }
+            }
+            float f = GUI.matrix.m00;
+            if (f != _timerMeasuredAt)
+            {
+                _timerMeasuredAt = f;
+                _digitW = 0f;
+                for (char c = '0'; c <= '9'; c++) _digitW = Mathf.Max(_digitW, CrispText.CalcSize(_timerStyle, TimerGlyphs[c]).x);
+                _colonW = CrispText.CalcSize(_timerStyle, TimerGlyphs[':']).x;
+                _dotW = CrispText.CalcSize(_timerStyle, TimerGlyphs['.']).x;
+            }
+
+            bool running = _recorder.State == RunRecorder.RunState.Running;
+            int n = TimerText.Write(_timerChars, TimerSeconds(running), _timeDecimals.Value);
+            float total = 0f;
+            for (int i = 0; i < n; i++) total += CharW(_timerChars[i]);
+            GUIStyle st = _timerColours[(int)_timerColour];
+            float cx = x + Mathf.Max(0f, w - total);
+            for (int i = 0; i < n; i++)
+            {
+                char c = _timerChars[i];
+                float cw = CharW(c);
+                CrispText.Label(new Rect(cx, y, cw, TimerH), TimerGlyphs[c], st);
+                cx += cw;
+            }
+        }
+
+        private float CharW(char c)
+        {
+            return c == ':' ? _colonW : c == '.' ? _dotW : _digitW;
+        }
 
         private bool PanelShowing
         {
@@ -671,6 +770,7 @@ namespace ForestOverlay.Modules
                 y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
             }
             Rect panel = new Rect(x, y, w, h);
+            _panelDrawn = panel;
             if (editing) Host.Hud.Widgets.ReportPiece(SplitsPiece, panel);   // the others snap to it (T-0020)
 
             if (editing) HandleResize(panel);
@@ -843,7 +943,7 @@ namespace ForestOverlay.Modules
             int cols = 0;
             for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
             int rows = full ? Mathf.Max(maxRows, VisibleRows(maxRows)) : VisibleRows(maxRows);
-            return 8f + RowH + (cols > 0 ? RowH : 0f) + rows * RowH + (lines > 0 ? 4f + lines * RowH : 0f);
+            return 8f + RowH + (cols > 0 ? RowH : 0f) + rows * RowH + (TimerInPanel ? TimerH : 0f) + (lines > 0 ? 4f + lines * RowH : 0f);
         }
 
         /// The table at (x, y), `w` wide; returns its height. `header` adds
@@ -903,6 +1003,13 @@ namespace ForestOverlay.Modules
             // does not fill stay empty, so the lines sit where they will.
             if (HudEditing && maxRows > visible) y += (maxRows - visible) * RowH;
 
+            // LiveSplit's order: the splits, the timer, then the summary lines.
+            if (TimerInPanel)
+            {
+                DrawTimer(x, y, w);
+                y += TimerH;
+            }
+
             bool any = false;
             for (int i = 0; i < LineCount; i++)
             {
@@ -933,6 +1040,11 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent SplitsPlaceholder = new GUIContent(
             "Shows here while a timed segment is on. Drag the edges to size it.");
         private static readonly GUIContent SplitsOptionsTitle = new GUIContent("Columns, lines, decimals, background");
+        private static readonly GUIContent TimerTitle = new GUIContent("Run timer");
+        private static readonly GUIContent TimerInText = new GUIContent("In the panel");
+        private static readonly GUIContent TimerOutText = new GUIContent("On its own");
+        private static readonly GUIContent TimerTip = new GUIContent(
+            "In the panel: under the splits, as in LiveSplit. On its own: the HUD's Run timer value, placed under the panel - drag it anywhere, size it by its corner.");
         private static readonly GUIContent ResultsPanelText = new GUIContent("Results panel");
         private static readonly GUIContent ResultsPanelAbout = new GUIContent(
             "Pops up when a timed run finishes: your time against your PB and the comparison, every split's delta, " +
@@ -954,8 +1066,12 @@ namespace ForestOverlay.Modules
             if (panel != _splitsPanel.Value) _splitsPanel.Value = panel;
             y += 24f;
             y += UiText.Draw(indent, y, w - indent, SplitsPanelAbout, UiKit.HintStyle) + 2f;
-            if (_splitsPanel.Value && UiKit.Section(indent, ref y, w - indent, "hud.splitsopts", SplitsOptionsTitle, false))
-                y = DrawSplitsOptions(indent, y, w - indent);
+            if (_splitsPanel.Value)
+            {
+                y = DrawTimerChoice(indent, y, w - indent);
+                if (UiKit.Section(indent, ref y, w - indent, "hud.splitsopts", SplitsOptionsTitle, false))
+                    y = DrawSplitsOptions(indent, y, w - indent);
+            }
             y += 8f;
 
             bool results = UiKit.Toggle(new Rect(0f, y, w, 22f), _resultsCfg.Value, ResultsPanelText);
@@ -971,6 +1087,52 @@ namespace ForestOverlay.Modules
                 y += 24f;
             }
             return y + 4f;
+        }
+
+        // One setting, two choices (decisions.md: options that contradict are
+        // never both on): the timer is in the panel or on its own.
+        private float DrawTimerChoice(float x, float y, float w)
+        {
+            const float labelW = 110f;
+            GUI.Label(new Rect(x, y, labelW, 22f), TimerTitle);
+            float bw = Mathf.Max(60f, (w - labelW - 4f) * 0.5f);
+            Rect inR = new Rect(x + labelW, y, bw, 22f), outR = new Rect(x + labelW + bw + 4f, y, bw, 22f);
+            bool inPanel = _timerInPanel.Value;
+            if (UiKit.Toggle(inR, inPanel, TimerInText, GUI.skin.button) && !inPanel) SetTimerInPanel(true);
+            if (UiKit.Toggle(outR, !inPanel, TimerOutText, GUI.skin.button) && inPanel) SetTimerInPanel(false);
+            UiKit.Hint(inR, TimerTip);
+            UiKit.Hint(outR, TimerTip);
+            return y + 28f;
+        }
+
+        private Rect _panelDrawn;   // the splits panel as last drawn (virtual pixels)
+
+        /// Pops the timer out (the HUD's Run timer value, switched on and placed
+        /// under the panel) or puts it back in the panel (the value back in the
+        /// column, where it shows nothing while the panel has the timer).
+        private void SetTimerInPanel(bool inPanel)
+        {
+            _timerInPanel.Value = inPanel;
+            _splitsDirty = true;
+            int line = HudLines.IndexOfKey("ShowRunTimer");
+            HudWidgets widgets = Host.Hud.Widgets;
+            HudSettings settings = Host.Hud.Settings;
+            if (inPanel)
+            {
+                widgets.Attach(line);
+                Ctx.Log.LogInfo("Splits panel: run timer in the panel.");
+                return;
+            }
+            if (!settings.Shows(line)) settings.SetShows(line, true);
+            if (!widgets.IsFree(line))
+            {
+                UiScale ui = HudUi;
+                Rect p = _panelDrawn.width > 0f ? _panelDrawn : new Rect(ui.VW - 320f, 140f, 300f, 200f);
+                float y = p.yMax + 6f;
+                if (y > ui.VH - 60f) y = Mathf.Max(0f, p.y - 60f);
+                widgets.Detach(line, ui.ToRefX(p.x), ui.ToRefY(y), 2f);
+            }
+            Ctx.Log.LogInfo("Splits panel: run timer on its own (the HUD's Run timer value).");
         }
 
         private float DrawSplitsOptions(float x, float y, float w)

@@ -28,13 +28,25 @@ namespace ForestOverlay.Data
         private readonly List<string> _values = new List<string>();
         public HudLayout Layout = new HudLayout();
 
-        /// The default look: no setting of its own (each takes its default)
-        /// and no value changed - what New makes, what Reset profile puts back
-        /// (T-0303, author 2026-10-11: "Everything in the profile") and what a
-        /// first Default is on a fresh install.
+        /// The default look: no setting of its own (each takes its default:
+        /// the lean set, T-0336) and every value in the column with its label
+        /// (HudLines.DefaultText) - what New makes, what Reset profile puts
+        /// back (T-0303, author 2026-10-11: "Everything in the profile") and
+        /// what a first Default is on a fresh install.
         public static HudProfile DefaultLook()
         {
-            return new HudProfile();
+            HudProfile p = new HudProfile();
+            p.Layout = DefaultLayout();
+            return p;
+        }
+
+        /// The default look's layout: the labels only, a new one each call.
+        public static HudLayout DefaultLayout()
+        {
+            HudLayout layout = new HudLayout();
+            for (int i = 0; i < HudLines.DefaultText.Length; i++)
+                layout.SetText(HudLines.DefaultText[i][0], HudLines.DefaultText[i][1], "");
+            return layout;
         }
 
         public int Count { get { return _keys.Count; } }
