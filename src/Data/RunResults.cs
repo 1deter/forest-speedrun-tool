@@ -125,6 +125,47 @@ namespace ForestOverlay.Data
             return res;
         }
 
+        /// A run resumed from a checkpoint (practice, T-0036): only the rows
+        /// it ran live (after `resumedFrom`, 0-based) - the earlier ones are
+        /// the checkpoint state's times - golds among them only, and no PB
+        /// verdict: it is never a run.
+        public static RunResult BuildPractice(SplitStats before, float[] compare, bool compareIsPb, string compareName,
+                                              float[] times, IList<string> names, int resumedFrom, int timeDecimals, int deltaDecimals)
+        {
+            RunResult res = Build(before, compare, compareIsPb, compareName, times, names, timeDecimals, deltaDecimals);
+            int n = res.Rows.Length;
+            if (n == 0) return res;
+            int first = Math.Max(0, Math.Min(resumedFrom + 1, n - 1));
+            res.NewPb = false;
+            res.Tied = false;
+            res.FirstFinish = false;
+            res.Verdict = "From checkpoint " + (resumedFrom + 1) + " - practice, not a PB.";
+
+            ResultRow[] live = new ResultRow[n - first];
+            Array.Copy(res.Rows, first, live, 0, live.Length);
+            res.Rows = live;
+            List<string> golds = new List<string>();
+            for (int i = 0; i < live.Length; i++)
+                if (live[i].Gold) golds.Add(live[i].Name);
+            res.Golds = golds.Count;
+            res.GoldLine = golds.Count == 0 ? "No golds this run." : (golds.Count == 1 ? "Gold: " : golds.Count + " golds: ") + string.Join(", ", golds.ToArray()) + ".";
+
+            // Best possible: the rows before the checkpoint were not run now,
+            // so only their golds count (this run's time where there is none).
+            float[] best = before.BestSegments;
+            float sum = 0f;
+            for (int i = 0; i < n && !float.IsNaN(sum); i++)
+            {
+                float seg = SplitStats.SegmentAt(times, i);
+                float gold = best != null && i < best.Length ? best[i] : float.NaN;
+                float b = float.IsNaN(gold) ? seg : i < first || float.IsNaN(seg) ? gold : Math.Min(gold, seg);
+                sum = float.IsNaN(b) ? float.NaN : sum + b;
+            }
+            res.SumOfBestAfter = sum;
+            res.BestPossible = SplitTable.Time(sum, timeDecimals);
+            return res;
+        }
+
         /// "New personal best by 1.23 s! (was 1:24.68)", "First finished run -
         /// your personal best.", "Tied your personal best (1:24.68).",
         /// "1.23 s behind your personal best (1:24.68)." - judged to the

@@ -36,6 +36,11 @@ concept before changing its feature. Where the code lives:
   Restart.`): a timed segment starts in two clicks, select + Restart.
   Go, a death's restart and the auto-restart never turn it on; a run
   spot's Restart is run mode's to time (`Data/RunTiming`).
+- **A finish shows the results panel** (`Data/RunResults`), auto-restart
+  or not; it closes when the next run's clock starts. A run resumed from
+  a checkpoint gets one too: only the rows it ran, golds among them, "from
+  checkpoint N - practice, not a PB" (author, 2026-10-15, T-0036). The
+  auto-restart's 1.2 s toast shows only with `[Splits] ResultsPanel` off.
 - **TAS record / replay is inputs, not positions** (experimental, practice
   only). Record (Runs tab, or every timed run with `[TAS] RecordTimedRuns`)
   restarts the current spot and, from the frame after the player is placed

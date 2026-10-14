@@ -152,5 +152,47 @@ namespace ForestOverlay.Tests
             Assert.Equal(3, lines.Count);
             Assert.Empty(RunResults.RunModeLines(null, "", ""));
         }
+
+        // A run resumed from checkpoint 1 (T-0036): the Cave row is the
+        // state's time, so only Rope and End show; never a PB.
+        [Fact]
+        public void PracticeShowsOnlyTheLiveRowsAndNoPb()
+        {
+            SplitStats st = Before();
+            // 12 from the state, then segments 6 (a gold, < 7) and 9.5: 27.5 beats the PB 28.
+            float[] times = { 12f, 18f, 27.5f };
+            RunResult r = RunResults.BuildPractice(st, st.PbSplits, true, "Personal best", times, Names, 0, 2, 2);
+
+            Assert.False(r.NewPb);
+            Assert.False(r.Tied);
+            Assert.Equal("27.50", r.Headline);
+            Assert.Equal("From checkpoint 1 - practice, not a PB.", r.Verdict);
+            Assert.Equal(2, r.Rows.Length);
+            Assert.Equal("Rope", r.Rows[0].Name);
+            Assert.True(r.Rows[0].Gold);
+            Assert.Equal("End", r.Rows[1].Name);
+            Assert.Equal(1, r.Golds);
+            Assert.Equal("Gold: Rope.", r.GoldLine);
+            // 9 (Cave's gold, not run now) + 6 + 9.
+            Assert.Equal("24.00", r.BestPossible);
+        }
+
+        [Fact]
+        public void PracticeIgnoresTheStatesRowsForGoldsAndBestPossible()
+        {
+            SplitStats st = Before();
+            // Cave's 8 would be a gold (< 9) but came from the state.
+            float[] times = { 8f, 15f, 25f };
+            RunResult r = RunResults.BuildPractice(st, st.PbSplits, true, "Personal best", times, Names, 0, 2, 2);
+
+            Assert.Equal(0, r.Golds);
+            Assert.Equal("No golds this run.", r.GoldLine);
+            Assert.Equal("25.00", r.BestPossible);   // 9 + 7 + 9, not 8 + 7 + 9
+
+            RunResult last = RunResults.BuildPractice(st, st.PbSplits, true, "Personal best", times, Names, 1, 2, 2);
+            Assert.Single(last.Rows);
+            Assert.Equal("End", last.Rows[0].Name);
+            Assert.Equal("From checkpoint 2 - practice, not a PB.", last.Verdict);
+        }
     }
 }

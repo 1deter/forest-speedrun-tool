@@ -776,7 +776,7 @@ namespace ForestOverlay.Modules
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done);
             RunModeOutcome outcome = _runMode != null ? _runMode.TimerFinished(_segment, done.Duration) : null;
-            ShowResults(done, outcome);
+            ShowResults(done, outcome, -1);
 
             Attempt best = RunCompare.Best(_attempts);
             bool isPb = ReferenceEquals(best, done);
@@ -790,7 +790,9 @@ namespace ForestOverlay.Modules
 
             if (_autoRestart.Value && _segment != null)
             {
-                Ctx.Notice.Show(Format(done.Duration) + (isPb ? "   NEW BEST" : ""), 1.2f);
+                // The results panel shows the time (T-0036); the toast only
+                // when the panel is off.
+                if (!_resultsOpen) Ctx.Notice.Show(Format(done.Duration) + (isPb ? "   NEW BEST" : ""), 1.2f);
                 _autoRestartAt = Time.unscaledTime + AutoRestartDelay;
             }
         }

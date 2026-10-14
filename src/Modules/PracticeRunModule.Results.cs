@@ -127,8 +127,9 @@ namespace ForestOverlay.Modules
         // --- built once, at the finish -------------------------------------------
 
         /// After FinishRun has saved the attempt and filled the last split:
-        /// `_stats` are still the ones from before this run.
-        private void ShowResults(Attempt done, RunModeOutcome outcome)
+        /// `_stats` are still the ones from before this run. `resumedFrom`:
+        /// the checkpoint a practice run was resumed from (-1 = a whole run).
+        private void ShowResults(Attempt done, RunModeOutcome outcome, int resumedFrom)
         {
             if (_resultsCfg == null || !_resultsCfg.Value || _segment == null || _stats == null) return;
             int rows = SplitRows;
@@ -142,10 +143,13 @@ namespace ForestOverlay.Modules
             // "by 0.03 (was 11.37)" read wrong): its own setting (T-0337).
             int p = Mathf.Clamp(_resDecimals.Value, 0, 3);
             _resShownDecimals = p;
-            _result = RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, p, p);
+            bool practice = resumedFrom >= 0;
+            _result = practice
+                ? RunResults.BuildPractice(_stats, compare, compareIsPb, ComparisonName(), _times, names, resumedFrom, p, p)
+                : RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, p, p);
             _resOutcome = outcome;
 
-            _resTitle.text = _segment.Name + "  -  results";
+            _resTitle.text = _segment.Name + (practice ? "  -  results from checkpoint " + (resumedFrom + 1) : "  -  results");
             _resHeadline.text = _result.Headline + (_result.NewPb ? "   NEW PB" : _result.Tied ? "   TIED PB" : "");
             _resVerdict.text = _result.Verdict;
             _resCompare.text = _result.CompareLine;
@@ -153,16 +157,18 @@ namespace ForestOverlay.Modules
             _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, p, _resLoadAlways.Value);
             _resLoads.text = _result.LoadLine;
 
-            // The table's cells: copied once, drawn every frame.
-            _resRows = rows;
-            while (_resCells.Count < rows * ResCols) _resCells.Add(new GUIContent(""));
-            if (_resDeltaColour.Length != rows)
+            // The table's cells: copied once, drawn every frame. A practice
+            // run's are only the rows it ran.
+            int shown = _result.Rows.Length;
+            _resRows = shown;
+            while (_resCells.Count < shown * ResCols) _resCells.Add(new GUIContent(""));
+            if (_resDeltaColour.Length != shown)
             {
-                _resDeltaColour = new SplitColour[rows];
-                _resSavedLost = new int[rows];
-                _resGold = new bool[rows];
+                _resDeltaColour = new SplitColour[shown];
+                _resSavedLost = new int[shown];
+                _resGold = new bool[shown];
             }
-            for (int r = 0; r < rows; r++)
+            for (int r = 0; r < shown; r++)
             {
                 ResultRow row = _result.Rows[r];
                 _resCells[r * ResCols + 0].text = row.Name + (row.Gold ? "  (gold)" : "");
@@ -178,9 +184,10 @@ namespace ForestOverlay.Modules
             _resMoreFor = 0;
 
             // PB chance for the NEXT run (this one's is decided): this run in
-            // the history, its time the PB if it beat it.
+            // the history, its time the PB if it beat it - a practice run
+            // never is.
             BuildHistory(rows);
-            float pb = float.IsNaN(_stats.Pb) ? done.Duration : Mathf.Min(_stats.Pb, done.Duration);
+            float pb = practice ? _stats.Pb : float.IsNaN(_stats.Pb) ? done.Duration : Mathf.Min(_stats.Pb, done.Duration);
             _resLineValues[0].text = _result.BestPossible;
             _resLineValues[1].text = PbChance.Compute(_history, SplitStats.Filled(rows), pb, _pbRandom);
             _resLineValues[2].text = AttemptsText();

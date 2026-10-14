@@ -246,6 +246,7 @@ namespace ForestOverlay.Modules
             FinishSplits(done);
             RecordPracticeSegment(_times.Length - 1);
             int from = _resumedFrom;
+            ShowResults(done, null, from);   // `_stats` are still from before it
             _resumedFrom = -1;
             _status = "finished from checkpoint " + (from + 1) + ": " + Format(done.Duration) + " (practice - not a PB)";
             SelectReference();
@@ -254,7 +255,7 @@ namespace ForestOverlay.Modules
                             " - practice, not saved as a run.");
             if (_autoRestart.Value && _segment != null)
             {
-                Ctx.Notice.Show(Format(done.Duration) + "   (from checkpoint " + (from + 1) + ")", 1.2f);
+                if (!_resultsOpen) Ctx.Notice.Show(Format(done.Duration) + "   (from checkpoint " + (from + 1) + ")", 1.2f);
                 _autoRestartAt = Time.unscaledTime + AutoRestartDelay;
                 _autoRestartCheckpoint = from;
             }
