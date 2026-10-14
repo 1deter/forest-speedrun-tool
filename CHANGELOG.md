@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.291 - 2026-10-14
+
+- The results panel after a finished run now shows 3 decimals by default (11.197 instead of 11.20).
+- Its decimals are their own setting: Edit HUD, Results panel, Decimals. The splits panel keeps its own.
+
 ## v0.24.290 - 2026-10-14
 
 - The splits panel has its own run timer, green when ahead and red when behind, like LiveSplit's Timer. Edit HUD can pop it out to the HUD's Run timer line instead.
