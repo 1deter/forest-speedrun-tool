@@ -163,10 +163,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   pop-out allowed; one number one value, no filler text), T-0338 (as
   close to LiveSplit's feel as possible, order free), T-0316 (death
   default = vanilla game) - decisions.md *Plugin*. No parked questions
-  left. Weekly cleanup still due. Unchanged from 10-11: T-0333
-  (v0.24.289, crisp text) needs a non-maker confirmation; cloud/t-0320
-  and cloud/t-0321 to merge + check. **Next:** weekly cleanup, then
-  `tasks.py next` (T-0036); T-0337 (3 decimals) is a quick P2.
+  left. Weekly cleanup done 10-14 (T-0346..T-0350 filed, 13 rows
+  re-graded; T-0334 held until 1-2 harness reviews). Unchanged from
+  10-11: T-0333 (v0.24.289, crisp text) needs a non-maker confirmation;
+  cloud/t-0320 and cloud/t-0321 to merge + check. **Next:** T-0336 (run
+  timer in the splits panel, lean HUD profile; design work, high
+  effort); T-0337 (3 decimals) is a quick P2.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
