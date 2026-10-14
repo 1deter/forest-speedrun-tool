@@ -1053,6 +1053,9 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent ResLoadAlwaysTip = new GUIContent(
             "A run with loads always shows its time without them; this adds the line after a load-free run. The LRT column is the splits' own.");
         private static readonly GUIContent TimeDecimalsText = new GUIContent("Time decimals");
+        private static readonly GUIContent ResDecimalsText = new GUIContent("Decimals");
+        private static readonly GUIContent ResDecimalsTip = new GUIContent(
+            "The results panel's times and deltas, from the next finished run. The splits panel's decimals are its own.");
         private static readonly GUIContent DeltaDecimalsText = new GUIContent("Delta decimals");
         private static readonly GUIContent BackgroundText = new GUIContent("Background");
         private static readonly GUIContent ColumnsText = new GUIContent("Columns");
@@ -1085,6 +1088,14 @@ namespace ForestOverlay.Modules
                 if (always != _resLoadAlways.Value) _resLoadAlways.Value = always;
                 UiKit.Hint(loadR, ResLoadAlwaysTip);
                 y += 24f;
+                const float labelW = 110f;
+                float barW = Mathf.Min(160f, w - indent - labelW - 4f);
+                Rect decR = new Rect(indent + labelW, y, barW, 22f);
+                GUI.Label(new Rect(indent, y, labelW, 22f), ResDecimalsText);
+                int rd = DecimalChoice(decR, _resDecimals.Value);
+                if (rd != _resDecimals.Value) _resDecimals.Value = rd;
+                UiKit.Hint(decR, ResDecimalsTip);
+                y += 26f;
             }
             return y + 4f;
         }

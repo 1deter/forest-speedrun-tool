@@ -39,6 +39,8 @@ namespace ForestOverlay.Modules
 
         private ConfigEntry<bool> _resultsCfg, _resLoadAlways;
         private ConfigEntry<float> _resX, _resY, _resWidth;
+        private ConfigEntry<int> _resDecimals;
+        private int _resShownDecimals = 3;   // the open panel's, for its column width
 
         private bool _resultsOpen;
         private RunResult _result;
@@ -97,6 +99,11 @@ namespace ForestOverlay.Modules
             _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _cols[(int)Col.Lrt].Value,
                 "Results panel: show the load-removed time after a run with no loads too (a run with loads always shows it).");
             profiles.RegisterProfileEntry(_resLoadAlways, null);
+            // Its own precision (T-0337, author 2026-10-14): 3 by default, as
+            // a PB of 11.197 against 11.22 read "0.02 slower" at 2.
+            _resDecimals = c.Bind("Splits", "ResultsDecimals", 3,
+                "Results panel: decimal places for its times and deltas (0-3). The splits panel has its own.");
+            profiles.RegisterProfileEntry(_resDecimals, null);
             for (int i = 0; i < ResLineLabels.Length; i++)
             {
                 _resLineLabels[i] = new GUIContent(ResLineLabels[i]);
@@ -132,8 +139,9 @@ namespace ForestOverlay.Modules
             float[] compare = ComparisonSplits();
             bool compareIsPb = ReferenceEquals(compare, _stats.PbSplits);
             // One precision for the whole panel (author, 2026-10-05: an 11.331 PB
-            // "by 0.03 (was 11.37)" read wrong): the finer of the two settings.
-            int p = Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value);
+            // "by 0.03 (was 11.37)" read wrong): its own setting (T-0337).
+            int p = Mathf.Clamp(_resDecimals.Value, 0, 3);
+            _resShownDecimals = p;
             _result = RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, p, p);
             _resOutcome = outcome;
 
@@ -232,7 +240,7 @@ namespace ForestOverlay.Modules
             _resGoldWrap.normal.textColor = UiKit.Accent;
         }
 
-        private float ResColW { get { return 52f + 6f * Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value); } }
+        private float ResColW { get { return 52f + 6f * _resShownDecimals; } }
 
         /// Lays the panel out at (x, y), `w` wide, and returns its height;
         /// draws only when `draw` (the first pass measures for the background).
