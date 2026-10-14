@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.290 - 2026-10-14
+
+- The splits panel has its own run timer, green when ahead and red when behind, like LiveSplit's Timer. Edit HUD can pop it out to the HUD's Run timer line instead.
+- Delta is its own HUD value now (off by default).
+- A leaner default look for new profiles, Reset profile and fresh installs: fewer values on, each one labelled (Speed, Spot, Logs...). Saved profiles keep their switches.
+
 ## v0.24.289 - 2026-10-11
 
 - HUD text (the info column, the splits panel and the results panel) is sharp again at high resolutions - it was blurry when the screen was larger than the one the layout was made at.
