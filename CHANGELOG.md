@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.292 - 2026-10-15
+
+- With Auto-restart on, a finished run's time shows in the results panel instead of a quick flash at the top (the flash stays if the results panel is off).
+- A run restarted from a checkpoint now gets a results panel too: the splits it ran, their golds, marked as practice (never a PB).
+
 ## v0.24.291 - 2026-10-14
 
 - The results panel after a finished run now shows 3 decimals by default (11.197 instead of 11.20).
