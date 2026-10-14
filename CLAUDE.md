@@ -157,14 +157,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-14 (T-0337 released in v0.24.291):** the results panel
-  has its own decimals, `[Splits] ResultsDecimals` default 3 (picker
-  under Results panel in Edit HUD; author chose an own setting); splits
-  panel decimals unchanged. Checker: accept. T-0336 confirmed in game on
-  v0.24.290. **Next:** confirm T-0337 in game (forest-tester or e2e
-  `timed`: results at 3 decimals with splits at 2), then `tasks.py
-  next`. Unchanged: T-0333 needs a non-maker confirmation;
-  cloud/t-0320 and cloud/t-0321 to merge + check.
+- **2026-10-15 (T-0036 confirmed on v0.24.292):** with auto-restart a
+  finish shows the results panel, not the 1.2 s toast (toast only with
+  `[Splits] ResultsPanel` off); a checkpoint-resumed finish gets a
+  practice results panel (`RunResults.BuildPractice`: live rows only, no
+  PB). Author chose: panel still closes at the next clock start.
+  Checker accept, smoke PASS, forest-tester confirmed. T-0337 confirmed
+  too. **Next:** `tasks.py next`. Unchanged: T-0333 needs a non-maker
+  confirmation; cloud/t-0320 and cloud/t-0321 to merge + check.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
