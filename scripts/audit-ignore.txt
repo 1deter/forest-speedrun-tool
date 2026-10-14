@@ -6,3 +6,9 @@ cs-unused	src/Modules/QaModule.cs	LogEvent	BepInEx ILogListener interface method
 cs-unused	src/Modules/DebugViewModule.cs	AerialStop	the bridge-driven aerial bake's stop (AerialStart is called by name from scripts/aerial-bake.py) - T-0180
 cs-unused	src/Modules/PracticeModule.cs	ImportLiveSplitFile	the bridge's way in for a LiveSplit import (a click the bridge cannot make) - T-0181
 cs-unused	src/Modules/PracticeRunModule.Camera.cs	ReplayCameraOn	read over the bridge - T-0182
+doc-path	.claude/agents/forest-dev.md	tasks/notes/T-n.md	a pattern (T-n = the task id); tasks/notes/ holds one file per researched task
+doc-path	.claude/agents/forest-researcher.md	tasks/notes/T-n.md	a pattern (T-n = the task id); tasks/notes/ holds one file per researched task
+doc-path	docs/areas/workflow.md	tasks/notes/T-n.md	a pattern (T-n = the task id); tasks/notes/ holds one file per researched task
+doc-path	docs/areas/workflow.md	tasks/tasks.jsonl.lock	the runtime lock tasks.py makes while it writes (T-0197); exists only then
+doc-path	docs/session-log.md	.claude/worktrees/agent-a9faea5bc9e1d1cb4	a past handoff naming a worktree since cleaned up; the log is history
+cs-unused	src/Game/ElevatorRides.cs	Noted	read over the bridge (its doc comment says so)
