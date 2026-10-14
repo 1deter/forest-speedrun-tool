@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace ForestOverlay.Game
 {
@@ -19,8 +20,19 @@ namespace ForestOverlay.Game
     // reused (no per-frame allocation).
     //
     // Drawn like the run lines: after the image effects through
-    // Game/LatePass (true colours, depth-tested against the scene), with
-    // OnRenderObject as the fallback; the main view only (DrawTarget).
+    // Game/LatePass, with OnRenderObject as the fallback (a plain
+    // depth-tested draw); the main view only (DrawTarget).
+    //
+    // In the late pass paint shows only where it lies ON the surface
+    // (T-0296 / T-0299): drawn into a target of its own against the
+    // scene's depth, kept where the scene is no nearer than Band in front
+    // of it (so it is not hidden by the rock it is on - LOD meshes and
+    // colliders sit a little off the drawn surface - but is hidden by
+    // things in front) and no further than Band behind it (so past a
+    // wall's edge, where the scene is the ground far behind, it is cut
+    // off rather than hanging in the air). Band is a share of the distance,
+    // done by scaling the meshes about the eye: every vertex slides along
+    // its own view ray, so the picture does not move.
     // ------------------------------------------------------------------
     public sealed class PaintDraw : MonoBehaviour, ILateDrawer
     {
@@ -35,6 +47,14 @@ namespace ForestOverlay.Game
         private const int Rim = 8;                 // disc sides
         /// Off the surface, against z-fighting (with the material's bias).
         private const float Lift = 0.015f;
+        /// How far off the drawn surface paint still shows, as a share of
+        /// its distance (2 %: 4 cm at 2 m, 60 cm at 30 m).
+        private const float Band = 0.02f;
+        /// How far the drawn surface under the crosshair may be from the
+        /// collider the ray hits and still be used: metres + share of distance.
+        private const float ProbeSlack = 1.5f, ProbeSlackShare = 0.05f;
+        /// ... or this close to some collider (a rock's sphere sits within ~1 m of the rock).
+        private const float NearCollider = 1.2f;
 
         private static readonly float[] RimCos = new float[Rim];
         private static readonly float[] RimSin = new float[Rim];
@@ -47,7 +67,10 @@ namespace ForestOverlay.Game
         private readonly List<Color32> _colours = new List<Color32>();
         private readonly List<int> _tris = new List<int>();
 
-        private Material _material;
+        private Material _material;      // the fallback draw
+        private Material _bandKeep;      // late pass: paint where the scene is in front of its far edge
+        private Material _bandCut;       // late pass: clears it where the scene is in front of its near edge
+        private Material _over;          // late pass: the paint target blended onto the picture
 
         // The palette as written into the vertices. The game renders in
         // linear colour space and vertex colours are not converted, so a
@@ -85,7 +108,11 @@ namespace ForestOverlay.Game
 
         /// The surface under the crosshair (the middle of the player's view),
         /// up to `range` m. Triggers, the player's own layer and Ignore
-        /// Raycast are skipped.
+        /// Raycast are skipped. The drawn surface (Game/SurfaceProbe) when
+        /// it agrees with the collider the ray hits, else the collider: a
+        /// leaf or a bush far in front of it is not painted on. False for a
+        /// frame or two at the start of a stroke while the first reading
+        /// comes in.
         public static bool Aim(Transform player, float range, out Vector3 point, out Vector3 normal)
         {
             point = Vector3.zero;
@@ -93,16 +120,45 @@ namespace ForestOverlay.Game
             Camera cam = DrawTarget.View();
             if (cam == null) return false;
 
+            SurfaceProbe.Request();
             int mask = ~(1 << 2);
             if (player != null) mask &= ~(1 << player.gameObject.layer);
-            Transform t = cam.transform;
             RaycastHit hit;
+
+            Vector3 eye, sp, sn;
+            if (SurfaceProbe.TryGet(out eye, out sp, out sn))
+            {
+                Vector3 dir = sp - eye;
+                float dist = dir.magnitude;
+                if (dist > 0.05f && dist <= range)
+                {
+                    dir /= dist;
+                    bool hitAny = Physics.Raycast(new Ray(eye, dir), out hit, range, mask, QueryTriggerInteraction.Ignore);
+                    // Or a collider close by: the crosshair on a rock's edge
+                    // misses its smaller sphere and hits the ground behind.
+                    if (!hitAny || Mathf.Abs(hit.distance - dist) <= ProbeSlack + ProbeSlackShare * dist
+                        || Physics.CheckSphere(sp, NearCollider, mask, QueryTriggerInteraction.Ignore))
+                    {
+                        point = sp;
+                        normal = sn;
+                        LastFromSurface = true;
+                        return true;
+                    }
+                }
+            }
+            else if (SurfaceProbe.Pending) return false;
+
+            Transform t = cam.transform;
             if (!Physics.Raycast(new Ray(t.position, t.forward), out hit, range, mask, QueryTriggerInteraction.Ignore))
                 return false;
             point = hit.point;
             normal = hit.normal;
+            LastFromSurface = false;
             return true;
         }
+
+        /// The last Aim used the drawn surface (true) or the collider.
+        public static bool LastFromSurface;
 
         // --- meshes ---------------------------------------------------------
 
@@ -212,13 +268,28 @@ namespace ForestOverlay.Game
             if (_material != null) return;
             Shader shader = Shader.Find("Hidden/Internal-Colored");
             if (shader == null) return;
-            _material = new Material(shader);
-            _material.hideFlags = HideFlags.HideAndDontSave;
-            _material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            _material.SetInt("_ZWrite", 0);
-            _material.SetFloat("_ZBias", -2f);
+            _material = Colored(shader, BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha, CompareFunction.LessEqual, -2f);
+            _bandKeep = Colored(shader, BlendMode.One, BlendMode.Zero, CompareFunction.GreaterEqual, 0f);
+            _bandCut = Colored(shader, BlendMode.Zero, BlendMode.Zero, CompareFunction.Greater, 0f);
+            Shader over = Shader.Find("Unlit/Transparent");
+            if (over != null)
+            {
+                _over = new Material(over);
+                _over.hideFlags = HideFlags.HideAndDontSave;
+            }
+        }
+
+        private static Material Colored(Shader shader, BlendMode src, BlendMode dst, CompareFunction zTest, float zBias)
+        {
+            Material m = new Material(shader);
+            m.hideFlags = HideFlags.HideAndDontSave;
+            m.SetInt("_SrcBlend", (int)src);
+            m.SetInt("_DstBlend", (int)dst);
+            m.SetInt("_Cull", (int)CullMode.Off);
+            m.SetInt("_ZWrite", 0);
+            m.SetInt("_ZTest", (int)zTest);
+            m.SetFloat("_ZBias", zBias);
+            return m;
         }
 
         private void OnEnable() { try { LatePass.Register(this); } catch (Exception ex) { Lifecycle.Fail("PaintDraw.OnEnable", ex); } }
@@ -234,8 +305,48 @@ namespace ForestOverlay.Game
             catch (Exception ex) { Lifecycle.Fail("PaintDraw.LateUpdate", ex); }
         }
 
-        public bool WantsLateDraw { get { return Visible && _chunks > 0; } }
-        public void DrawLate(Camera camera) { DrawMeshes(); }
+        private bool HasPaint { get { return Visible && _chunks > 0; } }
+        public bool WantsLateDraw { get { return HasPaint || SurfaceProbe.Wanted; } }
+
+        public void DrawLate(Camera camera)
+        {
+            RenderTexture picture = LatePass.Picture;
+            RenderBuffer depth = LatePass.SceneDepth;
+            if (SurfaceProbe.Wanted)
+            {
+                SurfaceProbe.Sample(camera);
+                if (picture != null) Graphics.SetRenderTarget(picture.colorBuffer, depth);
+            }
+            if (!HasPaint) return;
+
+            EnsureMaterial();
+            if (_material == null) return;
+            if (picture == null || _over == null) { DrawMeshes(_material, Matrix4x4.identity); return; }
+
+            RenderTexture paint = RenderTexture.GetTemporary(picture.width, picture.height, 0, picture.format,
+                picture.sRGB ? RenderTextureReadWrite.sRGB : RenderTextureReadWrite.Linear, picture.antiAliasing);
+            try
+            {
+                Graphics.SetRenderTarget(paint.colorBuffer, depth);
+                GL.Clear(false, true, new Color(0f, 0f, 0f, 0f));
+                Vector3 eye = camera.transform.position;
+                DrawMeshes(_bandKeep, AboutEye(eye, 1f + Band));
+                DrawMeshes(_bandCut, AboutEye(eye, 1f - Band));
+
+                // A Blit, not DrawTexture: target to target keeps the rows the right
+                // way up (DrawTexture drew the paint mirrored about the crosshair on
+                // D3D11, 2026-10-15). Unlit/Transparent blends by alpha.
+                Graphics.Blit(paint, picture, _over);
+                Graphics.SetRenderTarget(picture.colorBuffer, depth);
+            }
+            finally { RenderTexture.ReleaseTemporary(paint); }
+        }
+
+        /// Scales about the eye: a point slides along its own view ray.
+        private static Matrix4x4 AboutEye(Vector3 eye, float scale)
+        {
+            return Matrix4x4.TRS(eye * (1f - scale), Quaternion.identity, new Vector3(scale, scale, scale));
+        }
 
         private void OnRenderObject()
         {
@@ -244,18 +355,18 @@ namespace ForestOverlay.Game
                 if (!WantsLateDraw) return;
                 if (!DrawTarget.ShouldDraw()) return;
                 if (LatePass.Covers(Camera.current)) return;
-                DrawMeshes();
+                EnsureMaterial();
+                if (_material == null) return;
+                DrawMeshes(_material, Matrix4x4.identity);
             }
             catch (Exception ex) { Lifecycle.Fail("PaintDraw.OnRenderObject", ex); }
         }
 
-        private void DrawMeshes()
+        private void DrawMeshes(Material material, Matrix4x4 matrix)
         {
-            EnsureMaterial();
-            if (_material == null) return;
-            _material.SetPass(0);
+            material.SetPass(0);
             for (int c = 0; c < _chunks; c++)
-                Graphics.DrawMeshNow(_meshes[c], Matrix4x4.identity);
+                Graphics.DrawMeshNow(_meshes[c], matrix);
         }
 
         private void OnDestroy()
@@ -265,6 +376,10 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < _meshes.Count; i++) if (_meshes[i] != null) Destroy(_meshes[i]);
                 _meshes.Clear();
                 if (_material != null) Destroy(_material);
+                if (_bandKeep != null) Destroy(_bandKeep);
+                if (_bandCut != null) Destroy(_bandCut);
+                if (_over != null) Destroy(_over);
+                SurfaceProbe.Release();
             }
             catch (Exception ex) { Lifecycle.Fail("PaintDraw.OnDestroy", ex); }
         }

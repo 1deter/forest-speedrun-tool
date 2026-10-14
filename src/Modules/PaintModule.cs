@@ -69,6 +69,8 @@ namespace ForestOverlay.Modules
         // the paint / eraser binds are held"); 0 none, 1 paint, 2 erase.
         private int _cross;
         private int _erased;
+        private int _onSurface;            // this stroke's dots placed on the drawn surface (T-0296)
+        private string _probeSaid;         // the probe failure last logged
         private float _offNoticeAt = -100f;
         private bool _fullSaid;
 
@@ -185,6 +187,7 @@ namespace ForestOverlay.Modules
             {
                 _painting = true;
                 _fullSaid = false;
+                _onSurface = 0;
                 set.BeginStroke(Colour, Size);
             }
             if (set.Full)
@@ -197,7 +200,8 @@ namespace ForestOverlay.Modules
                 return;
             }
             Vector3 p, n;
-            if (PaintDraw.Aim(Ctx.Player.Transform, Range, out p, out n)) set.AddPoint(p, n);
+            if (PaintDraw.Aim(Ctx.Player.Transform, Range, out p, out n) && set.AddPoint(p, n) && PaintDraw.LastFromSurface)
+                _onSurface++;
         }
 
         private void EndPaint()
@@ -206,7 +210,11 @@ namespace ForestOverlay.Modules
             PaintSet set = Current;
             int dots = set.EndStroke();
             if (dots == 0) return;
-            Ctx.Log.LogInfo("Paint: stroke of " + dots + " dot(s), colour " + Colour + ", size " + SizeText(Size) + " - " + WhereText() + " (" + set.Count + " in all)");
+            Ctx.Log.LogInfo("Paint: stroke of " + dots + " dot(s), colour " + Colour + ", size " + SizeText(Size) + ", " + _onSurface + " on the drawn surface - " + WhereText() + " (" + set.Count + " in all)");
+            string why = SurfaceProbe.Failure;
+            if (why != null && why != _probeSaid)
+                Ctx.Log.LogWarning("Paint: could not read the drawn surface (" + why + "), aiming at colliders");
+            _probeSaid = why;
             Save();
         }
 

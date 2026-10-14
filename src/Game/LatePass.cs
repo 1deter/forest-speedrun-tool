@@ -59,6 +59,12 @@ namespace ForestOverlay.Game
         /// Frames drawn late since startup (a "did it run" count).
         public static int Frames;
 
+        /// While DrawLate runs: the finished picture being drawn into and the
+        /// scene's depth buffer bound with it - for a drawer that renders
+        /// through a target of its own (Game/PaintDraw) and binds them back.
+        public static RenderTexture Picture { get; private set; }
+        public static RenderBuffer SceneDepth { get; private set; }
+
         private Camera _camera;
         private RenderTexture _scene;
         private int _sceneFrame = -1;
@@ -151,6 +157,8 @@ namespace ForestOverlay.Game
                 }
 
                 Graphics.SetRenderTarget(src.colorBuffer, _scene.depthBuffer);
+                Picture = src;
+                SceneDepth = _scene.depthBuffer;
                 GL.PushMatrix();
                 GL.LoadProjectionMatrix(_camera.projectionMatrix);
                 GL.modelview = _camera.worldToCameraMatrix;
@@ -172,6 +180,7 @@ namespace ForestOverlay.Game
                     }
                 }
                 GL.PopMatrix();
+                Picture = null;
                 Graphics.Blit(src, dst);
                 Frames++;
 
@@ -185,6 +194,7 @@ namespace ForestOverlay.Game
             }
             catch (Exception ex)
             {
+                Picture = null;
                 Lifecycle.Fail("LatePass.OnRenderImage", ex);
                 // A throw before the Blit would leave this frame unwritten (a
                 // second Blit after a late throw is harmless).
