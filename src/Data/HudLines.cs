@@ -139,7 +139,7 @@ namespace ForestOverlay.Data
             K("practice", "Spot", "ShowSpot", "Current spot",
               "The spot " + KeyText.Slot + " restarts.", "practice.goToSpot",
               "The spot the Practice tab's Restart restarts."),
-            L("practice", "Prac", "ShowPracticeStatus", "Practice messages",
+            Off("practice", "Prac", "ShowPracticeStatus", "Practice messages",
               "The last practice action's result (teleport, restart, save)."),
             // The clock only (author, 2026-10-14, T-0336): it sits in the
             // splits panel by default and shows here when popped out.
