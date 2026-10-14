@@ -31,6 +31,21 @@ split    = Middle
 end      = zone %.2f %.2f %.2f 3.00
 split    = Finish
 """ % (SPAWN + START + CHECK + END))
+    run = g.mod("practicerun")
+    # The run arms only with practice mode on ([Runs] PracticeMode): on for
+    # the journey, back as found after (the suite compares the config).
+    was_on = g.get(e2e.PLUGIN, run + ".Enabled") == "True"
+    if not was_on:
+        g.run("call %s %s.TogglePracticeMode" % (e2e.PLUGIN, run))
+        t.check(g.get(e2e.PLUGIN, run + ".Enabled") == "True", "practice mode on for the run")
+    try:
+        timed(t, g, run)
+    finally:
+        if not was_on and g.get(e2e.PLUGIN, run + ".Enabled") == "True":
+            g.run("call %s %s.TogglePracticeMode" % (e2e.PLUGIN, run))
+
+
+def timed(t, g, run):
     mark = t.log.mark()
     g.run("go e2e-timed", "wait 2")
     t.near(g.pos(), SPAWN, 1.5, "player at the spawn after Go")
@@ -42,6 +57,5 @@ split    = Finish
     t.ok("finished in %s" % m.group(1))
     uploads = [l for l in t.log.since(mark).splitlines() if re.search(r"Upload:.*e2e", l)]
     t.check(not uploads, "no upload of the test run", "\n".join(uploads))
-    run = g.mod("practicerun")
     t.check(g.get(e2e.PLUGIN, run + "._resultsOpen") == "True", "results panel shown")
     g.run("call %s %s.CloseResults" % (e2e.PLUGIN, run))  # it would cover the later journeys' shots
