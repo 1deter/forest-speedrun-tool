@@ -157,17 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-14 (T-0336 accepted, pushed, not released):** run timer in
-  the splits panel (LiveSplit's Timer, coloured ahead / behind, pop-out
-  to the HUD's Run timer value), Delta its own value, lean labelled
-  default look (New / Reset profile / fresh install; saved profiles
-  unchanged). `e833705b`, forest-checker accept (minor: armed state reads
-  0.00 when popped out; Reset profile not yet seen in game). **Next:**
-  release it (skill `release`), then forest-tester: Reset profile gives
-  the lean column, pop-out placement; e2e `timed` fails only on the
-  author's PracticeMode = false (task note; fix proposed as a session).
-  Then T-0337 (3 decimals, quick P2). Unchanged: T-0333 needs a
-  non-maker confirmation; cloud/t-0320 and cloud/t-0321 to merge + check.
+- **2026-10-14 (T-0336 released in v0.24.290):** run timer in the
+  splits panel (LiveSplit's Timer, coloured ahead / behind, pop-out to
+  the HUD's Run timer value), Delta its own value, lean labelled default
+  look (New / Reset profile / fresh install; saved profiles unchanged);
+  Practice messages off in the lean default too (author, `9c140a1a`,
+  re-checked: accept). e2e `timed` now turns practice mode on for its
+  journey (`afc36918`). **Next:** forest-tester on v0.24.290: Reset
+  profile gives the lean column (no Prac line), pop-out placement. Then
+  T-0337 (3 decimals, quick P2). Unchanged: T-0333 needs a non-maker
+  confirmation; cloud/t-0320 and cloud/t-0321 to merge + check.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
