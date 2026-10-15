@@ -540,6 +540,11 @@ class Chain(unittest.TestCase):
         text, code = run(ev, L.cmd_chain_next, ts)
         self.assertEqual(code, L.EXIT_STOP)
         self.assertIn("the target is done (target: 1 of 1 moved forward (T-0001))", text)
+        ts.append(task("T-0002", needs="tester"))
+        ev = []
+        run(ev, L.cmd_chain_begin, ts, "T-0001,T-0002")
+        text, _ = run(ev, L.cmd_chain_next, ts)
+        self.assertIn("nothing left it can take alone", text)  # T-0002 waits on a tester: not "done"
 
     def test_stop_waits_for_the_run(self):
         ts = [task("T-0001")]
