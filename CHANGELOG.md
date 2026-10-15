@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.295 - 2026-10-15
+
+- Deaths: When I die no longer has an Automatic choice - the game's own death is the default. Pick Reload the save, Restart the current spot or Revive at the current spot to change what a death does.
+- If you never changed When I die, a death is now the game's own death; choose Restart the current spot to keep restarting your spot on death.
+
 ## v0.24.294 - 2026-10-15
 
 - Input overlay: the default tiles now fit any screen size (on smaller screens they were piled up along the bottom edge); Default layout in Edit HUD puts them back.
