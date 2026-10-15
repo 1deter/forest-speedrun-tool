@@ -35,10 +35,17 @@ namespace ForestOverlay.Tests
         public void TheDefaultIsTheGamesOwnDeathAndAStoredAutomaticReadsAsIt()
         {
             Assert.Equal(DeathChoice.GameDeath, default(DeathChoice));
-            Assert.Equal("GameDeath", DeathPlan.MigrateStored("Automatic"));
-            Assert.Equal("GameDeath", DeathPlan.MigrateStored(" Automatic "));
-            Assert.Equal("ReloadSave", DeathPlan.MigrateStored("ReloadSave"));
-            Assert.Null(DeathPlan.MigrateStored(null));
+            string c;
+            Assert.Equal(DeathChoice.GameDeath, DeathPlan.ParseStored("Automatic", out c));
+            Assert.Equal("GameDeath", c);
+            Assert.Equal(DeathChoice.GameDeath, DeathPlan.ParseStored("automatic", out c));
+            Assert.Equal("GameDeath", c);
+            Assert.Equal(DeathChoice.GameDeath, DeathPlan.ParseStored("banana", out c));
+            Assert.Equal("GameDeath", c);
+            Assert.Equal(DeathChoice.GameDeath, DeathPlan.ParseStored(null, out c));
+            Assert.Equal(DeathChoice.ReloadSave, DeathPlan.ParseStored(" reloadsave ", out c));
+            Assert.Equal("ReloadSave", c);
+            Assert.Equal(DeathChoice.RestartSpot, DeathPlan.ParseStored("RestartSpot", out c));
             Assert.Equal(DeathOutcome.GameDeath, Out(DeathChoice.GameDeath, WithSpot(true)));
         }
 

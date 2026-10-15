@@ -390,7 +390,7 @@ Written by DeathHooks.cs; info / warning.
 Meaning: Death practice toggles: god mode on / off and the practice toggles in force.
 Written by DeathModule.cs; info.
 
-- info `Deaths: OnDeath = Automatic read as GameDeath (the choice was dropped)`
+- info `Deaths: OnDeath '<before>' read as <_choiceCfg.Value>`
 - info `Deaths: god mode off.`
 - info `Deaths: god mode on (Cheats.GodMode).`
 - info `Deaths: practice toggles on -<..>.`
