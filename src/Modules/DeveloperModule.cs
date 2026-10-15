@@ -42,7 +42,7 @@ namespace ForestOverlay.Modules
 
         private static readonly GUIContent TextKeys = new GUIContent("Keys");
         private static readonly GUIContent TipKeys = new GUIContent(
-            "The developer tools' keys: dumps, type explorer, the trajectory preview, TAS and QA. " +
+            "The developer tools' keys: dumps, type explorer, TAS and QA (the trajectory preview's is under its switch). " +
             "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
 
         private BridgeModule _bridge;

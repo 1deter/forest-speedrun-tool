@@ -44,8 +44,10 @@ namespace ForestOverlay.Modules
         private GUIStyle _lockedStyle;
         private readonly GUIContent _prompt = new GUIContent();
         private readonly GUIContent _devPrompt = new GUIContent();
+        private readonly GUIContent _rowPrompt = new GUIContent();   // DrawKeyRow's
         private string _promptText = "";
         private bool _messageDev;   // the message is about a developer key (shown in the Developer tab)
+        private HotkeyMap.Binding _messageAbout;   // the key it is about (DrawKeyRow shows its own)
 
         // The key list in groups (T-0263, Data/KeyGroups): each binding's
         // group, worked out once; the developer group is drawn by the
@@ -539,6 +541,12 @@ namespace ForestOverlay.Modules
                 }
                 UiKit.Hint(row, tips[i]);
                 y += 24f;
+                // Ticked but blank right now: why, on the page (T-0322).
+                if (!l.Locked && (l.External ? s.ExternalShows : s.Shows(i)))
+                {
+                    GUIContent idle = Host.HudLineIdle(l.Module, l.Label);
+                    if (idle != null) y += UiText.DrawDim(30, y, cw - 34, idle) + 2f;
+                }
             }
 
             Rect resetR = new Rect(4, y + 2f, 150, 22);
@@ -645,6 +653,12 @@ namespace ForestOverlay.Modules
 
         private void Say(string message, bool dev)
         {
+            Say(message, dev, null);
+        }
+
+        private void Say(string message, bool dev, HotkeyMap.Binding about)
+        {
+            _messageAbout = about;
             _message = message;
             _messageDev = dev;
             _messageUntil = Time.unscaledTime + MessageSeconds;
@@ -679,32 +693,58 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < binds.Count; i++)
             {
                 if (_groupOf[i] != group) continue;
-                HotkeyMap.Binding b = binds[i];
-
-                GUI.Label(new Rect(12, y, contentW - 252f, RowHeight), b.Description, _labelStyle);
-
-                HotkeyMap.Binding clash = map.Conflict(b.Key, b);
-                if (clash != null)
-                {
-                    GUI.Label(new Rect(contentW - 236f, y, 60f, RowHeight), "clash", _warnStyle);
-                }
-
-                bool waiting = map.AwaitingRebind == b;
-                GUIContent label = waiting ? PressText : (b.Key == KeyCode.None ? UnboundText : KeyLabel(b.Key));
-
-                // Wide enough for the longest key name (KeypadMultiply was cut off).
-                if (GUI.Button(new Rect(contentW - 172f, y + 2f, 124f, RowHeight - 6f), label))
-                    map.AwaitingRebind = waiting ? null : b;
-
-                if (GUI.Button(new Rect(contentW - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
-                {
-                    b.Key = b.Default;
-                    Say(b.Description + " reset to " + HotkeyMap.KeyName(b.Default) + ".", dev);
-                    Ctx.Log.LogInfo("Settings: key '" + b.Description + "' reset to " + HotkeyMap.KeyName(b.Default) + ".");
-                }
-                y += RowHeight;
+                // Drawn under its feature's switch instead (T-0322).
+                if (KeyGroups.BesideSwitch(binds[i].Id)) continue;
+                y = DrawBindRow(y, contentW, map, binds[i], dev);
             }
 
+            return y;
+        }
+
+        private float DrawBindRow(float y, float contentW, HotkeyMap map, HotkeyMap.Binding b, bool dev)
+        {
+            GUI.Label(new Rect(12, y, contentW - 252f, RowHeight), b.Description, _labelStyle);
+
+            HotkeyMap.Binding clash = map.Conflict(b.Key, b);
+            if (clash != null)
+            {
+                GUI.Label(new Rect(contentW - 236f, y, 60f, RowHeight), "clash", _warnStyle);
+            }
+
+            bool waiting = map.AwaitingRebind == b;
+            GUIContent label = waiting ? PressText : (b.Key == KeyCode.None ? UnboundText : KeyLabel(b.Key));
+
+            // Wide enough for the longest key name (KeypadMultiply was cut off).
+            if (GUI.Button(new Rect(contentW - 172f, y + 2f, 124f, RowHeight - 6f), label))
+                map.AwaitingRebind = waiting ? null : b;
+
+            if (GUI.Button(new Rect(contentW - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
+            {
+                b.Key = b.Default;
+                Say(b.Description + " reset to " + HotkeyMap.KeyName(b.Default) + ".", dev, b);
+                Ctx.Log.LogInfo("Settings: key '" + b.Description + "' reset to " + HotkeyMap.KeyName(b.Default) + ".");
+            }
+            return y + RowHeight;
+        }
+
+        /// One key's row where its feature's switch is (KeyGroups.BesideSwitch,
+        /// T-0322: the trajectory preview's under its Experimental switch),
+        /// rebound in place; the prompt and the result under it. Draws from
+        /// x 0, width w, like DrawDeveloperKeys.
+        public float DrawKeyRow(float y, float w, string id)
+        {
+            EnsureStyles();
+            HotkeyMap map = Host.Hotkeys;
+            HotkeyMap.Binding b = map.Find(id);
+            if (b == null) return y;
+            bool dev = KeyGroups.IsDeveloper(id);
+            _rowsDrawnFrame[dev ? 1 : 0] = Time.frameCount;
+            y = DrawBindRow(y, w - 16f, map, b, dev);
+            // The prompt only while this row captures, or its own result.
+            HotkeyMap.Binding awaiting = map.AwaitingRebind;
+            if (awaiting == b || (awaiting == null && _messageAbout == b && _message.Length > 0))
+                y = DrawPrompt(y, w, map, dev, _rowPrompt);
+            if (awaiting == b) CaptureKey(map, dev);
             return y;
         }
 
@@ -736,7 +776,7 @@ namespace ForestOverlay.Modules
             if (e.keyCode == KeyCode.Escape)
             {
                 map.AwaitingRebind = null;
-                Say("Rebind cancelled.", dev);
+                Say("Rebind cancelled.", dev, target);
                 Ctx.Log.LogInfo("Settings: rebind of '" + target.Description + "' cancelled.");
                 e.Use();
                 return;
@@ -747,7 +787,7 @@ namespace ForestOverlay.Modules
                 target.Key = KeyCode.None;
                 map.AwaitingRebind = null;
                 map.Swallow(KeyCode.Backspace);
-                Say(target.Description + " unbound.", dev);
+                Say(target.Description + " unbound.", dev, target);
                 Ctx.Log.LogInfo("Settings: key '" + target.Description + "' unbound.");
                 e.Use();
                 return;
@@ -778,7 +818,7 @@ namespace ForestOverlay.Modules
                 + (clash == null ? "." : " (also used by '" + clash.Description + "')."));
             Say(clash == null
                 ? target.Description + " -> " + name
-                : target.Description + " -> " + name + "  (also used by '" + clash.Description + "')", dev);
+                : target.Description + " -> " + name + "  (also used by '" + clash.Description + "')", dev, target);
         }
     }
 }

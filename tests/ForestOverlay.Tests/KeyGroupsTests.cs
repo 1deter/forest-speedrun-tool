@@ -65,6 +65,18 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void TheTrajectoryKeyIsReboundBesideItsSwitch()
+        {
+            // T-0322: under the Experimental switch, still a developer key
+            // (never in the runner's list).
+            Assert.True(KeyGroups.BesideSwitch("debug.trajectory"));
+            Assert.True(KeyGroups.IsDeveloper("debug.trajectory"));
+            Assert.False(KeyGroups.BesideSwitch("debug.freecam"));
+            Assert.False(KeyGroups.BesideSwitch("dump.write"));
+            Assert.False(KeyGroups.BesideSwitch(null));
+        }
+
+        [Fact]
         public void HudValuesAreGroupedFromTheFirstLine()
         {
             Assert.NotNull(HudLines.HeadingAt(0));

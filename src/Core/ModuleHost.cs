@@ -509,6 +509,22 @@ namespace ForestOverlay.Core
             return y;
         }
 
+        /// Why a ticked HUD value shows nothing now (OverlayModule.HudLineIdle),
+        /// or null; `module` and `label` as in HudLines. No allocation.
+        public GUIContent HudLineIdle(string module, string label)
+        {
+            if (string.IsNullOrEmpty(module)) return null;
+            for (int i = 0; i < _modules.Count; i++)
+            {
+                OverlayModule m = _modules[i];
+                if (!string.Equals(m.Id, module, StringComparison.Ordinal)) continue;
+                if (!IsLive(m)) return null;
+                try { return m.HudLineIdle(label); }
+                catch (Exception ex) { Disable(m, "HudLineIdle", ex); return null; }
+            }
+            return null;
+        }
+
         public void DrawPanels()
         {
             // The overlay skin (Core/UiKit) only around the panels: the HUD,

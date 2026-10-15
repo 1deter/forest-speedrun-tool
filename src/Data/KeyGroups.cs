@@ -69,5 +69,16 @@ namespace ForestOverlay.Data
         {
             return Of(id) == Developer;
         }
+
+        // Keys rebound under their feature's switch, not in their group's
+        // list (T-0322, author 2026-10-11: "the key beside its switch").
+        private static readonly string[] BesideSwitchIds = { "debug.trajectory" };
+
+        public static bool BesideSwitch(string id)
+        {
+            for (int i = 0; i < BesideSwitchIds.Length; i++)
+                if (string.Equals(id, BesideSwitchIds[i], StringComparison.Ordinal)) return true;
+            return false;
+        }
     }
 }

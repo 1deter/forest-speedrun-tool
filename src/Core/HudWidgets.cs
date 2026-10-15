@@ -589,6 +589,7 @@ namespace ForestOverlay.Core
         private readonly GUIContent[] _scaleTexts = new GUIContent[(int)(HudLayout.MaxScale * 4f) + 1];
         private Vector2 _scroll;
         private float _panelsH;
+        private float _idleH;   // the reasons under blank values (T-0322), last pass
         private static readonly GUIContent PanelsTitle = new GUIContent("Panels");
         private static readonly GUIContent ValuesTitle = new GUIContent("Values");
 
@@ -630,7 +631,7 @@ namespace ForestOverlay.Core
             int heads = 0;
             for (int i = 0; i < HudLines.All.Length; i++)
                 if (!HudLines.All[i].Locked && HudLines.HeadingAt(i) != null) heads++;
-            float contentH = _panelsH + rows * RowH + heads * HeadH + (_textLine >= 0 ? TextRowH : 0f) + noteH + 8f;
+            float contentH = _panelsH + rows * RowH + heads * HeadH + (_textLine >= 0 ? TextRowH : 0f) + _idleH + noteH + 8f;
             if (_headStyle == null || !ReferenceEquals(_headFor, UiKit.Palette))
             {
                 _headFor = UiKit.Palette;
@@ -653,6 +654,7 @@ namespace ForestOverlay.Core
                 ry = after + 30f;
             }
             _panelsH = ry;
+            float idleH = 0f;
             for (int i = 0; i < HudLines.All.Length; i++)
             {
                 HudLine l = HudLines.All[i];
@@ -665,7 +667,19 @@ namespace ForestOverlay.Core
                     ry += HeadH;
                 }
                 ry = DrawRow(i, ry, cw, settings);
+                // Ticked but blank right now: why, under its row (T-0322).
+                if (host != null && (l.External ? settings.ExternalShows : settings.Shows(i)))
+                {
+                    GUIContent idle = host.HudLineIdle(l.Module, l.Label);
+                    if (idle != null)
+                    {
+                        float ih = UiText.Draw(20f, ry, cw - 24f, idle, UiKit.HintStyle) + 2f;
+                        ry += ih;
+                        idleH += ih;
+                    }
+                }
             }
+            _idleH = idleH;   // sizes the next pass's scroll view
             UiText.Draw(0f, ry + 4f, cw - 4f, LockedNote, UiKit.HintStyle);
             GUI.EndScrollView();
             return done;

@@ -132,6 +132,12 @@ namespace ForestOverlay.Core
         /// the list's scroll view; returns the y after its rows.
         public virtual float DrawHudEditor(float y, float w) { return y; }
 
+        /// Why this module's HUD value `label` (HudLines' Label) shows
+        /// nothing right now though ticked, or null (T-0322: Flight / Boost
+        /// while the trajectory preview is off). Read in OnGUI by the HUD
+        /// value lists: a cached GUIContent, never built here.
+        public virtual GUIContent HudLineIdle(string label) { return null; }
+
         public virtual void OnPanelToggled(bool open) { }
 
         public virtual void Shutdown() { }

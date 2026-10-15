@@ -110,6 +110,12 @@ namespace ForestOverlay.Modules
             "swept with your body's capsule; your steering in the air is not simulated - it assumes you keep holding the way you move. " +
             "In the pause menu during a knockback it shows the bomb boost the menu is piling up and what each more second adds. " +
             "The HUD's Flight / Boost lines show the numbers with the window closed.");
+        // Under a ticked Flight / Boost HUD value that shows nothing (T-0322).
+        private static readonly GUIContent TrajectoryOffHud = new GUIContent(
+            "Blank while the trajectory preview is off: turn it on in the Developer tab, Experimental.");
+        private static readonly GUIContent TrajectoryLockedHud = new GUIContent(
+            "Blank during a run: run mode locks the trajectory preview.");
+        private SettingsModule _settings;
 
         private AreaKeeper _areas;
         private Vector2 _scroll;
@@ -456,6 +462,13 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
+        public override GUIContent HudLineIdle(string label)
+        {
+            if (_trajectory == null || _trajectory.Show) return null;
+            if (label != "Flight" && label != "Boost") return null;
+            return _trajectoryLocked ? TrajectoryLockedHud : TrajectoryOffHud;
+        }
+
         public override void ContributeHud(HudBuilder hud)
         {
             if (_freeCamOn) hud.Pair("Cam", "FREECAM");
@@ -611,6 +624,9 @@ namespace ForestOverlay.Modules
             bool traj = UiKit.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
             if (traj != _trajectoryOn) ToggleTrajectory();
             y += Row;
+            // Its key, rebound here beside the switch (T-0322).
+            if (_settings == null) _settings = Host.Find<SettingsModule>();
+            if (_settings != null) y = _settings.DrawKeyRow(y, w, "debug.trajectory");
             if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);
             y += UiText.Draw(30, y, w - 42, _trajectoryStatus);
             if (_trajectory.Show)
