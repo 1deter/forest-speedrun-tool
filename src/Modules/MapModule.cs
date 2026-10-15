@@ -138,7 +138,7 @@ namespace ForestOverlay.Modules
 
         // GL scratch (no allocation in Repaint).
         private readonly float[] _cx = new float[4], _cz = new float[4];
-        private float _ox, _oy, _screenH;
+        private float _ox, _oy, _screenH, _k = 1f;
         private float _clipW, _clipH;
         private static readonly float[] CircleCos = BuildCircle(true), CircleSin = BuildCircle(false);
 
@@ -597,6 +597,9 @@ namespace ForestOverlay.Modules
             if (_material == null) return false;
             Vector2 o = GUIUtility.GUIToScreenPoint(new Vector2(map.x, map.y));
             _ox = o.x; _oy = o.y; _screenH = Screen.height;
+            // The window's scale (T-0324): GL draws in screen pixels, the map in window units.
+            _k = GUIUtility.GUIToScreenPoint(new Vector2(map.x + 100f, map.y)).x - o.x;
+            _k = _k > 0f ? _k / 100f : 1f;
             _clipW = map.width; _clipH = map.height;
 
             GL.PushMatrix();
@@ -777,7 +780,7 @@ namespace ForestOverlay.Modules
 
         private void Vertex(float x, float y)
         {
-            GL.Vertex3(_ox + x, _screenH - (_oy + y), 0f);
+            GL.Vertex3(_ox + x * _k, _screenH - (_oy + y * _k), 0f);
         }
 
         // ------------------------------------------------------------------

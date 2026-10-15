@@ -365,7 +365,7 @@ namespace ForestOverlay.Core
             _headerSummary = new GUIStyle(_skin.label);
             _headerSummary.alignment = TextAnchor.MiddleRight;
             _headerSummary.normal.textColor = DimColour;
-            _headerSummary.fontSize = 11;
+            _headerSummary.fontSize = 0;   // body size, as every hint (T-0324)
 
             _card = new GUIStyle(_skin.box);
             StyleState(_card.normal, _tCard, TextColour);
@@ -389,7 +389,7 @@ namespace ForestOverlay.Core
             _tip.padding = new RectOffset(8, 8, 5, 5);
             _tip.wordWrap = true;
             _tip.alignment = TextAnchor.UpperLeft;
-            _tip.fontSize = 12;
+            _tip.fontSize = 0;
 
             _primary = new GUIStyle(b);
             StyleState(_primary.normal, _tPrimary, OnAccent);
@@ -399,7 +399,7 @@ namespace ForestOverlay.Core
 
             _hint = new GUIStyle(_skin.label);
             _hint.normal.textColor = DimColour;
-            _hint.fontSize = 11;
+            _hint.fontSize = 0;   // the body's size: hints and descriptions are read, not skimmed (T-0324, XAG 101)
             _hint.wordWrap = true;
 
             _title = new GUIStyle(_skin.label);

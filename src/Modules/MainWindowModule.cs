@@ -61,7 +61,21 @@ namespace ForestOverlay.Modules
         /// True while the window is open on this module's tab.
         /// Where the window is on screen, while it is open (else empty) -
         /// so a drag on the splits panel never starts from a click on it.
-        public Rect ScreenRect { get { return PanelOpen ? _windowRect : new Rect(); } }
+        /// In screen pixels: the window itself is laid out in its own scaled
+        /// units (_f).
+        public Rect ScreenRect
+        {
+            get
+            {
+                if (!PanelOpen) return new Rect();
+                return new Rect(_windowRect.x * _f, _windowRect.y * _f, _windowRect.width * _f, _windowRect.height * _f);
+            }
+        }
+
+        // The window's scale (T-0324): its units are pixels of a 768-high
+        // screen (Data/UiScale.WindowFactor), so its text keeps its size
+        // relative to the screen at every resolution.
+        private float _f = 1f;
 
         public bool IsShowing(OverlayModule module)
         {
@@ -88,19 +102,25 @@ namespace ForestOverlay.Modules
 
         public override void DrawPanel(int windowId)
         {
+            // The screen in window units. A resolution change keeps the
+            // rect's units, so the window keeps its look and its place
+            // relative to the screen's height.
+            _f = UiScale.WindowFactor(Screen.height);
+            float sw = Screen.width / _f, sh = Screen.height / _f;
+
             if (!_windowPlaced)
             {
-                float w = Mathf.Min(760f, Screen.width - 80f);
-                float h = Mathf.Min(620f, Screen.height - 120f);
-                _windowRect = new Rect((Screen.width - w) * 0.5f, 70f, w, h);
+                float w = Mathf.Min(760f, sw - 80f);
+                float h = Mathf.Min(620f, sh - 120f);
+                _windowRect = new Rect((sw - w) * 0.5f, 70f, w, h);
                 _windowPlaced = true;
             }
 
             // Keep at least the title bar on screen: a resolution change or
             // a drag past the edge would otherwise leave an open window
             // nobody can see.
-            _windowRect.x = Mathf.Clamp(_windowRect.x, 40f - _windowRect.width, Screen.width - 40f);
-            _windowRect.y = Mathf.Clamp(_windowRect.y, 0f, Screen.height - 30f);
+            _windowRect.x = Mathf.Clamp(_windowRect.x, 40f - _windowRect.width, sw - 40f);
+            _windowRect.y = Mathf.Clamp(_windowRect.y, 0f, sh - 30f);
 
             HudWidgets hudw = Host.Hud.Widgets;
             bool editing = hudw != null && hudw.Editing;
@@ -110,21 +130,29 @@ namespace ForestOverlay.Modules
                 if (editing)
                 {
                     _normalRect = _windowRect;
-                    float ew = Mathf.Min(430f, Screen.width - 40f);
+                    float ew = Mathf.Min(430f, sw - 40f);
                     // Just right of the HUD column (its values are dragged out
                     // of it, T-0018), so still on the left: the splits panel
                     // sits against the right edge by default and must stay in
-                    // sight to be dragged (T-0257).
+                    // sight to be dragged (T-0257). The column is in the HUD's
+                    // own scaled screen: through screen pixels into ours.
                     HudSettings hs = Host.Hud.Settings;
-                    float ex = hs.X + HudLines.Width(hs.TextSize, Screen.width) + 16f;
-                    if (ex + ew > Screen.width - 16f) ex = 16f;
-                    _windowRect = new Rect(ex, 60f, ew, Mathf.Min(560f, Screen.height - 100f));
+                    UiScale ui = hs.Scale();
+                    float hudRight = (Mathf.Max(0f, ui.PosX(hs.X)) + HudLines.Width(hs.TextSize, ui.VW)) * ui.F;
+                    float ex = hudRight / _f + 16f;
+                    if (ex + ew > sw - 16f) ex = 16f;
+                    _windowRect = new Rect(ex, 60f, ew, Mathf.Min(560f, sh - 100f));
                 }
                 else _windowRect = _normalRect;
             }
 
             if (_contentsFn == null) _contentsFn = DrawContentsWatched;
-            _windowRect = GUI.Window(windowId, _windowRect, _contentsFn, _title);
+            // IMGUI keeps the matrix in force here for the window's function
+            // and its drag, so the contents lay out in window units.
+            Matrix4x4 outer = GUI.matrix;
+            if (_f != 1f) GUI.matrix = outer * Matrix4x4.Scale(new Vector3(_f, _f, 1f));
+            try { _windowRect = GUI.Window(windowId, _windowRect, _contentsFn, _title); }
+            finally { GUI.matrix = outer; }
         }
 
         private readonly GUIContent _title = new GUIContent("");

@@ -93,5 +93,16 @@ namespace ForestOverlay.Tests
             s = At(480, 270, 7680, 4320, true);
             Assert.Equal(UiScale.MaxFactor, s.F);
         }
+
+        [Fact]
+        public void TheWindowScalesWithTheHeightAbove768Only()
+        {
+            Assert.Equal(1f, UiScale.WindowFactor(768));
+            Assert.Equal(1f, UiScale.WindowFactor(720));
+            Assert.Equal(1f, UiScale.WindowFactor(0));
+            Assert.Equal(1080f / 768f, UiScale.WindowFactor(1080), 4);
+            Assert.Equal(1440f / 768f, UiScale.WindowFactor(1440), 4);
+            Assert.Equal(UiScale.MaxFactor, UiScale.WindowFactor(100000));
+        }
     }
 }

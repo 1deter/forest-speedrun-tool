@@ -62,6 +62,18 @@ namespace ForestOverlay.Data
             return true;
         }
 
+        /// The settings window (T-0324, author 2026-10-15) is laid out in
+        /// pixels of a 768-high screen and scaled by the screen's height
+        /// above that, so its text reads the same at every resolution (body
+        /// ~18 px at 1080p, XAG 101). Never below 1: 1366 x 768 is the
+        /// smallest supported screen. Not tied to SizesFollow (the HUD's).
+        public const int WindowRefH = 768;
+
+        public static float WindowFactor(int screenH)
+        {
+            return screenH <= WindowRefH ? 1f : Clamp((float)screenH / WindowRefH);
+        }
+
         private static float Clamp(float f)
         {
             return f < MinFactor ? MinFactor : f > MaxFactor ? MaxFactor : f;
