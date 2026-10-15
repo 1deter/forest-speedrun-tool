@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.313 - 2026-10-16
+
+- Input overlay: new 'Only while pressed' switch (Edit HUD) - each key or mouse button shows only while you hold it, exactly as pressed, and nothing shows otherwise. The mouse box and the wheel stay as before.
+- Edit HUD still shows every tile so you can place them.
+
 ## v0.24.312 - 2026-10-16
 
 - Input overlay: the mouse box path is now drawn as a continuous thin line inside the box (v0.24.311 showed scattered dashes, some outside the box).
