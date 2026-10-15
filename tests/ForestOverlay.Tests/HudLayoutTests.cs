@@ -29,6 +29,42 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DockedRowsKeepTheOrderTheyWereDockedIn()
+        {
+            HudLayout a = new HudLayout();
+            a.SetText("ShowPosition", "Pos ", "");   // listed first, docked last
+            a.Dock("ShowSpeed");
+            a.Dock("ShowRunTimer");
+            a.Dock("ShowPosition");
+            HudLayout b = HudLayout.Parse(a.Format());
+            System.Collections.Generic.List<string> keys = new System.Collections.Generic.List<string>();
+            b.DockedKeys(keys);
+            Assert.Equal(new[] { "ShowSpeed", "ShowRunTimer", "ShowPosition" }, keys.ToArray());
+            b.Attach("ShowSpeed");
+            b.Dock("ShowSpeed");   // docked again: last
+            b.DockedKeys(keys);
+            Assert.Equal(new[] { "ShowRunTimer", "ShowPosition", "ShowSpeed" }, keys.ToArray());
+        }
+
+        [Fact]
+        public void BareDockedFromAnOlderFileComesFirstInFileOrder()
+        {
+            HudLayout l = HudLayout.Parse("ShowSpeed: docked\nShowPosition: docked\nShowRunTimer: docked=1\n");
+            System.Collections.Generic.List<string> keys = new System.Collections.Generic.List<string>();
+            l.DockedKeys(keys);
+            Assert.Equal(new[] { "ShowSpeed", "ShowPosition", "ShowRunTimer" }, keys.ToArray());
+        }
+
+        [Fact]
+        public void ADockedValueStaysInTheColumnWhileThePanelIsNotOnScreen()
+        {
+            Assert.False(HudLayout.LeavesColumn(false, true, false));
+            Assert.True(HudLayout.LeavesColumn(false, true, true));
+            Assert.True(HudLayout.LeavesColumn(true, false, false));
+            Assert.False(HudLayout.LeavesColumn(false, false, true));
+        }
+
+        [Fact]
         public void DockedValueRoundTripsAndExcludesFree()
         {
             HudLayout a = new HudLayout();

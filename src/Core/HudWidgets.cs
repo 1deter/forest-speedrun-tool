@@ -144,8 +144,18 @@ namespace ForestOverlay.Core
         /// docked in the splits panel.
         public bool LeavesColumn(int lineIndex)
         {
-            return IsFree(lineIndex) || IsDocked(lineIndex);
+            return HudLayout.LeavesColumn(IsFree(lineIndex), IsDocked(lineIndex), PanelOnScreen);
         }
+
+        /// The frame the splits panel last drew (it sets this): a docked
+        /// value shows in the column while the panel is not on screen.
+        public int DockHostFrame = -10;
+        public bool PanelOnScreen { get { return DockHostFrame >= Time.frameCount - 1; } }
+
+        /// The docked values' HudLines indexes, in the order they were docked.
+        public List<int> DockedLines { get { return _dockedLines; } }
+        private readonly List<int> _dockedLines = new List<int>();
+        private readonly List<string> _dockedKeys = new List<string>();
 
         /// Whether line `lineIndex` is coloured by its trend (T-0023).
         public bool TrendOn(int lineIndex)
@@ -195,6 +205,13 @@ namespace ForestOverlay.Core
                 _before[line] = w.Before;
                 _after[line] = w.After;
                 _trendOn[line] = w.Trend && HudLines.All[line].Trend;
+            }
+            _layout.DockedKeys(_dockedKeys);
+            _dockedLines.Clear();
+            for (int i = 0; i < _dockedKeys.Count; i++)
+            {
+                int line = HudLines.IndexOfKey(_dockedKeys[i]);
+                if (line >= 0) _dockedLines.Add(line);
             }
             TextVersion++;
         }
@@ -749,7 +766,9 @@ namespace ForestOverlay.Core
             }
 
             HudWidgetLayout wl = WidgetOf(i);
-            if (wl == null || !wl.Docked)
+            // One button for the docking, never beside a placed value's own
+            // buttons (that row is the full one): In panel, or To column.
+            if (wl == null || (!wl.Docked && !wl.Free))
             {
                 x -= Gap + PanelW;
                 Rect dockR = new Rect(x, ry, PanelW, h);

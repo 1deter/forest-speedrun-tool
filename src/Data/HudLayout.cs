@@ -14,12 +14,14 @@ namespace ForestOverlay.Data
     //
     //   - FREE: dragged out of the column, placed anywhere, sized by scale;
     //   - text BEFORE / AFTER the value, the runner's own ("Speed ", " u/s");
+    //   - DOCKED (T-0338): a row of the splits panel, in the order it was
+    //     docked (`docked=2`; a bare `docked` is a file from before the order);
     //   - TREND: the value coloured by whether it is gaining / losing /
     //     steady (Data/HudTrend, T-0023), on a value that offers it.
     //
     //   # ForestOverlay HUD layout
     //   ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s", trend
-    //   ShowPosition: before="Pos "
+    //   ShowPosition: docked=1, before="Pos "
     //
     // An empty layout is the default look. Pure and forgiving: unknown keys /
     // tokens are ignored (`label=` from the first redesign builds too),
@@ -39,6 +41,9 @@ namespace ForestOverlay.Data
         /// A row of the splits panel (T-0338): docked under its lines, as a
         /// LiveSplit component. Never together with Free.
         public bool Docked;
+        /// Where it was docked, 1 = first; 0 = a profile from before the order
+        /// was kept (those rows come first, in file order).
+        public int DockOrder;
 
         /// Nothing left to keep: in the column, no text, no trend colour.
         public bool IsDefault { get { return !Free && !Docked && Before.Length == 0 && After.Length == 0 && !Trend; } }
@@ -84,6 +89,7 @@ namespace ForestOverlay.Data
             HudWidgetLayout w = Get(key);
             w.Free = true;
             w.Docked = false;
+            w.DockOrder = 0;
             w.X = x;
             w.Y = y;
             return w;
@@ -95,6 +101,40 @@ namespace ForestOverlay.Data
             return w != null && w.Docked;
         }
 
+        private int NextDockOrder()
+        {
+            int max = 0;
+            for (int i = 0; i < Widgets.Count; i++)
+                if (Widgets[i].Docked && Widgets[i].DockOrder > max) max = Widgets[i].DockOrder;
+            return max + 1;
+        }
+
+        /// The docked values' keys in the order the runner docked them
+        /// (older profiles' rows first, in file order).
+        public void DockedKeys(List<string> into)
+        {
+            into.Clear();
+            List<HudWidgetLayout> docked = new List<HudWidgetLayout>();
+            for (int i = 0; i < Widgets.Count; i++) if (Widgets[i].Docked) docked.Add(Widgets[i]);
+            for (int i = 1; i < docked.Count; i++)   // stable insertion sort
+            {
+                HudWidgetLayout v = docked[i];
+                int j = i - 1;
+                while (j >= 0 && docked[j].DockOrder > v.DockOrder) { docked[j + 1] = docked[j]; j--; }
+                docked[j + 1] = v;
+            }
+            for (int i = 0; i < docked.Count; i++) into.Add(docked[i].Key);
+        }
+
+        /// Whether the HUD column skips a value: placed on its own, or docked
+        /// while the splits panel is on screen to carry it (when it is not -
+        /// no timed segment, the results panel up, the panel off - the value
+        /// stays in the column instead of vanishing).
+        public static bool LeavesColumn(bool free, bool docked, bool panelOnScreen)
+        {
+            return free || (docked && panelOnScreen);
+        }
+
         /// The value into the splits panel. False when it already was.
         public bool Dock(string key)
         {
@@ -103,6 +143,7 @@ namespace ForestOverlay.Data
             if (w != null && w.Docked) return false;
             w = Get(key);
             w.Docked = true;
+            w.DockOrder = NextDockOrder();
             w.Free = false;
             w.Scale = 1f;
             return true;
@@ -115,6 +156,7 @@ namespace ForestOverlay.Data
             if (w == null || (!w.Free && !w.Docked)) return false;
             w.Free = false;
             w.Docked = false;
+            w.DockOrder = 0;
             w.Scale = 1f;
             if (w.IsDefault) Widgets.Remove(w);
             return true;
@@ -232,6 +274,14 @@ namespace ForestOverlay.Data
                     float f;
                     switch (name)
                     {
+                        case "docked":
+                            int order;
+                            if (int.TryParse(val, NumberStyles.Integer, CultureInfo.InvariantCulture, out order))
+                            {
+                                w.Docked = !w.Free;
+                                w.DockOrder = order < 0 ? 0 : order;
+                            }
+                            break;
                         case "x": if (Num(val, out f)) w.X = f; break;
                         case "y": if (Num(val, out f)) w.Y = f; break;
                         case "scale": if (Num(val, out f)) w.Scale = ClampScale(f); break;
@@ -239,7 +289,7 @@ namespace ForestOverlay.Data
                         case "after": w.After = CleanText(Unquote(val)); break;
                     }
                 }
-                if (w.Free) w.Docked = false;
+                if (w.Free || !w.Docked) { w.Docked = false; w.DockOrder = 0; }
                 if (!w.IsDefault) layout.Widgets.Add(w);
             }
             return layout;
@@ -304,7 +354,12 @@ namespace ForestOverlay.Data
                       .Append(", scale=").Append(N(ClampScale(w.Scale)));
                     sep = ", ";
                 }
-                if (w.Docked) { sb.Append(" docked"); sep = ", "; }
+                if (w.Docked)
+                {
+                    sb.Append(" docked");
+                    if (w.DockOrder > 0) sb.Append('=').Append(w.DockOrder.ToString(CultureInfo.InvariantCulture));
+                    sep = ", ";
+                }
                 if (w.Before.Length > 0) { sb.Append(sep).Append("before=").Append(Quote(w.Before)); sep = ", "; }
                 if (w.After.Length > 0) { sb.Append(sep).Append("after=").Append(Quote(w.After)); sep = ", "; }
                 if (w.Trend) sb.Append(sep).Append("trend");

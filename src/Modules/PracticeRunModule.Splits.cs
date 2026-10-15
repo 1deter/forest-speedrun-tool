@@ -751,6 +751,8 @@ namespace ForestOverlay.Modules
                 return;
             }
             EnsureSplitStyles();
+            // Docked HUD values show here while the panel does (T-0338).
+            if (Host.Hud.Widgets != null) Host.Hud.Widgets.DockHostFrame = Time.frameCount;
 
             float w = Mathf.Clamp(PanelWidthNow, MinPanelW, HudUi.VW);
             int rows = PanelRowsNow;
@@ -786,6 +788,9 @@ namespace ForestOverlay.Modules
             {
                 CrispText.Label(new Rect(x + 6f, y + 4f, w - 12f, RowH), SplitsPanelText, _titleStyle);
                 UiText.Draw(x + 6f, y + 4f + RowH, w - 12f, SplitsPlaceholder, _placeholderStyle);
+                // The docked rows sit at the bottom, where a run puts them.
+                int dockedN = DockedRows();
+                if (dockedN > 0) DrawDockedRows(x + 6f, panel.yMax - 4f - dockedN * RowH - 4f, w - 12f);
             }
 
             if (editing || _dragging) GUI.Box(panel, GUIContent.none, UiKit.Outline);
@@ -960,6 +965,32 @@ namespace ForestOverlay.Modules
             return n;
         }
 
+        /// The docked rows at (x, y), in the order they were docked; returns
+        /// the height (with the 4 px gap above them).
+        private float DrawDockedRows(float x, float y, float w)
+        {
+            HudBuilder hud = Host.Hud;
+            HudWidgets widgets = hud.Widgets;
+            if (widgets == null) return 0f;
+            List<int> order = widgets.DockedLines;
+            float y0 = y;
+            for (int k = 0; k < order.Count; k++)
+            {
+                int li = order[k];
+                for (int j = 0; j < hud.Count; j++)
+                {
+                    if (hud.LineIndex(j) != li) continue;
+                    if (y == y0) y += 4f;
+                    GUIContent label = hud.LabelAt(j);
+                    if (HudLines.All[li].Label != null && !string.IsNullOrEmpty(label.text))
+                        CrispText.Label(new Rect(x, y, w - 90f, RowH), label, _nameStyle);
+                    CrispText.Label(new Rect(x, y, w, RowH), hud.ValueAt(j), _cellStyle);
+                    y += RowH;
+                }
+            }
+            return y - y0;
+        }
+
         /// The table at (x, y), `w` wide; returns its height. `header` adds
         /// the column titles.
         private float DrawSplitsTable(float x, float y, float w, int maxRows, bool header)
@@ -1000,6 +1031,14 @@ namespace ForestOverlay.Modules
             {
                 int r = start + k;
                 if (visible < _shownRows && k == visible - 1) r = _shownRows - 1;
+                // LiveSplit's current-split highlight: a bar across the row.
+                if (_rowCurrent[r])
+                {
+                    Color before = GUI.color;
+                    GUI.color = new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.4f);
+                    GUI.DrawTexture(new Rect(x - 3f, y, w + 6f, RowH), UiKit.AccentTexture);
+                    GUI.color = before;
+                }
                 GUIStyle nameStyle = _rowCurrent[r] ? _titleStyle : _nameStyle;
                 CrispText.Label(new Rect(x, y, nameW, RowH), _rowNames[r], nameStyle);
                 float cx = x + nameW;
@@ -1039,23 +1078,7 @@ namespace ForestOverlay.Modules
 
             // The HUD values docked here (T-0338): LiveSplit's extra components,
             // a name left and its value right, under the summary lines.
-            HudBuilder hud = Host.Hud;
-            HudWidgets widgets = hud.Widgets;
-            bool anyDocked = false;
-            if (widgets != null)
-            {
-                for (int j = 0; j < hud.Count; j++)
-                {
-                    int li = hud.LineIndex(j);
-                    if (!widgets.IsDocked(li)) continue;
-                    if (!anyDocked) { y += 4f; anyDocked = true; }
-                    GUIContent label = hud.LabelAt(j);
-                    if (HudLines.All[li].Label != null && !string.IsNullOrEmpty(label.text))
-                        CrispText.Label(new Rect(x, y, w - 90f, RowH), label, _nameStyle);
-                    CrispText.Label(new Rect(x, y, w, RowH), hud.ValueAt(j), _cellStyle);
-                    y += RowH;
-                }
-            }
+            y += DrawDockedRows(x, y, w);
             return y - y0;
         }
 
