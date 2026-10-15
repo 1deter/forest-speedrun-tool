@@ -39,8 +39,9 @@ last** in `BuildModules()`: the bridge reaches modules by index
 - **Variable text goes through `Core/UiText.Draw`** — status lines, errors,
   descriptions, anything whose length is not fixed. It wraps to the width
   given, takes the height it needs and returns it; the caller adds that to
-  `y`. A fixed `GUI.Label(new Rect(x, y, w, 20), text)` is only for short
-  constant text and virtualised list rows. The author reported clipped text
+  `y`. A fixed `WinPx.Label(new Rect(x, y, w, 20), text)` is only for short
+  constant text and virtualised list rows. Controls go through `Core/WinPx`,
+  never raw `GUI.*` (crisp text in the scaled F2 window, T-0360; lint). The author reported clipped text
   three times in one session (cut in half when wrapping in 20 px, cut off
   on the right when not, running under the list) — this rule is the fix.
   A message goes **where the click was** (under its button); with no panel
