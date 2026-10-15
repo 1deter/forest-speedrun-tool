@@ -78,7 +78,7 @@ A "no" is a finding. The source is in brackets.
 15. Can anything that creates, overwrites or deletes happen by
     accident? It needs its own button and a confirm or undo when it
     destroys; everything else is automatic. [Nielsen 3, 5; author:
-    automatic unless it can lose work]
+    automatic unless it can lose work; a key-capture control must also swallow the key's own hotkey, T-0375]
 
 ### D. Consistency
 
@@ -221,3 +221,4 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
 - 2026-10-11 - T-0306 (t0306 build on ui-redesign): Settings > HUD (trend swatches, value headings), Edit HUD (Reset profile, headings), Developer (Experimental, Keys), run-mode marker (code only: no ModAPI session); checks A-F + first run; 5 tasks (T-0320..T-0324, all parked), a note on T-0264 (on ui-redesign). Method: game was closed - launched it by hand (see method notes).
 - 2026-10-11 - T-0255 review (Map tab key + hover hint, ui-redesign 9dd92ef, in game at the title screen): 3 findings, all severity 1 and parked (colour overlap zones/categories, hint repeats the status line, key rows cut on a short map - code only). Method: the hover hint is reached by moving the real pointer (`SetCursorPos` + a few `mouse_event` moves over the client origin); a plain `SetCursorPos` alone did not register.
 - 2026-10-15 - T-0302 review (Input overlay, v0.24.294 in game, Edit HUD > Panels): checks A-G; 5 findings (T-0353..T-0357, 3 parked). First-run counts (check 32) for turning it on: F2, Edit HUD, scroll, toggle = 2 clicks from the window (off by default). Method: Edit HUD is reached by clicking its button with `mouse_event` (client origin from `ClientToScreen`); a real W / E press by `SendInput` with a scan code lights a tile and feeds `+ Key`; a click that misses the scrolled list toggles a neighbour (I flipped Dump status once and put it back) - screenshot before each click, scroll with `mouse_event` wheel (-120 per tick, a tick moves ~1 row group).
+- 2026-10-15 - T-0359 review (Input overlay as a whole, v0.24.309 in game at 1920x1200 + code for the unbuilt dynamic mode / action source / any-input add flow): 4 findings (T-0375..T-0378, 2 parked), option sets (no picks) as notes on T-0358, T-0356, T-0361. Method: a key capture is tested with a benign bound key (F2) to see whether the plugin's own hotkeys also fire; real W / mouse input via scripts/sendinput.py moves the player, so use it only with the author's say or send keys that do nothing in game; a tile moved by a drag test is put back with `set` on the module's `_layout.Tiles[i].X / .Y` and `_layoutCfg.Value` (the bridge has no `call`).
