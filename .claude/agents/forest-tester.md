@@ -15,6 +15,7 @@ Read only: docs/bridge.md's sections *Loading a save*, *The plugin*, *Test spots
 
 - If the release's DLL may not be attached yet, poll `curl -s -o /dev/null -w '%{http_code}' -L https://github.com/1deter/forest-speedrun-tool/releases/download/vX.Y.Z/ForestOverlay.dll` every 30 s until 200 (never api.github.com), then `update_game` once.
 - Every tool call costs tokens: plan the sequence, then batch it - `run` with several lines, `get` with several paths. Screenshots cost the most: only when a step needs eyes (`region` to crop, a unique name each); a `log` regex or a `get` answers most questions.
+- Fully automatic: never ask the author (or a notice) to press, hold or do anything (author, 2026-10-16). A key / button the bridge cannot press: a Python script in the scratchpad holds it with Windows SendInput through ctypes (KEYEVENTF_SCANCODE, the game window foregrounded with SetForegroundWindow); no PowerShell scripts. Only if that truly cannot reach the game: NOT CHECKED with the reason.
 - Long waits are fine when a measurement needs them; say why in one line.
 - Test spots are removed by a Python split on "\n[segment]" that keeps BOM and line endings, then `Reload`.
 
