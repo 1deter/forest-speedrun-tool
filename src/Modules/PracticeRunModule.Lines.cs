@@ -22,15 +22,16 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     public sealed partial class PracticeRunModule
     {
-        private ConfigEntry<float> _lineOpacity, _lineAhead, _replayOpacity;
+        private ConfigEntry<float> _lineOpacity, _lineAhead, _replayOpacity, _lineWidth;
         private ConfigEntry<bool> _lineAheadOn, _keepFailedCfg, _ghostCfg;
 
-        private float _lineOpacityNow = -1f, _lineAheadNow = -1f, _replayOpacityNow = -1f;   // < 0 = the config's value
+        private float _lineOpacityNow = -1f, _lineAheadNow = -1f, _replayOpacityNow = -1f, _lineWidthNow = -1f;   // < 0 = the config's value
         private float _lineWriteAt;
         private readonly GUIContent _lineOpacityText = new GUIContent("");
         private readonly GUIContent _lineAheadText = new GUIContent("");
         private readonly GUIContent _replayOpacityText = new GUIContent("");
-        private float _lineOpacityShown = -1f, _lineAheadShown = -1f, _replayOpacityShown = -1f;
+        private readonly GUIContent _lineWidthText = new GUIContent("");
+        private float _lineOpacityShown = -1f, _lineAheadShown = -1f, _replayOpacityShown = -1f, _lineWidthShown = -1f;
 
         private static readonly GUIContent TextGhost = new GUIContent(" Ghost during a run");
         private static readonly GUIContent TipGhost = new GUIContent(
@@ -38,10 +39,12 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipReplayOpacity = new GUIContent(
             "The ghost, the replay's buildings and markers, and the comparison line while you watch it.");
         private static readonly GUIContent TipLineOpacity = new GUIContent("Your run's line, the comparison's and the red one.");
+        private static readonly GUIContent TipLineWidth = new GUIContent("How thick the run lines and the ghost are drawn, in pixels on a 1080p screen.");
 
         private float LineOpacity { get { return _lineOpacityNow >= 0f ? _lineOpacityNow : _lineOpacity.Value; } }
         private float LineAhead { get { return _lineAheadNow >= 0f ? _lineAheadNow : _lineAhead.Value; } }
         private float ReplayOpacity { get { return _replayOpacityNow >= 0f ? _replayOpacityNow : _replayOpacity.Value; } }
+        private float LineWidth { get { return Mathf.Clamp(_lineWidthNow >= 0f ? _lineWidthNow : _lineWidth.Value, 1f, 8f); } }
 
         private void InitLineOptions(ModuleContext ctx)
         {
@@ -55,6 +58,8 @@ namespace ForestOverlay.Modules
             _lineAheadOn = ctx.Config.Bind("Runs", "RunLineAheadOnly", false,
                 "Draw only the next RunLineAheadSeconds of the comparison line, from where its ghost is.");
             _lineAhead = ctx.Config.Bind("Runs", "RunLineAheadSeconds", 5f, "How far ahead the comparison line reaches with RunLineAheadOnly (1-60 s).");
+            _lineWidth = ctx.Config.Bind("Runs", "RunLineWidth", 3f,
+                "Run lines' and the ghost's width in pixels on a 1080p screen (scaled with the screen's height), 1-8.");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
@@ -66,6 +71,7 @@ namespace ForestOverlay.Modules
             if (_lineOpacityNow >= 0f) { _lineOpacity.Value = _lineOpacityNow; _lineOpacityNow = -1f; }
             if (_lineAheadNow >= 0f) { _lineAhead.Value = _lineAheadNow; _lineAheadNow = -1f; }
             if (_replayOpacityNow >= 0f) { _replayOpacity.Value = _replayOpacityNow; _replayOpacityNow = -1f; }
+            if (_lineWidthNow >= 0f) { _lineWidth.Value = _lineWidthNow; _lineWidthNow = -1f; }
         }
 
         /// The run lines' own options, indented under the Run lines switch
@@ -76,6 +82,7 @@ namespace ForestOverlay.Modules
             // Text rebuilt only when the value moves (OnGUI runs often).
             if (LineOpacity != _lineOpacityShown) { _lineOpacityShown = LineOpacity; _lineOpacityText.text = Mathf.RoundToInt(LineOpacity * 100f) + "%"; }
             if (LineAhead != _lineAheadShown) { _lineAheadShown = LineAhead; _lineAheadText.text = LineAhead.ToString("0") + " s"; }
+            if (LineWidth != _lineWidthShown) { _lineWidthShown = LineWidth; _lineWidthText.text = LineWidth.ToString("0.#") + " px"; }
 
             w -= x;
             float sliderW = Mathf.Max(80f, w - 190f);
@@ -88,6 +95,17 @@ namespace ForestOverlay.Modules
                 _lineWriteAt = Time.unscaledTime + 0.5f;
             }
             GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineOpacityText);
+            y += 24f;
+
+            GUI.Label(new Rect(x, y, 120, 20), "Width");
+            UiKit.Hint(new Rect(x, y, 120, 20), TipLineWidth);
+            float wd = GUI.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineWidth, 1f, 8f);
+            if (Mathf.Abs(wd - LineWidth) > 0.04f)
+            {
+                _lineWidthNow = Mathf.Round(wd * 2f) / 2f;
+                _lineWriteAt = Time.unscaledTime + 0.5f;
+            }
+            GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineWidthText);
             y += 24f;
 
             bool failed = UiKit.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
