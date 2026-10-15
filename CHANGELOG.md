@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.312 - 2026-10-16
+
+- Input overlay: the mouse box path is now drawn as a continuous thin line inside the box (v0.24.311 showed scattered dashes, some outside the box).
+
 ## v0.24.311 - 2026-10-15
 
 - Input overlay tiles have crisp square corners, and the mouse dot is a crisp square.
