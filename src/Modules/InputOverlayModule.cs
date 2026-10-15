@@ -533,14 +533,15 @@ namespace ForestOverlay.Modules
 
             // Add buttons, flowing left to right.
             float x = 0f;
-            Rect keyR = new Rect(x, y, 90f, 24f);
+            float keyW = Mathf.Max(90f, GUI.skin.button.CalcSize(AddKeyWaiting).x + 8f, GUI.skin.button.CalcSize(AddKeyText).x + 8f);
+            Rect keyR = new Rect(x, y, keyW, 24f);
             if (UiKit.Toggle(keyR, _capturing, _capturing ? AddKeyWaiting : AddKeyText, GUI.skin.button) != _capturing)
             {
                 _capturing = !_capturing;
                 SetStatus(_capturing ? "Press the key to add. Esc cancels." : "");
             }
             UiKit.Hint(keyR, AddKeyTip);
-            x += 96f;
+            x += keyW + 6f;
             y = AddButton(ref x, y, w, AddM1Text, null, "Mouse0");
             y = AddButton(ref x, y, w, AddM2Text, null, "Mouse1");
             y = AddButton(ref x, y, w, AddWheelText, AddWheelTip, InputLayout.WheelKey);
