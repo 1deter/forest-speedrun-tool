@@ -76,8 +76,7 @@ namespace ForestOverlay.Modules
         private float _resetUntil;
         private readonly GUIContent _status = new GUIContent("");
 
-        private GUIStyle[] _idleStyles, _litStyles;   // by font step
-        private static readonly int[] FontSizes = { 13, 18, 26 };
+        private GUIStyle _idle, _lit;
 
         public override void Initialise(ModuleContext ctx)
         {
@@ -309,14 +308,11 @@ namespace ForestOverlay.Modules
 
         private void EnsureStyles()
         {
-            if (_idleStyles != null) return;
-            _idleStyles = new GUIStyle[FontSizes.Length];
-            _litStyles = new GUIStyle[FontSizes.Length];
-            for (int i = 0; i < FontSizes.Length; i++)
+            if (_idle != null) return;
             {
                 GUIStyle idle = UiKit.Style(GUI.skin.label);
                 idle.alignment = TextAnchor.MiddleCenter;
-                idle.fontSize = FontSizes[i];
+                idle.fontSize = LabelBase;
                 idle.fontStyle = FontStyle.Bold;
                 idle.padding = new RectOffset(0, 0, 0, 0);
                 idle.wordWrap = false;
@@ -324,14 +320,18 @@ namespace ForestOverlay.Modules
                 idle.normal.textColor = UiKit.TextColour;
                 GUIStyle lit = UiKit.Style(idle);
                 lit.normal.textColor = UiKit.OnAccent;
-                _idleStyles[i] = idle;
-                _litStyles[i] = lit;
+                _idle = idle;
+                _lit = lit;
             }
         }
 
-        private static int FontStep(float scale)
+        private const int LabelBase = 13;   // the label's size at scale 1
+
+        // The label is one ratio to its tile at every size (T-0363).
+        private void SizeLabels(float scale)
         {
-            return scale < 1.4f ? 0 : scale < 2.2f ? 1 : 2;
+            int size = Mathf.Max(6, Mathf.RoundToInt(LabelBase * scale));
+            if (_idle.fontSize != size) { _idle.fontSize = size; _lit.fontSize = size; }
         }
 
         private Rect TileRect(TileState s, UiScale ui)
@@ -391,7 +391,7 @@ namespace ForestOverlay.Modules
             r = new Rect(r.x - r.width * pop * 0.5f, r.y - r.height * pop * 0.5f, r.width * (1f + pop), r.height * (1f + pop));
 
             GUI.color = new Color(before.r, before.g, before.b, before.a * a);
-            float bw = BorderPx * s.Tile.Scale;
+            float bw = Thick(BorderPx * s.Tile.Scale);
             Flat(r, UiKit.WidgetEdge);
             Flat(Inset(r, bw), UiKit.WidgetFill);
             if (level > 0.01f)
@@ -403,24 +403,19 @@ namespace ForestOverlay.Modules
             if (s.Tile.Key == InputLayout.MouseKey) DrawMouseBox(r, s.Tile.Scale, now, before, a);
             else
             {
-                int step = FontStep(s.Tile.Scale);
+                SizeLabels(s.Tile.Scale);
                 GUI.color = new Color(before.r, before.g, before.b, before.a * a * (1f - level));
-                if (level < 0.99f) CrispText.Label(r, s.Label, _idleStyles[step]);
+                if (level < 0.99f) CrispText.Label(r, s.Label, _idle);
                 if (level > 0.01f)
                 {
                     GUI.color = new Color(before.r, before.g, before.b, before.a * a * level);
-                    CrispText.Label(r, s.Label, _litStyles[step]);
+                    CrispText.Label(r, s.Label, _lit);
                 }
             }
             if (editing)
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a);
-                float ow = 2f * s.Tile.Scale;
-                Rect o = s.Rect;
-                Flat(new Rect(o.x, o.y, o.width, ow), UiKit.Accent);
-                Flat(new Rect(o.x, o.yMax - ow, o.width, ow), UiKit.Accent);
-                Flat(new Rect(o.x, o.y + ow, ow, o.height - ow * 2f), UiKit.Accent);
-                Flat(new Rect(o.xMax - ow, o.y + ow, ow, o.height - ow * 2f), UiKit.Accent);
+                WinPx.Box(s.Rect, GUIContent.none, UiKit.Outline);
             }
         }
 
@@ -435,7 +430,27 @@ namespace ForestOverlay.Modules
             return new Rect(r.x + d, r.y + d, Mathf.Max(0f, r.width - d * 2f), Mathf.Max(0f, r.height - d * 2f));
         }
 
-        private static void Flat(Rect r, Color c)
+        // Whole screen pixels under the HUD's scale (T-0363): a border is the
+        // same width on every tile, never 1 px on one and 2 on the next.
+        private static float Fx() { float f = GUI.matrix.m00; return f > 0.01f ? f : 1f; }
+
+        private static float Thick(float v)
+        {
+            float f = Fx();
+            return Mathf.Max(1f, Mathf.Round(v * f)) / f;
+        }
+
+        private static Rect SnapRect(Rect r)
+        {
+            float f = Fx();
+            float x0 = Mathf.Round(r.x * f) / f, y0 = Mathf.Round(r.y * f) / f;
+            float x1 = Mathf.Round(r.xMax * f) / f, y1 = Mathf.Round(r.yMax * f) / f;
+            return new Rect(x0, y0, x1 - x0, y1 - y0);
+        }
+
+        private static void Flat(Rect r, Color c) { FlatRaw(SnapRect(r), c); }
+
+        private static void FlatRaw(Rect r, Color c)
         {
             Color keep = GUI.color;
             GUI.color = new Color(c.r * keep.r, c.g * keep.g, c.b * keep.b, c.a * keep.a);
@@ -451,7 +466,7 @@ namespace ForestOverlay.Modules
             if (len < 0.01f) return;
             Matrix4x4 m = GUI.matrix;
             GUIUtility.RotateAroundPivot(Mathf.Atan2(dy, dx) * Mathf.Rad2Deg, new Vector2(x0, y0));
-            Flat(new Rect(x0, y0 - thick * 0.5f, len, thick), c);
+            FlatRaw(new Rect(x0, y0 - thick * 0.5f, len, thick), c);
             GUI.matrix = m;
         }
 
@@ -459,11 +474,10 @@ namespace ForestOverlay.Modules
         {
             float half = r.width * 0.5f - 8f * scale;
             float cx = r.x + r.width * 0.5f, cy = r.y + r.height * 0.5f;
-            float thick = LineThickness * scale;
+            float thick = Thick(LineThickness * scale);
             GUI.color = Color.white;   // colours below carry their own alpha
             float hx = cx + _mx * half, hy = cy + _my * half;
             float px = hx, py = hy, pAge = 0f;   // the line runs from the head back along the trail
-            bool have = true;
             for (int k = 0; k < _trailCount; k++)
             {
                 int idx = (_trailHead - 1 - k + TrailMax * 2) % TrailMax;
@@ -472,7 +486,7 @@ namespace ForestOverlay.Modules
                 float tx = cx + _trailX[idx] * half, ty = cy + _trailY[idx] * half;
                 // A jump across the box (the mouse wrapped at an edge) is not a line.
                 bool wrapped = Mathf.Abs(tx - px) > half || Mathf.Abs(ty - py) > half;
-                if (have && !wrapped)
+                if (!wrapped)
                 {
                     float f = 1f - Mathf.Max(age, pAge) / TrailSeconds;
                     Segment(px, py, tx, ty, thick, new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.8f * f * before.a * a));
