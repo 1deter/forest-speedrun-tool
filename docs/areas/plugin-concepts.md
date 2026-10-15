@@ -96,19 +96,19 @@ concept before changing its feature. Where the code lives:
   `hold-interact` (plane meal start), `first-input` (any input but Esc
   and the camera - replaces the velocity start `moving`, T-0282; a stored
   `moving` reads as `first-input` and its old times retire).
-- **Deaths** (Deaths tab), decided in `DeathModule.Decide`:
-  1. a current spot **with a start state** → revive and restore it, the
-     segment's way, **even with practice mode off** (author: "if the runner
-     wants to practice with a save state then it should reload entirely on
-     death"; a load-mode state = a full load per death);
-  2. practice mode on + a current spot → **revive** at the spot (health
-     100, blood cleared, no reload, marks practice);
-  3. otherwise **the save reloads** (was "quick-load"; the separate
-     *Reload save on death* toggle went in T-0226 - the game's own death is
-     its own choice; config keys still `QuickLoad*`, `QuickLoadOnDeath` no
-     longer read) — every death, the first-death
-     capture and the boss-fight wake-up each with their own toggle (both on;
-     the boss toggle is the author's call). Never permadeath or multiplayer.
+- **Deaths** (Deaths tab *When I die*, `[Deaths] OnDeath`, decided in
+  `DeathPlan.Decide`): **the game's own death by default** (T-0316, author
+  2026-10-15: the default is what the vanilla game does, runners opt in;
+  the old *Automatic* rules - restart a spot with a start state, revive
+  with practice mode on, else reload - are gone, and a stored `Automatic`
+  reads as `GameDeath`). The opt-ins: *Reload the save* (was "quick-load";
+  config keys still `QuickLoad*`, `QuickLoadOnDeath` no longer read) -
+  every death, the first-death capture and the boss-fight wake-up each with
+  their own toggle (both on; the boss toggle is the author's call);
+  *Restart the current spot* (F7: its start state, Quick / Full as the
+  spot says); *Revive at the current spot* (teleport only). A choice that
+  cannot apply (no current spot, locked by run mode) falls back to a
+  reload, then the game's death. Never permadeath or multiplayer.
   The reload **skips the title screen** by default (`QuickLoadSkipMenu`,
   author: "faster load with no compromise") via `LevelSerializer.Resume()`,
   falling back to the menu path. The author rules it **allowed in

@@ -70,12 +70,13 @@ See `fall-damage` (including how the slide cancel avoids all of it).
 
 ## ForestOverlay: Reload save on death
 
-The tool's Deaths tab (*When I die*: Automatic by default, or *Reload the
+The tool's Deaths tab (*When I die*: the game's own death by default; pick *Reload the
 save*) reloads your save on
 every death instead of the game's death sequence, skipping the title screen
 (the game's own `LevelSerializer.Resume`). The author rules it allowed in
-normal runs: it is the game's own load of the same save. With practice mode
-and a spot set, it can revive you at the spot instead (practice only).
+normal runs: it is the game's own load of the same save. With a spot set,
+*Restart the current spot* or *Revive at the current spot* brings you back
+at the spot instead (practice only).
 
 ## Evidence
 
