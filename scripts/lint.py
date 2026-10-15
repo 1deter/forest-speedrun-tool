@@ -622,7 +622,7 @@ def check_bot_globalization(csproj):
 
 # ---------------------------------------------------------------- UI heuristics
 
-LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
+LABEL_20 = re.compile(r'(?:GUI|WinPx)\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
 DRAW_METHOD = re.compile(r"\bvoid\s+(OnGUI|DrawTab)\s*\([^)]*\)\s*(\{.*)?$")
 # `new` of a struct allocates nothing; everything else does.
 STRUCTS = r"(?:Rect|Vector2|Vector3|Vector4|Color|Color32|Quaternion|Matrix4x4|KeyValuePair<[^>]*>)"
@@ -737,8 +737,8 @@ def moveto_hits(path, text):
     return out
 
 
-SLIDER_OR_FIELD = re.compile(r"\bGUI(?:Layout)?\.(?:HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
-OTHER_CONTROL = re.compile(r"\bGUI(?:Layout)?\.(?:Button|Toggle|Label|Box|Toolbar|SelectionGrid|HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+SLIDER_OR_FIELD = re.compile(r"\b(?:GUI(?:Layout)?|WinPx)\.(?:HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+OTHER_CONTROL = re.compile(r"\b(?:GUI(?:Layout)?|WinPx)\.(?:Button|Toggle|Label|Box|Toolbar|SelectionGrid|HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
 CONFIG_WRITE = re.compile(r"\.Value\s*=(?!=)")
 # A write that waits for the value to settle: a timer, or the mouse release.
 SETTLED = re.compile(r"MouseUp|unscaledTime|realtimeSinceStartup|_writeAt|[Ss]ettle|[Dd]ebounce")

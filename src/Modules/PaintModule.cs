@@ -371,10 +371,10 @@ namespace ForestOverlay.Modules
         {
             Texture2D t = Texture2D.whiteTexture;
             float h = thick * 0.5f;
-            GUI.DrawTexture(new Rect(cx - gap - arm, cy - h, arm, thick), t);   // left
-            GUI.DrawTexture(new Rect(cx + gap, cy - h, arm, thick), t);         // right
-            GUI.DrawTexture(new Rect(cx - h, cy - gap - arm, thick, arm), t);   // up
-            GUI.DrawTexture(new Rect(cx - h, cy + gap, thick, arm), t);         // down
+            WinPx.DrawTexture(new Rect(cx - gap - arm, cy - h, arm, thick), t);   // left
+            WinPx.DrawTexture(new Rect(cx + gap, cy - h, arm, thick), t);         // right
+            WinPx.DrawTexture(new Rect(cx - h, cy - gap - arm, thick, arm), t);   // up
+            WinPx.DrawTexture(new Rect(cx - h, cy + gap, thick, arm), t);         // down
         }
 
         public override void Shutdown()
@@ -463,7 +463,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(x, y, w, _where) + 8f;
 
             // Colour: the swatches, the chosen one framed.
-            GUI.Label(new Rect(x, y, w, 22f), ColourLabel);
+            WinPx.Label(new Rect(x, y, w, 22f), ColourLabel);
             y += 22f;
             int chosen = Colour;
             float sw = 30f;
@@ -472,7 +472,7 @@ namespace ForestOverlay.Modules
             {
                 if (sx + sw > x + w) { sx = x; y += sw + 4f; }
                 Rect r = new Rect(sx, y, sw, sw);
-                if (GUI.Toggle(r, i == chosen, GUIContent.none, _swatchStyle) && i != chosen)
+                if (WinPx.Toggle(r, i == chosen, GUIContent.none, _swatchStyle) && i != chosen)
                 {
                     _colourCfg.Value = i;
                     chosen = i;
@@ -480,19 +480,19 @@ namespace ForestOverlay.Modules
                 Color old = GUI.color;
                 GUI.color = Palette[i];
                 float inset = i == chosen ? 6f : 3f;
-                GUI.DrawTexture(new Rect(r.x + inset, r.y + inset, r.width - inset * 2f, r.height - inset * 2f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(r.x + inset, r.y + inset, r.width - inset * 2f, r.height - inset * 2f), Texture2D.whiteTexture);
                 GUI.color = old;
                 sx += sw + 4f;
             }
             y += sw + 8f;
 
             // Size: steps, so a click writes the config once (no slider drag).
-            GUI.Label(new Rect(x, y, 110f, 22f), _sizeLabel);
-            if (GUI.Button(new Rect(x + 114f, y, 30f, 22f), "-")) StepSize(-1);
-            if (GUI.Button(new Rect(x + 148f, y, 30f, 22f), "+")) StepSize(+1);
+            WinPx.Label(new Rect(x, y, 110f, 22f), _sizeLabel);
+            if (WinPx.Button(new Rect(x + 114f, y, 30f, 22f), "-")) StepSize(-1);
+            if (WinPx.Button(new Rect(x + 148f, y, 30f, 22f), "+")) StepSize(+1);
             y += 30f;
 
-            if (GUI.Button(new Rect(x, y, 150f, 24f), UndoText))
+            if (WinPx.Button(new Rect(x, y, 150f, 24f), UndoText))
             {
                 _message.text = Undo(true);
                 _messageAt = 1;
@@ -500,7 +500,7 @@ namespace ForestOverlay.Modules
             y += 28f;
 
             bool armed = Time.unscaledTime - _clearArmedAt < 4f;
-            if (GUI.Button(new Rect(x, y, 150f, 24f), armed ? ClearConfirmText : ClearText))
+            if (WinPx.Button(new Rect(x, y, 150f, 24f), armed ? ClearConfirmText : ClearText))
             {
                 if (armed)
                 {

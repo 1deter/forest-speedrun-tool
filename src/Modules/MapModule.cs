@@ -359,11 +359,11 @@ namespace ForestOverlay.Modules
             float y = 0f;
 
             // Buttons: short constant labels, one row.
-            if (GUI.Button(new Rect(0f, y, 32f, 22f), "-")) _view.ZoomAt(1f / 1.6f, _view.ViewW * 0.5f, _view.ViewH * 0.5f);
-            if (GUI.Button(new Rect(36f, y, 32f, 22f), "+")) _view.ZoomAt(1.6f, _view.ViewW * 0.5f, _view.ViewH * 0.5f);
-            if (GUI.Button(new Rect(72f, y, 50f, 22f), "Fit")) _view.Fit();
+            if (WinPx.Button(new Rect(0f, y, 32f, 22f), "-")) _view.ZoomAt(1f / 1.6f, _view.ViewW * 0.5f, _view.ViewH * 0.5f);
+            if (WinPx.Button(new Rect(36f, y, 32f, 22f), "+")) _view.ZoomAt(1.6f, _view.ViewW * 0.5f, _view.ViewH * 0.5f);
+            if (WinPx.Button(new Rect(72f, y, 50f, 22f), "Fit")) _view.Fit();
             GUI.enabled = Ctx.Player.Found;
-            if (GUI.Button(new Rect(126f, y, 70f, 22f), "On me"))
+            if (WinPx.Button(new Rect(126f, y, 70f, 22f), "On me"))
             {
                 Vector3 p = Ctx.Player.Transform.position;
                 if (_view.AtFit) _view.ZoomAt(4f, _view.ViewW * 0.5f, _view.ViewH * 0.5f);
@@ -372,7 +372,7 @@ namespace ForestOverlay.Modules
             GUI.enabled = true;
             y += 26f;
 
-            float tw = Mathf.Min(w, GUI.skin.toggle.CalcSize(_allZonesLabel).x + 6f);
+            float tw = Mathf.Min(w, WinPx.CalcSize(GUI.skin.toggle, _allZonesLabel).x + 6f);
             bool v = UiKit.Toggle(new Rect(0f, y, tw, 20f), _allZones, _allZonesLabel);
             if (v != _allZones) { _allZones = v; _allZonesCfg.Value = v; }
             y += 24f;
@@ -389,18 +389,18 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0f, y, w, _selectedInfo);
             Segment sel = _practice != null ? _practice.SelectedSegment : null;
             GUI.enabled = sel != null && sel.HasSpawn;
-            if (GUI.Button(new Rect(0f, y, 60f, 22f), "Go"))
+            if (WinPx.Button(new Rect(0f, y, 60f, 22f), "Go"))
             {
                 string r = _practice.GoFromMap(sel);
                 _goStatus.text = r.Length > 0 ? r : "Moved to '" + sel.Name + "'.";
             }
-            if (GUI.Button(new Rect(64f, y, 70f, 22f), "Centre"))
+            if (WinPx.Button(new Rect(64f, y, 70f, 22f), "Centre"))
             {
                 if (_view.AtFit) _view.ZoomAt(4f, _view.ViewW * 0.5f, _view.ViewH * 0.5f);
                 _view.CentreOn(sel.SpawnPosition.x, sel.SpawnPosition.z);
             }
             GUI.enabled = sel != null;
-            if (GUI.Button(new Rect(138f, y, 120f, 22f), "Edit in Practice")) _practice.ShowTab();
+            if (WinPx.Button(new Rect(138f, y, 120f, 22f), "Edit in Practice")) _practice.ShowTab();
             GUI.enabled = true;
             y += 26f;
             y += UiText.Draw(0f, y, w, _goStatus);
@@ -424,12 +424,12 @@ namespace ForestOverlay.Modules
             EnsureDrawing();
             Color old = GUI.color;
             GUI.color = MapBackground;
-            GUI.DrawTexture(map, _white);
+            WinPx.DrawTexture(map, _white);
             GUI.color = old;
 
             MapBox view, uv;
             if (_relief.Ready && _view.TextureWindow(out view, out uv))
-                GUI.DrawTextureWithTexCoords(
+                WinPx.DrawTextureWithTexCoords(
                     new Rect(map.x + view.X0, map.y + view.Y0, view.Width, view.Height), _relief.Texture,
                     new Rect(uv.X0, uv.Y0, uv.Width, uv.Height));
 
@@ -725,18 +725,18 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _legend.Length; i++)
             {
                 if (y + 18f > map.yMax) break;
-                float tw = Mathf.Min(map.width - 30f, GUI.skin.label.CalcSize(_legend[i]).x + 4f);
+                float tw = Mathf.Min(map.width - 30f, WinPx.CalcSize(GUI.skin.label, _legend[i]).x + 4f);
                 width = Mathf.Max(width, tw + 22f);
                 _legendBottom = y + 18f;
                 GUI.color = new Color(0f, 0f, 0f, 0.55f);
-                GUI.DrawTexture(new Rect(x - 2f, y - 1f, tw + 18f, 18f), _white);
+                WinPx.DrawTexture(new Rect(x - 2f, y - 1f, tw + 18f, 18f), _white);
                 if (_legendColour[i] >= 0)
                 {
                     GUI.color = Palette[_legendColour[i]];
-                    GUI.DrawTexture(new Rect(x, y + 4f, 9f, 9f), _white);
+                    WinPx.DrawTexture(new Rect(x, y + 4f, 9f, 9f), _white);
                 }
                 GUI.color = old;
-                GUI.Label(new Rect(x + 14f, y - 2f, tw, 20f), _legend[i]);
+                WinPx.Label(new Rect(x + 14f, y - 2f, tw, 20f), _legend[i]);
                 y += 18f;
             }
             GUI.color = old;
@@ -750,7 +750,7 @@ namespace ForestOverlay.Modules
             if (_keyCount == 0) return;
             float labelW = 0f;
             for (int i = 0; i < KeyRows; i++)
-                if (_keyShown[i]) labelW = Mathf.Max(labelW, GUI.skin.label.CalcSize(_key[i]).x + 4f);
+                if (_keyShown[i]) labelW = Mathf.Max(labelW, WinPx.CalcSize(GUI.skin.label, _key[i]).x + 4f);
             float boxW = Mathf.Min(map.width - 12f, 22f + labelW + 4f);
             float x = map.xMax - 6f - boxW, y = map.y + 6f;
             if (legendW > 0f && x < map.x + 6f + legendW + 8f) { x = map.x + 6f; y = _legendBottom + 6f; }
@@ -759,7 +759,7 @@ namespace ForestOverlay.Modules
 
             Color old = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(new Rect(x - 2f, y - 1f, boxW + 4f, rows * 18f + 2f), _white);
+            WinPx.DrawTexture(new Rect(x - 2f, y - 1f, boxW + 4f, rows * 18f + 2f), _white);
             GUI.color = old;
 
             if (BeginGL(map))
@@ -777,7 +777,7 @@ namespace ForestOverlay.Modules
             for (int i = 0, r = 0; i < KeyRows && r < rows; i++)
             {
                 if (!_keyShown[i]) continue;
-                GUI.Label(new Rect(x + 20f, y + r * 18f - 2f, labelW, 20f), _key[i]);
+                WinPx.Label(new Rect(x + 20f, y + r * 18f - 2f, labelW, 20f), _key[i]);
                 r++;
             }
         }
@@ -814,22 +814,22 @@ namespace ForestOverlay.Modules
         /// to the map's width.
         private void DrawHint(Rect map)
         {
-            float w = Mathf.Min(map.width - 8f, _hintBox.CalcSize(_hint).x + 4f);
-            float h = _hintBox.CalcHeight(_hint, w);
-            GUI.Box(new Rect(map.x + 4f, map.yMax - 4f - h, w, h), _hint, _hintBox);
+            float w = Mathf.Min(map.width - 8f, WinPx.CalcSize(_hintBox, _hint).x + 4f);
+            float h = WinPx.CalcHeight(_hintBox, _hint, w);
+            WinPx.Box(new Rect(map.x + 4f, map.yMax - 4f - h, w, h), _hint, _hintBox);
         }
 
         private void DrawHoverLabel(Rect map, float mx, float my)
         {
             Segment s = _spots[_hover];
             _hoverLabel.text = s.Name;   // a field read: no allocation
-            Vector2 size = _labelBox.CalcSize(_hoverLabel);
+            Vector2 size = WinPx.CalcSize(_labelBox, _hoverLabel);
             float w = Mathf.Min(size.x + 4f, map.width - 4f);
             float x = map.x + mx + 14f, y = map.y + my - 26f;
             if (x + w > map.xMax) x = map.x + mx - 14f - w;
             if (x < map.x) x = map.x + 2f;
             if (y < map.y) y = map.y + my + 14f;
-            GUI.Box(new Rect(x, y, w, 22f), _hoverLabel, _labelBox);
+            WinPx.Box(new Rect(x, y, w, 22f), _hoverLabel, _labelBox);
         }
 
         public override void DrawPanel(int windowId) { }

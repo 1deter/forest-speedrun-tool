@@ -781,7 +781,7 @@ namespace ForestOverlay.Modules
             // Opacity on the background only: the text stays readable.
             Color before = GUI.color;
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Opacity));
-            GUI.Box(panel, GUIContent.none, _panelStyle);
+            WinPx.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
             if (real) DrawSplitsTable(x + 6f, y + 4f, w - 12f, rows, true);
             else
@@ -793,10 +793,10 @@ namespace ForestOverlay.Modules
                 if (dockedN > 0) DrawDockedRows(x + 6f, panel.yMax - 4f - dockedN * RowH - 4f, w - 12f);
             }
 
-            if (editing || _dragging) GUI.Box(panel, GUIContent.none, UiKit.Outline);
+            if (editing || _dragging) WinPx.Box(panel, GUIContent.none, UiKit.Outline);
             if (editing)
             {
-                GUI.Box(new Rect(panel.xMax - CornerSize, panel.yMax - CornerSize, CornerSize, CornerSize), GUIContent.none, UiKit.Handle);
+                WinPx.Box(new Rect(panel.xMax - CornerSize, panel.yMax - CornerSize, CornerSize, CornerSize), GUIContent.none, UiKit.Handle);
                 // The size while it changes, under the panel.
                 if (_resizeMode != 0) CrispText.Label(new Rect(x, panel.yMax + 2f, w, RowH), _panelSizeText, _titleStyle);
             }
@@ -1049,7 +1049,7 @@ namespace ForestOverlay.Modules
                 {
                     Color before = GUI.color;
                     GUI.color = new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.4f);
-                    GUI.DrawTexture(new Rect(x - 3f, y, w + 6f, RowH), UiKit.AccentTexture);
+                    WinPx.DrawTexture(new Rect(x - 3f, y, w + 6f, RowH), UiKit.AccentTexture);
                     GUI.color = before;
                 }
                 GUIStyle nameStyle = _rowCurrent[r] ? _titleStyle : _nameStyle;
@@ -1161,7 +1161,7 @@ namespace ForestOverlay.Modules
                 const float labelW = 110f;
                 float barW = Mathf.Min(160f, w - indent - labelW - 4f);
                 Rect decR = new Rect(indent + labelW, y, barW, 22f);
-                GUI.Label(new Rect(indent, y, labelW, 22f), ResDecimalsText);
+                WinPx.Label(new Rect(indent, y, labelW, 22f), ResDecimalsText);
                 int rd = DecimalChoice(decR, _resDecimals.Value);
                 if (rd != _resDecimals.Value) _resDecimals.Value = rd;
                 UiKit.Hint(decR, ResDecimalsTip);
@@ -1175,7 +1175,7 @@ namespace ForestOverlay.Modules
         private float DrawTimerChoice(float x, float y, float w)
         {
             const float labelW = 110f;
-            GUI.Label(new Rect(x, y, labelW, 22f), TimerTitle);
+            WinPx.Label(new Rect(x, y, labelW, 22f), TimerTitle);
             float bw = Mathf.Max(60f, (w - labelW - 4f) * 0.5f);
             Rect inR = new Rect(x + labelW, y, bw, 22f), outR = new Rect(x + labelW + bw + 4f, y, bw, 22f);
             bool inPanel = _timerInPanel.Value;
@@ -1223,25 +1223,25 @@ namespace ForestOverlay.Modules
 
             const float labelW = 110f;
             float barW = Mathf.Min(160f, w - labelW - 4f);
-            GUI.Label(new Rect(x, y, labelW, 22f), TimeDecimalsText);
+            WinPx.Label(new Rect(x, y, labelW, 22f), TimeDecimalsText);
             int td = DecimalChoice(new Rect(x + labelW, y, barW, 22f), _timeDecimals.Value);
             if (td != _timeDecimals.Value) { _timeDecimals.Value = td; _splitsDirty = true; }
             y += 26f;
-            GUI.Label(new Rect(x, y, labelW, 22f), DeltaDecimalsText);
+            WinPx.Label(new Rect(x, y, labelW, 22f), DeltaDecimalsText);
             int dd = DecimalChoice(new Rect(x + labelW, y, barW, 22f), _deltaDecimals.Value);
             if (dd != _deltaDecimals.Value) { _deltaDecimals.Value = dd; _splitsDirty = true; }
             y += 26f;
 
-            GUI.Label(new Rect(x, y, labelW, 22f), BackgroundText);
+            WinPx.Label(new Rect(x, y, labelW, 22f), BackgroundText);
             float sliderW = Mathf.Max(60f, w - labelW - 50f);
-            float op = GUI.HorizontalSlider(new Rect(x + labelW, y + 6f, sliderW, 16f), Opacity, 0f, 1f);
+            float op = WinPx.HorizontalSlider(new Rect(x + labelW, y + 6f, sliderW, 16f), Opacity, 0f, 1f);
             if (Mathf.Abs(op - Opacity) > 0.004f)
             {
                 _opacityNow = Mathf.Round(op * 100f) / 100f;
                 _opacityPending = true;
                 _writeAt = Time.unscaledTime + 0.5f;
             }
-            GUI.Label(new Rect(x + labelW + sliderW + 6f, y, 44f, 22f), _opacityText);
+            WinPx.Label(new Rect(x + labelW + sliderW + 6f, y, 44f, 22f), _opacityText);
             return y + 28f;
         }
 
@@ -1268,7 +1268,7 @@ namespace ForestOverlay.Modules
             GUIStyle toggle = GUI.skin.toggle;
             for (int i = 0; i < entries.Length; i++)
             {
-                float tw = Mathf.Min(w, toggle.CalcSize(labels[i]).x + 8f);
+                float tw = Mathf.Min(w, WinPx.CalcSize(toggle, labels[i]).x + 8f);
                 if (x + tw > x0 + w && x > x0) { x = x0; y += 22f; }
                 bool v = UiKit.Toggle(new Rect(x, y, tw, 20f), entries[i].Value, labels[i]);
                 if (v != entries[i].Value) { entries[i].Value = v; _splitsDirty = true; _playtimeShown = -1; }
@@ -1283,11 +1283,11 @@ namespace ForestOverlay.Modules
         /// splits options; the site is where it shows). Filled from Tick.
         private float DrawRunnerName(float y, float w)
         {
-            GUI.Label(new Rect(0, y, 110, 20), "Runner name");
+            WinPx.Label(new Rect(0, y, 110, 20), "Runner name");
             if (_runnerEdit == null) _runnerFill = true;
             else
             {
-                string typed = GUI.TextField(new Rect(114, y - 2, Mathf.Max(80f, w - 124f), 22), _runnerEdit);
+                string typed = WinPx.TextField(new Rect(114, y - 2, Mathf.Max(80f, w - 124f), 22), _runnerEdit);
                 if (typed != _runnerEdit)
                 {
                     _runnerEdit = typed;

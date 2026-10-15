@@ -409,7 +409,7 @@ namespace ForestOverlay.Modules
         /// the button, then its result under it.
         public float DrawDumps(float x, float y, float w)
         {
-            if (GUI.Button(new Rect(x, y, 200, 22), "Write item / nature dumps"))
+            if (WinPx.Button(new Rect(x, y, 200, 22), "Write item / nature dumps"))
                 DumpItems();
             y += 26f;
             RefreshTabText();
@@ -496,10 +496,10 @@ namespace ForestOverlay.Modules
 
         private void DrawList(Rect area)
         {
-            GUI.Box(area, GUIContent.none);
+            WinPx.Box(area, GUIContent.none);
 
             Rect content = new Rect(0, 0, area.width - 20f, _rowCount * RowHeight + 4f);
-            _scroll = GUI.BeginScrollView(area, _scroll, content);
+            _scroll = WinPx.BeginScrollView(area, _scroll, content);
 
             for (int i = 0; i < _rowCount && i < _labels.Count; i++)
             {
@@ -515,10 +515,10 @@ namespace ForestOverlay.Modules
                     default: style = _missingStyle; break;
                 }
 
-                GUI.Label(new Rect(4f, y, content.width - 8f, RowHeight), _labels[i], style);
+                WinPx.Label(new Rect(4f, y, content.width - 8f, RowHeight), _labels[i], style);
             }
 
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
 
             if (_rowCount == 0)
             {

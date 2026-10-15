@@ -665,9 +665,9 @@ namespace ForestOverlay.Modules
             bool was = GUI.enabled;
             bool idle = TasInput.Current == TasInput.Mode.Off && _pending == Pending.None;
             GUI.enabled = was && idle;
-            if (GUI.Button(new Rect(0, y, 170, 24), "Record from a restart")) Record();
+            if (WinPx.Button(new Rect(0, y, 170, 24), "Record from a restart")) Record();
             GUI.enabled = was && !idle;
-            if (GUI.Button(new Rect(176, y, 90, 24), "Stop")) StopNow();
+            if (WinPx.Button(new Rect(176, y, 90, 24), "Stop")) StopNow();
             GUI.enabled = was;
             y += 28f;
 
@@ -678,9 +678,9 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _rowCount; i++)
             {
                 GUI.enabled = was && idle;
-                if (GUI.Button(new Rect(0, y, 70, 22), _replayButton)) Replay(_rows[i].Path);
+                if (WinPx.Button(new Rect(0, y, 70, 22), _replayButton)) Replay(_rows[i].Path);
                 GUI.enabled = was;
-                if (GUI.Button(new Rect(76, y, 64, 22), _deleteArmed == i ? _sureButton : _deleteButton))
+                if (WinPx.Button(new Rect(76, y, 64, 22), _deleteArmed == i ? _sureButton : _deleteButton))
                 {
                     if (_deleteArmed == i) Delete(i);
                     else { _deleteArmed = i; _deleteArmedAt = Time.unscaledTime; }

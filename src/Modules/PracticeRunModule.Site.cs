@@ -228,9 +228,9 @@ namespace ForestOverlay.Modules
             {
                 bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.Runner, " another runner");
                 if (on && _referenceKind != Reference.Runner) PickRunner(_runnerPick < 0 ? 0 : _runnerPick);
-                if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
-                if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);
-                GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
+                if (WinPx.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
+                if (WinPx.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);
+                WinPx.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
                 y += 24f;
             }
             // Never during a run: its comparison must not change under it.
@@ -238,7 +238,7 @@ namespace ForestOverlay.Modules
             {
                 GUI.enabled = _boardFetching != _boardKey;
                 Rect checkR = new Rect(0, y, 90, 20);
-                if (GUI.Button(checkR, BoardCheckText))
+                if (WinPx.Button(checkR, BoardCheckText))
                 {
                     Ctx.Log.LogInfo("Site board '" + _boardKey + "': Check now.");
                     FetchBoard();

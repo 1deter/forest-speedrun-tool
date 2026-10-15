@@ -86,26 +86,26 @@ namespace ForestOverlay.Modules
 
             w -= x;
             float sliderW = Mathf.Max(80f, w - 190f);
-            GUI.Label(new Rect(x, y, 120, 20), "Opacity");
+            WinPx.Label(new Rect(x, y, 120, 20), "Opacity");
             UiKit.Hint(new Rect(x, y, 120, 20), TipLineOpacity);
-            float op = GUI.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineOpacity, 0.1f, 1f);
+            float op = WinPx.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineOpacity, 0.1f, 1f);
             if (Mathf.Abs(op - LineOpacity) > 0.004f)
             {
                 _lineOpacityNow = Mathf.Round(op * 100f) / 100f;
                 _lineWriteAt = Time.unscaledTime + 0.5f;
             }
-            GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineOpacityText);
+            WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineOpacityText);
             y += 24f;
 
-            GUI.Label(new Rect(x, y, 120, 20), "Width");
+            WinPx.Label(new Rect(x, y, 120, 20), "Width");
             UiKit.Hint(new Rect(x, y, 120, 20), TipLineWidth);
-            float wd = GUI.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineWidth, 1f, 8f);
+            float wd = WinPx.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineWidth, 1f, 8f);
             if (Mathf.Abs(wd - LineWidth) > 0.04f)
             {
                 _lineWidthNow = Mathf.Round(wd * 2f) / 2f;
                 _lineWriteAt = Time.unscaledTime + 0.5f;
             }
-            GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineWidthText);
+            WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineWidthText);
             y += 24f;
 
             bool failed = UiKit.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
@@ -117,14 +117,14 @@ namespace ForestOverlay.Modules
             y += 22f;
             if (_lineAheadOn.Value)
             {
-                GUI.Label(new Rect(x, y, 120, 20), "Seconds ahead");
-                float s = GUI.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineAhead, 1f, 60f);
+                WinPx.Label(new Rect(x, y, 120, 20), "Seconds ahead");
+                float s = WinPx.HorizontalSlider(new Rect(x + 124f, y + 5, sliderW, 16), LineAhead, 1f, 60f);
                 if (Mathf.Abs(s - LineAhead) > 0.05f)
                 {
                     _lineAheadNow = Mathf.Round(s);
                     _lineWriteAt = Time.unscaledTime + 0.5f;
                 }
-                GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineAheadText);
+                WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineAheadText);
                 y += 24f;
             }
             return y + 4f;
@@ -145,15 +145,15 @@ namespace ForestOverlay.Modules
             y = DrawGhostLook(y, w);
 
             float sliderW = Mathf.Max(80f, w - 190f);
-            GUI.Label(new Rect(0, y, 120, 20), "Opacity");
+            WinPx.Label(new Rect(0, y, 120, 20), "Opacity");
             UiKit.Hint(new Rect(0, y, 120, 20), TipReplayOpacity);
-            float op = GUI.HorizontalSlider(new Rect(124, y + 5, sliderW, 16), ReplayOpacity, 0.1f, 1f);
+            float op = WinPx.HorizontalSlider(new Rect(124, y + 5, sliderW, 16), ReplayOpacity, 0.1f, 1f);
             if (Mathf.Abs(op - ReplayOpacity) > 0.004f)
             {
                 _replayOpacityNow = Mathf.Round(op * 100f) / 100f;
                 _lineWriteAt = Time.unscaledTime + 0.5f;
             }
-            GUI.Label(new Rect(130f + sliderW, y, 60, 20), _replayOpacityText);
+            WinPx.Label(new Rect(130f + sliderW, y, 60, 20), _replayOpacityText);
             return y + 26f;
         }
     }

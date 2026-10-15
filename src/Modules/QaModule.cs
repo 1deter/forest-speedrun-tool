@@ -498,8 +498,8 @@ namespace ForestOverlay.Modules
             float x = 12f, inner = w - 24f;
             float y = 28f;
 
-            GUI.Label(new Rect(x, y, 90, 22), "Your name:");
-            string name = GUI.TextField(new Rect(x + 90, y, 200, 22), _testerField);
+            WinPx.Label(new Rect(x, y, 90, 22), "Your name:");
+            string name = WinPx.TextField(new Rect(x + 90, y, 200, 22), _testerField);
             if (name != _testerField)
             {
                 _testerField = name;
@@ -509,8 +509,8 @@ namespace ForestOverlay.Modules
 
             if (_lists.Count > 1)
             {
-                if (GUI.Button(new Rect(x, y, 26, 22), "<")) { _listIndex = (_listIndex + _lists.Count - 1) % _lists.Count; SelectList(_listIndex); }
-                if (GUI.Button(new Rect(x + 30, y, 26, 22), ">")) { _listIndex = (_listIndex + 1) % _lists.Count; SelectList(_listIndex); }
+                if (WinPx.Button(new Rect(x, y, 26, 22), "<")) { _listIndex = (_listIndex + _lists.Count - 1) % _lists.Count; SelectList(_listIndex); }
+                if (WinPx.Button(new Rect(x + 30, y, 26, 22), ">")) { _listIndex = (_listIndex + 1) % _lists.Count; SelectList(_listIndex); }
                 y += UiText.Draw(x + 62, y, inner - 62, _titleText);
             }
             else y += UiText.Draw(x, y, inner, _titleText);
@@ -518,8 +518,8 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(x, y, inner, _problemText) + 4f;
 
             // Mark and report, then the items.
-            if (GUI.Button(new Rect(x, y, 110, 24), "Mark now")) Mark(true);
-            if (GUI.Button(new Rect(x + 118, y, 170, 24), "Write report")) WriteReport();
+            if (WinPx.Button(new Rect(x, y, 110, 24), "Mark now")) Mark(true);
+            if (WinPx.Button(new Rect(x + 118, y, 170, 24), "Write report")) WriteReport();
             y += 28f;
             y += UiText.Draw(x, y, inner, NoteHelp);
             float boxH = UiText.BoxHeight(_markNote, inner);
@@ -527,7 +527,7 @@ namespace ForestOverlay.Modules
             y += boxH + 4f;
             if (!_lastMarkHasNote && _lastMark > 0 && _markNote.Length > 0)
             {
-                if (GUI.Button(new Rect(x, y, 220, 22), _addNoteText)) AddNoteToLastMark();
+                if (WinPx.Button(new Rect(x, y, 220, 22), _addNoteText)) AddNoteToLastMark();
                 y += 26f;
             }
             y += UiText.Draw(x, y, inner, _markStatus);
@@ -542,7 +542,7 @@ namespace ForestOverlay.Modules
             float innerW = view.width - 20f;
             if (!Mathf.Approximately(innerW, _layoutWidth)) Layout(innerW);
 
-            _scroll = GUI.BeginScrollView(view, _scroll, new Rect(0, 0, innerW, Mathf.Max(_contentHeight, 20f)));
+            _scroll = WinPx.BeginScrollView(view, _scroll, new Rect(0, 0, innerW, Mathf.Max(_contentHeight, 20f)));
             float top = _scroll.y, bottom = _scroll.y + view.height;
             float y = 0f;
             for (int i = 0; i < _itemText.Length; i++)
@@ -551,7 +551,7 @@ namespace ForestOverlay.Modules
                 if (y + h >= top && y <= bottom) DrawItem(i, y, innerW);
                 y += h;
             }
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
 
         // Heights change only with the width or a new seen line; measured
@@ -563,10 +563,10 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _itemText.Length; i++)
             {
                 float h = 0f;
-                if (_sectionText[i] != null) h += 8f + Mathf.Max(20f, UiText.Plain.CalcHeight(_sectionText[i], width)) + 2f;
-                h += Mathf.Max(20f, UiText.Plain.CalcHeight(_itemText[i], width)) + 2f;
+                if (_sectionText[i] != null) h += 8f + Mathf.Max(20f, WinPx.CalcHeight(UiText.Plain, _sectionText[i], width)) + 2f;
+                h += Mathf.Max(20f, WinPx.CalcHeight(UiText.Plain, _itemText[i], width)) + 2f;
                 h += Mathf.Max(22f, UiText.BoxHeight(_noteField[i], NoteWidth(width))) + 4f; // buttons + note
-                if (_seenText[i].text.Length > 0) h += Mathf.Max(20f, UiText.Dim.CalcHeight(_seenText[i], width - 12f)) + 2f;
+                if (_seenText[i].text.Length > 0) h += Mathf.Max(20f, WinPx.CalcHeight(UiText.Dim, _seenText[i], width - 12f)) + 2f;
                 h += 8f;
                 _itemHeight[i] = h;
                 total += h;
@@ -589,7 +589,7 @@ namespace ForestOverlay.Modules
             if (ResultButton(new Rect(12, y, 56, 22), PassText, r == QaResult.Pass, PassColour)) SetResult(item.Number, r == QaResult.Pass ? QaResult.None : QaResult.Pass);
             if (ResultButton(new Rect(72, y, 56, 22), FailText, r == QaResult.Fail, FailColour)) SetResult(item.Number, r == QaResult.Fail ? QaResult.None : QaResult.Fail);
             if (ResultButton(new Rect(132, y, 56, 22), SkipText, r == QaResult.Skip, SkipColour)) SetResult(item.Number, r == QaResult.Skip ? QaResult.None : QaResult.Skip);
-            GUI.Label(new Rect(196, y + 1, 40, 22), NoteLabel);
+            WinPx.Label(new Rect(196, y + 1, 40, 22), NoteLabel);
             float noteW = NoteWidth(width);
             float noteH = UiText.BoxHeight(_noteField[i], noteW);
             string note = UiText.TextBox(236, y, noteW, noteH, _noteField[i]);
@@ -614,7 +614,7 @@ namespace ForestOverlay.Modules
         {
             Color old = GUI.backgroundColor;
             if (selected) GUI.backgroundColor = colour;
-            bool clicked = GUI.Button(r, text);
+            bool clicked = WinPx.Button(r, text);
             GUI.backgroundColor = old;
             return clicked;
         }

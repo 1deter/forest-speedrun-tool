@@ -15,8 +15,8 @@ namespace ForestOverlay.Core
     // So under a scale f these draw at the real pixel size: the style's
     // font size times f, inside a local 1/f scale at the rect's corner, and
     // measure the same way so wrapping and heights match what is drawn. At
-    // f = 1 (sizes in pixels) and in the F2 window (Plain) they are plain
-    // GUI calls.
+    // f = 1 (sizes in pixels) they are plain GUI calls; in the F2 window
+    // (drawn at identity in pixels, T-0360) they are WinPx's.
     // The style's fontSize is changed around the call and put back (the
     // trend colour does the same with the text colour), so no style copies
     // and a palette switch still reaches them; the padding is scaled the
@@ -33,12 +33,12 @@ namespace ForestOverlay.Core
         /// The GUI scale in force: the matrix's x scale (the HUD has no rotation).
         private static float Scale()
         {
-            if (Plain > 0) return 1f;
             float f = GUI.matrix.m00;
             return f > 0.99f && f < 1.01f ? 1f : f;
         }
 
-        private static int BaseSize(GUIStyle s)
+        /// The size a style draws at: its own, its font's, else the skin font's.
+        public static int BaseSize(GUIStyle s)
         {
             if (s.fontSize > 0) return s.fontSize;
             if (s.font != null) return s.font.fontSize;
@@ -78,15 +78,13 @@ namespace ForestOverlay.Core
             pad.left = _pl; pad.right = _pr; pad.top = _pt; pad.bottom = _pb;
         }
 
-        /// While above 0 these are plain GUI calls whatever the scale: the
-        /// F2 window (T-0324). Its groups and scroll views clip before the
-        /// matrix, so text enlarged by f was cut at 1/f of its width (seen
-        /// live at 1080p); the window's text is stretched instead, as its
-        /// buttons are.
-        public static int Plain;
+        // In the F2 window (WinPx.K != 1) these hand over to WinPx: its groups
+        // clip before any matrix, so the enlarge-inside-1/f trick was cut at
+        // 1/f of its width there (gotcha 112); the window draws in pixels.
 
         public static void Label(Rect r, GUIContent c, GUIStyle s)
         {
+            if (WinPx.K != 1f) { WinPx.Label(r, c, s); return; }
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) { GUI.Label(r, c, s); return; }
@@ -101,6 +99,7 @@ namespace ForestOverlay.Core
 
         public static Vector2 CalcSize(GUIStyle s, GUIContent c)
         {
+            if (WinPx.K != 1f) return WinPx.CalcSize(s, c);
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) return s.CalcSize(c);
@@ -112,6 +111,7 @@ namespace ForestOverlay.Core
 
         public static float CalcHeight(GUIStyle s, GUIContent c, float width)
         {
+            if (WinPx.K != 1f) return WinPx.CalcHeight(s, c, width);
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) return s.CalcHeight(c, width);

@@ -76,7 +76,7 @@ namespace ForestOverlay.Modules
 
             bool scrolls = _pageH > area.height;
             float w = scrolls ? area.width - 20f : area.width;
-            _scroll = GUI.BeginScrollView(area, _scroll, new Rect(0, 0, w, Mathf.Max(_pageH, area.height)));
+            _scroll = WinPx.BeginScrollView(area, _scroll, new Rect(0, 0, w, Mathf.Max(_pageH, area.height)));
 
             float y = 4f;
             y += UiText.DrawDim(0, y, w, Intro) + 6f;
@@ -111,7 +111,7 @@ namespace ForestOverlay.Modules
                 y = _settings.DrawDeveloperKeys(y, w);
 
             _pageH = y + 4f;
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
     }
 }

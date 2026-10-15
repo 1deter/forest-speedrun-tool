@@ -174,7 +174,7 @@ namespace ForestOverlay.Modules
                                _checker.State == UpdateChecker.Status.DownloadRetry;
 
             GUI.enabled = canDownload;
-            if (GUI.Button(new Rect(12, y, 190, 26), _downloadText))
+            if (WinPx.Button(new Rect(12, y, 190, 26), _downloadText))
             {
                 if (Ctx.Runner != null)
                 {
@@ -189,7 +189,7 @@ namespace ForestOverlay.Modules
             // api.github.com's latest release - 60 calls an hour per IP - so
             // nothing re-asks it by itself beyond the startup check and the
             // mid-publish retries; a re-check is the runner's click.
-            if (GUI.Button(new Rect(210, y, 130, 26), "Check again"))
+            if (WinPx.Button(new Rect(210, y, 130, 26), "Check again"))
             {
                 if (Ctx.Runner != null) Ctx.Runner.StartCoroutine(_checker.Check());
             }
@@ -205,14 +205,14 @@ namespace ForestOverlay.Modules
             // The changelog, scrolled: it can be longer than the tab.
             if (_notesHeading.text.Length == 0) return;
             y += 8f;
-            GUI.Label(new Rect(12, y, w - 24, 20), _notesHeading);
+            WinPx.Label(new Rect(12, y, w - 24, 20), _notesHeading);
             y += 22f;
 
             Rect view = new Rect(12, y, w - 24, Mathf.Max(60f, _tabH - y - 8f));
             float inner = view.width - 20f;
-            _notesScroll = GUI.BeginScrollView(view, _notesScroll, new Rect(0, 0, inner, Mathf.Max(_notesHeight, 20f)));
+            _notesScroll = WinPx.BeginScrollView(view, _notesScroll, new Rect(0, 0, inner, Mathf.Max(_notesHeight, 20f)));
             _notesHeight = UiText.DrawDim(0, 0, inner, _notesText);
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
 
         }
     }

@@ -2525,7 +2525,7 @@ namespace ForestOverlay.Modules
             if (census != _censusOnLoad.Value) _censusOnLoad.Value = census;
             y += 26f;
             // Run from Tick, never inside OnGUI.
-            if (GUI.Button(new Rect(x, y, 200, 22), "Memory census now"))
+            if (WinPx.Button(new Rect(x, y, 200, 22), "Memory census now"))
             {
                 _censusLabel = "a click (" + _loads.Loads + " loads so far)";
                 _censusDue = Time.unscaledTime;

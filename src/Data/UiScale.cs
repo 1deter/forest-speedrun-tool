@@ -74,6 +74,25 @@ namespace ForestOverlay.Data
             return screenH <= WindowRefH ? 1f : Clamp((float)screenH / WindowRefH);
         }
 
+        /// A window length in screen pixels, on a whole pixel (T-0360: the
+        /// window draws at identity, its rects' corners snapped so text and
+        /// edges land on pixels).
+        public static float WindowPx(float units, float k)
+        {
+            return (float)Math.Floor(units * k + 0.5f);
+        }
+
+        /// A window font size in pixels (T-0360): rounded DOWN, so text is
+        /// never wider than the stretched 768p text it replaces - a fixed
+        /// one-line label that fit at v0.24.300 still fits (nothing clipped).
+        /// The 0.01 keeps an exact product (13 x 2 = 26) from flooring to 25.
+        public static int WindowFontPx(int size, float k)
+        {
+            if (k == 1f || size <= 0) return size;
+            int px = (int)Math.Floor(size * k + 0.01f);
+            return px < 1 ? 1 : px;
+        }
+
         private static float Clamp(float f)
         {
             return f < MinFactor ? MinFactor : f > MaxFactor ? MaxFactor : f;

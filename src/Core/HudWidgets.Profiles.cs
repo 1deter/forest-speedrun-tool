@@ -522,10 +522,10 @@ namespace ForestOverlay.Core
             {
                 const float bw = 64f;
                 GUI.SetNextControlName(RenameControl);
-                _renameText = GUI.TextField(new Rect(8f, y, cw - 8f - (bw + 4f) * 2f, h), _renameText, HudProfileNames.MaxLength);
+                _renameText = WinPx.TextField(new Rect(8f, y, cw - 8f - (bw + 4f) * 2f, h), _renameText, HudProfileNames.MaxLength);
                 if (_focusRename) { _focusRename = false; GUI.FocusControl(RenameControl); }
                 if (UiKit.PrimaryButton(new Rect(cw - (bw + 4f) * 2f + 4f, y, bw, h), OkText)) ConfirmRename();
-                if (GUI.Button(new Rect(cw - bw, y, bw, h), CancelText)) _renaming = false;
+                if (WinPx.Button(new Rect(cw - bw, y, bw, h), CancelText)) _renaming = false;
                 y += h + 4f;
                 if (_renameProblem != null) y += UiText.Draw(8f, y, cw - 8f, _renameProblemText, UiKit.HintStyle) + 4f;
             }
@@ -535,19 +535,19 @@ namespace ForestOverlay.Core
                 float bw = (cw - 8f - gap * 3f) / 4f;
                 float x = 8f;
                 Rect r = new Rect(x, y, bw, h);
-                if (GUI.Button(r, NewText)) NewProfile();
+                if (WinPx.Button(r, NewText)) NewProfile();
                 UiKit.Hint(r, NewTip);
                 r.x += bw + gap;
-                if (GUI.Button(r, DuplicateText)) DuplicateProfile();
+                if (WinPx.Button(r, DuplicateText)) DuplicateProfile();
                 UiKit.Hint(r, DuplicateTip);
                 r.x += bw + gap;
-                if (GUI.Button(r, RenameText)) OpenRename();
+                if (WinPx.Button(r, RenameText)) OpenRename();
                 r.x += bw + gap;
                 bool canDelete = _names.Count > 1;
                 bool armed = Time.unscaledTime <= _deleteArmedUntil;
                 bool was = GUI.enabled;
                 GUI.enabled = was && canDelete;
-                if (GUI.Button(r, armed ? DeleteSureText : DeleteText)) DeleteProfile();
+                if (WinPx.Button(r, armed ? DeleteSureText : DeleteText)) DeleteProfile();
                 GUI.enabled = was;
                 UiKit.Hint(r, DeleteTip);
                 y += h + 4f;

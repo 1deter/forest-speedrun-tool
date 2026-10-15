@@ -461,7 +461,7 @@ namespace ForestOverlay.Core
 
         public static bool Toggle(Rect r, bool value, GUIContent content, GUIStyle style)
         {
-            bool now = GUI.Toggle(r, value, content, style);
+            bool now = WinPx.Toggle(r, value, content, style);
             if (!_built || _skin == null || GUI.skin != _skin || style != _skin.toggle) return now;
             Event e = Event.current;
             if (e == null || e.type != EventType.Repaint) return now;
@@ -469,7 +469,7 @@ namespace ForestOverlay.Core
             Texture2D box = now ? (hover ? _tCheckOnHover : _tCheckOn) : (hover ? _tCheckOffHover : _tCheckOff);
             Color old = GUI.color;
             if (!GUI.enabled) GUI.color = new Color(old.r, old.g, old.b, old.a * 0.5f);
-            GUI.DrawTexture(new Rect(r.x + CheckLeft, Mathf.Round(r.y + (r.height - CheckSize) * 0.5f), CheckSize, CheckSize), box);
+            WinPx.DrawTexture(new Rect(r.x + CheckLeft, Mathf.Round(r.y + (r.height - CheckSize) * 0.5f), CheckSize, CheckSize), box);
             GUI.color = old;
             return now;
         }
@@ -477,7 +477,7 @@ namespace ForestOverlay.Core
         /// The main call to action.
         public static bool PrimaryButton(Rect r, GUIContent c)
         {
-            return GUI.Button(r, c, Primary);
+            return WinPx.Button(r, c, Primary);
         }
 
         public static GUIContent C(string text)
@@ -515,12 +515,12 @@ namespace ForestOverlay.Core
             Ensure();
             bool open = IsOpen(id, defaultOpen);
             Rect r = new Rect(x, y, w, HeaderH);
-            if (GUI.Button(r, title, _header)) { open = !open; Open[id] = open; }
+            if (WinPx.Button(r, title, _header)) { open = !open; Open[id] = open; }
 
             // The chevron: accent, drawn by hand (a text glyph may be missing from the font).
             DrawChevron(r.x + 10f, r.y + HeaderH * 0.5f, open);
             if (summary != null && !string.IsNullOrEmpty(summary.text))
-                GUI.Label(new Rect(r.x + 8f, r.y, r.width - 16f, r.height), summary, _headerSummary);
+                WinPx.Label(new Rect(r.x + 8f, r.y, r.width - 16f, r.height), summary, _headerSummary);
             if (tip != null) Hint(r, tip);
             y += HeaderH + 4f;
             return open;
@@ -539,15 +539,15 @@ namespace ForestOverlay.Core
             // Three stacked bars shrinking to a point: a triangle with no texture.
             if (open)
             {
-                GUI.DrawTexture(new Rect(cx - 4f, cy - 2f, 8f, 2f), Texture2D.whiteTexture);
-                GUI.DrawTexture(new Rect(cx - 3f, cy, 6f, 2f), Texture2D.whiteTexture);
-                GUI.DrawTexture(new Rect(cx - 1f, cy + 2f, 2f, 2f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(cx - 4f, cy - 2f, 8f, 2f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(cx - 3f, cy, 6f, 2f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(cx - 1f, cy + 2f, 2f, 2f), Texture2D.whiteTexture);
             }
             else
             {
-                GUI.DrawTexture(new Rect(cx - 2f, cy - 4f, 2f, 8f), Texture2D.whiteTexture);
-                GUI.DrawTexture(new Rect(cx, cy - 3f, 2f, 6f), Texture2D.whiteTexture);
-                GUI.DrawTexture(new Rect(cx + 2f, cy - 1f, 2f, 2f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(cx - 2f, cy - 4f, 2f, 8f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(cx, cy - 3f, 2f, 6f), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(cx + 2f, cy - 1f, 2f, 2f), Texture2D.whiteTexture);
             }
             GUI.color = before;
         }
@@ -608,13 +608,13 @@ namespace ForestOverlay.Core
             Ensure();
             Vector2 local = _tipAt - Unclip(Vector2.zero);
             float w = Mathf.Min(TipMaxW, bounds.width - 12f);
-            float h = _tip.CalcHeight(tip, w);
+            float h = WinPx.CalcHeight(_tip, tip, w);
             float x = local.x + 14f, y = local.y + 20f;
             if (x + w > bounds.xMax - 4f) x = bounds.xMax - 4f - w;
             if (y + h > bounds.yMax - 4f) y = local.y - h - 6f;
             if (x < bounds.x + 4f) x = bounds.x + 4f;
             if (y < bounds.y + 4f) y = bounds.y + 4f;
-            GUI.Box(new Rect(x, y, w, h), tip, _tip);
+            WinPx.Box(new Rect(x, y, w, h), tip, _tip);
         }
     }
 }

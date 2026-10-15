@@ -74,7 +74,8 @@ namespace ForestOverlay.Modules
 
         // The window's scale (T-0324): its units are pixels of a 768-high
         // screen (Data/UiScale.WindowFactor), so its text keeps its size
-        // relative to the screen at every resolution.
+        // relative to the screen at every resolution. Drawn in pixels
+        // through WinPx (T-0360), never under a scaled matrix.
         private float _f = 1f;
 
         public bool IsShowing(OverlayModule module)
@@ -147,12 +148,44 @@ namespace ForestOverlay.Modules
             }
 
             if (_contentsFn == null) _contentsFn = DrawContentsWatched;
-            // IMGUI keeps the matrix in force here for the window's function
-            // and its drag, so the contents lay out in window units.
-            Matrix4x4 outer = GUI.matrix;
-            if (_f != 1f) GUI.matrix = outer * Matrix4x4.Scale(new Vector3(_f, _f, 1f));
-            try { _windowRect = GUI.Window(windowId, _windowRect, _contentsFn, _title); }
-            finally { GUI.matrix = outer; }
+            // Drawn at identity in screen pixels (T-0360): a scaled matrix
+            // stretched every glyph. The rect goes in as pixels and comes back
+            // (a drag) as units; the contents convert through WinPx.
+            GUIStyle frame = WindowStyle();
+            WinPx.K = _f;
+            Rect px;
+            try { px = WinPx.Px(_windowRect); }
+            finally { WinPx.K = 1f; }
+            Rect moved = GUI.Window(windowId, px, _contentsFn, _title, frame);
+            if (moved.x != px.x || moved.y != px.y)
+            {
+                _windowRect.x = moved.x / _f;
+                _windowRect.y = moved.y / _f;
+            }
+        }
+
+        // The window's frame and title in pixels: IMGUI draws them after
+        // DrawPanel has returned, so this copy of the skin's window style is
+        // kept at the current scale rather than switched around a call.
+        private GUIStyle _frame;
+        private GUIStyle _frameFrom;
+        private float _frameK;
+
+        private GUIStyle WindowStyle()
+        {
+            GUIStyle src = GUI.skin.window;
+            if (_frame == null || !ReferenceEquals(_frameFrom, src))
+            {
+                _frame = UiKit.Style(src);
+                _frameFrom = src;
+                _frameK = 0f;
+            }
+            if (_frameK != _f)
+            {
+                _frameK = _f;
+                WinPx.ScaleInto(_frame, src, _f);
+            }
+            return _frame;
         }
 
         private readonly GUIContent _title = new GUIContent("");
@@ -197,9 +230,9 @@ namespace ForestOverlay.Modules
         private void DrawContentsWatched(int id)
         {
             StallWatch.At(StallWatch.Hook.Window, Index);
-            CrispText.Plain++;   // its groups clip before the scale (CrispText.Plain)
+            WinPx.K = _f;   // every control below draws in pixels (T-0360)
             try { DrawContents(id); }
-            finally { CrispText.Plain--; StallWatch.Leave(); }
+            finally { WinPx.K = 1f; StallWatch.Leave(); }
         }
 
         private void DrawContents(int id)
@@ -209,23 +242,23 @@ namespace ForestOverlay.Modules
             HudWidgets hudw = Host.Hud.Widgets;
             if (hudw != null && hudw.Editing)
             {
-                GUI.Label(new Rect(Pad, 30f, _windowRect.width - Pad * 2f, 22f), EditingTitle, UiKit.Title);
+                WinPx.Label(new Rect(Pad, 30f, _windowRect.width - Pad * 2f, 22f), EditingTitle, UiKit.Title);
                 Rect editArea = new Rect(Pad, 58f, _windowRect.width - Pad * 2f, _windowRect.height - 58f - 10f);
-                GUI.BeginGroup(editArea);
+                WinPx.BeginGroup(editArea);
                 bool done = hudw.DrawEditor(new Rect(0f, 0f, editArea.width, editArea.height), Host.Hud.Settings, _windowRect, Host);
-                GUI.EndGroup();
+                WinPx.EndGroup();
                 UiKit.DrawTip(new Rect(0f, 0f, _windowRect.width, _windowRect.height));
                 if (done) hudw.StopEditing();
-                GUI.DragWindow(new Rect(0, 0, _windowRect.width, 22));
+                WinPx.DragWindow(new Rect(0, 0, _windowRect.width, 22));
                 return;
             }
 
             List<OverlayModule> tabs = Host.Tabs();
             if (tabs.Count == 0)
             {
-                GUI.Label(new Rect(Pad, 30f, _windowRect.width - Pad * 2f, 40f),
+                WinPx.Label(new Rect(Pad, 30f, _windowRect.width - Pad * 2f, 40f),
                           "No tabs registered.");
-                GUI.DragWindow(new Rect(0, 0, _windowRect.width, 22));
+                WinPx.DragWindow(new Rect(0, 0, _windowRect.width, 22));
                 return;
             }
 
@@ -240,18 +273,18 @@ namespace ForestOverlay.Modules
                                  _windowRect.width - Pad * 2f,
                                  _windowRect.height - 26f - TabStripHeight - 12f);
 
-            GUI.BeginGroup(body);
+            WinPx.BeginGroup(body);
             StallWatch.Tab(tabs[_active].Index);
             tabs[_active].DrawTab(new Rect(0f, 0f, body.width, body.height));
-            GUI.EndGroup();
+            WinPx.EndGroup();
 
             // Before DragWindow, so the click is the button's.
             Rect hudBtn = new Rect(_windowRect.width - 86f, 4f, 78f, 20f);
-            if (GUI.Button(hudBtn, EditHudText) && hudw != null) hudw.Editing = true;
+            if (WinPx.Button(hudBtn, EditHudText) && hudw != null) hudw.Editing = true;
             UiKit.Hint(hudBtn, EditHudTip);
             UiKit.DrawTip(new Rect(0f, 0f, _windowRect.width, _windowRect.height));
 
-            GUI.DragWindow(new Rect(0, 0, _windowRect.width, 22));
+            WinPx.DragWindow(new Rect(0, 0, _windowRect.width, 22));
         }
 
         private void DrawTabStrip(List<OverlayModule> tabs)
@@ -268,19 +301,19 @@ namespace ForestOverlay.Modules
 
             float total = 0f;
             for (int i = 0; i < tabs.Count; i++)
-                total += _tabStyle.CalcSize(_tabLabels[i]).x + 4f;
+                total += WinPx.CalcSize(_tabStyle, _tabLabels[i]).x + 4f;
 
             // Scrolls rather than wrapping, so the body keeps a predictable
             // height however many features exist.
             Rect content = new Rect(0, 0, Mathf.Max(total, strip.width), TabStripHeight - 2f);
-            _stripScroll = GUI.BeginScrollView(strip, _stripScroll, content, false, false);
+            _stripScroll = WinPx.BeginScrollView(strip, _stripScroll, content, false, false);
 
             float x = 0f;
             for (int i = 0; i < tabs.Count; i++)
             {
-                float w = _tabStyle.CalcSize(_tabLabels[i]).x + 4f;
+                float w = WinPx.CalcSize(_tabStyle, _tabLabels[i]).x + 4f;
 
-                if (GUI.Button(new Rect(x, 0f, w, TabStripHeight - 4f), _tabLabels[i],
+                if (WinPx.Button(new Rect(x, 0f, w, TabStripHeight - 4f), _tabLabels[i],
                                i == _active ? _activeTabStyle : _tabStyle))
                 {
                     _active = i;
@@ -289,7 +322,7 @@ namespace ForestOverlay.Modules
                 x += w;
             }
 
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
     }
 }

@@ -273,8 +273,8 @@ namespace ForestOverlay.Modules
                 // Drawn wider than the estimate, centred: never clipped.
                 float w = _labelW[k] + 160f;
                 Rect r = new Rect(_boxX[k] - w * 0.5f, _boxTop[k], w, _labelH[k]);
-                GUI.Label(new Rect(r.x + 1f, r.y + 1f, r.width, r.height), _labelText[k], _labelShadow);
-                GUI.Label(r, _labelText[k], _labelStyle);
+                WinPx.Label(new Rect(r.x + 1f, r.y + 1f, r.width, r.height), _labelText[k], _labelShadow);
+                WinPx.Label(r, _labelText[k], _labelStyle);
             }
         }
 
@@ -305,7 +305,7 @@ namespace ForestOverlay.Modules
 
         private float DrawReplayOptions(float y, float w)
         {
-            GUI.Label(new Rect(0, y, 104, 20), "Replay shows:");
+            WinPx.Label(new Rect(0, y, 104, 20), "Replay shows:");
             bool oneRow = w >= 400f;
             float x = oneRow ? 108f : 12f;
             if (!oneRow) y += 20f;

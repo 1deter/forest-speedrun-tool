@@ -414,11 +414,11 @@ namespace ForestOverlay.Modules
             {
                 bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.LiveSplit, " LiveSplit");
                 if (on && _referenceKind != Reference.LiveSplit) PickLss(_lssPick);
-                if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickLss(_lssPick - 1);
-                if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickLss(_lssPick + 1);
-                GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);
+                if (WinPx.Button(new Rect(134, y, 24, 20), "<")) PickLss(_lssPick - 1);
+                if (WinPx.Button(new Rect(162, y, 24, 20), ">")) PickLss(_lssPick + 1);
+                WinPx.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);
             }
-            if (GUI.Button(new Rect(w - 110, y, 110, 20), _lssOpen ? "LiveSplit file  ^" : "LiveSplit file  v"))
+            if (WinPx.Button(new Rect(w - 110, y, 110, 20), _lssOpen ? "LiveSplit file  ^" : "LiveSplit file  v"))
             {
                 _lssOpen = !_lssOpen;
                 if (_lssOpen) ScanLssFiles();
@@ -427,8 +427,8 @@ namespace ForestOverlay.Modules
             if (!_lssOpen) return y;
 
             float x = 10f, cw = w - 10f;
-            if (GUI.Button(new Rect(x, y, 84, 20), "Rescan")) ScanLssFiles();
-            if (GUI.Button(new Rect(x + 88, y, 92, 20), "Open folder"))
+            if (WinPx.Button(new Rect(x, y, 84, 20), "Rescan")) ScanLssFiles();
+            if (WinPx.Button(new Rect(x + 88, y, 92, 20), "Open folder"))
             {
                 try { Directory.CreateDirectory(LssDir); Application.OpenURL("file:///" + LssDir.Replace('\\', '/')); }
                 catch (Exception) { }
@@ -436,18 +436,18 @@ namespace ForestOverlay.Modules
             y += 24f;
             y += UiText.DrawDim(x, y, cw, _lssDirText) + 4f;
 
-            GUI.Label(new Rect(x, y, 40, 20), "File");
-            if (GUI.Button(new Rect(x + 44, y, 24, 20), "<")) StepLssFile(-1);
-            if (GUI.Button(new Rect(x + 72, y, 24, 20), ">")) StepLssFile(1);
-            GUI.Label(new Rect(x + 102, y, cw - 102, 20), _lssFileText);
+            WinPx.Label(new Rect(x, y, 40, 20), "File");
+            if (WinPx.Button(new Rect(x + 44, y, 24, 20), "<")) StepLssFile(-1);
+            if (WinPx.Button(new Rect(x + 72, y, 24, 20), ">")) StepLssFile(1);
+            WinPx.Label(new Rect(x + 102, y, cw - 102, 20), _lssFileText);
             y += 24f;
 
             if (_lssRun != null && _lssLink != null)
             {
-                GUI.Label(new Rect(x, y, 60, 20), "Timing");
+                WinPx.Label(new Rect(x, y, 60, 20), "Timing");
                 if (UiKit.Toggle(new Rect(x + 64, y, 90, 20), _lssLink.Timing == LssTiming.RealTime, " real time")) SetLssTiming(LssTiming.RealTime);
                 if (UiKit.Toggle(new Rect(x + 158, y, 90, 20), _lssLink.Timing == LssTiming.GameTime, " game time")) SetLssTiming(LssTiming.GameTime);
-                if (_lssLink.Map != null && GUI.Button(new Rect(w - 130, y, 130, 20), "Match by name")) ResetLssMap();
+                if (_lssLink.Map != null && WinPx.Button(new Rect(w - 130, y, 130, 20), "Match by name")) ResetLssMap();
                 y += 24f;
             }
 
@@ -458,8 +458,8 @@ namespace ForestOverlay.Modules
                 int rows = Mathf.Min(_lssComp.Match.Map.Length, _lssRowText.Count);
                 for (int r = 0; r < rows; r++)
                 {
-                    if (GUI.Button(new Rect(x, y, 24, 20), "<")) StepLssRow(r, -1);
-                    if (GUI.Button(new Rect(x + 28, y, 24, 20), ">")) StepLssRow(r, 1);
+                    if (WinPx.Button(new Rect(x, y, 24, 20), "<")) StepLssRow(r, -1);
+                    if (WinPx.Button(new Rect(x + 28, y, 24, 20), ">")) StepLssRow(r, 1);
                     y += Mathf.Max(22f, UiText.Draw(x + 58, y, cw - 58, _lssRowText[r]));
                 }
             }

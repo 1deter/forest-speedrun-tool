@@ -391,11 +391,11 @@ namespace ForestOverlay.Modules
             r = new Rect(r.x - r.width * pop * 0.5f, r.y - r.height * pop * 0.5f, r.width * (1f + pop), r.height * (1f + pop));
 
             GUI.color = new Color(before.r, before.g, before.b, before.a * a);
-            GUI.Box(r, GUIContent.none, UiKit.WidgetCard);
+            WinPx.Box(r, GUIContent.none, UiKit.WidgetCard);
             if (level > 0.01f)
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a * a * level);
-                GUI.Box(r, GUIContent.none, UiKit.Primary);
+                WinPx.Box(r, GUIContent.none, UiKit.Primary);
             }
 
             if (s.Tile.Key == InputLayout.MouseKey) DrawMouseBox(r, s.Tile.Scale, now, before, a);
@@ -413,7 +413,7 @@ namespace ForestOverlay.Modules
             if (editing)
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a);
-                GUI.Box(s.Rect, GUIContent.none, UiKit.Outline);
+                WinPx.Box(s.Rect, GUIContent.none, UiKit.Outline);
             }
         }
 
@@ -428,11 +428,11 @@ namespace ForestOverlay.Modules
                 float age = now - _trailT[idx];
                 if (age >= TrailSeconds) break;   // older entries are older still
                 GUI.color = new Color(before.r, before.g, before.b, before.a * a * (1f - age / TrailSeconds) * 0.8f);
-                GUI.Box(new Rect(cx + _trailX[idx] * half - dot * 0.5f, cy + _trailY[idx] * half - dot * 0.5f, dot, dot), GUIContent.none, UiKit.Handle);
+                WinPx.Box(new Rect(cx + _trailX[idx] * half - dot * 0.5f, cy + _trailY[idx] * half - dot * 0.5f, dot, dot), GUIContent.none, UiKit.Handle);
             }
             float head = 9f * scale;
             GUI.color = new Color(before.r, before.g, before.b, before.a * a);
-            GUI.Box(new Rect(cx + _mx * half - head * 0.5f, cy + _my * half - head * 0.5f, head, head), GUIContent.none, UiKit.Handle);
+            WinPx.Box(new Rect(cx + _mx * half - head * 0.5f, cy + _my * half - head * 0.5f, head, head), GUIContent.none, UiKit.Handle);
         }
 
         // --- the mouse in Edit HUD: drag a tile, right-click to hide / show it ---------------------------
@@ -535,7 +535,7 @@ namespace ForestOverlay.Modules
 
             // Add buttons, flowing left to right.
             float x = 0f;
-            float keyW = Mathf.Max(90f, GUI.skin.button.CalcSize(AddKeyWaiting).x + 8f, GUI.skin.button.CalcSize(AddKeyText).x + 8f);
+            float keyW = Mathf.Max(90f, WinPx.CalcSize(GUI.skin.button, AddKeyWaiting).x + 8f, WinPx.CalcSize(GUI.skin.button, AddKeyText).x + 8f);
             Rect keyR = new Rect(x, y, keyW, 24f);
             if (UiKit.Toggle(keyR, _capturing, _capturing ? AddKeyWaiting : AddKeyText, GUI.skin.button) != _capturing)
             {
@@ -553,7 +553,7 @@ namespace ForestOverlay.Modules
 
             bool armed = _resetArmed && Time.unscaledTime <= _resetUntil;
             Rect resetR = new Rect(0f, y, 120f, 24f);
-            if (GUI.Button(resetR, armed ? ResetSureText : ResetText))
+            if (WinPx.Button(resetR, armed ? ResetSureText : ResetText))
             {
                 if (armed) { _resetArmed = false; ResetLayout(); }
                 else { _resetArmed = true; _resetUntil = Time.unscaledTime + 4f; }
@@ -566,12 +566,12 @@ namespace ForestOverlay.Modules
 
         private float AddButton(ref float x, float y, float w, GUIContent text, GUIContent tip, string key)
         {
-            float bw = Mathf.Max(80f, GUI.skin.button.CalcSize(text).x + 8f);   // as wide as its words, disabled or not
+            float bw = Mathf.Max(80f, WinPx.CalcSize(GUI.skin.button, text).x + 8f);   // as wide as its words, disabled or not
             if (x + bw > w && x > 0f) { x = 0f; y += 28f; }
             bool present = _layout.Find(key) != null;
             Rect r = new Rect(x, y, bw, 24f);
             GUI.enabled = !present;
-            if (GUI.Button(r, text)) AddTile(key);
+            if (WinPx.Button(r, text)) AddTile(key);
             GUI.enabled = true;
             if (tip != null) UiKit.Hint(r, tip);
             x += bw + 6f;
@@ -586,14 +586,14 @@ namespace ForestOverlay.Modules
             float h = 22f;
             float x = w - step;
             Rect removeR = new Rect(x, y, step, h);
-            if (GUI.Button(removeR, RemoveText)) _removeAt = i;
+            if (WinPx.Button(removeR, RemoveText)) _removeAt = i;
             UiKit.Hint(removeR, RemoveTip);
             x -= gap + step;
-            if (GUI.Button(new Rect(x, y, step, h), BiggerText)) SetScale(s, s.Tile.Scale + 0.25f);
+            if (WinPx.Button(new Rect(x, y, step, h), BiggerText)) SetScale(s, s.Tile.Scale + 0.25f);
             x -= scaleW;
-            GUI.Label(new Rect(x, y, scaleW, h), ScaleText(s.Tile.Scale), _centred);
+            WinPx.Label(new Rect(x, y, scaleW, h), ScaleText(s.Tile.Scale), _centred);
             x -= step;
-            if (GUI.Button(new Rect(x, y, step, h), SmallerText)) SetScale(s, s.Tile.Scale - 0.25f);
+            if (WinPx.Button(new Rect(x, y, step, h), SmallerText)) SetScale(s, s.Tile.Scale - 0.25f);
             Rect nameR = new Rect(0f, y, Mathf.Max(40f, x - gap), h);
             bool shown = UiKit.Toggle(nameR, s.Tile.Shown, s.Name);
             if (shown != s.Tile.Shown) SetShown(s, shown);

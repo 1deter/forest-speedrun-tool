@@ -1182,19 +1182,19 @@ namespace ForestOverlay.Modules
             bool on = UiKit.Toggle(modeR, Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
             UiKit.Hint(modeR, TipPracticeMode);
-            GUI.Label(new Rect(150, 2, w - 160, 22), _segmentText);
+            WinPx.Label(new Rect(150, 2, w - 160, 22), _segmentText);
 
             Rect restartR = new Rect(0, 30, 110, 26);
             if (UiKit.PrimaryButton(restartR, TextRestart)) Restart();
             UiKit.Hint(restartR, TipRestart);
             Rect splitR = new Rect(116, 30, 120, 26);
-            if (GUI.Button(splitR, "Split / finish")) ManualAdvance();
+            if (WinPx.Button(splitR, "Split / finish")) ManualAdvance();
             UiKit.Hint(splitR, TipSplit);
             Rect abortR = new Rect(242, 30, 80, 26);
-            if (GUI.Button(abortR, "Abort")) AbortRun();
+            if (WinPx.Button(abortR, "Abort")) AbortRun();
             UiKit.Hint(abortR, TipAbort);
 
-            GUI.Label(new Rect(0, 62, 80, 20), "Compare to");
+            WinPx.Label(new Rect(0, 62, 80, 20), "Compare to");
             Reference kind = _referenceKind;
             if (UiKit.Toggle(new Rect(84, 62, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
             if (UiKit.Toggle(new Rect(148, 62, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
@@ -1217,7 +1217,7 @@ namespace ForestOverlay.Modules
             float viewH = _tabH - top - 4f;
             bool scrolls = _pageH > viewH;
             float cw = scrolls ? w - 20f : w;
-            _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
+            _pageScroll = WinPx.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
             float y = _runMode != null ? _runMode.DrawSection(0f, cw) + 4f : 0f;
             y += UiText.Draw(0, y, cw, _statusText);
@@ -1258,7 +1258,7 @@ namespace ForestOverlay.Modules
                 bool auto = UiKit.Toggle(new Rect(0, y, cw, 22), _autoRestart.Value, " Auto-restart when a run finishes");
                 if (auto != _autoRestart.Value) _autoRestart.Value = auto;
                 y += 28f;
-                if (GUI.Button(new Rect(0, y, 120, 24), "Clear times")) ClearTimes();
+                if (WinPx.Button(new Rect(0, y, 120, 24), "Clear times")) ClearTimes();
                 UiKit.Hint(new Rect(0, y, 120, 24), TipClear);
                 y += 30f;
             }
@@ -1279,7 +1279,7 @@ namespace ForestOverlay.Modules
             if (!uploadOpen) _runnerEdit = null;   // re-read the Steam name and the setting on the next open
 
             _pageH = y + 4f;
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
 
         // Section titles, summaries and hover tips of the Runs tab: made
@@ -1469,17 +1469,17 @@ namespace ForestOverlay.Modules
             const float rowH = 20f;
 
             Rect content = new Rect(0, 0, listRect.width - 20f, _attempts.Count * rowH + 4f);
-            _scroll = GUI.BeginScrollView(listRect, _scroll, content);
+            _scroll = WinPx.BeginScrollView(listRect, _scroll, content);
 
             int rows = Mathf.Min(_attempts.Count, _attemptRows.Count);
             for (int i = 0; i < rows; i++)
             {
                 float y = i * rowH;
                 if (y + rowH < _scroll.y || y > _scroll.y + listRect.height) continue;
-                GUI.Label(new Rect(4, y, content.width - 8, rowH), _attemptRows[i], _rowStyle);
+                WinPx.Label(new Rect(4, y, content.width - 8, rowH), _attemptRows[i], _rowStyle);
             }
 
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
 
             if (_attempts.Count == 0)
                 UiText.Draw(listRect.x + 4, listRect.y + 4, listRect.width - 8, _emptyListText);
