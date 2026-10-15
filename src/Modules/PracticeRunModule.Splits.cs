@@ -982,9 +982,22 @@ namespace ForestOverlay.Modules
                     if (hud.LineIndex(j) != li) continue;
                     if (y == y0) y += 4f;
                     GUIContent label = hud.LabelAt(j);
-                    if (HudLines.All[li].Label != null && !string.IsNullOrEmpty(label.text))
-                        CrispText.Label(new Rect(x, y, w - 90f, RowH), label, _nameStyle);
-                    CrispText.Label(new Rect(x, y, w, RowH), hud.ValueAt(j), _cellStyle);
+                    GUIContent value = hud.ValueAt(j);
+                    // The value keeps what it needs (never over the label); the
+                    // label gets the rest, clipped (CalcSize does not allocate).
+                    float valueW = Mathf.Min(w, CrispText.CalcSize(_cellStyle, value).x + 4f);
+                    if (HudLines.All[li].Label != null && !string.IsNullOrEmpty(label.text) && w - valueW > 14f)
+                        CrispText.Label(new Rect(x, y, w - valueW - 4f, RowH), label, _nameStyle);
+                    int trend = hud.TrendAt(j);
+                    if (trend >= 0)
+                    {
+                        // The colour only: the glyphs (and the font's texture) stay.
+                        Color normal = _cellStyle.normal.textColor;
+                        _cellStyle.normal.textColor = Host.Hud.Settings.TrendColour((TrendState)trend);
+                        CrispText.Label(new Rect(x + w - valueW, y, valueW, RowH), value, _cellStyle);
+                        _cellStyle.normal.textColor = normal;
+                    }
+                    else CrispText.Label(new Rect(x + w - valueW, y, valueW, RowH), value, _cellStyle);
                     y += RowH;
                 }
             }

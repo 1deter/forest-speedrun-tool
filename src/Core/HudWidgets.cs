@@ -678,7 +678,9 @@ namespace ForestOverlay.Core
             int heads = 0;
             for (int i = 0; i < HudLines.All.Length; i++)
                 if (!HudLines.All[i].Locked && HudLines.HeadingAt(i) != null) heads++;
-            float contentH = _panelsH + rows * RowH + heads * HeadH + (_textLine >= 0 ? TextRowH : 0f) + _idleH + noteH + 8f;
+            int placed = 0;   // a placed value's row has a second line (In panel)
+            for (int i = 0; i < HudLines.All.Length; i++) if (!HudLines.All[i].Locked && IsFree(i)) placed++;
+            float contentH = _panelsH + (rows + placed) * RowH + heads * HeadH + (_textLine >= 0 ? TextRowH : 0f) + _idleH + noteH + 8f;
             if (_headStyle == null || !ReferenceEquals(_headFor, UiKit.Palette))
             {
                 _headFor = UiKit.Palette;
@@ -766,9 +768,9 @@ namespace ForestOverlay.Core
             }
 
             HudWidgetLayout wl = WidgetOf(i);
-            // One button for the docking, never beside a placed value's own
-            // buttons (that row is the full one): In panel, or To column.
-            if (wl == null || (!wl.Docked && !wl.Free))
+            // One button for the docking on this line: In panel, or To column.
+            // A placed value's row is full: its In panel is on a line under it.
+            if (wl == null || !wl.Free && !wl.Docked)
             {
                 x -= Gap + PanelW;
                 Rect dockR = new Rect(x, ry, PanelW, h);
@@ -808,6 +810,14 @@ namespace ForestOverlay.Core
             }
             UiKit.Hint(nameR, _descriptions[i]);
             ry += RowH;
+
+            if (wl != null && wl.Free)
+            {
+                Rect dockR = new Rect(cw - PanelW, ry - 4f, PanelW, h);
+                if (GUI.Button(dockR, PanelText)) Dock(i);
+                UiKit.Hint(dockR, PanelTip);
+                ry += RowH;
+            }
 
             if (_textLine == i)
             {
