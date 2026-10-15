@@ -157,15 +157,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (T-0325 released, author present):** the always-on lines
-  (ON NOW, practice marker, run mode's line) are own copies of the game's
-  bottom-left todo message in `HudGui.Grid` (`Game/GameMessageLines`,
-  `Data/GameLinesState`), overlay text in the same spot where the grid is
-  hidden; run code box unchanged (author). Checker accept (round 3),
-  **released v0.24.301**. **Next:** forest-tester confirms it in game
-  (cutscene / sleep, run mode's line, a bright background), then
-  `tasks.py next` (T-0332). New: T-0361 (input overlay: raw keys or game
-  actions) waits on T-0359 with T-0358. T-0333 needs a non-maker confirmation.
+- **2026-10-15 (T-0332 released, author present):** the Map tab in the
+  slate look (navy water, grey-blue land, 1 px tan coast; cache
+  `relief-slate-*.png`, the green file deleted), comparison line / ghost /
+  Only cave spots gone, key 'Runner spot', short hint. Checker accept,
+  **released v0.24.302**. Category colours still hash (FNV): 8 categories
+  land on 4 colours, as before - an author question. **Next:** a
+  non-maker confirms T-0332 in game, then `tasks.py next`. New: T-0363
+  (input overlay scaling + crisp corners + thin mouse path); T-0360
+  (sharp F2 text) has the author's Map-tab sighting.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
