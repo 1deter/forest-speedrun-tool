@@ -253,6 +253,12 @@ namespace ForestOverlay.Core
                             float cv = ProfileUnits.Convert((float)want, _units[i], fw, fh, tw, th);
                             if (cv != (float)want) { want = cv; converted = true; }
                         }
+                        else if (convert && _units[i] == ProfileUnit.InputTiles && want is string)
+                        {
+                            // The input overlay's tiles: positions in reference pixels (T-0302).
+                            string cs = InputLayout.ConvertPositions((string)want, fw, fh, tw, th);
+                            if (cs != (string)want) { want = cs; converted = true; }
+                        }
                     }
                     if (Equals(want, e.BoxedValue)) continue;
                     if (_appliers[i] != null) _appliers[i](want);
