@@ -177,6 +177,9 @@ namespace ForestOverlay.Game
             _meshMaterial.SetInt("_ZTest", (int)(Occlude ? UnityEngine.Rendering.CompareFunction.LessEqual
                                                          : UnityEngine.Rendering.CompareFunction.Always));
             int colour = -1;
+            // Put back as found: on the OnRenderObject fallback the Views
+            // tab's global Wireframe may hold it on for the rest of the camera.
+            bool was = GL.wireframe;
             GL.wireframe = true;
             try
             {
@@ -196,7 +199,7 @@ namespace ForestOverlay.Game
                     Graphics.DrawMeshNow(mesh, pull * mc.transform.localToWorldMatrix);
                 }
             }
-            finally { GL.wireframe = false; }
+            finally { GL.wireframe = was; }
         }
 
         /// Forces the next Update to re-gather, so a filter change shows
