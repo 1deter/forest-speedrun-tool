@@ -391,11 +391,13 @@ namespace ForestOverlay.Modules
             r = new Rect(r.x - r.width * pop * 0.5f, r.y - r.height * pop * 0.5f, r.width * (1f + pop), r.height * (1f + pop));
 
             GUI.color = new Color(before.r, before.g, before.b, before.a * a);
-            WinPx.Box(r, GUIContent.none, UiKit.WidgetCard);
+            float bw = BorderPx * s.Tile.Scale;
+            Flat(r, UiKit.WidgetEdge);
+            Flat(Inset(r, bw), UiKit.WidgetFill);
             if (level > 0.01f)
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a * a * level);
-                WinPx.Box(r, GUIContent.none, UiKit.Primary);
+                Flat(r, UiKit.Accent);
             }
 
             if (s.Tile.Key == InputLayout.MouseKey) DrawMouseBox(r, s.Tile.Scale, now, before, a);
@@ -413,26 +415,72 @@ namespace ForestOverlay.Modules
             if (editing)
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a);
-                WinPx.Box(s.Rect, GUIContent.none, UiKit.Outline);
+                float ow = 2f * s.Tile.Scale;
+                Rect o = s.Rect;
+                Flat(new Rect(o.x, o.y, o.width, ow), UiKit.Accent);
+                Flat(new Rect(o.x, o.yMax - ow, o.width, ow), UiKit.Accent);
+                Flat(new Rect(o.x, o.y + ow, ow, o.height - ow * 2f), UiKit.Accent);
+                Flat(new Rect(o.xMax - ow, o.y + ow, ow, o.height - ow * 2f), UiKit.Accent);
             }
+        }
+
+        // Square-cornered, crisp drawing (T-0363): a flat colour on the white
+        // texture, no rounded 9-slice edge to blur. Every size below is a
+        // constant times the tile's scale, so tile, border, dot and line keep
+        // one ratio at every size.
+        private const float BorderPx = 1.5f, LineThickness = 2f, DotSize = 8f;
+
+        private static Rect Inset(Rect r, float d)
+        {
+            return new Rect(r.x + d, r.y + d, Mathf.Max(0f, r.width - d * 2f), Mathf.Max(0f, r.height - d * 2f));
+        }
+
+        private static void Flat(Rect r, Color c)
+        {
+            Color keep = GUI.color;
+            GUI.color = new Color(c.r * keep.r, c.g * keep.g, c.b * keep.b, c.a * keep.a);
+            WinPx.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = keep;
+        }
+
+        /// A straight line of the given thickness: a thin rectangle turned about its start.
+        private static void Segment(float x0, float y0, float x1, float y1, float thick, Color c)
+        {
+            float dx = x1 - x0, dy = y1 - y0;
+            float len = Mathf.Sqrt(dx * dx + dy * dy);
+            if (len < 0.01f) return;
+            Matrix4x4 m = GUI.matrix;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(dy, dx) * Mathf.Rad2Deg, new Vector2(x0, y0));
+            Flat(new Rect(x0, y0 - thick * 0.5f, len, thick), c);
+            GUI.matrix = m;
         }
 
         private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
         {
             float half = r.width * 0.5f - 8f * scale;
             float cx = r.x + r.width * 0.5f, cy = r.y + r.height * 0.5f;
-            float dot = 5f * scale;
+            float thick = LineThickness * scale;
+            GUI.color = Color.white;   // colours below carry their own alpha
+            float hx = cx + _mx * half, hy = cy + _my * half;
+            float px = hx, py = hy, pAge = 0f;   // the line runs from the head back along the trail
+            bool have = true;
             for (int k = 0; k < _trailCount; k++)
             {
                 int idx = (_trailHead - 1 - k + TrailMax * 2) % TrailMax;
                 float age = now - _trailT[idx];
                 if (age >= TrailSeconds) break;   // older entries are older still
-                GUI.color = new Color(before.r, before.g, before.b, before.a * a * (1f - age / TrailSeconds) * 0.8f);
-                WinPx.Box(new Rect(cx + _trailX[idx] * half - dot * 0.5f, cy + _trailY[idx] * half - dot * 0.5f, dot, dot), GUIContent.none, UiKit.Handle);
+                float tx = cx + _trailX[idx] * half, ty = cy + _trailY[idx] * half;
+                // A jump across the box (the mouse wrapped at an edge) is not a line.
+                bool wrapped = Mathf.Abs(tx - px) > half || Mathf.Abs(ty - py) > half;
+                if (have && !wrapped)
+                {
+                    float f = 1f - Mathf.Max(age, pAge) / TrailSeconds;
+                    Segment(px, py, tx, ty, thick, new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.8f * f * before.a * a));
+                }
+                px = tx; py = ty; pAge = age;
             }
-            float head = 9f * scale;
-            GUI.color = new Color(before.r, before.g, before.b, before.a * a);
-            WinPx.Box(new Rect(cx + _mx * half - head * 0.5f, cy + _my * half - head * 0.5f, head, head), GUIContent.none, UiKit.Handle);
+            float head = DotSize * scale;
+            Flat(new Rect(hx - head * 0.5f, hy - head * 0.5f, head, head), new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, before.a * a));
         }
 
         // --- the mouse in Edit HUD: drag a tile, right-click to hide / show it ---------------------------
