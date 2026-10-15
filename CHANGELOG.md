@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.309 - 2026-10-15
+
+- Edit HUD, input overlay: a tile you add now appears in a free spot at the bottom right of the screen instead of behind the Edit HUD window, so you can drag it straight away.
+- Tiles you add after it fill the next free spot, never on top of one another.
+
 ## v0.24.308 - 2026-10-15
 
 - Edit HUD, input overlay: the message after + Key, + Wheel or + Mouse box now shows right under the add buttons, no scrolling past Default layout to read it.
