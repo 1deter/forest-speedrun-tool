@@ -458,22 +458,53 @@ namespace ForestOverlay.Modules
             GUI.color = keep;
         }
 
-        /// A straight line of the given thickness, as squares stamped along it.
-        private static void Segment(float x0, float y0, float x1, float y1, float thick, Color c)
+        // The mouse path is one GL quad batch (T-0363): rotated GUI textures and
+        // stamped squares both broke up or stacked their alpha in game. One quad
+        // per segment, the age fade per vertex, so nothing overlaps along a
+        // segment. Hidden/Internal-Colored is a stock shader (DebugDraw uses it).
+        private static Material _lineMat;
+        private static bool _lineMatTried;
+        private bool _lineMatTold;
+
+        private bool EnsureLineMaterial()
         {
-            // Squares stamped along the line on the pixel grid: continuous at any
-            // HUD scale (a rotated quad broke into dashes in game, T-0363).
-            float f = Fx();
+            if (_lineMat != null) return true;
+            if (!_lineMatTried)
+            {
+                _lineMatTried = true;
+                Shader shader = Shader.Find("Hidden/Internal-Colored");
+                if (shader != null)
+                {
+                    _lineMat = new Material(shader);
+                    _lineMat.hideFlags = HideFlags.HideAndDontSave;
+                    _lineMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    _lineMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    _lineMat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                    _lineMat.SetInt("_ZWrite", 0);
+                    _lineMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                }
+            }
+            if (_lineMat == null && !_lineMatTold)
+            {
+                _lineMatTold = true;
+                Ctx.Log.LogWarning("Inputs: the mouse path cannot be drawn (Hidden/Internal-Colored not found) - the mouse box shows the dot only.");
+            }
+            return _lineMat != null;
+        }
+
+        /// One segment as a quad of the given thickness, fading from colour c0 to c1.
+        private static void Quad(float x0, float y0, float x1, float y1, float thick, Color c0, Color c1)
+        {
             float dx = x1 - x0, dy = y1 - y0;
             float len = Mathf.Sqrt(dx * dx + dy * dy);
-            int n = Mathf.Clamp(Mathf.CeilToInt(len * f / Mathf.Max(1f, thick * f * 0.8f)), 1, 120);
-            for (int k = 0; k <= n; k++)
-            {
-                float t = (float)k / n;
-                float x = Mathf.Round((x0 + dx * t - thick * 0.5f) * f) / f;
-                float y = Mathf.Round((y0 + dy * t - thick * 0.5f) * f) / f;
-                FlatRaw(new Rect(x, y, thick, thick), c);
-            }
+            if (len < 0.01f) return;
+            float nx = -dy / len * thick * 0.5f, ny = dx / len * thick * 0.5f;
+            GL.Color(c0);
+            GL.Vertex3(x0 + nx, y0 + ny, 0f);
+            GL.Vertex3(x0 - nx, y0 - ny, 0f);
+            GL.Color(c1);
+            GL.Vertex3(x1 - nx, y1 - ny, 0f);
+            GL.Vertex3(x1 + nx, y1 + ny, 0f);
         }
 
         private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
@@ -484,6 +515,14 @@ namespace ForestOverlay.Modules
             GUI.color = Color.white;   // colours below carry their own alpha
             float hx = cx + _mx * half, hy = cy + _my * half;
             float px = hx, py = hy, pAge = 0f;   // the line runs from the head back along the trail
+            bool gl = _trailCount > 0 && EnsureLineMaterial();
+            if (gl)
+            {
+                GL.PushMatrix();
+                GL.MultMatrix(GUI.matrix);   // the HUD's scale; points are in the space Flat draws in
+                _lineMat.SetPass(0);
+                GL.Begin(GL.QUADS);
+            }
             for (int k = 0; k < _trailCount; k++)
             {
                 int idx = (_trailHead - 1 - k + TrailMax * 2) % TrailMax;
@@ -492,12 +531,20 @@ namespace ForestOverlay.Modules
                 float tx = cx + _trailX[idx] * half, ty = cy + _trailY[idx] * half;
                 // A jump across the box (the mouse wrapped at an edge) is not a line.
                 bool wrapped = Mathf.Abs(tx - px) > half || Mathf.Abs(ty - py) > half;
-                if (!wrapped)
+                if (gl && !wrapped)
                 {
-                    float f = 1f - Mathf.Max(age, pAge) / TrailSeconds;
-                    Segment(px, py, tx, ty, thick, new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.8f * f * before.a * a));
+                    float f0 = 1f - pAge / TrailSeconds, f1 = 1f - age / TrailSeconds;
+                    float ba = 0.8f * before.a * a;
+                    Quad(px, py, tx, ty, thick,
+                        new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f0),
+                        new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f1));
                 }
                 px = tx; py = ty; pAge = age;
+            }
+            if (gl)
+            {
+                GL.End();
+                GL.PopMatrix();
             }
             float head = DotSize * scale;
             Flat(new Rect(hx - head * 0.5f, hy - head * 0.5f, head, head), new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, before.a * a));
