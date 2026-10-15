@@ -110,3 +110,4 @@
 {"at": "2026-10-15T19:12:07", "event": "round", "run": "R-0009", "round": 5, "task": "T-0342", "reviews_before": 0}
 {"at": "2026-10-15T19:12:42", "event": "end", "run": "R-0009", "round": 5, "task": "T-0342", "status": "confirmed", "progress": true, "parked": false, "summary": "T-0342 closed with no code change: the author's 2026-10-12 report (Edit HUD's splits-panel decimals changed the results panel) was already fixed by T-0337 (v0.24.291, confirmed in game 2026-10-14) - the results panel has its own Decimals under the Results panel heading in Edit HUD. Evidence points at the code and docs/confirmed.md; checker switched off for it since nothing changed.", "tier": "easy", "route": "forest-dev/sonnet/low"}
 {"at": "2026-10-15T19:12:43", "event": "stop", "run": "R-0009", "reason": "5 rounds done (the run's limit)"}
+{"at": "2026-10-15T19:13:40", "event": "chain-dispatch", "chain": "C-0001", "kind": "run"}
