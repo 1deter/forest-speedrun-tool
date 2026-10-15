@@ -167,13 +167,15 @@ namespace ForestOverlay.Data
         }
 
         /// The default layout for a reference screen (Data/UiScale: the screen the
-        /// install first ran on): the bottom-left corner, whatever its height.
+        /// install first ran on): bottom centre, whatever its size - the
+        /// bottom-left corner is the game's own messages and the always-on
+        /// lines (author, 2026-10-15, T-0325).
         public static InputLayout Default(int refW, int refH)
         {
             if (refW < 640) refW = 640;
             if (refH < 480) refH = 480;
             InputLayout l = new InputLayout();
-            float ox = Math.Max(16f, refW * 0.02f);
+            float ox = (refW - DefaultWidth) * 0.5f;
             float oy = refH - (2f * Pitch + Unit) - Math.Max(16f, refH * 0.03f);
             l.Place("W", ox, oy, 1f, 0f);
             l.Place("A", ox, oy, 0f, 1f);
@@ -187,6 +189,9 @@ namespace ForestOverlay.Data
             l.Place(MouseKey, ox, oy, 7f, 1f);
             return l;
         }
+
+        /// The default block's width: the mouse box (2 units) from column 7.
+        public const float DefaultWidth = 9f * Pitch - (Pitch - Unit);
 
         private void Place(string key, float ox, float oy, float col, float row)
         {

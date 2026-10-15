@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-240 prefixes from 786 log calls.
+241 prefixes from 787 log calls.
 
 ## `Aerial capture`
 
@@ -583,6 +583,13 @@ Written by GameInput.cs; info / warning.
 
 - warning `GameInput: <Status>` (x3)
 - info `GameInput: Input.SetState(Menu) bound.`
+
+## `GameMessageLines`
+
+Meaning: The always-on lines (ON NOW, practice marker) could not go into the game's bottom-left messages (HudGui.Grid members missing, or a failure): once per launch; the overlay draws them instead.
+Written by GameMessageLines.cs; warning.
+
+- warning `<message>` *(declared)*
 
 ## `GetTypes failed`
 

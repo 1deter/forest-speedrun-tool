@@ -116,6 +116,7 @@
     <Compile Include="../../src/Data/KeyGroups.cs" Link="Linked/KeyGroups.cs" />
     <Compile Include="../../src/Data/HudLayout.cs" Link="Linked/HudLayout.cs" />
     <Compile Include="../../src/Data/InputLayout.cs" Link="Linked/InputLayout.cs" />
+    <Compile Include="../../src/Data/GameLinesState.cs" Link="Linked/GameLinesState.cs" />
     <Compile Include="../../src/Data/UiScale.cs" Link="Linked/UiScale.cs" />
     <Compile Include="../../src/Data/ProfileUnits.cs" Link="Linked/ProfileUnits.cs" />
     <Compile Include="../../src/Data/HudProfile.cs" Link="Linked/HudProfile.cs" />

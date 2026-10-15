@@ -92,6 +92,26 @@ namespace ForestOverlay.Tests
             }
         }
 
+        [Theory]
+        [InlineData(1366, 768)]
+        [InlineData(1920, 1080)]
+        [InlineData(2560, 1440)]
+        public void DefaultSitsBottomCentreClearOfTheGamesMessages(int w, int h)
+        {
+            // The game's bottom-left messages (HudGui.Grid) and the always-on
+            // lines live in the corner (T-0325).
+            InputLayout d = InputLayout.Default(w, h);
+            float left = float.MaxValue, right = 0f;
+            for (int i = 0; i < d.Tiles.Count; i++)
+            {
+                InputTile t = d.Tiles[i];
+                left = Math.Min(left, t.X);
+                right = Math.Max(right, t.X + InputLayout.TileW(t.Key, t.Scale));
+            }
+            Assert.True(left > w * 0.25f, "the corner is not free: " + left);
+            Assert.True(Math.Abs((left + right) * 0.5f - w * 0.5f) < 1f, "not centred");
+        }
+
         [Fact]
         public void LongLabelsGetWiderTilesSoNothingClips()
         {

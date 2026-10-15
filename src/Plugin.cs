@@ -49,6 +49,8 @@ namespace ForestOverlay
         private InventoryReader _inventory;
         private PlayerStateReader _playerState;
         private PracticeState _practice;
+        // ON NOW + the marker as the game's bottom-left messages (T-0325).
+        private GameMessageLines _gameLines;
         private ExternalModWatch _modWatch;
         private readonly Notice _notice = new Notice();
         private GUIStyle _noticeStyle;
@@ -120,6 +122,7 @@ namespace ForestOverlay
                 _inventory = new InventoryReader(Logger);
                 _playerState = new PlayerStateReader(Logger);
                 _practice = new PracticeState();
+                _gameLines = new GameMessageLines(Logger);
                 // ModAPI's rebuilt game code (UltimateCheatmenu...): the
                 // session is flagged, nothing refused (T-0295; rule 12).
                 if (ModApi.Present())
@@ -240,6 +243,9 @@ namespace ForestOverlay
 
                 _host.Tick();
                 _practice.Compact = _host.Hud.Compact;
+                // Shown with the HUD column, as before (T-0325).
+                _gameLines.Update(_practice.AnyOn ? _practice.OnLabel.text : null, _practice.Label.text,
+                                  _host.UiVisible && _host.HudVisible);
 
                 // Unity's GUI layout pass allocates every frame; only our
                 // windows need it (Game/PerfPatches, fix 1). Set here,
@@ -450,14 +456,6 @@ namespace ForestOverlay
                 colW = Mathf.Max(colW, cw);
                 colH += ch;
             }
-            GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
-            float onH = _practice.AnyOn ? Mathf.Max(lineHeight, CrispText.CalcHeight(_warnStyle, _practice.OnLabel, wrapW)) : 0f;
-            // Nothing while clean (author, 2026-10-10).
-            bool marked = _practice.Label.text.Length > 0;
-            float markH = marked ? Mathf.Max(lineHeight, CrispText.CalcHeight(practiceStyle, _practice.Label, wrapW)) : 0f;
-            if (onH > 0f) colW = Mathf.Max(colW, Mathf.Min(wrapW, CrispText.CalcSize(_warnStyle, _practice.OnLabel).x));
-            if (marked) colW = Mathf.Max(colW, Mathf.Min(wrapW, CrispText.CalcSize(practiceStyle, _practice.Label).x));
-            colH += onH + markH;
             // Nothing to show: still a spot to see and move while editing.
             if (editing)
             {
@@ -514,18 +512,12 @@ namespace ForestOverlay
                 yy += _colH[i];
             }
 
-            // What changes the game now (no stagger, god mode, item caps...),
-            // above the marker. Never switchable (honest labelling).
-            if (onH > 0f)
-            {
-                CrispText.Label(new Rect(x, yy, wrapW, onH), _practice.OnLabel, _warnStyle);
-                yy += onH;
-            }
-
-            // Sticky and last, so it is the line the eye lands on. A run
-            // recording must make it obvious that a practice tool was used.
-            // Never switchable either.
-            if (marked) CrispText.Label(new Rect(x, yy, wrapW, markH), _practice.Label, practiceStyle);
+            // What changes the game now (no stagger, god mode, item caps...)
+            // and the practice marker, never switchable (honest labelling):
+            // the game's own bottom-left messages (T-0325, Game/
+            // GameMessageLines); where the game hides those, drawn here in
+            // the same spot.
+            if (_gameLines.Mode == GameLinesMode.Overlay) DrawAlwaysLines(s, wrapW, lineHeight);
 
             // The values placed on their own (and, in edit mode, their handles);
             // a placed value dropped on the column goes back into it.
@@ -533,6 +525,30 @@ namespace ForestOverlay
             {
                 widgets.ColumnRect = col;
                 widgets.Draw(hud, blocked);
+            }
+        }
+
+        // The fallback (author, 2026-10-15): bottom up from the game's lowest
+        // line, orange like the flags were. Each line is a string kept by
+        // GameLinesState, so only the GUIContent's text is set here.
+        private readonly GUIContent _alwaysLine = new GUIContent("");
+
+        private void DrawAlwaysLines(HudSettings s, float wrapW, float lineHeight)
+        {
+            List<string> lines = _gameLines.Lines;
+            if (lines.Count == 0) return;
+            Vector2 a = _gameLines.Anchor;
+            Rect at = s.Virtual(new Rect(a.x, a.y, 0f, 0f));
+            GUIStyle style = _practice.Warn ? _warnStyle : _hudLabelStyle;
+            float y = at.y + lineHeight * 0.5f;
+            for (int i = lines.Count - 1; i >= 0; i--)
+            {
+                _alwaysLine.text = lines[i];
+                // The marker's lines in its own colour; the flags orange.
+                GUIStyle st = i >= _gameLines.MarkerStart ? style : _warnStyle;
+                float h = Mathf.Max(lineHeight, CrispText.CalcHeight(st, _alwaysLine, wrapW));
+                y -= h;
+                CrispText.Label(new Rect(at.x, y, wrapW, h), _alwaysLine, st);
             }
         }
 
