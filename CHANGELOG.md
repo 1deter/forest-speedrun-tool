@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.296 - 2026-10-15
+
+- Settings > HUD > Trend colours now says on the page that only values with Trend on use these colours (Trend is off by default, turned on per value in Edit HUD).
+- The trend colour swatches are bigger, and the current colour has a ring around it.
+
 ## v0.24.295 - 2026-10-15
 
 - Deaths: When I die no longer has an Automatic choice - the game's own death is the default. Pick Reload the save, Restart the current spot or Revive at the current spot to change what a death does.
