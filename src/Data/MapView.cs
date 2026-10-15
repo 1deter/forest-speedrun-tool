@@ -13,10 +13,10 @@ namespace ForestOverlay.Data
     }
 
     // ------------------------------------------------------------------
-    // The Map tab's camera: a top-down view of the island, north up.
+    // The Map tab's camera: a top-down view of the island, turned 180 degrees (north DOWN, east LEFT, as the game's map).
     //
     // View pixels have their origin at the map area's top-left corner,
-    // +x east and +y SOUTH (GUI space, Y down); the world is (x, z).
+    // +x WEST and +y NORTH (GUI space, Y down); the world is (x, z).
     // `Scale` is pixels per metre. Zoomed all the way out the whole
     // island fits the view (FitScale); a centre is clamped so the view
     // never shows more than the island's edge on an axis it does not
@@ -71,15 +71,15 @@ namespace ForestOverlay.Data
 
         public Vector2 WorldToView(float x, float z)
         {
-            return new Vector2((x - CentreX) * Scale + ViewW * 0.5f,
-                               (CentreZ - z) * Scale + ViewH * 0.5f);
+            return new Vector2((CentreX - x) * Scale + ViewW * 0.5f,
+                               (z - CentreZ) * Scale + ViewH * 0.5f);
         }
 
         /// The world (x, z) under a view pixel, as a Vector2 (y = z).
         public Vector2 ViewToWorld(float px, float py)
         {
-            return new Vector2((px - ViewW * 0.5f) / Scale + CentreX,
-                               CentreZ - (py - ViewH * 0.5f) / Scale);
+            return new Vector2(CentreX - (px - ViewW * 0.5f) / Scale,
+                               (py - ViewH * 0.5f) / Scale + CentreZ);
         }
 
         /// Zoom by `factor` keeping the world point under (px, py) there.
@@ -88,16 +88,16 @@ namespace ForestOverlay.Data
             if (factor <= 0f) return;
             Vector2 w = ViewToWorld(px, py);
             Scale = ClampScale(Scale * factor);
-            CentreX = w.x - (px - ViewW * 0.5f) / Scale;
-            CentreZ = w.y + (py - ViewH * 0.5f) / Scale;
+            CentreX = w.x + (px - ViewW * 0.5f) / Scale;
+            CentreZ = w.y - (py - ViewH * 0.5f) / Scale;
             Clamp();
         }
 
         /// A drag by (dx, dy) view pixels: the map follows the pointer.
         public void Pan(float dx, float dy)
         {
-            CentreX -= dx / Scale;
-            CentreZ += dy / Scale;
+            CentreX += dx / Scale;
+            CentreZ -= dy / Scale;
             Clamp();
         }
 
@@ -136,8 +136,8 @@ namespace ForestOverlay.Data
         /// is in view.
         public bool TextureWindow(out MapBox view, out MapBox uv)
         {
-            Vector2 tl = WorldToView(MinX, MaxZ);
-            Vector2 br = WorldToView(MaxX, MinZ);
+            Vector2 tl = WorldToView(MaxX, MinZ);
+            Vector2 br = WorldToView(MinX, MaxZ);
             view = new MapBox
             {
                 X0 = Math.Max(0f, tl.x), Y0 = Math.Max(0f, tl.y),
@@ -146,8 +146,10 @@ namespace ForestOverlay.Data
             uv = new MapBox();
             if (view.X1 <= view.X0 || view.Y1 <= view.Y0) return false;
 
-            Vector2 a = ViewToWorld(view.X0, view.Y1);   // south-west
-            Vector2 b = ViewToWorld(view.X1, view.Y0);   // north-east
+            Vector2 a = ViewToWorld(view.X0, view.Y1);   // north-east corner of the window
+            Vector2 b = ViewToWorld(view.X1, view.Y0);   // south-west corner
+            // The picture is turned 180 degrees: the window's left edge is
+            // the island's east, so the UVs run backwards (negative width).
             uv.X0 = (a.x - MinX) / SizeX; uv.Y0 = (a.y - MinZ) / SizeZ;
             uv.X1 = (b.x - MinX) / SizeX; uv.Y1 = (b.y - MinZ) / SizeZ;
             return true;

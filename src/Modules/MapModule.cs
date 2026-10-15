@@ -663,7 +663,7 @@ namespace ForestOverlay.Modules
             if (!InsideBy(c, 12f)) return;
 
             float yaw = tr.eulerAngles.y * Mathf.Deg2Rad;
-            float fx = Mathf.Sin(yaw), fy = -Mathf.Cos(yaw);   // view Y is south
+            float fx = -Mathf.Sin(yaw), fy = Mathf.Cos(yaw);   // view is turned 180: Y is north
             float px = -fy, py = fx;
             Arrow(c, fx, fy, px, py, 12f, Outline);
             Arrow(c, fx, fy, px, py, 9f, Color.white);

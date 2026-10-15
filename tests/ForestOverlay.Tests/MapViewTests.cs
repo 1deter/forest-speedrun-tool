@@ -33,14 +33,14 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void NorthIsUpAndEastIsRight()
+        public void NorthIsDownAndEastIsLeft()
         {
             MapView v = Island();
             Vector2 a = v.WorldToView(0f, 0f);
             Vector2 north = v.WorldToView(0f, 100f);
             Vector2 east = v.WorldToView(100f, 0f);
-            Assert.True(north.y < a.y);
-            Assert.True(east.x > a.x);
+            Assert.True(north.y > a.y);
+            Assert.True(east.x < a.x);
         }
 
         [Fact]
@@ -97,10 +97,10 @@ namespace ForestOverlay.Tests
             Assert.Equal(340f, now.x, 2);
             Assert.Equal(225f, now.y, 2);
 
-            v.Pan(100000f, -100000f);   // far past the west and south edges
-            Vector2 tl = v.WorldToView(v.MinX, v.MaxZ);
+            v.Pan(100000f, -100000f);   // far past the east and north edges
+            Vector2 tl = v.WorldToView(v.MaxX, v.MinZ);
             Assert.Equal(0f, tl.x, 2);
-            Vector2 br = v.WorldToView(v.MaxX, v.MinZ);
+            Vector2 br = v.WorldToView(v.MinX, v.MaxZ);
             Assert.Equal(v.ViewH, br.y, 2);
         }
 
@@ -114,20 +114,20 @@ namespace ForestOverlay.Tests
             Assert.Equal(500f, view.X1, 2);
             Assert.Equal(0f, view.Y0, 2);
             Assert.Equal(400f, view.Y1, 2);
-            Assert.Equal(0f, uv.X0, 4); Assert.Equal(0f, uv.Y0, 4);
-            Assert.Equal(1f, uv.X1, 4); Assert.Equal(1f, uv.Y1, 4);
+            Assert.Equal(1f, uv.X0, 4); Assert.Equal(1f, uv.Y0, 4);
+            Assert.Equal(0f, uv.X1, 4); Assert.Equal(0f, uv.Y1, 4);
         }
 
         [Fact]
         public void TextureWindowZoomedOnTheNorthEastIsThatCorner()
         {
             MapView v = Island(400f, 400f);
-            v.ZoomAt(4f, 400f, 0f);   // pinned to the north-east corner
+            v.ZoomAt(4f, 0f, 400f);   // pinned to the north-east corner (bottom left, turned 180)
             MapBox view, uv;
             Assert.True(v.TextureWindow(out view, out uv));
             Assert.Equal(0f, view.X0, 2); Assert.Equal(400f, view.X1, 2);
-            Assert.Equal(0.75f, uv.X0, 3); Assert.Equal(1f, uv.X1, 3);
-            Assert.Equal(0.75f, uv.Y0, 3); Assert.Equal(1f, uv.Y1, 3);
+            Assert.Equal(1f, uv.X0, 3); Assert.Equal(0.75f, uv.X1, 3);
+            Assert.Equal(1f, uv.Y0, 3); Assert.Equal(0.75f, uv.Y1, 3);
         }
 
         [Fact]
