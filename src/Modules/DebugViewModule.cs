@@ -71,6 +71,7 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _limitSizeCfg;
         private ConfigEntry<float> _maxSizeCfg;
         private ConfigEntry<string> _excludeCfg;
+        private ConfigEntry<bool> _occludeCfg;
         private static readonly GUIContent FilterHelp = new GUIContent(
             "Hide names containing (comma-separated). Also: a path part with / (Caves/Cave6), layer:Prop for a layer, " +
             "+name to show ONLY what matches (e.g. +layer:PickUp).");
@@ -163,6 +164,10 @@ namespace ForestOverlay.Modules
                 "Largest volume drawn, in metres, when LimitVolumeSize is on.");
             _excludeCfg = Ctx.Config.Bind("DebugViews", "ExcludeNames", "",
                 "Comma-separated name fragments; volumes whose GameObject name contains one are not drawn.");
+
+            _occludeCfg = Ctx.Config.Bind("DebugViews", "HideBehindWalls", false,
+                "Collider/trigger outlines are hidden where scenery is in front of them.");
+            _draw.Occlude = _occludeCfg.Value;
 
             _limitSize = _limitSizeCfg.Value;
             _maxSize = Mathf.Clamp(_maxSizeCfg.Value, MinSizeLimit, MaxSizeLimit);
@@ -522,6 +527,10 @@ namespace ForestOverlay.Modules
 
             bool trigs = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowTriggers, " Triggers (orange)");
             if (trigs != _draw.ShowTriggers) { _draw.ShowTriggers = trigs; _draw.RefreshSoon(); }
+            y += Row;
+
+            bool occ = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.Occlude, " Hide what is behind walls");
+            if (occ != _draw.Occlude) { _draw.Occlude = occ; _occludeCfg.Value = occ; }
             y += Row + 6f;
 
             GUI.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
@@ -575,7 +584,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
             y += UiText.Draw(12, y, w - 24, "The body is held still while it is on.");
-            y += UiText.Draw(12, y, w - 24, "Volumes are world-space bounds, not exact mesh shapes.") + 4f;
+            y += UiText.Draw(12, y, w - 24, "Boxes, spheres, capsules and simple meshes show their real shape; very large or unreadable meshes show their bounds.") + 4f;
 
             _contentHeight = y;
             GUI.EndScrollView();

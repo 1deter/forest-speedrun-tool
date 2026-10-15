@@ -98,6 +98,10 @@ namespace ForestOverlay.Game
         // Filters - see Data/VolumeFilter. MaxSize caps a volume's largest
         // side (0 = no limit); Exclude drops names containing a fragment.
         public float MaxSize;
+
+        /// Hide the parts of a volume behind solid scenery (a depth test
+        /// against the scene). Off: every volume shows through walls.
+        public bool Occlude;
         public string[] Exclude = new string[0];
 
         /// What the last refresh hid, so the tab can say why a volume is
@@ -128,6 +132,68 @@ namespace ForestOverlay.Game
             _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             _material.SetInt("_ZWrite", 0);
+        }
+
+        // Real mesh-collider edges (T-0340). Cached per mesh: each distinct
+        // edge once. Meshes over MaxMeshEdges, or not readable, keep their
+        // world bounds; MeshEdgeBudget caps the edges drawn in one frame.
+        private sealed class MeshEdges { public Vector3[] Verts; public int[] Pairs; }
+        private const int MaxMeshEdges = 6000;
+        private const int MeshEdgeBudget = 40000;
+        private static readonly Dictionary<int, MeshEdges> _edgeCache = new Dictionary<int, MeshEdges>();
+        private int _edgesThisFrame;
+
+        private static MeshEdges EdgesOf(Mesh mesh)
+        {
+            int id = mesh.GetInstanceID();
+            MeshEdges e;
+            if (_edgeCache.TryGetValue(id, out e)) return e;
+            e = null;
+            try
+            {
+                if (mesh.isReadable)
+                {
+                    int[] tris = mesh.triangles;
+                    if (tris.Length <= MaxMeshEdges * 2)
+                    {
+                        HashSet<long> seen = new HashSet<long>();
+                        List<int> pairs = new List<int>();
+                        for (int t = 0; t + 2 < tris.Length; t += 3)
+                        {
+                            for (int k = 0; k < 3; k++)
+                            {
+                                int a = tris[t + k], b = tris[t + (k + 1) % 3];
+                                int lo = a < b ? a : b, hi = a < b ? b : a;
+                                if (seen.Add(((long)lo << 32) | (uint)hi)) { pairs.Add(lo); pairs.Add(hi); }
+                            }
+                        }
+                        if (pairs.Count / 2 <= MaxMeshEdges)
+                        {
+                            e = new MeshEdges();
+                            e.Verts = mesh.vertices;
+                            e.Pairs = pairs.ToArray();
+                        }
+                    }
+                }
+            }
+            catch (Exception) { e = null; }
+            _edgeCache[id] = e;
+            return e;
+        }
+
+        private bool DrawMeshCollider(MeshCollider mc)
+        {
+            Mesh mesh = mc.sharedMesh;
+            if (mesh == null) return false;
+            MeshEdges e = EdgesOf(mesh);
+            if (e == null) return false;
+            int n = e.Pairs.Length / 2;
+            if (_edgesThisFrame + n > MeshEdgeBudget) return false;
+            _edgesThisFrame += n;
+            Matrix4x4 m = mc.transform.localToWorldMatrix;
+            for (int i = 0; i < e.Pairs.Length; i += 2)
+                Line(m.MultiplyPoint3x4(e.Verts[e.Pairs[i]]), m.MultiplyPoint3x4(e.Verts[e.Pairs[i + 1]]));
+            return true;
         }
 
         /// Forces the next Update to re-gather, so a filter change shows
@@ -229,9 +295,24 @@ namespace ForestOverlay.Game
             if (_material == null) return;
 
             long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            // Occluded: test against the scene's depth, the lines pulled 1 %
+            // toward the eye so a volume lying on a surface is not eaten by it.
+            _material.SetInt("_ZTest", (int)(Occlude ? UnityEngine.Rendering.CompareFunction.LessEqual
+                                                    : UnityEngine.Rendering.CompareFunction.Always));
             _material.SetPass(0);
+            _edgesThisFrame = 0;
 
             GL.PushMatrix();
+            if (Occlude)
+            {
+                Camera view = DrawTarget.View();
+                if (view != null)
+                {
+                    Vector3 eye = view.transform.position;
+                    float k = 0.99f;
+                    GL.MultMatrix(Matrix4x4.TRS(eye * (1f - k), Quaternion.identity, new Vector3(k, k, k)));
+                }
+            }
             GL.Begin(GL.LINES);
 
             for (int i = 0; i < _found.Count; i++)
@@ -243,13 +324,14 @@ namespace ForestOverlay.Game
 
                 // The real shape for boxes, spheres and capsules (runners:
                 // "more detailed hitboxes", v0.24.199); a mesh collider keeps
-                // its world bounds - the true shape is the mesh itself.
+                // its edges (cached, within a budget), else its world bounds.
                 BoxCollider box = c as BoxCollider;
                 SphereCollider sphere = box == null ? c as SphereCollider : null;
                 CapsuleCollider capsule = box == null && sphere == null ? c as CapsuleCollider : null;
                 if (box != null) DrawBox(box);
                 else if (sphere != null) DrawSphere(sphere);
                 else if (capsule != null) DrawCapsule(capsule);
+                else if (c is MeshCollider && DrawMeshCollider((MeshCollider)c)) { }
                 else
                 {
                     Bounds b = c.bounds;
