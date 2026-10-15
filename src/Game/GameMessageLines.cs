@@ -167,8 +167,9 @@ namespace ForestOverlay.Game
                     catch (Exception) { _outline = null; }
                 }
             }
-            string missing = GameLinesState.MissingMembers(_gridF != null, _templateF != null, _camF != null,
-                                                           _textP != null, _reposition != null);
+            string missing = GameLinesState.MissingMembers(
+                new[] { "HudGui.Grid", "HudGui._todoListMessageView", "HudGui.GuiCamC", "UILabel.text", "UIGrid.Reposition" },
+                new[] { _gridF != null, _templateF != null, _camF != null, _textP != null, _reposition != null });
             if (missing.Length > 0)
             {
                 Fail("GameMessageLines: " + missing + " not found - the always-on lines are drawn by the overlay.");

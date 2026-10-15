@@ -88,22 +88,15 @@ namespace ForestOverlay.Data
             return _warn && i >= MarkerStart;
         }
 
-        /// The game members the lines need that were not found, named for
-        /// the log ("" = all there; anything else: the overlay text).
-        public static string MissingMembers(bool grid, bool template, bool cam, bool text, bool reposition)
+        /// The members the lines need that were not found (`names[i]` when
+        /// `found[i]` is false), for the log: "" = all there, anything else
+        /// the overlay text. The names come from Game/ (rule 1).
+        public static string MissingMembers(string[] names, bool[] found)
         {
             string s = "";
-            if (!grid) s = Join(s, "HudGui.Grid");
-            if (!template) s = Join(s, "HudGui._todoListMessageView");
-            if (!cam) s = Join(s, "HudGui.GuiCamC");
-            if (!text) s = Join(s, "UILabel.text");
-            if (!reposition) s = Join(s, "UIGrid.Reposition");
+            for (int i = 0; i < names.Length; i++)
+                if (!found[i]) s = s.Length == 0 ? names[i] : s + ", " + names[i];
             return s;
-        }
-
-        private static string Join(string a, string b)
-        {
-            return a.Length == 0 ? b : a + ", " + b;
         }
 
         /// True the first time the game's members are missing (a game

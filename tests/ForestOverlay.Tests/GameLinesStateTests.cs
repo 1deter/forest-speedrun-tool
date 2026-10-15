@@ -70,12 +70,11 @@ namespace ForestOverlay.Tests
         [Fact]
         public void MissingMembersAreNamed()
         {
-            Assert.Equal("", GameLinesState.MissingMembers(true, true, true, true, true));
-            Assert.Equal("HudGui.Grid", GameLinesState.MissingMembers(false, true, true, true, true));
-            Assert.Equal("HudGui._todoListMessageView, UIGrid.Reposition",
-                         GameLinesState.MissingMembers(true, false, true, true, false));
-            Assert.Equal("HudGui.Grid, HudGui._todoListMessageView, HudGui.GuiCamC, UILabel.text, UIGrid.Reposition",
-                         GameLinesState.MissingMembers(false, false, false, false, false));
+            string[] names = { "A.a", "B.b", "C.c" };
+            Assert.Equal("", GameLinesState.MissingMembers(names, new[] { true, true, true }));
+            Assert.Equal("A.a", GameLinesState.MissingMembers(names, new[] { false, true, true }));
+            Assert.Equal("B.b, C.c", GameLinesState.MissingMembers(names, new[] { true, false, false }));
+            Assert.Equal("A.a, B.b, C.c", GameLinesState.MissingMembers(names, new[] { false, false, false }));
         }
 
         [Fact]
