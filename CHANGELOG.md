@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.299 - 2026-10-15
+
+- Developer tab, Experimental: the trajectory preview's key is now set right under its switch.
+- Settings > HUD and Edit HUD: with Trajectory preview or Bomb boost preview ticked and the preview off, a line under the value says why it shows nothing.
+
 ## v0.24.298 - 2026-10-15
 
 - Paint lands on what you see: strokes on rocks, cave walls and bumpy ground no longer sink into the surface or change with your view angle.
