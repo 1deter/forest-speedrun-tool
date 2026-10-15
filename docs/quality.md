@@ -227,7 +227,7 @@ exports, the offline IL scanner.
 
 ### Bridge, e2e and QA
 
-Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectProbe}.cs` `src/Core/{LogKeeper,UnityErrorLog}.cs` `src/Data/{BridgeCommand,CrashFolders,InjectedInputs,LogArchive,QaList,UnityLogFilter,ZipWriter}.cs` `tools/BridgeMcp/` `tests/e2e/` `scripts/{e2e,read-report}.py` `scripts/bridge.sh` `qa/` `docs/bridge.md`
+Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectProbe}.cs` `src/Core/{LogKeeper,UnityErrorLog}.cs` `src/Data/{BridgeCommand,CrashFolders,InjectedInputs,LogArchive,QaList,UnityLogFilter,ZipWriter}.cs` `tools/BridgeMcp/` `tests/e2e/` `scripts/{e2e,read-report,sendinput}.py` `scripts/bridge.sh` `qa/` `docs/bridge.md`
 
 - Verification **A**: BridgeCommand, BridgeMcp, InjectedInputs, QaList,
   ZipWriter, LogArchive tests; the bridge drives every in-game test and the

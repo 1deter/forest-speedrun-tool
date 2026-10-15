@@ -140,6 +140,26 @@ with `get static:Rewired.ReInput UserData.keyboardMaps[i].actionElementMaps[j].k
 (mouse: `.elementIdentifierId`); a runner's own rebinds live in their
 saved maps, not here.
 
+### Mouse and keys as Unity sees them (bridge + SendInput, 2026-10-15, T-0302)
+
+Rewired runs with `ReInput.configuration.windowsStandalonePrimaryInputSource
+= DirectInput`, and its mouse comes from Unity's Input. On a frame of real
+mouse motion, `UnityEngine.Input.GetAxisRaw("Mouse X")` read 0.6 / 0.8,
+`ReInput.controllers.Mouse.GetAxisRaw(0)` read x10 that (6 / 8), and the
+action `Input.player.GetAxis("Mouse X")` (what `TheForest.Utils.Input.GetAxis`
+returns, the camera's source in `SimpleMouseRotator.GetInput`) read the
+same as Unity. Y works the same way, and a move down is negative.
+The InputManager asset has Unity's default axes: `Mouse X`, `Mouse Y`,
+`Mouse ScrollWheel`, Horizontal, Vertical, Fire1-3, Jump. A wheel notch is
+`Input.mouseScrollDelta` (0, 1), or `GetAxisRaw("Mouse ScrollWheel")` 0.1.
+A key sent by scan code shows in `Input.GetKey`. With the plugin's window
+open (`Menu`, cursor shown), all of these still return the motion; only
+the camera stops. The bridge's `axis "Mouse X"` reaches only
+`TheForest.Utils.Input.GetAxis`: the camera turns, but the Unity read and
+the direct Rewired read stay 0. Real OS input (`scripts/sendinput.py`)
+reaches all of them. Look scale in that test: about 69 degrees of yaw per
+1000 SendInput counts at the save's sensitivity.
+
 ---
 
 ## `timeScale`
