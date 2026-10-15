@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.300 - 2026-10-15
+
+- The ForestOverlay window now grows with your screen: at 1080p and above its text is about 40% bigger than before (body text ~17 px at 1080p), so it reads at a glance. At 1366x768 it looks as before.
+- Hints, descriptions and hover tips are now the same size as the rest of the window's text.
+- Map tab: spots and the key's symbols stay on the map when the window is scaled.
+
 ## v0.24.299 - 2026-10-15
 
 - Developer tab, Experimental: the trajectory preview's key is now set right under its switch.
