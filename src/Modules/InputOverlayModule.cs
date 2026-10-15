@@ -35,7 +35,7 @@ namespace ForestOverlay.Modules
         public override string DisplayName { get { return "Input overlay"; } }
 
         private const float PopAmount = 0.1f, RiseTime = 0.1f, FallTime = 0.2f, MinLit = 0.05f;
-        private const float TrailSeconds = 0.6f, MouseGain = 0.01f;
+        private const float TrailSeconds = 0.6f, MouseGain = 0.02f, TrailSpacing = 0.08f;
         private const int TrailMax = 48;
 
         private sealed class TileState
@@ -61,6 +61,7 @@ namespace ForestOverlay.Modules
         private float _mx, _my;
         private readonly float[] _trailX = new float[TrailMax], _trailY = new float[TrailMax], _trailT = new float[TrailMax];
         private int _trailHead, _trailCount;
+        private float _lastTx, _lastTy;
         private bool _axisBroken;
         private bool _axisTold;
 
@@ -82,7 +83,7 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
             _on = ctx.Config.Bind("Inputs", "On", false, "Show the input overlay: the keys and mouse buttons you press, on the game screen.");
-            _layoutCfg = ctx.Config.Bind("Inputs", "Layout", InputLayout.Default().Format(),
+            _layoutCfg = ctx.Config.Bind("Inputs", "Layout", DefaultLayout().Format(),
                 "The input overlay's tiles: key, x, y, size, shown (1/0), separated by ';'. Set up in Edit HUD.");
             HudWidgets widgets = Host.Hud.Widgets;
             widgets.RegisterProfileEntry(_on, null);
@@ -92,6 +93,12 @@ namespace ForestOverlay.Modules
                 Reload();
             }, ProfileUnit.InputTiles);
             Reload();
+        }
+
+        private InputLayout DefaultLayout()
+        {
+            UiScale ui = Host.Hud.Settings.Scale();
+            return ui.HasReference ? InputLayout.Default(ui.RefW, ui.RefH) : InputLayout.Default();
         }
 
         private void Reload()
@@ -181,6 +188,12 @@ namespace ForestOverlay.Modules
             if (dx == 0f && dy == 0f) return;
             _mx = Wrap(_mx + dx * MouseGain);
             _my = Wrap(_my - dy * MouseGain);   // up on the mouse is up on the screen
+            // A point only once the mouse has gone a little way from the last one,
+            // so a slow move leaves a trail instead of dots stacked under the head.
+            float tx = _mx - _lastTx, ty = _my - _lastTy;
+            if (tx * tx + ty * ty < TrailSpacing * TrailSpacing) return;
+            _lastTx = _mx;
+            _lastTy = _my;
             _trailX[_trailHead] = _mx;
             _trailY[_trailHead] = _my;
             _trailT[_trailHead] = now;
@@ -267,7 +280,7 @@ namespace ForestOverlay.Modules
 
         private void ResetLayout()
         {
-            _layoutCfg.Value = InputLayout.Default().Format();
+            _layoutCfg.Value = DefaultLayout().Format();
             Reload();
             SetStatus("Back to the default layout.");
             Ctx.Log.LogInfo("Inputs: layout reset to the default.");
@@ -305,8 +318,7 @@ namespace ForestOverlay.Modules
         private Rect TileRect(TileState s, UiScale ui)
         {
             InputTile t = s.Tile;
-            float w = (InputLayout.UnitsW(t.Key) * InputLayout.Pitch - (InputLayout.Pitch - InputLayout.Unit)) * t.Scale;
-            float h = (InputLayout.UnitsH(t.Key) * InputLayout.Pitch - (InputLayout.Pitch - InputLayout.Unit)) * t.Scale;
+            float w = InputLayout.TileW(t.Key, t.Scale), h = InputLayout.TileH(t.Key, t.Scale);
             float x = Mathf.Clamp(ui.PosX(t.X), 0f, Mathf.Max(0f, ui.VW - w));
             float y = Mathf.Clamp(ui.PosY(t.Y), 0f, Mathf.Max(0f, ui.VH - h));
             return new Rect(x, y, w, h);
@@ -534,7 +546,7 @@ namespace ForestOverlay.Modules
 
         private float AddButton(ref float x, float y, float w, GUIContent text, GUIContent tip, string key)
         {
-            float bw = 80f;
+            float bw = Mathf.Max(80f, GUI.skin.button.CalcSize(text).x + 8f);   // as wide as its words, disabled or not
             if (x + bw > w && x > 0f) { x = 0f; y += 28f; }
             bool present = _layout.Find(key) != null;
             Rect r = new Rect(x, y, bw, 24f);

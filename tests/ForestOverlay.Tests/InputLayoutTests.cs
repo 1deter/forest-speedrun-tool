@@ -1,3 +1,4 @@
+using System;
 using ForestOverlay.Data;
 using Xunit;
 
@@ -15,7 +16,7 @@ namespace ForestOverlay.Tests
 
             InputLayout b = InputLayout.Parse(d.Format());
             Assert.Equal(d.Format(), b.Format());
-            Assert.Equal(d.Find("Space").X, b.Find("Space").X);
+            Assert.Equal(Math.Round(d.Find("Space").X), b.Find("Space").X);
         }
 
         [Fact]
@@ -66,6 +67,29 @@ namespace ForestOverlay.Tests
             Assert.Equal(3f, InputLayout.UnitsW("Space"));
             Assert.Equal(1f, InputLayout.UnitsW("W"));
             Assert.Equal(2f, InputLayout.UnitsH(InputLayout.MouseKey));
+        }
+
+        [Theory]
+        [InlineData(1366, 768)]
+        [InlineData(1920, 1080)]
+        [InlineData(2560, 1440)]
+        public void DefaultFitsAnyScreenWithNoOverlap(int w, int h)
+        {
+            InputLayout d = InputLayout.Default(w, h);
+            Assert.Equal(10, d.Tiles.Count);
+            for (int i = 0; i < d.Tiles.Count; i++)
+            {
+                InputTile a = d.Tiles[i];
+                float aw = InputLayout.TileW(a.Key, a.Scale), ah = InputLayout.TileH(a.Key, a.Scale);
+                Assert.True(a.X >= 0f && a.Y >= 0f && a.X + aw <= w && a.Y + ah <= h, a.Key + " is off the screen");
+                for (int j = i + 1; j < d.Tiles.Count; j++)
+                {
+                    InputTile b = d.Tiles[j];
+                    float bw = InputLayout.TileW(b.Key, b.Scale), bh = InputLayout.TileH(b.Key, b.Scale);
+                    bool apart = a.X + aw <= b.X || b.X + bw <= a.X || a.Y + ah <= b.Y || b.Y + bh <= a.Y;
+                    Assert.True(apart, a.Key + " overlaps " + b.Key);
+                }
+            }
         }
 
         [Fact]

@@ -108,6 +108,17 @@ namespace ForestOverlay.Data
             }
         }
 
+        /// A tile's size in reference pixels at its scale.
+        public static float TileW(string key, float scale)
+        {
+            return (UnitsW(key) * Pitch - (Pitch - Unit)) * scale;
+        }
+
+        public static float TileH(string key, float scale)
+        {
+            return (UnitsH(key) * Pitch - (Pitch - Unit)) * scale;
+        }
+
         public static float UnitsH(string key)
         {
             return key == MouseKey ? 2f : 1f;
@@ -152,8 +163,18 @@ namespace ForestOverlay.Data
         /// The default layout: WASD, Shift, Space, Ctrl, M1, M2 and the mouse box.
         public static InputLayout Default()
         {
+            return Default(1920, 1080);
+        }
+
+        /// The default layout for a reference screen (Data/UiScale: the screen the
+        /// install first ran on): the bottom-left corner, whatever its height.
+        public static InputLayout Default(int refW, int refH)
+        {
+            if (refW < 640) refW = 640;
+            if (refH < 480) refH = 480;
             InputLayout l = new InputLayout();
-            const float ox = 40f, oy = 780f;
+            float ox = Math.Max(16f, refW * 0.02f);
+            float oy = refH - (2f * Pitch + Unit) - Math.Max(16f, refH * 0.03f);
             l.Place("W", ox, oy, 1f, 0f);
             l.Place("A", ox, oy, 0f, 1f);
             l.Place("S", ox, oy, 1f, 1f);
