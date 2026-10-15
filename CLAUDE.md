@@ -164,8 +164,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0299, T-0351, **released v0.24.298**. Input overlay answers: T-0355
   (new tile bottom-left / -right), T-0356 (fold; no + button, drag to
   resize; any input), T-0357 (15-16 pt); new T-0358 dynamic mode (parked:
-  where / how) and T-0359 forest-ux review of the overlay. **Next:**
-  confirm v0.24.298 paint in game (non-maker), then `tasks.py next`.
+  where / how) and T-0359 forest-ux review of the overlay. Smoke PASS; all three
+  confirmed in game by forest-tester (T-0351 on a rock; trunk unchecked).
+  **Next:** `tasks.py next`.
   Unchanged: T-0333 needs a non-maker confirmation.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
