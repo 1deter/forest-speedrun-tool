@@ -546,7 +546,8 @@ namespace ForestOverlay.Modules
             y = AddButton(ref x, y, w, AddM2Text, null, "Mouse1");
             y = AddButton(ref x, y, w, AddWheelText, AddWheelTip, InputLayout.WheelKey);
             y = AddButton(ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
-            y += 30f;
+            y += 28f;
+            if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;
 
             bool armed = _resetArmed && Time.unscaledTime <= _resetUntil;
             Rect resetR = new Rect(0f, y, 120f, 24f);
@@ -557,7 +558,6 @@ namespace ForestOverlay.Modules
             }
             UiKit.Hint(resetR, ResetTip);
             y += 30f;
-            if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 2f;
             if (_axisBroken) y += UiText.Draw(0f, y, w, BrokenText, UiKit.HintStyle) + 2f;
             return y + 8f;
         }
