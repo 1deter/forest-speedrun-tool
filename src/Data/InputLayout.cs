@@ -1,0 +1,211 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+
+namespace ForestOverlay.Data
+{
+    /// One on-screen input: a key (a Unity KeyCode name), the mouse box
+    /// ("Mouse") or the wheel ("Wheel"), placed on its own.
+    public sealed class InputTile
+    {
+        public string Key = "";
+        /// Top-left in reference pixels (like the HUD's placed values).
+        public float X, Y;
+        public float Scale = 1f;
+        public bool Shown = true;
+    }
+
+    // ------------------------------------------------------------------
+    // The input overlay's layout (T-0302): a list of tiles, each placed on
+    // its own anywhere (author, 2026-10-11: "every tile placeable on its own,
+    // not a fixed grid"). Kept as one line in a HUD-profile config entry:
+    //   W,88,780,1,1;LeftShift,40,876,1,0;Mouse,360,828,1,1
+    //   key, x, y, scale, shown(1/0)
+    // Forgiving like HudLayout: a bad tile is skipped, numbers clamped, a
+    // second tile for the same key dropped. Pure; linked into the tests.
+    // ------------------------------------------------------------------
+    public sealed class InputLayout
+    {
+        public const string MouseKey = "Mouse", WheelKey = "Wheel";
+        public const float MinScale = 0.5f, MaxScale = 3f;
+        /// A 1x1 tile's side and the pitch of the default layout, in reference pixels.
+        public const float Unit = 44f, Pitch = 48f;
+        public const int MaxTiles = 40, MaxKeyLength = 24;
+
+        public readonly List<InputTile> Tiles = new List<InputTile>();
+
+        public InputTile Find(string key)
+        {
+            for (int i = 0; i < Tiles.Count; i++)
+                if (string.Equals(Tiles[i].Key, key, StringComparison.Ordinal)) return Tiles[i];
+            return null;
+        }
+
+        /// Adds a tile at (x, y); null when the key is bad, already there or the list is full.
+        public InputTile Add(string key, float x, float y)
+        {
+            if (!ValidKey(key) || Tiles.Count >= MaxTiles || Find(key) != null) return null;
+            InputTile t = new InputTile();
+            t.Key = key;
+            t.X = x;
+            t.Y = y;
+            Tiles.Add(t);
+            return t;
+        }
+
+        public bool Remove(string key)
+        {
+            for (int i = 0; i < Tiles.Count; i++)
+            {
+                if (!string.Equals(Tiles[i].Key, key, StringComparison.Ordinal)) continue;
+                Tiles.RemoveAt(i);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool ValidKey(string key)
+        {
+            if (string.IsNullOrEmpty(key) || key.Length > MaxKeyLength) return false;
+            for (int i = 0; i < key.Length; i++)
+            {
+                char c = key[i];
+                if (!(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') && c != '_') return false;
+            }
+            return true;
+        }
+
+        public static float ClampScale(float s)
+        {
+            if (float.IsNaN(s)) return 1f;
+            return s < MinScale ? MinScale : s > MaxScale ? MaxScale : s;
+        }
+
+        // --- the tile's look -------------------------------------------------
+
+        /// Width in 1x1 tiles.
+        public static float UnitsW(string key)
+        {
+            switch (key)
+            {
+                case MouseKey: return 2f;
+                case "Space": return 3f;
+                case "LeftShift": case "RightShift": case "LeftControl": case "RightControl":
+                case "LeftAlt": case "RightAlt": case "Tab": case "CapsLock": case "Return": case "Backspace":
+                    return 1.5f;
+                default: return 1f;
+            }
+        }
+
+        public static float UnitsH(string key)
+        {
+            return key == MouseKey ? 2f : 1f;
+        }
+
+        /// The words on a tile: the key's name, shortened.
+        public static string LabelFor(string key)
+        {
+            switch (key)
+            {
+                case "LeftShift": return "Shift";
+                case "RightShift": return "R-Shift";
+                case "LeftControl": return "Ctrl";
+                case "RightControl": return "R-Ctrl";
+                case "LeftAlt": return "Alt";
+                case "RightAlt": return "R-Alt";
+                case "Space": return "Space";
+                case "Return": return "Enter";
+                case "Backspace": return "Bksp";
+                case "CapsLock": return "Caps";
+                case "UpArrow": return "Up";
+                case "DownArrow": return "Down";
+                case "LeftArrow": return "Left";
+                case "RightArrow": return "Right";
+                case "Mouse0": return "M1";
+                case "Mouse1": return "M2";
+                case "Mouse2": return "M3";
+                case "Mouse3": return "M4";
+                case "Mouse4": return "M5";
+                case "Mouse5": return "M6";
+                case "Mouse6": return "M7";
+                case WheelKey: return "Wheel";
+                case MouseKey: return "";
+            }
+            if (key.Length == 6 && key.StartsWith("Alpha", StringComparison.Ordinal)) return key.Substring(5);
+            if (key.Length == 7 && key.StartsWith("Keypad", StringComparison.Ordinal)) return "N" + key.Substring(6);
+            return key;
+        }
+
+        // --- file ---------------------------------------------------------------
+
+        /// The default layout: WASD, Shift, Space, Ctrl, M1, M2 and the mouse box.
+        public static InputLayout Default()
+        {
+            InputLayout l = new InputLayout();
+            const float ox = 40f, oy = 780f;
+            l.Place("W", ox, oy, 1f, 0f);
+            l.Place("A", ox, oy, 0f, 1f);
+            l.Place("S", ox, oy, 1f, 1f);
+            l.Place("D", ox, oy, 2f, 1f);
+            l.Place("LeftShift", ox, oy, 0f, 2f);
+            l.Place("Space", ox, oy, 1.5f, 2f);
+            l.Place("LeftControl", ox, oy, 4.5f, 2f);
+            l.Place("Mouse0", ox, oy, 7f, 0f);
+            l.Place("Mouse1", ox, oy, 8f, 0f);
+            l.Place(MouseKey, ox, oy, 7f, 1f);
+            return l;
+        }
+
+        private void Place(string key, float ox, float oy, float col, float row)
+        {
+            Add(key, ox + col * Pitch, oy + row * Pitch);
+        }
+
+        public static InputLayout Parse(string text)
+        {
+            InputLayout l = new InputLayout();
+            if (string.IsNullOrEmpty(text)) return l;
+            string[] tiles = text.Split(';');
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                string[] f = tiles[i].Trim().Split(',');
+                if (f.Length < 3 || !ValidKey(f[0].Trim())) continue;
+                float x, y;
+                if (!Num(f[1], out x) || !Num(f[2], out y)) continue;
+                InputTile t = l.Add(f[0].Trim(), Clamp(x), Clamp(y));
+                if (t == null) continue;
+                float s;
+                if (f.Length > 3 && Num(f[3], out s)) t.Scale = ClampScale(s);
+                if (f.Length > 4) t.Shown = f[4].Trim() != "0";
+            }
+            return l;
+        }
+
+        private static float Clamp(float v)
+        {
+            return v < 0f ? 0f : v > 20000f ? 20000f : v;
+        }
+
+        private static bool Num(string s, out float v)
+        {
+            return float.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out v) && !float.IsNaN(v) && !float.IsInfinity(v);
+        }
+
+        public string Format()
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < Tiles.Count; i++)
+            {
+                InputTile t = Tiles[i];
+                if (i > 0) sb.Append(';');
+                sb.Append(t.Key).Append(',')
+                  .Append(Math.Round(t.X).ToString("0", CultureInfo.InvariantCulture)).Append(',')
+                  .Append(Math.Round(t.Y).ToString("0", CultureInfo.InvariantCulture)).Append(',')
+                  .Append(Math.Round(t.Scale, 2).ToString("0.##", CultureInfo.InvariantCulture)).Append(',')
+                  .Append(t.Shown ? '1' : '0');
+            }
+            return sb.ToString();
+        }
+    }
+}

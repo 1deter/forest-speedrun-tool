@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-239 prefixes from 776 log calls.
+240 prefixes from 784 log calls.
 
 ## `Aerial capture`
 
@@ -682,6 +682,20 @@ Written by InputInject.cs; info / warning.
 
 - warning `InputInject: <ex>`
 - info `InputInject: <n> of 5 reads patched, <_rerouted> Rewired button read(s) in the delayed / tap reads rerouted through them - the bridge can press the game's actions.`
+
+## `Inputs`
+
+Meaning: The input overlay (Edit HUD) was switched on or off, or a tile was added, removed, moved, scaled, shown or hidden, or the layout reset; the warning says the mouse box could not read the mouse.
+Written by InputOverlayModule.cs; info / warning.
+
+- info `Inputs: <..>.`
+- info `Inputs: layout reset to the default.`
+- warning `Inputs: the mouse box cannot read the mouse (<ex.Message>) - it stays still.`
+- info `Inputs: tile <key> added.`
+- info `Inputs: tile <key> removed.`
+- info `Inputs: tile <m.Tile.Key> moved to (<..>, <..>).`
+- info `Inputs: tile <s.Tile.Key> scaled to <..>.`
+- info `Inputs: tile <s.Tile.Key><..>`
 
 ## `Inspected`
 
