@@ -2,6 +2,19 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-15 (chain C-0001 run R-0009 handoff)
+
+- **2026-10-15 (harness session, author present):** T-0007, T-0113,
+  T-0319 confirmed (main input 9.0M a session from 14.3M); **Stage B
+  built** (T-0016, checker accept): "start the routine" here ->
+  `loop.py chain` drives fresh sessions (docs/areas/workflow.md *The
+  unattended chain*); its first real chain run with the author is the
+  last verify step. T-0311 waits for a 3rd researcher run. T-0358
+  answered (no minimum shown time; the runner picks which inputs show
+  and where). **Next:** T-0335 (HUD text contrast; findings in its
+  notes, an outline / shadow / plate choice for the author), then
+  `tasks.py next`.
+
 ## Moved out 2026-10-15 (T-0324 release handoff)
 
 - **2026-10-15 (T-0322 released, author present):** the trajectory
