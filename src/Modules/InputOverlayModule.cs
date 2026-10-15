@@ -259,7 +259,7 @@ namespace ForestOverlay.Modules
         {
             if (_layout.Find(key) != null) { SetStatus(InputLayout.LabelFor(key) + " is already there."); return; }
             UiScale ui = Host.Hud.Settings.Scale();
-            // Bottom right, clear of the Edit HUD window, cascaded so new tiles do not stack
+            // Bottom right, clear of the Edit HUD window, in the first free slot so new tiles do not stack
             // (author, 2026-10-15, T-0355).
             float nx, ny;
             _layout.FreeSlot(key, ui.RefW, ui.RefH, out nx, out ny);
