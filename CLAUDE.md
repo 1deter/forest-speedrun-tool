@@ -157,16 +157,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (T-0322 released, author present):** the trajectory
-  preview's key is rebound under its Experimental switch
-  (`KeyGroups.BesideSwitch`, `Settings.DrawKeyRow`; its own capture), and a
-  ticked HUD value that shows nothing says why under its row in Settings >
-  HUD and Edit HUD (`OverlayModule.HudLineIdle`). Checker accept (after one
-  revise), **released v0.24.299**, smoke PASS, confirmed in game by
-  forest-tester. Author's ideas filed as notes: a CS-grenade-style throw
-  preview (T-0088), watch back the last run in freecam with its trajectory
-  (T-0344). **Next:** `tasks.py next`; T-0358 waits for T-0359's options.
-  Unchanged: T-0333 needs a non-maker confirmation.
+- **2026-10-15 (T-0324 released, author present):** the F2 window scales
+  with the screen's height from 768p (`UiScale.WindowFactor`, x1.41 at
+  1080p; author's pick over fonts only), hints / tips / fold summaries at
+  body size; body ~17 px at 1080p (was ~12). Window text is stretched
+  (slightly soft), the HUD stays crisp - gotcha 112 (`UiKit.Unclip`,
+  `CrispText.Plain`). Checker accept (after one revise: tooltips),
+  **released v0.24.300**. **Next:** `tasks.py next`; T-0358 waits for
+  T-0359's options. Unchanged: T-0333 needs a non-maker confirmation.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

@@ -2,6 +2,19 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-15 (T-0324 release handoff)
+
+- **2026-10-15 (T-0322 released, author present):** the trajectory
+  preview's key is rebound under its Experimental switch
+  (`KeyGroups.BesideSwitch`, `Settings.DrawKeyRow`; its own capture), and a
+  ticked HUD value that shows nothing says why under its row in Settings >
+  HUD and Edit HUD (`OverlayModule.HudLineIdle`). Checker accept (after one
+  revise), **released v0.24.299**, smoke PASS, confirmed in game by
+  forest-tester. Author's ideas filed as notes: a CS-grenade-style throw
+  preview (T-0088), watch back the last run in freecam with its trajectory
+  (T-0344). **Next:** `tasks.py next`; T-0358 waits for T-0359's options.
+  Unchanged: T-0333 needs a non-maker confirmation.
+
 ## Moved out 2026-10-15 (T-0322 release handoff)
 
 - **2026-10-15 (T-0296 released, author present):** the author narrowed
