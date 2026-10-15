@@ -1753,6 +1753,47 @@ its `UnLockView` freed the camera under the menu and hid the cursor; since
 T-0024 (ui-redesign) the release also leaves the lock while
 `MenuClose.PauseMenuOpen()` (author confirmed 2026-10-08).
 
+## The bottom-left HUD messages (IL + bridge, 2026-10-15, T-0325)
+
+The bottom-left lines ("3x Stick collected", task ticks, "can't carry
+any more", tutorials) are all children of one NGUI `UIGrid`,
+`HudGui.Grid` = `HudGui/HUD_Ngui/Camera_HUD/ToggleableHud/Tutorials/Grid
+(MUST BE OFF BY DEFAULT)` (vertical, pivot Bottom, cellHeight 28,
+`hideInactive`), reached as `Scene.HudGui.Grid`. Each kind is an
+inactive template child of the grid: `_gotItemView` = `05 Got Item`,
+`_todoListMessageView` = `07 TodoList Message` (`UIPanel` > `Tut
+ShowContainer` {`UIWidget`, `TweenAlpha`, `TweenPosition`} > `Name`
+{`UILabel`, `UiTranslationLabel` `_caps` `_translate`} + `Texture tut`
+{`UISprite`, a tick}). The label: Montserrat-Regular 15, colour
+(0.897, 0.798, 0), left, `ResizeFreely`.
+
+- **`HudGui.ShowTodoListMessage(string)`** takes any text (callers: the
+  survival book's todo / bestiary `LogMessage`, `TickOffSystem`). It
+  spawns the template from pool `misc` (`PoolManager.Pools["misc"]`),
+  parents it to the grid, sets the `UILabel` text after `SetActive`,
+  `Grid.Reposition()`, and files a `TimedGameObject` in
+  `_todoListMessagesGOs` ending at `Time.time + 16`. It does nothing on a
+  dedicated host, with `HudGui` / the grid inactive, `GuiCamC` disabled,
+  `PlayerPreferences.ShowHud` off, the same text already showing, or 5
+  todo messages up. Bridge: two calls showed two stacked lines (newest
+  lowest) bottom-left, both gone within 16 s (count 2 -> 0).
+- **`ToggleGotItemHud(itemId, amount)`** is the pickup line: the same
+  spawn with `_gotItemView`, `GotItemText` ("<n> <name> collected" /
+  "added to backpack", translated), the item icon, 2 s, a repeat adds to
+  the amount.
+- **Expiry**: `HudGui.Update` -> `CheckTimedGOs` on the cant-carry,
+  got-item, found-passenger and todo dictionaries: past `_endTime` it
+  despawns (or destroys) the GO and sets `Grid.repositionNow`. A GO in
+  the grid that is in no dictionary is never expired by the game.
+- **Hidden**: `PlayerInventory.Open` sets the grid inactive, `Close`
+  active again; the grid sits under `ToggleableHud`, which
+  `HudGui.CheckHudState` sets active = `PlayerPreferences.ShowHud` (the
+  game's HUD-off option); the same method also gates the HUD camera on
+  `TheForestAtmosphere.Sleeping`, `_hudCameraOffCounter` and
+  `playerAnimatorControl.upsideDown` (IL; not checked live).
+  `PlayerTuts` (hunger, thirst, low health, step tutorials) and
+  `BuildMissionWidget` share the grid.
+
 ## Caves
 
 Entering a cave on foot, `CaveTriggers` / `CaveDoor` send
