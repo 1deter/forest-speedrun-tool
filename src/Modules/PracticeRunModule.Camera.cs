@@ -275,12 +275,12 @@ namespace ForestOverlay.Modules
 
         // --- the ghost's figure (UpdateLines) --------------------------------------------
 
-        /// The ghost at `t` into RunLineBehaviour: position always, the
-        /// figure's lines when the look is Figure. Hidden in first person
-        /// (the camera is inside it).
         /// The Map tab (Modules/MapModule): the segment being timed - reads only.
         public Segment TimedSegment { get { return _segment; } }
 
+        /// The ghost at `t` into RunLineBehaviour: position always, the
+        /// figure's lines when the look is Figure. Hidden in first person
+        /// (the camera is inside it).
         private void SetGhost(float t, Vector3 position, bool exact)
         {
             GhostPose g;
