@@ -42,6 +42,9 @@ namespace ForestOverlay.Game
         // black outline: readable on snow and sky too.
         private static readonly Color TextColour = new Color(1f, 0.88f, 0.15f, 1f);
         private static readonly Color OutlineColour = new Color(0f, 0f, 0f, 1f);
+        // The marker's warning (run mode's not-valid line): the overlay
+        // fallback's orange, so both modes say it the same way.
+        private static readonly Color WarnColour = new Color(1f, 0.55f, 0.2f, 1f);
         private const string FlagIcon = "cog", MarkerIcon = "Rewind";
 
         private readonly ManualLogSource _log;
@@ -64,10 +67,6 @@ namespace ForestOverlay.Game
         private int _applied = -1;
         private Vector2 _anchor;
         private bool _anchorMeasured;
-        // A failure rebinds and tries again; this many in one launch and the
-        // overlay draws the lines for good.
-        private const int MaxFailures = 3;
-        private int _failures;
 
         public GameMessageLines(ManualLogSource log)
         {
@@ -95,24 +94,28 @@ namespace ForestOverlay.Game
             }
         }
 
-        /// Each frame. `visible`: the HUD would show these lines now.
-        public void Update(string onText, string markerText, bool visible)
+        /// Each frame. `visible`: the HUD would show these lines now;
+        /// `warn`: the marker in its warning colour.
+        public void Update(string onText, string markerText, bool warn, bool visible)
         {
-            _state.SetText(visible ? onText : null, visible ? markerText : null);
+            _state.SetText(visible ? onText : null, visible ? markerText : null, warn);
             Mode = GameLinesMode.Overlay;
             if (_missing) return;
             if (!_resolved && !Resolve()) return;
 
             object hud = GameBridge.ReadStaticField("TheForest.Utils.Scene", "HudGui");
             if (hud == null || !(hud is UnityEngine.Object) || (UnityEngine.Object)hud == null) { Forget(); return; }
-            if (!ReferenceEquals(hud, _hud) || _grid == null || _template == null) Bind(hud);
-            if (_grid == null || _template == null) return;
-
-            bool onScreen = _grid.gameObject.activeInHierarchy && _cam != null && _cam.enabled && _cam.gameObject.activeInHierarchy;
-            Mode = GameLinesState.Decide(true, onScreen);
 
             try
             {
+                // Inside the try: a half-destroyed HudGui (a scene change)
+                // takes the rebind path too.
+                if (!ReferenceEquals(hud, _hud) || _grid == null || _template == null) Bind(hud);
+                if (_grid == null || _template == null) return;
+
+                bool onScreen = _grid.gameObject.activeInHierarchy && _cam != null && _cam.enabled && _cam.gameObject.activeInHierarchy;
+                Mode = GameLinesState.Decide(true, onScreen);
+
                 bool moved = false;
                 if (_applied != _state.Version) { Apply(); moved = true; }
                 moved |= KeepLowest();
@@ -122,8 +125,8 @@ namespace ForestOverlay.Game
             catch (Exception ex)
             {
                 Mode = GameLinesMode.Overlay;
-                if (++_failures >= MaxFailures)
-                    Fail("GameMessageLines: " + ex.Message + " (" + _failures + " times) - the always-on lines are drawn by the overlay.");
+                if (_state.GiveUpAfterFailure(Time.realtimeSinceStartup))
+                    Fail("GameMessageLines: " + ex.Message + " (" + _state.Failures + " times) - the always-on lines are drawn by the overlay.");
                 else
                 {
                     _log.LogWarning("GameMessageLines: " + ex.Message + " - rebinding to the game's grid.");
@@ -164,9 +167,11 @@ namespace ForestOverlay.Game
                     catch (Exception) { _outline = null; }
                 }
             }
-            if (_gridF == null || _templateF == null || _camF == null || _textP == null || _reposition == null)
+            string missing = GameLinesState.MissingMembers(_gridF != null, _templateF != null, _camF != null,
+                                                           _textP != null, _reposition != null);
+            if (missing.Length > 0)
             {
-                Fail("GameMessageLines: HudGui.Grid / _todoListMessageView / GuiCamC, UILabel.text or UIGrid.Reposition not found - the always-on lines are drawn by the overlay.");
+                Fail("GameMessageLines: " + missing + " not found - the always-on lines are drawn by the overlay.");
                 return false;
             }
             return true;
@@ -213,7 +218,11 @@ namespace ForestOverlay.Game
             for (int i = 0; i < _copies.Count; i++)
             {
                 bool used = i < lines.Count;
-                if (used && _labels[i] != null) _textP.SetValue(_labels[i], lines[i], null);
+                if (used && _labels[i] != null)
+                {
+                    _textP.SetValue(_labels[i], lines[i], null);
+                    if (_colourP != null) _colourP.SetValue(_labels[i], _state.LineWarns(i) ? WarnColour : TextColour, null);
+                }
                 if (used) SetIcon(i, i >= _state.MarkerStart ? MarkerIcon : FlagIcon);
                 if (_copies[i] != null && _copies[i].activeSelf != used) _copies[i].SetActive(used);
             }

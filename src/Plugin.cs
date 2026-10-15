@@ -245,7 +245,7 @@ namespace ForestOverlay
                 _practice.Compact = _host.Hud.Compact;
                 // Shown with the HUD column, as before (T-0325).
                 _gameLines.Update(_practice.AnyOn ? _practice.OnLabel.text : null, _practice.Label.text,
-                                  _host.UiVisible && _host.HudVisible);
+                                  _practice.Warn, _host.UiVisible && _host.HudVisible);
 
                 // Unity's GUI layout pass allocates every frame; only our
                 // windows need it (Game/PerfPatches, fix 1). Set here,

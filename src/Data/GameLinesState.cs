@@ -24,7 +24,16 @@ namespace ForestOverlay.Data
         private readonly List<string> _lines = new List<string>();
         private string _on;
         private string _marker;
+        private bool _warn;
         private bool _warned;
+        private int _failures;
+        private float _lastFailure;
+
+        /// Failures in a row (each rebinds) before the overlay draws the
+        /// lines for good; a quiet spell this long starts the count again,
+        /// so a long session's scene changes never add up (checker, T-0325).
+        public const int MaxFailures = 3;
+        public const float QuietSeconds = 60f;
 
         /// Top to bottom: each ON NOW flag, then the marker, lowest - the
         /// line the eye lands on.
@@ -37,13 +46,15 @@ namespace ForestOverlay.Data
         public int Version { get; private set; }
 
         /// The flags ('\n' between them) and the marker; "" or null = none.
-        /// Returns whether the lines changed (nothing is rebuilt otherwise).
-        public bool SetText(string on, string marker)
+        /// `warn`: the marker in its warning colour. Returns whether anything
+        /// changed (nothing is rebuilt otherwise).
+        public bool SetText(string on, string marker, bool warn)
         {
-            if (ReferenceEquals(on, _on) && ReferenceEquals(marker, _marker)) return false;
-            if (on == _on && marker == _marker) { _on = on; _marker = marker; return false; }
+            if (warn == _warn && ReferenceEquals(on, _on) && ReferenceEquals(marker, _marker)) return false;
+            if (warn == _warn && on == _on && marker == _marker) { _on = on; _marker = marker; return false; }
             _on = on;
             _marker = marker;
+            _warn = warn;
             _lines.Clear();
             AddLines(on);
             MarkerStart = _lines.Count;
@@ -70,6 +81,31 @@ namespace ForestOverlay.Data
             return membersFound && gridOnScreen ? GameLinesMode.Game : GameLinesMode.Overlay;
         }
 
+        /// Line i in the warning colour: a marker line while warn is set
+        /// (run mode's not-valid line), as the overlay fallback draws it.
+        public bool LineWarns(int i)
+        {
+            return _warn && i >= MarkerStart;
+        }
+
+        /// The game members the lines need that were not found, named for
+        /// the log ("" = all there; anything else: the overlay text).
+        public static string MissingMembers(bool grid, bool template, bool cam, bool text, bool reposition)
+        {
+            string s = "";
+            if (!grid) s = Join(s, "HudGui.Grid");
+            if (!template) s = Join(s, "HudGui._todoListMessageView");
+            if (!cam) s = Join(s, "HudGui.GuiCamC");
+            if (!text) s = Join(s, "UILabel.text");
+            if (!reposition) s = Join(s, "UIGrid.Reposition");
+            return s;
+        }
+
+        private static string Join(string a, string b)
+        {
+            return a.Length == 0 ? b : a + ", " + b;
+        }
+
         /// True the first time the game's members are missing (a game
         /// update): one warning, then the overlay text for good.
         public bool WarnMissing()
@@ -78,5 +114,17 @@ namespace ForestOverlay.Data
             _warned = true;
             return true;
         }
+
+        /// A failure drawing in the grid at `now` (seconds). True: give up,
+        /// the overlay draws the lines for good; false: rebind and retry.
+        public bool GiveUpAfterFailure(float now)
+        {
+            if (_failures > 0 && now - _lastFailure >= QuietSeconds) _failures = 0;
+            _lastFailure = now;
+            return ++_failures >= MaxFailures;
+        }
+
+        /// Failures in the current count (for the log line).
+        public int Failures { get { return _failures; } }
     }
 }
