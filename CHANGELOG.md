@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.298 - 2026-10-15
+
+- Paint lands on what you see: strokes on rocks, cave walls and bumpy ground no longer sink into the surface or change with your view angle.
+- Paint stops at a rock's edge instead of hanging past it, and painting behind an object no longer erases paint on its near side.
+- Known limits: a pooled rock about 30 m away cannot be painted yet (the paint lands behind it), and old strokes that floated off a rock no longer show.
+
 ## v0.24.297 - 2026-10-15
 
 - Edit HUD: Reset profile now says under the button what a second click resets (no undo), and afterwards that the profile was reset.
