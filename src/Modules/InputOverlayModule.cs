@@ -500,11 +500,18 @@ namespace ForestOverlay.Modules
             if (len < 0.01f) return;
             float nx = -dy / len * thick * 0.5f, ny = dx / len * thick * 0.5f;
             GL.Color(c0);
-            GL.Vertex3(x0 + nx, y0 + ny, 0f);
-            GL.Vertex3(x0 - nx, y0 - ny, 0f);
+            Vertex(x0 + nx, y0 + ny);
+            Vertex(x0 - nx, y0 - ny);
             GL.Color(c1);
-            GL.Vertex3(x1 - nx, y1 - ny, 0f);
-            GL.Vertex3(x1 + nx, y1 + ny, 0f);
+            Vertex(x1 - nx, y1 - ny);
+            Vertex(x1 + nx, y1 + ny);
+        }
+
+        /// A HUD point to GL's pixel space (LoadPixelMatrix: origin bottom-left), through the HUD's scale.
+        private static void Vertex(float x, float y)
+        {
+            Vector3 s = GUI.matrix.MultiplyPoint3x4(new Vector3(x, y, 0f));
+            GL.Vertex3(s.x, Screen.height - s.y, 0f);
         }
 
         private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
@@ -515,12 +522,12 @@ namespace ForestOverlay.Modules
             GUI.color = Color.white;   // colours below carry their own alpha
             float hx = cx + _mx * half, hy = cy + _my * half;
             float px = hx, py = hy, pAge = 0f;   // the line runs from the head back along the trail
-            bool gl = _trailCount > 0 && EnsureLineMaterial();
+            bool gl = _trailCount > 0 && Event.current.type == EventType.Repaint && EnsureLineMaterial();
             if (gl)
             {
                 GL.PushMatrix();
-                GL.MultMatrix(GUI.matrix);   // the HUD's scale; points are in the space Flat draws in
                 _lineMat.SetPass(0);
+                GL.LoadPixelMatrix();   // screen pixels; Vertex applies the HUD's scale and flips y (as MapModule)
                 GL.Begin(GL.QUADS);
             }
             for (int k = 0; k < _trailCount; k++)
