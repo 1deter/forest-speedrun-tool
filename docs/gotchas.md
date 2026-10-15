@@ -1133,3 +1133,15 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     copy on the old JIT. For a per-frame loop over hundreds of points:
     floats, arrays, nothing rebuilt that does not change; time it live
     with a Stopwatch per phase before guessing which part is slow.
+
+114. **GL drawn from OnGUI is not in GUI space.** (2026-10-16, T-0363,
+    in game.) The input overlay's mouse path took three tries: rotated
+    `DrawTexture` quads (`GUIUtility.RotateAroundPivot`) under the HUD's
+    scale came out as scattered dashes, some outside the box (v0.24.311,
+    the author saw it); stamped squares stacked their alpha into beads;
+    `GL.MultMatrix(GUI.matrix)` over whatever GL had drew nothing at all.
+    What works (MapModule already did it): on `EventType.Repaint` only,
+    `GL.PushMatrix(); mat.SetPass(0); GL.LoadPixelMatrix();`, then each
+    point through `GUI.matrix.MultiplyPoint3x4` with y flipped to
+    `Screen.height - y`. Look for working GL in the codebase before
+    inventing a route.

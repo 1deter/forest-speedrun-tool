@@ -2,6 +2,16 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-16 (chain C-0001 run R-0011 handoff)
+
+- **2026-10-15 (chain C-0001, run R-0010, unattended):** 5 rounds, all
+  confirmed in game: T-0345 (ftse surf tool studied -> T-0368..T-0374),
+  v0.24.306 T-0368 (run lines as px-wide ribbons, Width setting),
+  v0.24.307 T-0353, v0.24.308 T-0354, v0.24.309 T-0355 (Input overlay
+  editor fixes). Builder picks to glance at: run lines' 300 m draw
+  distance and rim (T-0368), the new-tile slot 280 px from the right
+  (T-0355).
+
 ## Moved out 2026-10-15 (chain C-0001 run R-0010 handoff)
 
 - **2026-10-15 (chain C-0001, run R-0009, unattended):** v0.24.303 T-0338

@@ -251,6 +251,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 107. **A dynamic font forgets glyphs not asked for lately** - a large font size whose characters change (Speed 0.00 <-> digits) rebuilt its texture, ~20 ms a time; keep the glyph set requested every repaint (`HudWidgets.KeptGlyphs`). [judgement]
 109. **A scaled `GUI.matrix` stretches text** - glyphs are rasterised at the font size and blurred by the scale (x1.88 at 2560x1440, T-0333); text in the scaled HUD goes through `Core/CrispText` (draw and measure). [judgement]
 112. **In a scaled window, offsets and clips ignore the matrix** - `GUIToScreenPoint` leaves window / group offsets unscaled (use `UiKit.Unclip`) and groups clip before the scale, so no clip escape exists: the F2 window draws at identity in screen pixels and window code calls `Core/WinPx` (sizes x scale, never raw `GUI.*`; lint enforces it) (T-0360). [judgement]
+114. **GL inside OnGUI is not in GUI space** - `GL.MultMatrix(GUI.matrix)` drew nothing and rotated `DrawTexture` quads scattered outside their box; on Repaint only, `GL.LoadPixelMatrix()`, each point through `GUI.matrix` with y flipped to `Screen.height - y` (as MapModule) (T-0363). [check: in game]
 
 ### Run mode and detectors
 

@@ -157,15 +157,19 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (chain C-0001, run R-0010, unattended):** 5 rounds, all
-  confirmed in game: T-0345 (ftse surf tool studied -> T-0368..T-0374),
-  v0.24.306 T-0368 (run lines as px-wide ribbons, Width setting),
-  v0.24.307 T-0353, v0.24.308 T-0354, v0.24.309 T-0355 (Input overlay
-  editor fixes). Parked for the author: T-0335, T-0366, T-0369 (timer
-  follows a replay?), T-0370 (lines through walls?), T-0374 (extra
-  lines). Builder picks to glance at: run lines' 300 m draw distance and
-  rim (T-0368), the new-tile slot 280 px from the right (T-0355).
-  **Next:** the chain's next run (`loop.py chain next`).
+- **2026-10-16 (chain C-0001, run R-0011; the author stepped in at the
+  end):** v0.24.310 T-0360 (F2 window drawn in screen pixels through
+  `Core/WinPx`: sharp text) and T-0359 (forest-ux input overlay review ->
+  T-0375..T-0378) confirmed. T-0363 (overlay crisp corners, one scale,
+  mouse path): v0.24.311's path drew dashes outside the box; v0.24.312
+  draws it with GL in pixel space - the author saw it right in game
+  (smoke / 2560 / Edit HUD resize still open). Parked for the author:
+  T-0358 (dynamic mode: idle tiles vanish or dim?), T-0361 (raw keys vs
+  actions: which shape, which words) + T-0335, T-0366, T-0369, T-0370,
+  T-0374. New: T-0379 (F2 mouse paths, testers), T-0380 (path stops
+  short of the box edge), T-0381 (drag to resize a tile), T-0382 (a
+  windowed 2560<->1920 bridge resize froze the game, cause unknown).
+  **Next:** T-0380, then the chain's next run (`loop.py chain next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
