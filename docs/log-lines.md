@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-240 prefixes from 785 log calls.
+240 prefixes from 786 log calls.
 
 ## `Aerial capture`
 
@@ -1113,10 +1113,11 @@ Written by PaintModule.cs; info / warning.
 - info `Paint: <recovered> (<path>)`
 - info `Paint: cleared <n> dot(s) - <..>`
 - warning `Paint: could not read <path>: <ex.Message>`
+- warning `Paint: could not read the drawn surface (<why>), aiming at colliders`
 - warning `Paint: could not save <path>: <ex.Message>`
 - info `Paint: erased <_erased> dot(s) - <..> (<Current.Count> left)`
 - info `Paint: loaded <set.Count> dot(s) for spot '<id>'<..>`
-- info `Paint: stroke of <dots> dot(s), colour <Colour>, size <..> - <..> (<set.Count> in all)`
+- info `Paint: stroke of <dots> dot(s), colour <Colour>, size <..>, <_onSurface> on the drawn surface (<_onCollider> on its collider) - <..> (<set.Count> in all)`
 - info `Paint: undid a stroke of <n> dot(s) - <..> (<Current.Count> left)`
 
 ## `PanelKeeper`

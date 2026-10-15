@@ -59,6 +59,12 @@ namespace ForestOverlay.Game
         /// Frames drawn late since startup (a "did it run" count).
         public static int Frames;
 
+        /// While DrawLate runs: the finished picture being drawn into and the
+        /// scene's depth buffer bound with it - for a drawer that renders
+        /// through a target of its own (Game/PaintDraw) and binds them back.
+        public static RenderTexture Picture { get; private set; }
+        public static RenderBuffer SceneDepth { get; private set; }
+
         private Camera _camera;
         private RenderTexture _scene;
         private int _sceneFrame = -1;
@@ -150,16 +156,19 @@ namespace ForestOverlay.Game
                     return;
                 }
 
-                Graphics.SetRenderTarget(src.colorBuffer, _scene.depthBuffer);
+                Picture = src;
+                SceneDepth = _scene.depthBuffer;
                 GL.PushMatrix();
-                GL.LoadProjectionMatrix(_camera.projectionMatrix);
-                GL.modelview = _camera.worldToCameraMatrix;
                 for (int i = 0; i < Drawers.Count; i++)
                 {
                     ILateDrawer d = Drawers[i];
                     // Each drawer's own switch: one wanting the pass drew them all
                     // (run lines off still drawn while markers were up, 2026-10-06).
                     if (d == null || !d.WantsLateDraw) continue;
+                    // Bound again for each drawer: one drawing through a target of
+                    // its own (Game/PaintDraw's Blit) leaves another target and
+                    // matrices behind for the next.
+                    Rebind();
                     try { d.DrawLate(_camera); }
                     catch (Exception e)
                     {
@@ -172,6 +181,7 @@ namespace ForestOverlay.Game
                     }
                 }
                 GL.PopMatrix();
+                Picture = null;
                 Graphics.Blit(src, dst);
                 Frames++;
 
@@ -185,12 +195,23 @@ namespace ForestOverlay.Game
             }
             catch (Exception ex)
             {
+                Picture = null;
                 Lifecycle.Fail("LatePass.OnRenderImage", ex);
                 // A throw before the Blit would leave this frame unwritten (a
                 // second Blit after a late throw is harmless).
                 try { Graphics.Blit(src, dst); }
                 catch (Exception) { }
             }
+        }
+
+        /// While DrawLate runs: binds the picture with the scene's depth and
+        /// loads the camera's view again (after a drawer used a target of its own).
+        public static void Rebind()
+        {
+            if (Picture == null || _pass == null || _pass._camera == null) return;
+            Graphics.SetRenderTarget(Picture.colorBuffer, SceneDepth);
+            GL.LoadProjectionMatrix(_pass._camera.projectionMatrix);
+            GL.modelview = _pass._camera.worldToCameraMatrix;
         }
 
         /// Null when the late draw can run on this frame, else why not.

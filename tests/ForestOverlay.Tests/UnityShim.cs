@@ -51,9 +51,30 @@ namespace UnityEngine
             return new Vector3(a.x * f, a.y * f, a.z * f);
         }
 
+        public static Vector3 operator -(Vector3 a)
+        {
+            return new Vector3(-a.x, -a.y, -a.z);
+        }
+
         public static float Distance(Vector3 a, Vector3 b)
         {
             return (a - b).magnitude;
+        }
+
+        public static float Dot(Vector3 a, Vector3 b)
+        {
+            return a.x * b.x + a.y * b.y + a.z * b.z;
+        }
+
+        public static Vector3 Cross(Vector3 a, Vector3 b)
+        {
+            return new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+        }
+
+        public void Normalize()
+        {
+            float m = magnitude;
+            if (m > 1e-5f) { x /= m; y /= m; z /= m; } else { x = 0f; y = 0f; z = 0f; }
         }
 
         public bool Equals(Vector3 other)
