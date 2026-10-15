@@ -57,7 +57,7 @@ namespace ForestOverlay.Core
             // One shared cache: set only for the row under the mouse.
             Rect r = new Rect(0f, y - 24f, x + width, 24f);
             Event e = Event.current;
-            if (e == null || !r.Contains(e.mousePosition)) return 0f;
+            if (e == null || !r.Contains(WinPx.Mouse)) return 0f;
             UiKit.Hint(r, text, NoteCache);
             return 0f;
         }

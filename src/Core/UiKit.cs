@@ -465,7 +465,7 @@ namespace ForestOverlay.Core
             if (!_built || _skin == null || GUI.skin != _skin || style != _skin.toggle) return now;
             Event e = Event.current;
             if (e == null || e.type != EventType.Repaint) return now;
-            bool hover = GUI.enabled && r.Contains(e.mousePosition);
+            bool hover = GUI.enabled && r.Contains(WinPx.Mouse);
             Texture2D box = now ? (hover ? _tCheckOnHover : _tCheckOn) : (hover ? _tCheckOffHover : _tCheckOff);
             Color old = GUI.color;
             if (!GUI.enabled) GUI.color = new Color(old.r, old.g, old.b, old.a * 0.5f);
@@ -568,16 +568,17 @@ namespace ForestOverlay.Core
         {
             Event e = Event.current;
             if (e == null || e.type != EventType.Repaint || tip == null || string.IsNullOrEmpty(tip.text)) return;
-            if (!r.Contains(e.mousePosition)) return;
+            if (!r.Contains(WinPx.Mouse)) return;
             _tipHover = tip;
-            _tipAt = Unclip(e.mousePosition);
+            _tipAt = Unclip(e.mousePosition);   // GUI space as drawn: pixels in the F2 window (WinPx)
         }
 
         /// A local GUI point as the sum of it and every window / group /
         /// scroll offset above it: the space GUI.matrix scales (T-0324).
         /// GUIToScreenPoint scales the point but not the offsets (seen live
         /// in the scaled F2 window), so the scaled part comes back off. At
-        /// scale 1 this is GUIToScreenPoint itself.
+        /// scale 1 this is GUIToScreenPoint itself - the F2 window draws at
+        /// identity (T-0360), so there it is exact for a point in pixels.
         public static Vector2 Unclip(Vector2 local)
         {
             float k = GUI.matrix.m00;
@@ -606,7 +607,7 @@ namespace ForestOverlay.Core
             if (Time.unscaledTime - _tipSince < TipDelay) return;
 
             Ensure();
-            Vector2 local = _tipAt - Unclip(Vector2.zero);
+            Vector2 local = (_tipAt - Unclip(Vector2.zero)) / WinPx.K;   // window units in the F2 window
             float w = Mathf.Min(TipMaxW, bounds.width - 12f);
             float h = WinPx.CalcHeight(_tip, tip, w);
             float x = local.x + 14f, y = local.y + 20f;

@@ -414,7 +414,7 @@ namespace ForestOverlay.Modules
             if (!_fitted) { _view.Fit(); _fitted = true; }
 
             Event e = Event.current;
-            Vector2 mouse = e.mousePosition;
+            Vector2 mouse = WinPx.Mouse;   // window units (T-0360)
             bool inside = map.Contains(mouse);
             float mx = mouse.x - map.x, my = mouse.y - map.y;
             HandleInput(e, inside, mx, my);
@@ -456,14 +456,15 @@ namespace ForestOverlay.Modules
                     if (!inside || e.button != 0) return;
                     _dragging = true;
                     _dragMoved = false;
-                    _dragFrom = e.mousePosition;
+                    _dragFrom = WinPx.Mouse;
                     e.Use();
                     break;
 
                 case EventType.MouseDrag:
                     if (!_dragging) return;
-                    if (!_dragMoved && (e.mousePosition - _dragFrom).sqrMagnitude > 16f) _dragMoved = true;
-                    if (_dragMoved) _view.Pan(e.delta.x, e.delta.y);
+                    Vector2 delta = WinPx.Delta;
+                    if (!_dragMoved && (WinPx.Mouse - _dragFrom).sqrMagnitude > 16f) _dragMoved = true;
+                    if (_dragMoved) _view.Pan(delta.x, delta.y);
                     e.Use();
                     break;
 
@@ -546,10 +547,12 @@ namespace ForestOverlay.Modules
         {
             if (_material == null) return false;
             // The window's scale (T-0324): GL draws in screen pixels, the map
-            // in window units, so its origin is scaled and so is every vertex.
-            _k = GUI.matrix.m00 > 0f ? GUI.matrix.m00 : 1f;
-            Vector2 o = UiKit.Unclip(new Vector2(map.x, map.y));
-            _ox = o.x * _k; _oy = o.y * _k; _screenH = Screen.height;
+            // in window units, so every vertex is scaled. The window draws at
+            // identity in pixels (T-0360): the map's corner as drawn (WinPx.Px)
+            // through GUIToScreenPoint is its screen pixel.
+            _k = WinPx.K;
+            Vector2 o = UiKit.Unclip(WinPx.Px(map).position);
+            _ox = o.x; _oy = o.y; _screenH = Screen.height;
             _clipW = map.width; _clipH = map.height;
 
             GL.PushMatrix();

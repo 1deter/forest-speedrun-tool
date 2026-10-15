@@ -104,5 +104,33 @@ namespace ForestOverlay.Tests
             Assert.Equal(1440f / 768f, UiScale.WindowFactor(1440), 4);
             Assert.Equal(UiScale.MaxFactor, UiScale.WindowFactor(100000));
         }
+
+        [Fact]
+        public void WindowFontsRoundDownSoTextIsNeverWider()
+        {
+            float k1080 = UiScale.WindowFactor(1080), k1440 = UiScale.WindowFactor(1440);
+            Assert.Equal(18, UiScale.WindowFontPx(13, k1080));   // 18.28
+            Assert.Equal(24, UiScale.WindowFontPx(13, k1440));   // 24.375
+            Assert.Equal(16, UiScale.WindowFontPx(12, k1080));   // 16.875: down, not 17
+            Assert.Equal(26, UiScale.WindowFontPx(13, 2f));      // an exact product stays
+            Assert.Equal(13, UiScale.WindowFontPx(13, 1f));
+            Assert.Equal(11, UiScale.WindowFontPx(11, 1f));
+            Assert.Equal(0, UiScale.WindowFontPx(0, k1080));     // 0 = the skin's size, left to the caller
+            Assert.Equal(1, UiScale.WindowFontPx(1, 0.5f));
+        }
+
+        [Fact]
+        public void WindowPixelsLandOnWholePixels()
+        {
+            float k = UiScale.WindowFactor(1080);   // 1.40625
+            Assert.Equal(11f, UiScale.WindowPx(8f, k));      // 11.25
+            Assert.Equal(84f, UiScale.WindowPx(60f, k));     // 84.375
+            Assert.Equal(0f, UiScale.WindowPx(0f, k));
+            Assert.Equal(-14f, UiScale.WindowPx(-10f, k));   // -14.06
+            Assert.Equal(137f, UiScale.WindowPx(137f, 1f));
+            // A scroll offset through pixels and back is stable after one trip.
+            float px = UiScale.WindowPx(33.3f, k);
+            Assert.Equal(px, UiScale.WindowPx(px / k, k));
+        }
     }
 }

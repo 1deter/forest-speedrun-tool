@@ -535,6 +535,32 @@ class RenderObject(unittest.TestCase):
         self.assertEqual(text(L.check_render(hits)), "")
 
 
+class RawGui(unittest.TestCase):
+    SRC = ("// GUI.Label( in a comment\n"
+           "WinPx.Label(r, \"x\");\n"
+           "if (GUI.Button(r, \"Go\")) Go();\n"
+           "GUI.color = c; s = \"GUI.Box(\";\n"
+           "GUI.EndScrollView();\n")
+
+    def test_plain_controls_hit_in_core_and_modules(self):
+        hits = L.raw_gui_hits("src/Modules/X.cs", self.SRC)
+        self.assertEqual([(n, c) for p, n, c in hits], [(3, "GUI.Button"), (5, "GUI.EndScrollView")])
+        self.assertEqual(len(L.raw_gui_hits("src/Core/Y.cs", self.SRC)), 2)
+
+    def test_facade_crisptext_and_other_folders_are_skipped(self):
+        for path in ("src/Core/WinPx.cs", "src/Core/CrispText.cs", "src/Plugin.cs", "src/Game/X.cs"):
+            self.assertEqual(L.raw_gui_hits(path, self.SRC), [])
+
+    def test_fails_with_fix_text(self):
+        out = text(L.check_raw_gui(L.raw_gui_hits("src/Modules/X.cs", self.SRC)[:1]))
+        self.assertIn("ERROR: src/Modules/X.cs:3 calls GUI.Button directly", out)
+        self.assertIn("FIX: call WinPx.Button", out)
+
+    def test_repo_has_none(self):
+        hits = [h for p, t in L.src_texts() for h in L.raw_gui_hits(p, t)]
+        self.assertEqual(text(L.check_raw_gui(hits)), "")
+
+
 WEB_OK = """// UnityWebRequest in a comment
 var t = Type.GetType("UnityEngine.Networking.UnityWebRequest, UnityEngine");
 var h = t.GetProperty("downloadHandler");
