@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.307 - 2026-10-15
+
+- Edit HUD, input overlay: the + Key button now shows 'Press a key...' in full instead of cutting it off.
+
 ## v0.24.306 - 2026-10-15
 
 - Run lines and the ghost are now a few pixels wide with soft edges and a dark rim, fading out in the distance (new Runs > Run lines > Width).
