@@ -885,6 +885,26 @@ namespace ForestOverlay.Game
         public readonly Vector3[] PathWindow = new Vector3[96];
         public int PathCount;
 
+        /// The ribbons' core width in pixels at 1080p (Runs -> Run lines ->
+        /// Width), scaled with the screen's height (T-0368).
+        public float Width = 3f;
+
+        // Tuned over the bridge (static, like Game/PaintDraw's bands).
+        /// The dark edge each side, pixels at 1080p. 1 px at 60 % barely
+        /// showed against the forest floor; 1.5 px at 85 % reads as a rim
+        /// (bridge 2026-10-15, Cave 5 Practice Run).
+        public static float Outline = 1.5f;
+        /// The soft outer edge (alpha to 0), pixels at 1080p.
+        public static float Soft = 1f;
+        /// The dark edge's opacity, a share of the line's.
+        public static float OutlineAlpha = 0.85f;
+        /// Lines fade over the last FadeShare of DrawDistance (metres) and
+        /// are not drawn beyond it.
+        public static float DrawDistance = 300f;
+        public static float FadeShare = 0.25f;
+        /// A point closer than this to the last drawn, on screen, is skipped.
+        public static float MinPixels = 2f;
+
         private Material _material;
 
         private static readonly Color ReferenceColour = new Color(0.35f, 0.75f, 1f, 0.9f);
@@ -892,6 +912,32 @@ namespace ForestOverlay.Game
         private static readonly Color GhostColour = new Color(1f, 0.35f, 0.75f, 1f);
         private static readonly Color FailedColour = new Color(1f, 0.3f, 0.25f, 0.75f);
         private static readonly Color PathColour = new Color(1f, 1f, 1f, 0.95f);
+
+        // ------------------------------------------------------------------
+        // Ribbons, not GL lines (T-0368): a GL line is always 1 px on D3D11,
+        // aliased - a thread lost against foliage. Each line is a strip of
+        // quads facing the camera (Data/RibbonPath: near-plane clip, frustum
+        // and distance cull, fade, screen decimation, the side vectors),
+        // laid across as six vertices per point: soft edge, dark edge, the
+        // colour, the colour, dark edge, soft edge - so it reads as a solid
+        // band with a dark rim and anti-aliased sides. Rebuilt every frame
+        // (the camera moves) into meshes drawn with DrawMeshNow
+        // (Game/RibbonMesh): GL immediate mode would be a call per vertex
+        // and colour (~20 per point). Still depth-tested, still in the late
+        // pass (true colours); vertex colours are raw, as GL.Color's were
+        // (game-notes *Overlay colours*), so the look of a colour is
+        // unchanged.
+        //
+        // Cost (bridge 2026-10-15, fresh launch, 1920x1200): the 683 s
+        // Elevator Boost run, 1,491 points, ~1,230 in view - 0.30 ms a frame
+        // of CPU (GL 0.04 ms as 1 px lines), 186.9 vs 187.6 fps lines on /
+        // off; the Cave 5 line (99 points) costs next to nothing.
+        // ------------------------------------------------------------------
+        private readonly RibbonPath _path = new RibbonPath();
+        private readonly RibbonMesh _ribbon = new RibbonMesh();
+        private readonly Vector3[] _marker = new Vector3[10];
+        /// What the last frame drew (bridge: perf and "why nothing").
+        public int LastPoints, LastVertices, LastMeshes;
 
         private void EnsureMaterial()
         {
@@ -914,7 +960,7 @@ namespace ForestOverlay.Game
         private void OnDisable() { try { LatePass.Unregister(this); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDisable", ex); } }
         private void LateUpdate() { try { LatePass.Sync(DrawTarget.View()); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.LateUpdate", ex); } }
         public bool WantsLateDraw { get { return Show && (ReferenceCount >= 2 || CurrentCount >= 2 || FailedCount >= 2 || HasGhost || PathCount >= 2); } }
-        public void DrawLate(Camera camera) { DrawLines(); }
+        public void DrawLate(Camera camera) { DrawLines(camera); }
 
         private void OnRenderObject()
         {
@@ -923,48 +969,64 @@ namespace ForestOverlay.Game
                 if (!WantsLateDraw) return;
                 if (!DrawTarget.ShouldDraw()) return;
                 if (LatePass.Covers(Camera.current)) return;
-                DrawLines();
+                DrawLines(Camera.current);
             }
             catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnRenderObject", ex); }
         }
 
-        private void DrawLines()
+        private void DrawLines(Camera camera)
         {
             EnsureMaterial();
-            if (_material == null) return;
+            if (_material == null || camera == null) return;
 
             long start = System.Diagnostics.Stopwatch.GetTimestamp();
-            _material.SetPass(0);
-            GL.PushMatrix();
-            GL.Begin(GL.LINES);
 
-            DrawStrip(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity));
-            DrawStrip(CurrentLine, 0, CurrentCount, Faded(CurrentColour, Opacity));
-            DrawStrip(FailedLine, 0, FailedCount, Faded(FailedColour, Opacity));
-            DrawStrip(PathWindow, 0, PathCount, PathColour);
+            // The view: pixels per unit at depth 1 and the screen's half size
+            // (plus a margin for the ribbon's own width).
+            float h = camera.pixelHeight, w = camera.pixelWidth;
+            float k = h / (2f * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad));
+            float scale = h / 1080f;
+            float core = Mathf.Max(0.5f, Width * scale) * 0.5f;
+            float edge = core + Outline * scale, soft = edge + Soft * scale;
+            Transform t = camera.transform;
+            _path.SetView(t.position, t.forward, t.right, t.up, camera.nearClipPlane * 1.05f,
+                          k, w * 0.5f + soft + 8f, h * 0.5f + soft + 8f, DrawDistance, FadeShare, MinPixels * scale);
+            float[] o = _ribbon.Offsets;
+            o[0] = -soft; o[1] = -edge; o[2] = -core;
+            o[3] = core; o[4] = edge; o[5] = soft;
 
-            int extra = PathCount > 1 ? 2 * (PathCount - 1) : 0;
+            LastPoints = 0;
+            _ribbon.Begin();
+
+            AddLine(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity));
+            AddLine(CurrentLine, 0, CurrentCount, Faded(CurrentColour, Opacity));
+            AddLine(FailedLine, 0, FailedCount, Faded(FailedColour, Opacity));
+            AddLine(PathWindow, 0, PathCount, PathColour);
+
             if (HasGhost)
             {
-                GL.Color(Faded(GhostColour, GhostOpacity));
+                Color ghost = Faded(GhostColour, GhostOpacity);
                 if (DrawFigure && FigureCount > 0)
                 {
                     int n = Mathf.Min(FigureCount, FigureVerts.Length) & ~1;
-                    for (int i = 0; i < n; i++) GL.Vertex(FigureVerts[i]);
-                    extra += n;
+                    for (int i = 0; i < n; i += 2) AddLine(FigureVerts, i, i + 2, ghost);
                 }
                 else
                 {
                     // A small upright marker reads better than a dot at
                     // distance, and shows height difference at a glance.
-                    DrawMarker(GhostPosition, 0.45f, 1.8f);
-                    extra += 10;
+                    MarkerLines(GhostPosition, 0.45f, 1.8f);
+                    for (int i = 0; i < _marker.Length; i += 2) AddLine(_marker, i, i + 2, ghost);
                 }
             }
+            _ribbon.End();
 
-            GL.End();
-            GL.PopMatrix();
-            DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - ReferenceStart - 1) + Mathf.Max(0, CurrentCount - 1)) + extra);
+            _material.SetPass(0);
+            _ribbon.Draw();
+
+            LastVertices = _ribbon.Vertices;
+            LastMeshes = _ribbon.Meshes;
+            DrawTarget.Record(start, _ribbon.Vertices);
         }
 
         private static Color Faded(Color c, float opacity)
@@ -973,38 +1035,50 @@ namespace ForestOverlay.Game
             return c;
         }
 
-        private static void DrawStrip(Vector3[] points, int start, int count, Color colour)
+        /// One polyline into the meshes: its strips (Data/RibbonPath), a row
+        /// of six vertices per point (Game/RibbonMesh).
+        private void AddLine(Vector3[] points, int start, int count, Color colour)
         {
             if (points == null || count - start < 2) return;
 
-            GL.Color(colour);
-            int n = Mathf.Min(count, points.Length);
+            _path.Clear();
+            _path.Add(points, start, count);
+            LastPoints += _path.Count;
 
-            for (int i = Mathf.Max(1, start + 1); i < n; i++)
+            Color32 full = colour;
+            Color32 dark = new Color32(0, 0, 0, (byte)(Mathf.Clamp01(OutlineAlpha * colour.a) * 255f));
+            float lineA = colour.a, darkA = OutlineAlpha * colour.a;
+            Vector3[] p = _path.Points, s = _path.Sides;
+            float[] fade = _path.Fade;
+            int strips = _path.StripCount;
+            for (int k = 0; k < strips; k++)
             {
-                GL.Vertex(points[i - 1]);
-                GL.Vertex(points[i]);
+                int first = _path.Starts[k];
+                int end = k + 1 < strips ? _path.Starts[k + 1] : _path.Count;
+                for (int j = first; j < end; j++)
+                {
+                    float f = fade[j];
+                    Color32 c = full, d = dark;
+                    if (f < 1f)
+                    {
+                        c.a = (byte)(Mathf.Clamp01(lineA * f) * 255f);
+                        d.a = (byte)(Mathf.Clamp01(darkA * f) * 255f);
+                    }
+                    _ribbon.Row(p[j].x, p[j].y, p[j].z, s[j].x, s[j].y, s[j].z, c, d, j == first);
+                }
             }
         }
 
-        private static void DrawMarker(Vector3 p, float halfWidth, float height)
+        /// The ghost's marker as line pairs: a post, a cross at its foot and
+        /// one at its top.
+        private void MarkerLines(Vector3 p, float halfWidth, float height)
         {
             Vector3 top = new Vector3(p.x, p.y + height, p.z);
-
-            // Vertical post.
-            GL.Vertex(p); GL.Vertex(top);
-
-            // Cross at the base so it is visible from above.
-            GL.Vertex(new Vector3(p.x - halfWidth, p.y, p.z));
-            GL.Vertex(new Vector3(p.x + halfWidth, p.y, p.z));
-            GL.Vertex(new Vector3(p.x, p.y, p.z - halfWidth));
-            GL.Vertex(new Vector3(p.x, p.y, p.z + halfWidth));
-
-            // Cross at the top.
-            GL.Vertex(new Vector3(top.x - halfWidth, top.y, top.z));
-            GL.Vertex(new Vector3(top.x + halfWidth, top.y, top.z));
-            GL.Vertex(new Vector3(top.x, top.y, top.z - halfWidth));
-            GL.Vertex(new Vector3(top.x, top.y, top.z + halfWidth));
+            _marker[0] = p; _marker[1] = top;
+            _marker[2] = new Vector3(p.x - halfWidth, p.y, p.z); _marker[3] = new Vector3(p.x + halfWidth, p.y, p.z);
+            _marker[4] = new Vector3(p.x, p.y, p.z - halfWidth); _marker[5] = new Vector3(p.x, p.y, p.z + halfWidth);
+            _marker[6] = new Vector3(top.x - halfWidth, top.y, top.z); _marker[7] = new Vector3(top.x + halfWidth, top.y, top.z);
+            _marker[8] = new Vector3(top.x, top.y, top.z - halfWidth); _marker[9] = new Vector3(top.x, top.y, top.z + halfWidth);
         }
 
         private void OnDestroy()
@@ -1012,6 +1086,7 @@ namespace ForestOverlay.Game
             try
             {
                 if (_material != null) UnityEngine.Object.Destroy(_material);
+                _ribbon.Destroy();
             }
             catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDestroy", ex); }
         }
