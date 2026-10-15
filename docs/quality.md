@@ -45,7 +45,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | B | A | A | A | B | T-0207, T-0209 | 2026-10-08 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-14 |
-| Harness | B | A | B | A | B | T-0016, T-0113, T-0319 | 2026-10-14 |
+| Harness | B | A | B | A | B | T-0016, T-0311 | 2026-10-15 |
 
 Lowest first: Savestates, Practice, Site maps and 3D world, Knowledge (C).
 
@@ -342,10 +342,14 @@ The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
   200/200 writes kept under 8 writers).
 - Gaps **B**: every checkable gotcha has its check (T-0123..T-0135,
   2026-10-08; T-0192, T-0193 confirmed); Stage B not built (T-0016,
-  blocked); the first monthly review ran 2026-10-08 (Simplification log),
-  the weekly cleanup twice; the cost work (T-0113, T-0319) and the
-  research / build split (T-0311) are built and wait on their checks; the
-  framework benchmark is held until 1-2 reviews after them (T-0334).
+  its wait date passed, the loop still changed 10-11 / 10-15 - author's
+  call); the first monthly review ran 2026-10-08 (Simplification log),
+  the weekly cleanup twice; the cost work is confirmed (T-0113, T-0319:
+  main input 9.0M a session from 14.3M, start 65k from 73k; 2026-10-15)
+  and the checker brief re-runs every script test (T-0007); the research
+  / build split (T-0311) waits on its third researcher run (tail 27% from
+  46% so far); the framework benchmark is held until 1-2 reviews after
+  them (T-0334).
 
 ## Cleanup log
 
