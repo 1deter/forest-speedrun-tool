@@ -349,19 +349,33 @@ namespace ForestOverlay.Core
 
         private float _deleteArmedUntil = -1f;
         private float _resetArmedUntil = -1f;
+        // The armed click's time: a second click this soon is a double-click, not a yes (T-0321).
+        private float _resetArmedAt = -1f;
+        private const float ResetArmSeconds = 3f, ResetMinGap = 0.4f, ResetDoneSeconds = 4f;
+        // The one line under Reset profile (T-0321): what a second click wipes
+        // while armed, then that it was done for a few seconds.
+        private static readonly GUIContent ResetArmedNote = new GUIContent(
+            "Click again to reset: every value back in the column with its label, the panels, Compact and Text size. No undo.");
+        private readonly GUIContent _resetDoneNote = new GUIContent("");
+        private float _resetDoneUntil = -1f;
 
         /// Reset profile (T-0303): the active profile back to the default look -
         /// every setting it holds (values shown, the column's place, Compact,
         /// Text size, the splits + results panels and their options) and every
         /// value back in the column with its label (T-0336). A second click within 3 s,
-        /// as Delete (author, 2026-10-11).
+        /// as Delete (author, 2026-10-11); a second click within 0.4 s is a
+        /// double-click and is ignored (T-0321).
         private void ResetProfile()
         {
-            if (Time.unscaledTime > _resetArmedUntil)
+            float now = Time.unscaledTime;
+            if (now > _resetArmedUntil)
             {
-                _resetArmedUntil = Time.unscaledTime + 3f;
+                _resetArmedAt = now;
+                _resetArmedUntil = now + ResetArmSeconds;
+                _resetDoneUntil = -1f;
                 return;
             }
+            if (now - _resetArmedAt < ResetMinGap) return;
             _resetArmedUntil = -1f;
             CloseText();
             _renaming = false;
@@ -370,6 +384,8 @@ namespace ForestOverlay.Core
             _dirty = false;
             SaveProfile();
             ProfileStatus("");
+            _resetDoneNote.text = "Profile " + name + " reset to the default HUD.";
+            _resetDoneUntil = now + ResetDoneSeconds;
             if (_log != null) _log.LogInfo("HUD layout reset: profile " + name + " back to the default look (values, labels, column, panels, Compact, Text size).");
         }
 
