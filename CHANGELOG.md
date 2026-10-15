@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.301 - 2026-10-15
+
+- The always-on lines (ON NOW, the practice marker, run mode's line) now show as the game's own bottom-left messages, with an icon each and a dark outline; where the game hides its messages (inventory open, HUD off) they show in the same spot as before.
+- The input overlay's default layout moves to the bottom centre, out of the way of those lines.
+
 ## v0.24.300 - 2026-10-15
 
 - The ForestOverlay window now grows with your screen: at 1080p and above its text is about 40% bigger than before (body text ~17 px at 1080p), so it reads at a glance. At 1366x768 it looks as before.
