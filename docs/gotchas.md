@@ -1114,3 +1114,13 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     1/k of its width inside the window - window text is drawn plain
     (`CrispText.Plain`, slightly soft), CrispText stays for the HUD,
     which has no groups.
+
+113. **Per-point maths every frame is slow on the game's Mono.** (2026-10-15,
+    T-0368, bridge, 1,491-point run line.) Vector3 operators, `List<T>.Add`
+    and building 30 triangle indices a point cost 1.02 ms a frame (0.56 ms
+    in the path alone); the same work on floats into arrays, each input
+    point projected once, and a fixed index pattern uploaded only when the
+    mesh changes size cost 0.30 ms. Each operator is a call and a struct
+    copy on the old JIT. For a per-frame loop over hundreds of points:
+    floats, arrays, nothing rebuilt that does not change; time it live
+    with a Stopwatch per phase before guessing which part is slow.
