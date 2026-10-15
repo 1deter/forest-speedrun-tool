@@ -1063,3 +1063,25 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     crisp. Text under a scale goes through `Core/CrispText` (font size and
     padding x scale, inside a local 1/scale) for both drawing and
     measuring; `UiText.Draw` / `Height` already do.
+
+110. **A collider is not the drawn shape.** (2026-10-15, T-0296.) Paint
+    aimed by a crosshair raycast lands on the collider. A pool rock's
+    collider is a sphere (`Pool_Rocks/*/collision`, radius ~2.6 m on
+    Rock05): paint floated off the rock where the sphere stuck out and
+    sank into it where the rock did. And the game draws a coarser cave
+    mesh far off: a Cave 6 wall's far mesh lay 17 cm in front of its near
+    mesh at 29 m, so dots painted from far broke up up close, while its
+    mesh collider was within 5 cm of the near mesh. Fix: aim at what is
+    drawn (`Game/SurfaceProbe` reads the camera's depth texture), and snap
+    to a mesh / terrain collider only where it lies within max(0.3 m, 3 %)
+    of the drawn surface.
+
+111. **D3D11 flips textures under you.** (2026-10-15, T-0296, all on the
+    bridge.) `Graphics.DrawTexture` drew the paint layer mirrored about
+    the crosshair; `Graphics.Blit` target to target keeps rows the right
+    way up. `Blit` ignores the material's texture scale / offset (the
+    probe's neighbours came from 3/7 of the screen away), so a sub-rect
+    copy is a GL quad of our own. On D3D both the depth texture and the
+    patch count rows from the top: unflipped the patch came a row off,
+    flipping v alone mirrored it - flip both v ends when
+    `SystemInfo.graphicsUVStartsAtTop`.
