@@ -35,7 +35,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112, T-0243 | 2026-10-14 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
-| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0355, T-0356, T-0357 | 2026-10-15 |
+| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-15 |
 | Performance and loads | B | B | B | A | B | T-0034, T-0048 | 2026-10-14 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | T-0367 | 2026-10-15 |
