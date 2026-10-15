@@ -1,15 +1,14 @@
-namespace ForestOverlay.Data
+﻿namespace ForestOverlay.Data
 {
     /// What the runner picked in the Deaths tab's "When I die" (config
-    /// `[Deaths] OnDeath`). Automatic is the rules from before the choice
-    /// existed, so nothing changes for anyone who never touches it.
+    /// `[Deaths] OnDeath`). The default is the game's own death; the order is
+    /// the order of the choices in the tab (the value is the row's index).
     public enum DeathChoice
     {
-        Automatic,
+        GameDeath,
         ReloadSave,
         RestartSpot,
         ReviveAtSpot,
-        GameDeath,
     }
 
     /// The kind of death, as Game/DeathHooks classifies it (kept pure here).
@@ -93,22 +92,21 @@ namespace ForestOverlay.Data
     // ------------------------------------------------------------------
     // What a death does (pure; Modules/DeathModule acts on it).
     //
-    // Automatic = the rules from before the choice existed:
-    //   1. a current spot, the revive not locked by run mode, and practice
-    //      mode on or a start state on the spot -> restart the spot. One
-    //      change: a run whose category allows the revive but locks
-    //      Restart (and the spot is not the run's own) no longer revives
-    //      in place with a "locked" notice - it goes on to step 2;
-    //   2. Reload save on death (with its first-death / boss-fight
-    //      toggles; a run's category can force or lock it) -> reload;
-    //   3. otherwise the game's own death.
-    // An explicit choice does just that thing; when it cannot (no current
-    // spot, locked by run mode, nothing to reload) step 2 then 3 decide,
+    // The runner's choice does just that thing (the default is the game's
+    // own death); when it cannot (no current
+    // spot, locked by run mode) the reload fallback, then the game's death, decide,
     // and the text says why. Multiplayer is never touched; permadeath
     // never reloads (the save is gone).
     // ------------------------------------------------------------------
     public static class DeathPlan
     {
+        /// A stored OnDeath of "Automatic" (the choice dropped 2026-10-15)
+        /// reads as the game's own death; anything else is unchanged.
+        public static string MigrateStored(string stored)
+        {
+            return stored != null && stored.Trim() == "Automatic" ? DeathChoice.GameDeath.ToString() : stored;
+        }
+
         public static DeathDecision Decide(DeathChoice choice, DeathSituation s)
         {
             if (s.Kind == DeathCase.Multiplayer)
@@ -117,16 +115,6 @@ namespace ForestOverlay.Data
             string instead = null;   // why the choice did not apply
             switch (choice)
             {
-                case DeathChoice.Automatic:
-                    if (s.HasSpot && !s.ReviveLocked && !s.RestartLocked && (s.PracticeOn || s.HasStartState))
-                        return Restart(s, s.HasStartState ? "Automatic: it is the current spot and has a start state"
-                                                          : "Automatic: practice mode is on and it is the current spot");
-                    if (s.HasSpot && (s.ReviveLocked || s.RestartLocked) && (s.PracticeOn || s.HasStartState))
-                        instead = "run mode locks the practice revive";
-                    else if (s.HasSpot)
-                        instead = "Automatic: practice mode is off and '" + Name(s) + "' has no start state";
-                    break;
-
                 case DeathChoice.RestartSpot:
                     if (!s.HasSpot) instead = "no current spot to restart (Go to or save one in Practice)";
                     else if (s.ReviveLocked || s.RestartLocked) instead = "run mode locks restarting a spot on death";

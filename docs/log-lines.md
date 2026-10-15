@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-240 prefixes from 784 log calls.
+240 prefixes from 785 log calls.
 
 ## `Aerial capture`
 
@@ -368,7 +368,7 @@ Written by DeathHooks.cs, DeathModule.cs; info / warning.
 - info `Death (<kind>): quick-loading.`
 - warning `Death: could not cancel the hard landing: <ex.Message>`
 - info `Death: revived (practice).`
-- info `Death (<kind>, <_choiceCfg.Value>): <d.Text>.`
+- info `Death (<kind>, <Choice>): <d.Text>.`
 - warning `Death: deciding failed, the game's own death - <ex.Message>`
 
 ## `DeathHooks`
@@ -390,6 +390,7 @@ Written by DeathHooks.cs; info / warning.
 Meaning: Death practice toggles: god mode on / off and the practice toggles in force.
 Written by DeathModule.cs; info.
 
+- info `Deaths: OnDeath = Automatic read as GameDeath (the choice was dropped)`
 - info `Deaths: god mode off.`
 - info `Deaths: god mode on (Cheats.GodMode).`
 - info `Deaths: practice toggles on -<..>.`

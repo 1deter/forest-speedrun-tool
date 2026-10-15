@@ -12,13 +12,13 @@ namespace ForestOverlay.Modules
     // What happens when the player dies.
     //
     // "When I die" (runner feedback: the revive was confusing, worse with
-    // practice mode on and another spot current) picks one of: Automatic
-    // (the rules below, the default), Reload the save, Restart the current
+    // practice mode on and another spot current) picks one of: the game's
+    // own death (the default), Reload the save, Restart the current
     // spot (F7: its start state, Quick / Full as the spot says), Revive at
-    // the current spot (a teleport, nothing restored), the game's own
-    // death. The decision is Data/DeathPlan (pure, tested); the Deaths tab
+    // the current spot (a teleport, nothing restored). The decision is Data/DeathPlan (pure, tested); the Deaths tab
     // shows "Next death: ..." - what it will do and why - so the choice is
-    // never a guess. Automatic:
+    // never a guess. The old Automatic choice (dropped 2026-10-15; a stored
+    // one reads as the game's death) was:
     //
     //   1. Practice mode on and a current spot  -> REVIVE at the spot.
     //      Every death, the capture included. Health and blood reset, no
@@ -87,33 +87,40 @@ namespace ForestOverlay.Modules
             "instead of 5-8 s). It is not the game's own load: it marks practice and is never used in run mode. " +
             "The game's load is used instead in run mode, when only one of you and the save is past the vault door, " +
             "or when the save cannot be read - the log line says why.");
+        private static readonly string[] ChoiceNames = Enum.GetNames(typeof(DeathChoice));
         private static readonly GUIContent[] ChoiceLabels =
         {
-            new GUIContent(" Automatic (default)"),
+            new GUIContent(" The game's own death"),
             new GUIContent(" Reload the save"),
             new GUIContent(" Restart the current spot (F7)"),
             new GUIContent(" Revive at the current spot (teleport only)"),
-            new GUIContent(" The game's own death"),
         };
         private static readonly GUIContent[] ChoiceHints =
         {
-            new GUIContent("Practice mode on, or a current spot with a start state: a death restarts that spot (F7). " +
-                           "Otherwise your save reloads."),
+            new GUIContent("Nothing changes: the dead cam and the menu, the capture on a game's first death, " +
+                           "the boss-room wake-up."),
             new GUIContent("Every death reloads your save (the toggles below for the first death and the boss fight still apply)."),
             new GUIContent("Health back, then the current spot's start state is restored - Quick or Full load as the spot says; " +
                            "a spot with no start state is a teleport there. The current spot is the last one you went to, " +
                            "restarted or saved; with none, your save reloads. Marks practice."),
             new GUIContent("Health back and a teleport to the current spot. Nothing is restored, even when the spot has a " +
                            "start state; with no current spot, your save reloads. Marks practice."),
-            new GUIContent("Nothing changes: the dead cam and the menu, the capture on a game's first death, " +
-                           "the boss-room wake-up."),
         };
         private static readonly GUIContent RunModeChoiceText = new GUIContent(
             "Run mode: a restart or revive on death is locked during a run unless the run's category allows the " +
             "practice revive; a reload on death follows the category. The line below says what happens instead.");
 
         private DeathHooks _hooks;
-        private ConfigEntry<DeathChoice> _choiceCfg;
+        private ConfigEntry<string> _choiceCfg;
+
+        private DeathChoice Choice
+        {
+            get
+            {
+                try { return (DeathChoice)Enum.Parse(typeof(DeathChoice), DeathPlan.MigrateStored(_choiceCfg.Value) ?? "", true); }
+                catch (ArgumentException) { return DeathChoice.GameDeath; }
+            }
+        }
         private ConfigEntry<bool> _quickLoadCaptureCfg;
         private ConfigEntry<bool> _quickLoadBossCfg;
         private ConfigEntry<bool> _skipMenuCfg;
@@ -166,12 +173,20 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
 
-            _choiceCfg = Ctx.Config.Bind("Deaths", "OnDeath", DeathChoice.Automatic,
-                "What a death does. Automatic: the rules from before this choice (practice mode on, or a current " +
-                "spot with a start state, restarts the current spot; otherwise reloads the save). ReloadSave: " +
+            _choiceCfg = Ctx.Config.Bind("Deaths", "OnDeath", DeathChoice.GameDeath.ToString(),
+                "What a death does. GameDeath: the game's own death (the default). ReloadSave: " +
                 "reload the save. RestartSpot: the current spot's restart (F7). ReviveAtSpot: health back and a " +
-                "teleport to the current spot. GameDeath: the game's own death. The QuickLoad* keys still apply " +
+                "teleport to the current spot. The QuickLoad* keys still apply " +
                 "wherever a reload happens; never permadeath or multiplayer.");
+
+            // Kept as text so a stored "Automatic" (dropped 2026-10-15) loads as GameDeath
+            // with no config warning, and the file is saved back with the new name.
+            string stored = _choiceCfg.Value;
+            if (DeathPlan.MigrateStored(stored) != stored)
+            {
+                _choiceCfg.Value = DeathPlan.MigrateStored(stored);
+                Ctx.Log.LogInfo("Deaths: OnDeath = Automatic read as GameDeath (the choice was dropped)");
+            }
 
             _quickLoadCaptureCfg = Ctx.Config.Bind("Deaths", "QuickLoadOnCapture", true,
                 "Reload the save also on the first death, which the game otherwise turns into the capture " +
@@ -237,9 +252,9 @@ namespace ForestOverlay.Modules
             {
                 // Read the slot now, while the game that owns it is alive.
                 _quickLoadSlot = ReadSlot();
-                DeathDecision d = DeathPlan.Decide(_choiceCfg.Value, Situation(kind, _quickLoadSlot >= 0));
+                DeathDecision d = DeathPlan.Decide(Choice, Situation(kind, _quickLoadSlot >= 0));
                 _lastDeath = DateTime.Now.ToString("HH:mm:ss") + " (" + kind + "): " + d.Text;
-                Ctx.Log.LogInfo("Death (" + kind + ", " + _choiceCfg.Value + "): " + d.Text + ".");
+                Ctx.Log.LogInfo("Death (" + kind + ", " + Choice + "): " + d.Text + ".");
                 switch (d.Outcome)
                 {
                     case DeathOutcome.RestartSpot:
@@ -567,7 +582,7 @@ namespace ForestOverlay.Modules
                 if (kind == DeathKind.Multiplayer)
                     text = "Next death: the game's own - multiplayer is never changed.";
                 else
-                    text = "Next death: " + DeathPlan.Decide(_choiceCfg.Value, Situation(kind, ReadSlot() >= 0)).Text + ".";
+                    text = "Next death: " + DeathPlan.Decide(Choice, Situation(kind, ReadSlot() >= 0)).Text + ".";
             }
             if (text != _nextDeathShown) { _nextDeathShown = text; _nextDeathText.text = text; }
         }
@@ -589,7 +604,7 @@ namespace ForestOverlay.Modules
             // The one choice: what a death does.
             GUI.Label(new Rect(0, y, w, 20), ChoiceTitle);
             y += 22f;
-            DeathChoice choice = _choiceCfg.Value;
+            DeathChoice choice = Choice;
             int ci = (int)choice;
             if (ci < 0 || ci >= ChoiceLabels.Length) ci = 0;
             for (int i = 0; i < ChoiceLabels.Length; i++)
@@ -597,7 +612,7 @@ namespace ForestOverlay.Modules
                 bool on = UiKit.Toggle(new Rect(10, y, w - 10, 22), i == ci, ChoiceLabels[i]);
                 if (on && i != ci)
                 {
-                    _choiceCfg.Value = (DeathChoice)i;
+                    _choiceCfg.Value = ChoiceNames[i];
                     _nextDeathAt = 0f;   // the line follows on the next tick
                 }
                 y += 24f;
