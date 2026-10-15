@@ -157,15 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (T-0332 released, author present):** the Map tab in the
-  slate look (navy water, grey-blue land, 1 px tan coast; cache
-  `relief-slate-*.png`, the green file deleted), comparison line / ghost /
-  Only cave spots gone, key 'Runner spot', short hint. Checker accept,
-  **released v0.24.302**. Category colours still hash (FNV): 8 categories
-  land on 4 colours, as before - an author question. **Next:** a
-  non-maker confirms T-0332 in game, then `tasks.py next`. New: T-0363
-  (input overlay scaling + crisp corners + thin mouse path); T-0360
-  (sharp F2 text) has the author's Map-tab sighting.
+- **2026-10-15 (harness session, author present):** T-0007, T-0113,
+  T-0319 confirmed (main input 9.0M a session from 14.3M); **Stage B
+  built** (T-0016, checker accept): "start the routine" here ->
+  `loop.py chain` drives fresh sessions (docs/areas/workflow.md *The
+  unattended chain*); its first real chain run with the author is the
+  last verify step. T-0311 waits for a 3rd researcher run. T-0358
+  answered (no minimum shown time; the runner picks which inputs show
+  and where). **Next:** T-0335 (HUD text contrast; findings in its
+  notes, an outline / shadow / plate choice for the author), then
+  `tasks.py next`.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
