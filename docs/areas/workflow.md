@@ -347,7 +347,7 @@ python scripts/log-catalogue.py                 # after changing a log line: rew
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
 python scripts/agent-cost.py                    # what each subagent costs
-python scripts/sendinput.py move|wheel|key ...  # real OS mouse / key input into the focused game (reaches Unity GetKey / GetAxisRaw, the bridge's press / axis do not; T-0302)
+python scripts/sendinput.py move|wheel|key ...  # real OS mouse / key input into the game (brings it to the front; tests never ask the author to press keys) (reaches Unity GetKey / GetAxisRaw, the bridge's press / axis do not; T-0302)
 ```
 
 The task file's tests: `scripts/tests/test_tasks.py`; the lints' hooks and

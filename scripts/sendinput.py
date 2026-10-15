@@ -2,8 +2,9 @@
 injection cannot reach: UnityEngine.Input.GetKey / GetAxisRaw("Mouse X") and
 Rewired's own reads see these, the bridge's press / axis do not (T-0302).
 
-Sends only while the game window ('TheForest') has focus; refuses otherwise,
-so it never types into another window.
+Brings the game window to the front first (author 2026-10-16: tests are
+automatic, nobody clicks the game), then sends only while it has focus;
+refuses otherwise, so it never types into another window.
 
   python scripts/sendinput.py move  <delay_s> <steps> <dx> <dy> <interval_s>
   python scripts/sendinput.py wheel <delay_s> <steps> <delta> <interval_s>   (120 = one notch up)
@@ -11,6 +12,7 @@ so it never types into another window.
 
 Run it in the background, then sample over the bridge while it sends."""
 import ctypes
+import subprocess
 import sys
 import time
 from ctypes import wintypes
@@ -47,6 +49,54 @@ def game_focused():
     return buf.value == GAME_TITLE
 
 
+def _game_window():
+    hwnd = user32.FindWindowW(None, GAME_TITLE)
+    if hwnd:
+        return hwnd
+    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq TheForest.exe", "/FO", "CSV", "/NH"],
+                         capture_output=True, text=True).stdout
+    pids = set()
+    for line in out.splitlines():
+        parts = [x.strip('"') for x in line.split('","')]
+        if len(parts) > 1 and parts[0].lower() == "theforest.exe":
+            pids.add(int(parts[1]))
+    found = []
+    proto = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def cb(hw, _):
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hw, ctypes.byref(pid))
+        if pid.value in pids and user32.IsWindowVisible(hw):
+            found.append(hw)
+        return True
+
+    user32.EnumWindows(proto(cb), 0)
+    return found[0] if found else 0
+
+
+def bring_to_front():
+    # A plain SetForegroundWindow is refused from a background process: an
+    # Alt tap plus AttachThreadInput to the current foreground thread lets it.
+    hwnd = _game_window()
+    if not hwnd:
+        return False
+    kernel32 = ctypes.WinDLL("kernel32")
+    user32.ShowWindow(hwnd, 9)
+    t_fg = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
+    t_me = kernel32.GetCurrentThreadId()
+    user32.AttachThreadInput(t_me, t_fg, True)
+    user32.keybd_event(0x12, 0, 0, 0)
+    user32.keybd_event(0x12, 0, KEYEVENTF_KEYUP, 0)
+    user32.BringWindowToTop(hwnd)
+    user32.SetForegroundWindow(hwnd)
+    user32.AttachThreadInput(t_me, t_fg, False)
+    for _ in range(20):   # the switch lands a few frames later
+        if user32.GetForegroundWindow() == hwnd:
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def mouse(dx, dy, data, flags):
     i = INPUT(type=0)
     i.mi = MOUSEINPUT(dx, dy, ctypes.c_uint32(data).value, flags, 0, 0)
@@ -64,6 +114,8 @@ def main(argv):
         print(__doc__)
         return 2
     mode, a = argv[0], argv[1:]
+    if not bring_to_front():
+        print("sendinput: could not bring the game window to the front")
     time.sleep(float(a[0]))
     if not game_focused():
         print("sendinput: the game window ('%s') does not have focus - nothing sent" % GAME_TITLE)
