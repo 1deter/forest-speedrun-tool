@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.304 - 2026-10-15
+
+- Collision view outlines mesh colliders by their real shape, not a box around the whole model (very large ones still show as boxes; the Views tab says how many).
+- New "Hide behind walls" switch in Views hides collider and trigger outlines that sit behind scenery.
+
 ## v0.24.303 - 2026-10-15
 
 - Any HUD value can now go into the splits panel as an extra row, like a LiveSplit component: "In panel" in Edit HUD, "To column" takes it out. Rows keep the order you added them and their trend colour.
