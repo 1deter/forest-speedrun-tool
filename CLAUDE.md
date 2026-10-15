@@ -157,14 +157,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (chain C-0001, run R-0009, unattended):** v0.24.303 T-0338
-  (HUD values docked into the splits panel) and v0.24.305 T-0341 (Map tab
-  turned 180) confirmed in game; v0.24.304 T-0340 (mesh colliders, Hide
-  behind walls) released - shipped meshes are not CPU-readable, so they
-  stay boxes: T-0367 (hard). T-0342 was already done by T-0337. Parked
-  for the author: T-0335 (HUD text contrast: outline / shadow / plate),
-  T-0366 (ASL var viewer scope). **Next:** the chain's next run
-  (`loop.py chain next`), then `tasks.py next`.
+- **2026-10-15 (chain C-0001, run R-0010, unattended):** 5 rounds, all
+  confirmed in game: T-0345 (ftse surf tool studied -> T-0368..T-0374),
+  v0.24.306 T-0368 (run lines as px-wide ribbons, Width setting),
+  v0.24.307 T-0353, v0.24.308 T-0354, v0.24.309 T-0355 (Input overlay
+  editor fixes). Parked for the author: T-0335, T-0366, T-0369 (timer
+  follows a replay?), T-0370 (lines through walls?), T-0374 (extra
+  lines). Builder picks to glance at: run lines' 300 m draw distance and
+  rim (T-0368), the new-tile slot 280 px from the right (T-0355).
+  **Next:** the chain's next run (`loop.py chain next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

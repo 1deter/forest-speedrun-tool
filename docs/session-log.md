@@ -2,6 +2,17 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-15 (chain C-0001 run R-0010 handoff)
+
+- **2026-10-15 (chain C-0001, run R-0009, unattended):** v0.24.303 T-0338
+  (HUD values docked into the splits panel) and v0.24.305 T-0341 (Map tab
+  turned 180) confirmed in game; v0.24.304 T-0340 (mesh colliders, Hide
+  behind walls) released - shipped meshes are not CPU-readable, so they
+  stay boxes: T-0367 (hard). T-0342 was already done by T-0337. Parked
+  for the author: T-0335 (HUD text contrast: outline / shadow / plate),
+  T-0366 (ASL var viewer scope). **Next:** the chain's next run
+  (`loop.py chain next`), then `tasks.py next`.
+
 ## Moved out 2026-10-15 (chain C-0001 run R-0009 handoff)
 
 - **2026-10-15 (harness session, author present):** T-0007, T-0113,
