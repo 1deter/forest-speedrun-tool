@@ -84,8 +84,18 @@ namespace ForestOverlay.Data
 
         // --- the tile's look -------------------------------------------------
 
-        /// Width in 1x1 tiles.
+        /// Width in 1x1 tiles: the key's own width, or wider when its label would not fit
+        /// (never clipped text: "Wheel", "PageDown", "LeftBracket").
         public static float UnitsW(string key)
+        {
+            float u = BaseUnitsW(key);
+            string label = LabelFor(key);
+            if (label.Length == 0) return u;
+            float need = (float)Math.Ceiling((label.Length * 8f + 12f) / Pitch * 2f) / 2f;
+            return need > u ? need : u;
+        }
+
+        private static float BaseUnitsW(string key)
         {
             switch (key)
             {
@@ -160,6 +170,18 @@ namespace ForestOverlay.Data
         private void Place(string key, float ox, float oy, float col, float row)
         {
             Add(key, ox + col * Pitch, oy + row * Pitch);
+        }
+
+        /// A layout string saved at another reference screen, its positions converted (T-0327).
+        public static string ConvertPositions(string text, int fw, int fh, int tw, int th)
+        {
+            InputLayout l = Parse(text);
+            for (int i = 0; i < l.Tiles.Count; i++)
+            {
+                l.Tiles[i].X = ProfileUnits.Convert(l.Tiles[i].X, ProfileUnit.X, fw, fh, tw, th);
+                l.Tiles[i].Y = ProfileUnits.Convert(l.Tiles[i].Y, ProfileUnit.Y, fw, fh, tw, th);
+            }
+            return l.Format();
         }
 
         public static InputLayout Parse(string text)

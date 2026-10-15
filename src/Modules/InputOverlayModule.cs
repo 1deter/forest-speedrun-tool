@@ -34,7 +34,7 @@ namespace ForestOverlay.Modules
         public override string Id { get { return "inputs"; } }
         public override string DisplayName { get { return "Input overlay"; } }
 
-        private const float PopAmount = 0.08f, RiseTime = 0.06f, FallTime = 0.18f, MinLit = 0.05f;
+        private const float PopAmount = 0.1f, RiseTime = 0.1f, FallTime = 0.2f, MinLit = 0.05f;
         private const float TrailSeconds = 0.6f, MouseGain = 0.01f;
         private const int TrailMax = 48;
 
@@ -70,6 +70,7 @@ namespace ForestOverlay.Modules
         private bool _capturing;
         private int _drag = -1;
         private Vector2 _dragOffset;
+        private int _removeAt = -1;
         private bool _resetArmed;
         private float _resetUntil;
         private readonly GUIContent _status = new GUIContent("");
@@ -89,7 +90,7 @@ namespace ForestOverlay.Modules
             {
                 _layoutCfg.BoxedValue = v;
                 Reload();
-            });
+            }, ProfileUnit.InputTiles);
             Reload();
         }
 
@@ -496,7 +497,10 @@ namespace ForestOverlay.Modules
                 _centred = UiKit.Style(GUI.skin.label);
                 _centred.alignment = TextAnchor.MiddleCenter;
             }
+            _removeAt = -1;
             for (int i = 0; i < _states.Count; i++) y = DrawTileRow(i, y, w);
+            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
+            _removeAt = -1;
 
             // Add buttons, flowing left to right.
             float x = 0f;
@@ -550,7 +554,7 @@ namespace ForestOverlay.Modules
             float h = 22f;
             float x = w - step;
             Rect removeR = new Rect(x, y, step, h);
-            if (GUI.Button(removeR, RemoveText)) { RemoveTile(i); return y + 26f; }
+            if (GUI.Button(removeR, RemoveText)) _removeAt = i;
             UiKit.Hint(removeR, RemoveTip);
             x -= gap + step;
             if (GUI.Button(new Rect(x, y, step, h), BiggerText)) SetScale(s, s.Tile.Scale + 0.25f);

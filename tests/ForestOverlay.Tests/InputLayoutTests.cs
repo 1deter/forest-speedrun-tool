@@ -67,5 +67,25 @@ namespace ForestOverlay.Tests
             Assert.Equal(1f, InputLayout.UnitsW("W"));
             Assert.Equal(2f, InputLayout.UnitsH(InputLayout.MouseKey));
         }
+
+        [Fact]
+        public void LongLabelsGetWiderTilesSoNothingClips()
+        {
+            Assert.True(InputLayout.UnitsW("Wheel") > 1f);
+            Assert.True(InputLayout.UnitsW("LeftBracket") > InputLayout.UnitsW("PageDown"));
+            Assert.Equal(1f, InputLayout.UnitsW("Mouse0"));
+        }
+
+        [Fact]
+        public void PositionsConvertToAnotherReferenceScreen()
+        {
+            string s = InputLayout.ConvertPositions("W,100,200,2,1;Q,0,50,1,0", 1920, 1080, 3840, 2160);
+            InputLayout l = InputLayout.Parse(s);
+            Assert.Equal(200f, l.Find("W").X);
+            Assert.Equal(400f, l.Find("W").Y);
+            Assert.Equal(2f, l.Find("W").Scale);
+            Assert.False(l.Find("Q").Shown);
+            Assert.Equal(100f, l.Find("Q").Y);
+        }
     }
 }

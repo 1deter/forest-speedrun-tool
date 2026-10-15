@@ -4,7 +4,7 @@ namespace ForestOverlay.Data
 {
     /// What a profile number measures, so it can follow a change of the
     /// reference screen (T-0327).
-    public enum ProfileUnit { None, X, Y, Size }
+    public enum ProfileUnit { None, X, Y, Size, InputTiles }
 
     // ------------------------------------------------------------------
     // A profile file is shared between screens. Its positions and sizes are
