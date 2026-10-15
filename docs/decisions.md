@@ -422,7 +422,14 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   toward the game's bottom-left pickup-message style, reusing the game's
   code, rather than orange overlay text. Feedback adds no clutter (T-0321:
   a short result line, not a panel); text sizes follow docs/ux.md check 25
-  (T-0324).
+  (T-0324). Details (author, 2026-10-15): where the game hides its grid
+  (inventory open, its HUD off, cutscenes / sleep) the lines fall back to
+  overlay text in the same spot, so a recording always shows them; ours
+  sit lowest in the stack, the game's passing messages above; no "ON
+  NOW" title line, but higher contrast than the game's plain yellow so
+  they are clearly visible - if that turns out a gimmick or still hard to
+  see, something else; the input overlay's default moves out of the
+  bottom-left corner (it covered the game's own messages).
 - **Edit HUD snapping** (author, 2026-10-11, T-0020): a dragged piece (a
   placed value, the column, the splits / results panels) snaps within ~8
   px to the screen's 25 / 50 / 75 % lines and to the other pieces' edges
