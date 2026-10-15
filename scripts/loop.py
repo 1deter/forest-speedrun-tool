@@ -9,7 +9,7 @@ model's say-so, and the stop conditions are machine checks.
 tasks/loop.jsonl is append-only (one event per line, merges cleanly):
 begin / round / park / end / intervene / stop.
 
-    python scripts/loop.py begin [--bridge] [--max-rounds 5]   # opens a run, lists parked questions
+    python scripts/loop.py begin [--bridge] [--max-rounds 5] [--max-context N]   # opens a run, lists parked questions
     python scripts/loop.py next          # the open round's next action, or opens the next round, or STOP
     python scripts/loop.py peek          # what next would say, writing nothing
     python scripts/loop.py end --summary "one paragraph the author can skim"
@@ -208,16 +208,16 @@ def context_tokens(repo=None, home=None):
     return None
 
 
-def context_reason(tokens):
-    if tokens is not None and tokens > MAX_CONTEXT:
+def context_reason(tokens, limit=MAX_CONTEXT):
+    if tokens is not None and tokens > limit:
         return ("the orchestrator's context is %dk (over %dk) - hand off and end this session; "
-                "the next run starts in a fresh one" % (tokens // 1000, MAX_CONTEXT // 1000))
+                "the next run starts in a fresh one" % (tokens // 1000, limit // 1000))
     return None
 
 
 def stop_reason(run, tasks):
     """Why the run must stop before opening another round, or None."""
-    why = context_reason(context_tokens())
+    why = context_reason(context_tokens(), run["begin"].get("max_context", MAX_CONTEXT))
     if why:
         return why
     done = [r for r in run["rounds"] if r["end"]]
@@ -343,18 +343,21 @@ def action(t, rnd):
 
 # ---------------------------------------------------------------- commands
 
-def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main"):
+def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main", max_context=MAX_CONTEXT):
     run = open_run(events)
     if run:
         raise LoopError("run %s is still open" % run["id"], "one loop run at a time",
                         "`loop.py next` continues it, `loop.py stop --reason \"...\"` ends it")
-    why = context_reason(context_tokens())
+    why = context_reason(context_tokens(), max_context)
     if why:
         raise LoopError("no new run in this session", why, "the handoff, then a new session (/clear) runs `loop.py begin`")
     rid = new_run_id(events)
     new = [{"at": now(), "event": "begin", "run": rid, "max_rounds": max_rounds, "bridge": bridge, "by": by}]
+    if max_context != MAX_CONTEXT:
+        new[0]["max_context"] = max_context
     parked = [t for t in tasks if t.get("question") and t["status"] not in T.DONE]
-    lines = ["run %s begun: at most %d rounds, pool needs none%s" % (rid, max_rounds, " + bridge" if bridge else "")]
+    lines = ["run %s begun: at most %d rounds, pool needs none%s, context limit %dk"
+             % (rid, max_rounds, " + bridge" if bridge else "", max_context // 1000)]
     if parked:
         lines.append("parked questions - ask the author now (`tasks.py set T-n --answer \"...\"`):")
         lines += ["  %s %s\n    Q: %s" % (t["id"], t["title"], t["question"]) for t in parked]
@@ -563,6 +566,8 @@ def main(argv=None, loop_path=None, tasks_path=None):
     sp = sub.add_parser("begin")
     sp.add_argument("--bridge", action="store_true")
     sp.add_argument("--max-rounds", type=int, default=MAX_ROUNDS)
+    sp.add_argument("--max-context", type=int, default=MAX_CONTEXT,
+                    help="tokens; a run's own limit when the author raises it for one session (author 2026-10-15: 350000)")
     sp.add_argument("--by", default="main")
     sub.add_parser("next")
     sub.add_parser("peek")
@@ -600,7 +605,7 @@ def run(a, loop_path, tasks_path):
             if a.max_rounds < 1:
                 raise LoopError("--max-rounds %d" % a.max_rounds, "a run takes at least one round",
                                 "--max-rounds %d (the default)" % MAX_ROUNDS)
-            new, text, code = cmd_begin(events, tasks, a.max_rounds, a.bridge, a.by)
+            new, text, code = cmd_begin(events, tasks, a.max_rounds, a.bridge, a.by, a.max_context)
         elif a.cmd in ("next", "peek"):
             new, text, code = cmd_next(events, tasks)
             if a.cmd == "peek":
