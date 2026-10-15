@@ -21,8 +21,11 @@ namespace ForestOverlay.Game
     // 2026-10-15). The copies sit in no HudGui timed dictionary, so the
     // game never expires them, and they are kept the grid's last children:
     // the lowest lines, the game's passing messages above them. Higher
-    // contrast than the game's plain yellow (a black outline), no tick, no
-    // translation.
+    // contrast than the game's plain yellow (a black outline), no
+    // translation, and the game's own icons in the template's icon slot
+    // (its "Book") so they stand apart from the game's messages (author,
+    // 2026-10-15): "cog" on an ON NOW flag, "Rewind" on the practice
+    // marker (sprite names from the HUD atlas, bridge).
     //
     // Where the grid is not on screen (inventory open, the game's HUD off,
     // the HUD camera off in a cutscene / sleep, the title) Mode is Overlay
@@ -39,15 +42,18 @@ namespace ForestOverlay.Game
         // black outline: readable on snow and sky too.
         private static readonly Color TextColour = new Color(1f, 0.88f, 0.15f, 1f);
         private static readonly Color OutlineColour = new Color(0f, 0f, 0f, 1f);
+        private const string FlagIcon = "cog", MarkerIcon = "Rewind";
 
         private readonly ManualLogSource _log;
         private readonly GameLinesState _state = new GameLinesState();
         private readonly List<GameObject> _copies = new List<GameObject>();
         private readonly List<Component> _labels = new List<Component>();
+        private readonly List<Component> _icons = new List<Component>();
+        private readonly List<string> _iconNames = new List<string>();
 
         private bool _resolved, _missing;
         private FieldInfo _gridF, _templateF, _camF;
-        private PropertyInfo _textP, _colourP, _effectP, _effectColourP;
+        private PropertyInfo _textP, _colourP, _effectP, _effectColourP, _spriteP;
         private object _outline;
         private MethodInfo _reposition;
 
@@ -58,6 +64,10 @@ namespace ForestOverlay.Game
         private int _applied = -1;
         private Vector2 _anchor;
         private bool _anchorMeasured;
+        // A failure rebinds and tries again; this many in one launch and the
+        // overlay draws the lines for good.
+        private const int MaxFailures = 3;
+        private int _failures;
 
         public GameMessageLines(ManualLogSource log)
         {
@@ -111,7 +121,14 @@ namespace ForestOverlay.Game
             }
             catch (Exception ex)
             {
-                Fail("GameMessageLines: " + ex.Message + " - the always-on lines are drawn by the overlay.");
+                Mode = GameLinesMode.Overlay;
+                if (++_failures >= MaxFailures)
+                    Fail("GameMessageLines: " + ex.Message + " (" + _failures + " times) - the always-on lines are drawn by the overlay.");
+                else
+                {
+                    _log.LogWarning("GameMessageLines: " + ex.Message + " - rebinding to the game's grid.");
+                    Forget();
+                }
             }
         }
 
@@ -135,6 +152,8 @@ namespace ForestOverlay.Game
                 _effectP = labelT.GetProperty("effectStyle", F);
                 _effectColourP = labelT.GetProperty("effectColor", F);
             }
+            Type spriteT = GameBridge.FindGameType("UISprite");
+            if (spriteT != null) _spriteP = spriteT.GetProperty("spriteName", F);
             if (gridT != null) _reposition = gridT.GetMethod("Reposition", F, null, Type.EmptyTypes, null);
             if (_effectP != null)
             {
@@ -158,10 +177,7 @@ namespace ForestOverlay.Game
             _missing = true;
             Mode = GameLinesMode.Overlay;
             if (_state.WarnMissing()) _log.LogWarning(message);   // log: GameMessageLines
-            for (int i = 0; i < _copies.Count; i++)
-                if (_copies[i] != null) UnityEngine.Object.Destroy(_copies[i]);
-            _copies.Clear();
-            _labels.Clear();
+            Forget();
         }
 
         // A new HudGui (a new scene): the old copies went with the old grid.
@@ -180,6 +196,8 @@ namespace ForestOverlay.Game
                 if (_copies[i] != null) UnityEngine.Object.Destroy(_copies[i]);
             _copies.Clear();
             _labels.Clear();
+            _icons.Clear();
+            _iconNames.Clear();
             _hud = null;
             _grid = null;
             _template = null;
@@ -196,6 +214,7 @@ namespace ForestOverlay.Game
             {
                 bool used = i < lines.Count;
                 if (used && _labels[i] != null) _textP.SetValue(_labels[i], lines[i], null);
+                if (used) SetIcon(i, i >= _state.MarkerStart ? MarkerIcon : FlagIcon);
                 if (_copies[i] != null && _copies[i].activeSelf != used) _copies[i].SetActive(used);
             }
         }
@@ -215,9 +234,20 @@ namespace ForestOverlay.Game
                 if (n == "UiTranslationLabel") b.enabled = false;
                 else if (n == "UILabel" && label == null) label = b;
             }
-            // The tick says a task was done; these lines are not one.
-            Transform tick = go.transform.Find("Tut ShowContainer/Texture tut");
-            if (tick != null) tick.gameObject.SetActive(false);
+            // The icon slot (the game's "Book"): ours when UISprite resolved,
+            // else hidden - the book says the survival book changed.
+            Component icon = null;
+            Transform slot = go.transform.Find("Tut ShowContainer/Texture tut");
+            if (slot != null)
+            {
+                if (_spriteP != null)
+                {
+                    Component[] cs = slot.GetComponents<Component>();
+                    for (int i = 0; i < cs.Length; i++)
+                        if (cs[i] != null && cs[i].GetType().Name == "UISprite") { icon = cs[i]; break; }
+                }
+                slot.gameObject.SetActive(icon != null);
+            }
             if (label != null)
             {
                 if (_colourP != null) _colourP.SetValue(label, TextColour, null);
@@ -226,6 +256,15 @@ namespace ForestOverlay.Game
             }
             _copies.Add(go);
             _labels.Add(label);
+            _icons.Add(icon);
+            _iconNames.Add(null);
+        }
+
+        private void SetIcon(int i, string name)
+        {
+            if (_icons[i] == null || _iconNames[i] == name) return;
+            _spriteP.SetValue(_icons[i], name, null);
+            _iconNames[i] = name;
         }
 
         // Ours lowest: the grid's last children, in order (author, 2026-10-15).

@@ -112,6 +112,21 @@ namespace ForestOverlay.Tests
             Assert.True(Math.Abs((left + right) * 0.5f - w * 0.5f) < 1f, "not centred");
         }
 
+        [Theory]
+        [InlineData(1366, 768)]
+        [InlineData(1920, 1080)]
+        public void OnlyAnUntouchedOldDefaultMoves(int w, int h)
+        {
+            // The pre-T-0325 corner layout at 1366x768 (Ctrl at 243: one at 248 was moved by hand).
+            string old = "W,75,605,1,1;A,27,653,1,1;S,75,653,1,1;D,123,653,1,1;LeftShift,27,701,1,1;Space,99,701,1,1;" +
+                         "LeftControl,243,701,1,1;Mouse0,363,605,1,1;Mouse1,411,605,1,1;Mouse,363,653,1,1";
+            if (w == 1366) Assert.True(InputLayout.IsOldDefault(old, w, h));
+            Assert.False(InputLayout.IsOldDefault(InputLayout.Default(w, h).Format(), w, h));
+            Assert.False(InputLayout.IsOldDefault(old.Replace("W,75,605", "W,80,605"), 1366, 768));   // a runner moved W
+            Assert.False(InputLayout.IsOldDefault(old.Replace(";Mouse,363,653,1,1", ""), 1366, 768)); // a tile removed
+            Assert.False(InputLayout.IsOldDefault("", w, h));
+        }
+
         [Fact]
         public void LongLabelsGetWiderTilesSoNothingClips()
         {

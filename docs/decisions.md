@@ -429,7 +429,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   NOW" title line, but higher contrast than the game's plain yellow so
   they are clearly visible - if that turns out a gimmick or still hard to
   see, something else; the input overlay's default moves out of the
-  bottom-left corner (it covered the game's own messages).
+  bottom-left corner (it covered the game's own messages) - to bottom
+  centre, and a saved layout still exactly the old default moves once
+  (anything a runner placed stays). "Run code" = run mode's line in the
+  marker; the anti-splice code box stays big and centred (video
+  readability). An icon makes them distinct from the game's messages
+  (author's ask; builder's pick: the game's "cog" on ON NOW flags,
+  "Rewind" on the marker).
 - **Edit HUD snapping** (author, 2026-10-11, T-0020): a dragged piece (a
   placed value, the column, the splits / results panels) snaps within ~8
   px to the screen's 25 / 50 / 75 % lines and to the other pieces' edges

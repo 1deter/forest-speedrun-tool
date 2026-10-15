@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-241 prefixes from 787 log calls.
+241 prefixes from 789 log calls.
 
 ## `Aerial capture`
 
@@ -590,6 +590,7 @@ Meaning: The always-on lines (ON NOW, practice marker) could not go into the gam
 Written by GameMessageLines.cs; warning.
 
 - warning `<message>` *(declared)*
+- warning `GameMessageLines: <ex.Message> - rebinding to the game's grid.`
 
 ## `GetTypes failed`
 
@@ -699,6 +700,7 @@ Written by InputOverlayModule.cs; info / warning.
 - info `Inputs: <..>.`
 - info `Inputs: layout reset to the default.`
 - warning `Inputs: the mouse box cannot read the mouse (<ex.Message>) - it stays still.`
+- info `Inputs: the old default layout moved to bottom centre (clear of the game's messages).`
 - info `Inputs: tile <key> added.`
 - info `Inputs: tile <key> removed.`
 - info `Inputs: tile <m.Tile.Key> moved to (<..>, <..>).`

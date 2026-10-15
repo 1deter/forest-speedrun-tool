@@ -174,8 +174,24 @@ namespace ForestOverlay.Data
         {
             if (refW < 640) refW = 640;
             if (refH < 480) refH = 480;
+            return Block((refW - DefaultWidth) * 0.5f, refW, refH);
+        }
+
+        /// The pre-T-0325 default (the bottom-left corner): a saved layout
+        /// still exactly this moves to the new default once (author,
+        /// 2026-10-15); anything a runner placed stays.
+        public static bool IsOldDefault(string text, int refW, int refH)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            if (refW < 640) refW = 640;
+            if (refH < 480) refH = 480;
+            string old = Block(Math.Max(16f, refW * 0.02f), refW, refH).Format();
+            return Parse(text).Format() == old;
+        }
+
+        private static InputLayout Block(float ox, int refW, int refH)
+        {
             InputLayout l = new InputLayout();
-            float ox = (refW - DefaultWidth) * 0.5f;
             float oy = refH - (2f * Pitch + Unit) - Math.Max(16f, refH * 0.03f);
             l.Place("W", ox, oy, 1f, 0f);
             l.Place("A", ox, oy, 0f, 1f);

@@ -131,8 +131,25 @@ namespace ForestOverlay.Modules
 
         // --- sampling (Tick) -------------------------------------------------------------
 
+        // The old default sat on the game's bottom-left messages: a layout
+        // never moved goes to the new one (author, 2026-10-15, T-0325). On
+        // the first Tick, after the active HUD profile was put in (it holds
+        // the layout too), so the profile is written with the new one.
+        private bool _oldDefaultChecked;
+
+        private void MoveOldDefault()
+        {
+            _oldDefaultChecked = true;
+            UiScale ui = Host.Hud.Settings.Scale();
+            if (!InputLayout.IsOldDefault(_layoutCfg.Value, ui.HasReference ? ui.RefW : 1920, ui.HasReference ? ui.RefH : 1080)) return;
+            _layoutCfg.Value = DefaultLayout().Format();
+            Reload();
+            Ctx.Log.LogInfo("Inputs: the old default layout moved to bottom centre (clear of the game's messages).");
+        }
+
         public override void Tick()
         {
+            if (!_oldDefaultChecked) MoveOldDefault();
             if (_on == null || !_on.Value) { _capturing = false; return; }
             bool editing = Editing;
             if (!editing) _capturing = false;
