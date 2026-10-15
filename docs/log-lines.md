@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-241 prefixes from 790 log calls.
+242 prefixes from 791 log calls.
 
 ## `Aerial capture`
 
@@ -616,6 +616,13 @@ Written by GreebleKeeper.cs; info / warning.
 - warning `GreebleKeeper: spawn prefix failed: <ex.Message>`
 - info `GreebleKeeper: tree zone at <z.transform.position> spawned with its captured sticks (seed <r.Seed>).`
 - warning `GreebleKeeper: zone at <z.transform.position> failed: <ex.Message>`
+
+## `Hide behind walls`
+
+Meaning: The runner switched the Debug views "Hide behind walls" option (collider and trigger outlines hidden behind scenery): on / off.
+Written by DebugViewModule.cs; info.
+
+- info `<..>` *(declared)*
 
 ## `HUD column moved to`
 
