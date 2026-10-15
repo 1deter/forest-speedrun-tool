@@ -211,6 +211,7 @@ namespace ForestOverlay
             host.Register(new MapModule());          // info-only view (its Go is Practice's); after TAS so bridge indexes stay
             host.Register(new PaintModule());        // practice mode only: paint where the crosshair hits (T-0219); last, so bridge indexes stay
             host.Register(new DeveloperModule());    // the Developer tab: hosts other modules' developer folds; last, so bridge indexes stay
+            host.Register(new InputOverlayModule());  // info-only: the keys and mouse buttons pressed, drawn in Edit HUD style (T-0302); last, so bridge indexes stay
         }
 
         // ------------------------------------------------------------------

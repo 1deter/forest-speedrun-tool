@@ -151,7 +151,7 @@ the Map tab.
 
 ### Plugin core and UI
 
-Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CrispText,CursorController,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{FolderStamp,KeyText,KeyGroups,HudTrend,HudLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,UiPalette,UiScale}.cs` `ForestOverlay.csproj`
+Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CrispText,CursorController,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule,InputOverlayModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{FolderStamp,KeyText,KeyGroups,HudTrend,HudLayout,InputLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,UiPalette,UiScale}.cs` `ForestOverlay.csproj`
 
 The module host, window and tabs, hotkeys, cursor, input block, HUD
 builder, notice, settings, the reflection helpers.
