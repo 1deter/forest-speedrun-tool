@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.294 - 2026-10-15
+
+- Input overlay: the default tiles now fit any screen size (on smaller screens they were piled up along the bottom edge); Default layout in Edit HUD puts them back.
+- Input overlay: the mouse box draws a trail for slow moves too, and the add buttons' words are no longer cut off.
+
 ## v0.24.293 - 2026-10-15
 
 - New Input overlay: shows the keys and mouse buttons you press, lit in your theme's colours with a short pop. Turn it on in Edit HUD > Panels > Input overlay (off by default).
