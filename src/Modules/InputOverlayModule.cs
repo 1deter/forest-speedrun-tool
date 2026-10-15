@@ -458,16 +458,22 @@ namespace ForestOverlay.Modules
             GUI.color = keep;
         }
 
-        /// A straight line of the given thickness: a thin rectangle turned about its start.
+        /// A straight line of the given thickness, as squares stamped along it.
         private static void Segment(float x0, float y0, float x1, float y1, float thick, Color c)
         {
+            // Squares stamped along the line on the pixel grid: continuous at any
+            // HUD scale (a rotated quad broke into dashes in game, T-0363).
+            float f = Fx();
             float dx = x1 - x0, dy = y1 - y0;
             float len = Mathf.Sqrt(dx * dx + dy * dy);
-            if (len < 0.01f) return;
-            Matrix4x4 m = GUI.matrix;
-            GUIUtility.RotateAroundPivot(Mathf.Atan2(dy, dx) * Mathf.Rad2Deg, new Vector2(x0, y0));
-            FlatRaw(new Rect(x0, y0 - thick * 0.5f, len, thick), c);
-            GUI.matrix = m;
+            int n = Mathf.Clamp(Mathf.CeilToInt(len * f / Mathf.Max(1f, thick * f * 0.8f)), 1, 120);
+            for (int k = 0; k <= n; k++)
+            {
+                float t = (float)k / n;
+                float x = Mathf.Round((x0 + dx * t - thick * 0.5f) * f) / f;
+                float y = Mathf.Round((y0 + dy * t - thick * 0.5f) * f) / f;
+                FlatRaw(new Rect(x, y, thick, thick), c);
+            }
         }
 
         private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
