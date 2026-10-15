@@ -1669,6 +1669,29 @@ LOD object destroyed, which is what the game's cut leaves. Scene bush
 objects are there as soon as the load ends (`Nature_Spawned` is in
 `ForestMain_v08`). Not done: a sapling's two sticks are not put back.
 
+### What the drawn shape and the collider are (bridge, 2026-10-15, T-0296)
+
+**Pool rocks.** A scene rock `Nature_Spawned/Rock05_<n>` is drawn by a
+pooled view, `Pool_Rocks/Rock05_NoMoss<High|Mid>(Clone)` (`jumpObject`,
+child `collision` with a `SphereCollider` + `Rigidbody`, child `jumpPos`).
+The **High** view (seen at ~6 m) has the sphere solid (`isTrigger`
+false, radius 0.96 x scale 2.7 = ~2.6 m, plus `UnderfootSurface`); the
+**Mid** view (at ~30 m) has the same sphere as a **trigger**, so a rock
+that far has no solid collider at all - a raycast through its middle hit
+the ground 15 m behind it. The sphere is not the rock's shape either:
+paint on it floated off the rock and sank into it.
+
+**Bushes.** `Pool_Bushes/GreenBush_High(Clone)` (layer 12 `treeSmall`, tag
+`SmallTree`, `BushDamage`, `touchBendingCollisionGS`) carries a trigger
+`SphereCollider` on its root; the Mid view had none within 1.2 m.
+
+**Cave walls far off.** Arriving in Cave 6 from the surface, its back
+wall seen from 29 m is a coarser mesh: +-17 cm off the full mesh along
+the same rays (both sides). After one visit near the wall the full mesh
+shows from 29 m too (within 0-8 cm of the collider). The wall's
+`MeshCollider` is close to the full mesh but not on it: -10 to +3 cm along
+the view ray at 3 m.
+
 ## Time of day and the sun (IL + bridge, 2026-09-25)
 
 `TheForestAtmosphere.Instance.TimeOfDay` (degrees, 0-360; ~12 in the

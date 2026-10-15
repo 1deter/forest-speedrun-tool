@@ -1070,11 +1070,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     Rock05): paint floated off the rock where the sphere stuck out and
     sank into it where the rock did. And the game draws a coarser cave
     mesh far off: a Cave 6 wall's far mesh lay 17 cm in front of its near
-    mesh at 29 m, so dots painted from far broke up up close, while its
-    mesh collider was within 5 cm of the near mesh. Fix: aim at what is
-    drawn (`Game/SurfaceProbe` reads the camera's depth texture), and snap
-    to a mesh / terrain collider only where it lies within max(0.3 m, 3 %)
-    of the drawn surface.
+    mesh at 29 m, so dots painted from far broke up up close. Its mesh
+    collider is closer to the near mesh but not on it: -10 to +3 cm at 3 m
+    on the same wall, and snapping to it at every distance made a stroke
+    painted at 3 m vanish at 3 m (the 2 % clear pass cut dots 9 cm in front
+    of the wall). Fix: aim at what is drawn (`Game/SurfaceProbe` reads the
+    camera's depth texture); snap to the terrain collider, or to a mesh
+    collider only from 10 m, where it lies within max(0.3 m, 3 %) of the
+    drawn surface; clear paint only 8 % in front of the scene (hide it 2 %
+    behind). A fresh arrival in a cave shows the coarse mesh from far, a
+    near visit the full one even from far (+-17 cm on the same rays).
 
 111. **D3D11 flips textures under you.** (2026-10-15, T-0296, all on the
     bridge.) `Graphics.DrawTexture` drew the paint layer mirrored about
