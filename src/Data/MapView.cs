@@ -230,15 +230,19 @@ namespace ForestOverlay.Data
             }
         }
 
-        /// A category's colour slot, stable across launches (FNV-1a of the
-        /// category key, case and outer spaces ignored).
-        public static int PaletteIndex(string category, int paletteSize)
+        /// A category's colour slot: its position in the legend's sorted
+        /// category list, wrapping at the palette size (so up to that many
+        /// categories never share a colour). Same-category test matches
+        /// SegmentLibrary.SameCategory (outer spaces and case ignored).
+        /// -1 when the category is not in the list.
+        public static int PaletteSlot(IList<string> sortedCategories, string category, int paletteSize)
         {
-            if (paletteSize <= 0) return 0;
-            string key = (category ?? "").Trim().ToLowerInvariant();
-            uint h = 2166136261;
-            for (int i = 0; i < key.Length; i++) { h ^= key[i]; h *= 16777619; }
-            return (int)(h % (uint)paletteSize);
+            if (paletteSize <= 0 || sortedCategories == null) return -1;
+            string key = (category ?? "").Trim();
+            for (int i = 0; i < sortedCategories.Count; i++)
+                if (string.Equals((sortedCategories[i] ?? "").Trim(), key, StringComparison.OrdinalIgnoreCase))
+                    return i % paletteSize;
+            return -1;
         }
 
         /// A spot is drawn as underground when it names a cave or stands

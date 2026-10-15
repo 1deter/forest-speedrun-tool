@@ -196,12 +196,14 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void PaletteIsStableAndIgnoresCase()
+        public void PaletteSlotsFollowLegendOrderAndWrap()
         {
-            int a = MapGeometry.PaletteIndex("My spots", 8);
-            Assert.Equal(a, MapGeometry.PaletteIndex(" my SPOTS ", 8));
-            Assert.InRange(a, 0, 7);
-            Assert.Equal(0, MapGeometry.PaletteIndex("x", 0));
+            string[] cats = { "a", "b", "c", "d", "e", "f", "g", "h", "i" };
+            for (int i = 0; i < 8; i++) Assert.Equal(i, MapGeometry.PaletteSlot(cats, cats[i], 8));
+            Assert.Equal(0, MapGeometry.PaletteSlot(cats, "i", 8));
+            Assert.Equal(2, MapGeometry.PaletteSlot(cats, " C ", 8));
+            Assert.Equal(-1, MapGeometry.PaletteSlot(cats, "zz", 8));
+            Assert.Equal(-1, MapGeometry.PaletteSlot(cats, "a", 0));
         }
 
         [Fact]
