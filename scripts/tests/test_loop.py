@@ -346,6 +346,19 @@ class Context(unittest.TestCase):
         L.context_tokens = lambda *a, **k: 250000
         self.assertEqual(run(ev, L.cmd_begin, [task("T-0001")])[1], 0)
 
+    def test_a_run_can_raise_its_own_limit(self):
+        ev = []
+        L.context_tokens = lambda *a, **k: 300000
+        with self.assertRaises(L.LoopError):
+            L.cmd_begin(ev, [task("T-0001")])
+        text, code = run(ev, lambda e, t: L.cmd_begin(e, t, max_context=350000), [task("T-0001")])
+        self.assertIn("350k", text)
+        text, code = run(ev, L.cmd_next, [task("T-0001")])
+        self.assertNotEqual(code, L.EXIT_STOP)
+        L.context_tokens = lambda *a, **k: 360000
+        ev[:] = [e for e in ev if e["event"] == "begin"]  # back to no round open
+        self.assertEqual(run(ev, L.cmd_next, [task("T-0001")])[1], L.EXIT_STOP)
+
 
 class Report(unittest.TestCase):
     def test_report_and_stats(self):
