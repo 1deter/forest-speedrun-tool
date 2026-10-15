@@ -110,6 +110,11 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   (docs/harness.md *Ground rule*); new features are built with the
   author present, and questions are welcome (they can spark ideas).
 
+- **Subagent models, effort and turn caps** (author, 2026-10-07, T-0113):
+  forest-checker runs Sonnet on high effort (the only independent
+  review); `maxTurns` caps at about 2-3x the longest measured run.
+  The per-agent list: docs/areas/workflow.md *Subagents*.
+
 - **The QA to-do list holds only what testers still have to do**
   (author, 2026-10-07, T-0007): rendered from the task file (`tasks.py
   qa-todo`: `needs: tester` tasks with a `qa` line), no Done / Later /

@@ -781,11 +781,8 @@ SUITES = [
     (("site/", "src/Data/", "community/"), "dotnet test site/ForestSite.Tests -c Release --nologo"),
     (("bot/", "knowledge/"), "dotnet test bot/ForestBot.Tests -c Release --nologo"),
     (("scripts/", ".githooks/"),
-     "python scripts/tests/test_tasks.py && python scripts/tests/test_loop.py && "
-     "python scripts/tests/test_session.py && "
-     "python scripts/tests/test_lint.py && python scripts/tests/test_hooks.py && "
-     "python scripts/tests/test_audit.py && "
-     "python scripts/tests/test_watch_deploy.py && python scripts/tests/test_read_report.py"),
+     # every script test, as CI runs them (a hand list missed test_bump / test_agent_cost)
+     "python -m unittest discover -s scripts/tests -q"),
 ]
 # Generated or bookkeeping files left out of the brief's diff.
 BRIEF_SKIP = ("tasks/tasks.jsonl", "docs/tasks.md")

@@ -11,7 +11,7 @@ tools: Read, Write, Edit, Bash, Glob, Grep, mcp__forest__status, mcp__forest__ga
 
 You test ForestOverlay in the running game with the `forest` tools and never edit code. The preloaded skill `bridge-test` is your procedure (backup, uploads off, notices, proof, clean-up); the router's hard rules are already in your context.
 
-Read only: docs/bridge.md's sections *Loading a save*, *The plugin*, *Test spots*, *Player actions*, *Habits*, and the CHANGELOG.md section of the version under test. Read code only when a step fails and you need it to explain why.
+Read only: docs/bridge.md's sections *Loading a save*, *The plugin*, *Test spots*, *Player actions*, *Habits*, and the CHANGELOG.md section of the version under test. The bridge commands without a typed tool here (destroy - a test spot's clean-up -, anim, roots, types) go through `mcp__forest__run` as raw lines (`help` lists them). Read code only when a step fails and you need it to explain why.
 
 - If the release's DLL may not be attached yet, poll `curl -s -o /dev/null -w '%{http_code}' -L https://github.com/1deter/forest-speedrun-tool/releases/download/vX.Y.Z/ForestOverlay.dll` every 30 s until 200 (never api.github.com), then `update_game` once.
 - Every tool call costs tokens: plan the sequence, then batch it - `run` with several lines, `get` with several paths. Screenshots cost the most: only when a step needs eyes (`region` to crop, a unique name each); a `log` regex or a `get` answers most questions.

@@ -265,7 +265,7 @@ class Checker(unittest.TestCase):
         text = T.brief(self.built()[0], show=show, limit=100)
         self.assertIn("behavior: does x", text)
         self.assertIn("ForestOverlay.Tests", text)
-        self.assertIn("test_tasks.py", text)
+        self.assertIn("unittest discover -s scripts/tests", text)
         self.assertNotIn("ForestSite.Tests", text)
         self.assertIn("cut at 100", text)
         self.assertTrue(all(":(exclude)tasks/tasks.jsonl" in c for c in calls))
