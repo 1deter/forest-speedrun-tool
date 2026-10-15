@@ -1113,7 +1113,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `CrispText` (text enlarged by k inside a local 1/k scale) was cut at
     1/k of its width inside the window - window text is drawn plain
     (`CrispText.Plain`, slightly soft), CrispText stays for the HUD,
-    which has no groups.
+    which has no groups. No escape exists (T-0360, probe build at
+    1920x1200, all live): the clip is the intersection of every
+    window / group / scroll rect in pre-matrix GUI units, re-applied by
+    the native draw itself - an absolute pivot (`GUIClip.Unclip(Rect)` =
+    offsets + rect, unscaled) still cuts; overwriting the global
+    `unity_GUIClipTextureMatrix`, or `GL.modelview` around the draw,
+    changes nothing; `GUI.BeginClip(.., resetOffset)` false intersects
+    with the parent, true draws nothing; `GUIUtility.pixelsPerPoint` has
+    no setter. Crisp IMGUI text in a clipped window means drawing it at
+    matrix identity in pixels (T-0360 plan).
 
 113. **Per-point maths every frame is slow on the game's Mono.** (2026-10-15,
     T-0368, bridge, 1,491-point run line.) Vector3 operators, `List<T>.Add`
