@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.303 - 2026-10-15
+
+- Any HUD value can now go into the splits panel as an extra row, like a LiveSplit component: "In panel" in Edit HUD, "To column" takes it out. Rows keep the order you added them and their trend colour.
+- The current split in the splits panel has a highlight bar across its row, as in LiveSplit.
+
 ## v0.24.302 - 2026-10-15
 
 - Map tab: a new look in the overlay's own colours - navy water, blue-grey land, a thin tan coast.
