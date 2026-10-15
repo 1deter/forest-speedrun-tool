@@ -157,16 +157,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (T-0296 released, author present):** the author narrowed
-  T-0296's contract to known limits (gotcha 110: far pool rocks T-0352,
-  8 % cut band trade, old strokes on rock spheres vanish, +2.2 ms while
-  painting); branch t-0296-paint-surface merged, checker accept on T-0296,
-  T-0299, T-0351, **released v0.24.298**. Input overlay answers: T-0355
-  (new tile bottom-left / -right), T-0356 (fold; no + button, drag to
-  resize; any input), T-0357 (15-16 pt); new T-0358 dynamic mode (parked:
-  where / how) and T-0359 forest-ux review of the overlay. Smoke PASS; all three
-  confirmed in game by forest-tester (T-0351 on a rock; trunk unchecked).
-  **Next:** `tasks.py next`.
+- **2026-10-15 (T-0322 released, author present):** the trajectory
+  preview's key is rebound under its Experimental switch
+  (`KeyGroups.BesideSwitch`, `Settings.DrawKeyRow`; its own capture), and a
+  ticked HUD value that shows nothing says why under its row in Settings >
+  HUD and Edit HUD (`OverlayModule.HudLineIdle`). Checker accept (after one
+  revise), **released v0.24.299**, smoke PASS, confirmed in game by
+  forest-tester. Author's ideas filed as notes: a CS-grenade-style throw
+  preview (T-0088), watch back the last run in freecam with its trajectory
+  (T-0344). **Next:** `tasks.py next`; T-0358 waits for T-0359's options.
   Unchanged: T-0333 needs a non-maker confirmation.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
