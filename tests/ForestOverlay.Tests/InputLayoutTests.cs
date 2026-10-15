@@ -7,6 +7,30 @@ namespace ForestOverlay.Tests
     public class InputLayoutTests
     {
         [Fact]
+        public void FreeSlot_IsOnScreenAndNeverOverlaps()
+        {
+            InputLayout l = InputLayout.Default(1366, 768);
+            string[] keys = { "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Z", "X", "Wheel" };
+            for (int i = 0; i < keys.Length; i++)
+            {
+                float x, y;
+                l.FreeSlot(keys[i], 1366, 768, out x, out y);
+                float w = InputLayout.TileW(keys[i], 1f), h = InputLayout.TileH(keys[i], 1f);
+                Assert.True(x >= 0 && y >= 0 && x + w <= 1366 && y + h <= 768);
+                for (int j = 0; j < l.Tiles.Count; j++)
+                {
+                    InputTile t = l.Tiles[j];
+                    bool overlap = x < t.X + InputLayout.TileW(t.Key, t.Scale) && t.X < x + w
+                        && y < t.Y + InputLayout.TileH(t.Key, t.Scale) && t.Y < y + h;
+                    Assert.False(overlap, keys[i]);
+                }
+                if (i == 0) Assert.Equal(768 - 23.04f - h, y, 1);
+                if (i == 0) Assert.Equal(1366 - InputLayout.RingClear - w, x, 1);
+                Assert.NotNull(l.Add(keys[i], x, y));
+            }
+        }
+
+        [Fact]
         public void DefaultHasTheAuthorsInputsAndRoundTrips()
         {
             InputLayout d = InputLayout.Default();

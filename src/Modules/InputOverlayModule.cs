@@ -261,9 +261,8 @@ namespace ForestOverlay.Modules
             UiScale ui = Host.Hud.Settings.Scale();
             // Bottom right, clear of the Edit HUD window, cascaded so new tiles do not stack
             // (author, 2026-10-15, T-0355).
-            float step = (_layout.Tiles.Count % 6) * 24f;
-            float nx = ui.RefW - InputLayout.TileW(key, 1f) - 40f - step;
-            float ny = ui.RefH - InputLayout.TileH(key, 1f) - 40f - step;
+            float nx, ny;
+            _layout.FreeSlot(key, ui.RefW, ui.RefH, out nx, out ny);
             InputTile t = _layout.Add(key, nx, ny);
             if (t == null) { SetStatus("No room for another tile."); return; }
             _states.Add(MakeState(t, _states.Count));

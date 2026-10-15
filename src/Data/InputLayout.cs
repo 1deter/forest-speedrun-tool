@@ -54,6 +54,41 @@ namespace ForestOverlay.Data
             return t;
         }
 
+        /// Where a new tile goes (T-0355): the first slot, scanning rows up from the
+        /// bottom and columns left from RingClear px short of the right edge (the
+        /// game's own health ring is bottom right), that overlaps no tile already
+        /// there and stays fully on screen. The default block is bottom centre, so
+        /// the slots start right of it. Falls back to the first slot if all are taken.
+        public const float RingClear = 280f;
+
+        public void FreeSlot(string key, int refW, int refH, out float x, out float y)
+        {
+            float w = TileW(key, 1f), h = TileH(key, 1f);
+            float bottom = refH - Math.Max(16f, refH * 0.03f);
+            float right = refW - RingClear;
+            float left = (refW + DefaultWidth) * 0.5f + Pitch;
+            if (left > right - w) left = Math.Max(0f, right - w);
+            x = right - w; y = bottom - h;
+            bool first = true;
+            for (float sy = bottom - h; sy >= 0f; sy -= Pitch)
+                for (float sx = right - w; sx >= left; sx -= Pitch)
+                {
+                    if (first) { x = sx; y = sy; first = false; }
+                    if (IsFree(sx, sy, w, h)) { x = sx; y = sy; return; }
+                }
+        }
+
+        private bool IsFree(float x, float y, float w, float h)
+        {
+            for (int i = 0; i < Tiles.Count; i++)
+            {
+                InputTile t = Tiles[i];
+                float tw = TileW(t.Key, t.Scale), th = TileH(t.Key, t.Scale);
+                if (x < t.X + tw && t.X < x + w && y < t.Y + th && t.Y < y + h) return false;
+            }
+            return true;
+        }
+
         public bool Remove(string key)
         {
             for (int i = 0; i < Tiles.Count; i++)
