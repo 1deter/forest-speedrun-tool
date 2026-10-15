@@ -259,13 +259,16 @@ namespace ForestOverlay.Modules
         {
             if (_layout.Find(key) != null) { SetStatus(InputLayout.LabelFor(key) + " is already there."); return; }
             UiScale ui = Host.Hud.Settings.Scale();
-            // Cascaded from the middle of the screen so new tiles do not stack.
+            // Bottom right, clear of the Edit HUD window, cascaded so new tiles do not stack
+            // (author, 2026-10-15, T-0355).
             float step = (_layout.Tiles.Count % 6) * 24f;
-            InputTile t = _layout.Add(key, ui.RefW * 0.5f + step, ui.RefH * 0.5f + step);
+            float nx = ui.RefW - InputLayout.TileW(key, 1f) - 40f - step;
+            float ny = ui.RefH - InputLayout.TileH(key, 1f) - 40f - step;
+            InputTile t = _layout.Add(key, nx, ny);
             if (t == null) { SetStatus("No room for another tile."); return; }
             _states.Add(MakeState(t, _states.Count));
             Commit();
-            SetStatus("Added " + InputLayout.LabelFor(key) + " in the middle of the screen: drag it where you want it.");
+            SetStatus("Added " + InputLayout.LabelFor(key) + " at the bottom right of the screen: drag it where you want it.");
             Ctx.Log.LogInfo("Inputs: tile " + key + " added.");
         }
 
