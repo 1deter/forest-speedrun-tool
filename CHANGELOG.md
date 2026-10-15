@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.297 - 2026-10-15
+
+- Edit HUD: Reset profile now says under the button what a second click resets (no undo), and afterwards that the profile was reset.
+- A quick double-click on Reset profile no longer resets by accident: the second click has to come a moment later.
+
 ## v0.24.296 - 2026-10-15
 
 - Settings > HUD > Trend colours now says on the page that only values with Trend on use these colours (Trend is off by default, turned on per value in Edit HUD).
