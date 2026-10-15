@@ -197,8 +197,9 @@ namespace ForestOverlay.Modules
         private void DrawContentsWatched(int id)
         {
             StallWatch.At(StallWatch.Hook.Window, Index);
+            CrispText.Plain++;   // its groups clip before the scale (CrispText.Plain)
             try { DrawContents(id); }
-            finally { StallWatch.Leave(); }
+            finally { CrispText.Plain--; StallWatch.Leave(); }
         }
 
         private void DrawContents(int id)
