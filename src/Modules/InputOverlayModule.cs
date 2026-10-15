@@ -46,12 +46,15 @@ namespace ForestOverlay.Modules
             public bool Special;     // the mouse box or the wheel
             public float Level;      // 0 idle .. 1 pressed (the animation)
             public float LitUntil;
+            public bool Active;      // held (or moving, for the mouse box) this frame: the dynamic mode draws only these
             public GUIContent Label, Name;
             public string SnapId;
             public Rect Rect;        // as last drawn (virtual pixels)
         }
 
         private ConfigEntry<bool> _on;
+        private ConfigEntry<bool> _onlyPressed;
+        private bool _mouseMoved;
         private ConfigEntry<string> _layoutCfg;
         private InputLayout _layout = new InputLayout();
         private readonly List<TileState> _states = new List<TileState>();
@@ -82,10 +85,12 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
             _on = ctx.Config.Bind("Inputs", "On", false, "Show the input overlay: the keys and mouse buttons you press, on the game screen.");
+            _onlyPressed = ctx.Config.Bind("Inputs", "OnlyPressed", false, "Show a tile only while its key is held (exact, no fade). Edit HUD still shows every tile.");
             _layoutCfg = ctx.Config.Bind("Inputs", "Layout", DefaultLayout().Format(),
                 "The input overlay's tiles: key, x, y, size, shown (1/0), separated by ';'. Set up in Edit HUD.");
             HudWidgets widgets = Host.Hud.Widgets;
             widgets.RegisterProfileEntry(_on, null);
+            widgets.RegisterProfileEntry(_onlyPressed, null);
             widgets.RegisterProfileEntry(_layoutCfg, delegate (object v)
             {
                 _layoutCfg.BoxedValue = v;
@@ -160,19 +165,25 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _states.Count; i++)
             {
                 TileState s = _states[i];
-                if (!s.Valid || !s.Tile.Shown) { s.Level = 0f; continue; }
+                if (!s.Valid || !s.Tile.Shown) { s.Level = 0f; s.Active = false; continue; }
                 bool down = false;
                 if (live)
                 {
                     if (!s.Special) down = Input.GetKey(s.Code);
                     else if (s.Tile.Key == InputLayout.WheelKey) down = scroll != 0f;
                 }
+                s.Active = down;
+                if (_onlyPressed.Value && !editing) { s.LitUntil = 0f; s.Level = down ? 1f : 0f; continue; }   // frame-true: no latch, no animation
                 if (down) s.LitUntil = now + MinLit;
                 bool lit = down || now < s.LitUntil;
                 if (lit) s.Level = Mathf.Min(1f, s.Level + dt / RiseTime);
                 else s.Level = Mathf.Max(0f, s.Level - dt / FallTime);
             }
+            _mouseMoved = false;
             if (HasShownMouseBox()) SampleMouse(live, now);
+            if (_onlyPressed.Value && !editing)
+                for (int i = 0; i < _states.Count; i++)
+                    if (_states[i].Special && _states[i].Tile.Key == InputLayout.MouseKey) _states[i].Active = _mouseMoved;
         }
 
         private bool HasShownMouseBox()
@@ -202,6 +213,7 @@ namespace ForestOverlay.Modules
                 return;
             }
             if (dx == 0f && dy == 0f) return;
+            _mouseMoved = true;
             _mx = Wrap(_mx + dx * MouseGain);
             _my = Wrap(_my - dy * MouseGain);   // up on the mouse is up on the screen
             // A point only once the mouse has gone a little way from the last one,
@@ -374,6 +386,7 @@ namespace ForestOverlay.Modules
                     if (!s.Valid) continue;
                     bool hidden = !s.Tile.Shown;
                     if (hidden && !editing) continue;
+                    if (!editing && _onlyPressed.Value && !s.Active) continue;   // vanish: nothing on screen while not pressed
                     DrawTile(s, hidden, editing, now, before);
                     if (editing) Host.Hud.Widgets.ReportPiece(s.SnapId, s.Rect);
                 }
@@ -386,7 +399,7 @@ namespace ForestOverlay.Modules
         {
             float a = hidden ? 0.35f : 1f;
             float level = s.Level;
-            float pop = PopAmount * level;
+            float pop = _onlyPressed.Value && !editing ? 0f : PopAmount * level;
             Rect r = s.Rect;
             r = new Rect(r.x - r.width * pop * 0.5f, r.y - r.height * pop * 0.5f, r.width * (1f + pop), r.height * (1f + pop));
 
@@ -610,6 +623,9 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent About = new GUIContent(
             "Shows the keys and mouse buttons you press, on the game screen. Each tile is placed on its own: " +
             "drag it to move it, right-click it to hide or show it. Nothing shows while a cursor is on screen.");
+        private static readonly GUIContent OnlyPressedText = new GUIContent("Only while pressed");
+        private static readonly GUIContent OnlyPressedAbout = new GUIContent(
+            "A tile is drawn only while its key is held, exactly as pressed, and not at all otherwise. This window still shows every tile so you can place them.");
         private static readonly GUIContent AddKeyText = new GUIContent("+ Key");
         private static readonly GUIContent AddKeyWaiting = new GUIContent("Press a key...");
         private static readonly GUIContent AddKeyTip = new GUIContent(
@@ -644,6 +660,15 @@ namespace ForestOverlay.Modules
             y += 24f;
             y += UiText.Draw(indent, y, w - indent, About, UiKit.HintStyle) + 2f;
             if (!_on.Value) return y + 8f;
+
+            bool only = UiKit.Toggle(new Rect(0f, y, w, 22f), _onlyPressed.Value, OnlyPressedText);
+            if (only != _onlyPressed.Value)
+            {
+                _onlyPressed.Value = only;
+                Ctx.Log.LogInfo("Inputs: only-pressed mode " + (only ? "on" : "off") + ".");
+            }
+            y += 24f;
+            y += UiText.Draw(indent, y, w - indent, OnlyPressedAbout, UiKit.HintStyle) + 4f;
 
             if (_centred == null)
             {

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-242 prefixes from 792 log calls.
+242 prefixes from 793 log calls.
 
 ## `Aerial capture`
 
@@ -707,6 +707,7 @@ Written by InputOverlayModule.cs; info / warning.
 
 - info `Inputs: <..>.`
 - info `Inputs: layout reset to the default.`
+- info `Inputs: only-pressed mode <..>.`
 - warning `Inputs: the mouse box cannot read the mouse (<ex.Message>) - it stays still.`
 - warning `Inputs: the mouse path cannot be drawn (Hidden/Internal-Colored not found) - the mouse box shows the dot only.`
 - info `Inputs: the old default layout moved to bottom centre (clear of the game's messages).`
