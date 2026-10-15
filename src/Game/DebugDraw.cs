@@ -890,12 +890,14 @@ namespace ForestOverlay.Game
         public float Width = 3f;
 
         // Tuned over the bridge (static, like Game/PaintDraw's bands).
-        /// The dark edge each side, pixels at 1080p.
-        public static float Outline = 1f;
+        /// The dark edge each side, pixels at 1080p. 1 px at 60 % barely
+        /// showed against the forest floor; 1.5 px at 85 % reads as a rim
+        /// (bridge 2026-10-15, Cave 5 Practice Run).
+        public static float Outline = 1.5f;
         /// The soft outer edge (alpha to 0), pixels at 1080p.
         public static float Soft = 1f;
         /// The dark edge's opacity, a share of the line's.
-        public static float OutlineAlpha = 0.6f;
+        public static float OutlineAlpha = 0.85f;
         /// Lines fade over the last FadeShare of DrawDistance (metres) and
         /// are not drawn beyond it.
         public static float DrawDistance = 300f;
@@ -919,25 +921,21 @@ namespace ForestOverlay.Game
         // laid across as six vertices per point: soft edge, dark edge, the
         // colour, the colour, dark edge, soft edge - so it reads as a solid
         // band with a dark rim and anti-aliased sides. Rebuilt every frame
-        // (the camera moves) into meshes drawn with DrawMeshNow: GL
-        // immediate mode would be a call per vertex and colour (~20 per
-        // point). A mesh holds 16-bit indices (Unity 5.6), so a long frame
-        // spills into the next mesh of the pool. Still depth-tested, still
-        // in the late pass (true colours); vertex colours are raw, as
-        // GL.Color's were (game-notes *Overlay colours*), so the look of a
-        // colour is unchanged.
+        // (the camera moves) into meshes drawn with DrawMeshNow
+        // (Game/RibbonMesh): GL immediate mode would be a call per vertex
+        // and colour (~20 per point). Still depth-tested, still in the late
+        // pass (true colours); vertex colours are raw, as GL.Color's were
+        // (game-notes *Overlay colours*), so the look of a colour is
+        // unchanged.
+        //
+        // Cost (bridge 2026-10-15, fresh launch, 1920x1200): the 683 s
+        // Elevator Boost run, 1,491 points, ~1,230 in view - 0.30 ms a frame
+        // of CPU (GL 0.04 ms as 1 px lines), 186.9 vs 187.6 fps lines on /
+        // off; the Cave 5 line (99 points) costs next to nothing.
         // ------------------------------------------------------------------
-        private const int MaxVerts = 65000;
-        private const int Across = 6;
         private readonly RibbonPath _path = new RibbonPath();
-        private readonly List<Mesh> _meshes = new List<Mesh>();
-        private int _meshesUsed;
-        private readonly List<Vector3> _verts = new List<Vector3>();
-        private readonly List<Color32> _colours = new List<Color32>();
-        private readonly List<int> _tris = new List<int>();
-        private readonly float[] _offsets = new float[Across];
+        private readonly RibbonMesh _ribbon = new RibbonMesh();
         private readonly Vector3[] _marker = new Vector3[10];
-        private int _vertsDrawn;
         /// What the last frame drew (bridge: perf and "why nothing").
         public int LastPoints, LastVertices, LastMeshes;
 
@@ -993,13 +991,12 @@ namespace ForestOverlay.Game
             Transform t = camera.transform;
             _path.SetView(t.position, t.forward, t.right, t.up, camera.nearClipPlane * 1.05f,
                           k, w * 0.5f + soft + 8f, h * 0.5f + soft + 8f, DrawDistance, FadeShare, MinPixels * scale);
-            _offsets[0] = -soft; _offsets[1] = -edge; _offsets[2] = -core;
-            _offsets[3] = core; _offsets[4] = edge; _offsets[5] = soft;
+            float[] o = _ribbon.Offsets;
+            o[0] = -soft; o[1] = -edge; o[2] = -core;
+            o[3] = core; o[4] = edge; o[5] = soft;
 
-            _meshesUsed = 0;
-            _vertsDrawn = 0;
             LastPoints = 0;
-            BeginChunk();
+            _ribbon.Begin();
 
             AddLine(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity));
             AddLine(CurrentLine, 0, CurrentCount, Faded(CurrentColour, Opacity));
@@ -1022,14 +1019,14 @@ namespace ForestOverlay.Game
                     for (int i = 0; i < _marker.Length; i += 2) AddLine(_marker, i, i + 2, ghost);
                 }
             }
-            EndChunk();
+            _ribbon.End();
 
             _material.SetPass(0);
-            for (int m = 0; m < _meshesUsed; m++) Graphics.DrawMeshNow(_meshes[m], Matrix4x4.identity);
+            _ribbon.Draw();
 
-            LastVertices = _vertsDrawn;
-            LastMeshes = _meshesUsed;
-            DrawTarget.Record(start, _vertsDrawn);
+            LastVertices = _ribbon.Vertices;
+            LastMeshes = _ribbon.Meshes;
+            DrawTarget.Record(start, _ribbon.Vertices);
         }
 
         private static Color Faded(Color c, float opacity)
@@ -1038,84 +1035,38 @@ namespace ForestOverlay.Game
             return c;
         }
 
-        /// One polyline into the meshes: its strips (Data/RibbonPath), six
-        /// vertices across per point, five quads between two points.
+        /// One polyline into the meshes: its strips (Data/RibbonPath), a row
+        /// of six vertices per point (Game/RibbonMesh).
         private void AddLine(Vector3[] points, int start, int count, Color colour)
         {
             if (points == null || count - start < 2) return;
 
             _path.Clear();
             _path.Add(points, start, count);
-            LastPoints += _path.Points.Count;
+            LastPoints += _path.Count;
 
-            Color32 col = colour;
+            Color32 full = colour;
+            Color32 dark = new Color32(0, 0, 0, (byte)(Mathf.Clamp01(OutlineAlpha * colour.a) * 255f));
             float lineA = colour.a, darkA = OutlineAlpha * colour.a;
-            int strips = _path.Starts.Count;
-            for (int s = 0; s < strips; s++)
+            Vector3[] p = _path.Points, s = _path.Sides;
+            float[] fade = _path.Fade;
+            int strips = _path.StripCount;
+            for (int k = 0; k < strips; k++)
             {
-                int first = _path.Starts[s];
-                int end = s + 1 < strips ? _path.Starts[s + 1] : _path.Points.Count;
+                int first = _path.Starts[k];
+                int end = k + 1 < strips ? _path.Starts[k + 1] : _path.Count;
                 for (int j = first; j < end; j++)
                 {
-                    // A full mesh: the strip goes on in the next, from the point before.
-                    if (_verts.Count + 2 * Across > MaxVerts)
+                    float f = fade[j];
+                    Color32 c = full, d = dark;
+                    if (f < 1f)
                     {
-                        EndChunk();
-                        BeginChunk();
-                        if (j > first) Emit(j - 1, col, lineA, darkA);
+                        c.a = (byte)(Mathf.Clamp01(lineA * f) * 255f);
+                        d.a = (byte)(Mathf.Clamp01(darkA * f) * 255f);
                     }
-                    bool joined = j > first;
-                    Emit(j, col, lineA, darkA);
-                    if (!joined) continue;
-
-                    int b = _verts.Count - Across, a = b - Across;
-                    for (int q = 0; q < Across - 1; q++)
-                    {
-                        _tris.Add(a + q); _tris.Add(a + q + 1); _tris.Add(b + q + 1);
-                        _tris.Add(a + q); _tris.Add(b + q + 1); _tris.Add(b + q);
-                    }
+                    _ribbon.Row(p[j].x, p[j].y, p[j].z, s[j].x, s[j].y, s[j].z, c, d, j == first);
                 }
             }
-        }
-
-        /// One point's six vertices across the ribbon.
-        private void Emit(int j, Color32 col, float lineA, float darkA)
-        {
-            Vector3 p = _path.Points[j], side = _path.Sides[j];
-            float f = _path.Fade[j];
-            Color32 c = col; c.a = (byte)(Mathf.Clamp01(lineA * f) * 255f);
-            Color32 d = new Color32(0, 0, 0, (byte)(Mathf.Clamp01(darkA * f) * 255f));
-            Color32 clear = new Color32(0, 0, 0, 0);
-            for (int q = 0; q < Across; q++)
-            {
-                _verts.Add(p + side * _offsets[q]);
-                _colours.Add(q == 0 || q == Across - 1 ? clear : (q == 1 || q == Across - 2 ? d : c));
-            }
-        }
-
-        private void BeginChunk()
-        {
-            _verts.Clear();
-            _colours.Clear();
-            _tris.Clear();
-        }
-
-        private void EndChunk()
-        {
-            if (_tris.Count == 0) return;
-            while (_meshes.Count <= _meshesUsed)
-            {
-                Mesh m = new Mesh();
-                m.hideFlags = HideFlags.HideAndDontSave;
-                m.MarkDynamic();
-                _meshes.Add(m);
-            }
-            Mesh mesh = _meshes[_meshesUsed++];
-            mesh.Clear();
-            mesh.SetVertices(_verts);
-            mesh.SetColors(_colours);
-            mesh.SetTriangles(_tris, 0, false);
-            _vertsDrawn += _verts.Count;
         }
 
         /// The ghost's marker as line pairs: a post, a cross at its foot and
@@ -1135,8 +1086,7 @@ namespace ForestOverlay.Game
             try
             {
                 if (_material != null) UnityEngine.Object.Destroy(_material);
-                for (int i = 0; i < _meshes.Count; i++) if (_meshes[i] != null) UnityEngine.Object.Destroy(_meshes[i]);
-                _meshes.Clear();
+                _ribbon.Destroy();
             }
             catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDestroy", ex); }
         }

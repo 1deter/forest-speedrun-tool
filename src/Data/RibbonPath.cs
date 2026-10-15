@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace ForestOverlay.Data
@@ -33,29 +32,35 @@ namespace ForestOverlay.Data
     //     point's depth), mitred at a bend so the ribbon keeps its width.
     // A dropped segment ends the strip; the next one kept starts another.
     //
-    // Pure and allocation free once the lists have grown; linked into the
-    // tests.
+    // Runs every frame over every point of every line, so the maths is
+    // written out on floats into arrays: with Vector3 operators and lists
+    // (each a call and a copy on the game's old Mono) it cost 0.56 ms a
+    // frame for a 1,491-point line (bridge 2026-10-15). Each input point is
+    // projected once. Allocation free once the arrays have grown; linked
+    // into the tests.
     // ------------------------------------------------------------------
     public sealed class RibbonPath
     {
-        /// The kept points, strip after strip.
-        public readonly List<Vector3> Points = new List<Vector3>();
+        /// The kept points, strip after strip: [0, Count).
+        public Vector3[] Points = new Vector3[256];
         /// Per point: one screen pixel across the line, in world units.
-        public readonly List<Vector3> Sides = new List<Vector3>();
+        public Vector3[] Sides = new Vector3[256];
         /// Per point: 0..1, the distance fade.
-        public readonly List<float> Fade = new List<float>();
+        public float[] Fade = new float[256];
+        public int Count;
         /// Per strip: the index of its first point (a strip ends where the
-        /// next starts, the last at Points.Count). Every strip has >= 2.
-        public readonly List<int> Starts = new List<int>();
+        /// next starts, the last at Count). Every strip has >= 2 points.
+        public int[] Starts = new int[16];
+        public int StripCount;
 
-        private Vector3 _eye, _fwd, _right, _up;
-        private float _near, _k, _edgeX, _edgeY, _far, _fadeFrom, _minPxSqr;
+        private float _ex, _ey, _ez, _fx, _fy, _fz, _rx, _ry, _rz, _ux, _uy, _uz;
+        private float _near, _k, _edgeX, _edgeY, _farSqr, _far, _fadeFrom, _fadeFromSqr, _minPxSqr;
 
         // The strip being built.
         private bool _open;
         private float _lastX, _lastY;          // screen position of the last kept point
         private bool _pending;                 // a skipped point that must end the strip
-        private Vector3 _pendingP;
+        private float _pendX, _pendY, _pendZ;
 
         /// A bend sharper than this keeps this much of the width at least
         /// (a mitre grows as 1 / cos of half the turn; capped at 2x).
@@ -69,25 +74,25 @@ namespace ForestOverlay.Data
                             float pixelsPerUnit, float halfWidth, float halfHeight,
                             float drawDistance, float fadeShare, float minPixels)
         {
-            _eye = eye;
-            _fwd = forward;
-            _right = right;
-            _up = up;
+            _ex = eye.x; _ey = eye.y; _ez = eye.z;
+            _fx = forward.x; _fy = forward.y; _fz = forward.z;
+            _rx = right.x; _ry = right.y; _rz = right.z;
+            _ux = up.x; _uy = up.y; _uz = up.z;
             _near = near > 1e-4f ? near : 1e-4f;
             _k = pixelsPerUnit;
             _edgeX = halfWidth;
             _edgeY = halfHeight;
             _far = drawDistance > 0f ? drawDistance : float.MaxValue;
+            _farSqr = drawDistance > 0f ? drawDistance * drawDistance : float.MaxValue;
             _fadeFrom = drawDistance > 0f ? drawDistance * (1f - Mathf.Clamp(fadeShare, 0f, 1f)) : float.MaxValue;
+            _fadeFromSqr = drawDistance > 0f ? _fadeFrom * _fadeFrom : float.MaxValue;
             _minPxSqr = minPixels * minPixels;
         }
 
         public void Clear()
         {
-            Points.Clear();
-            Sides.Clear();
-            Fade.Clear();
-            Starts.Clear();
+            Count = 0;
+            StripCount = 0;
             _open = false;
             _pending = false;
         }
@@ -100,51 +105,87 @@ namespace ForestOverlay.Data
             if (end > points.Length) end = points.Length;
             if (end - start < 2) return;
 
-            float farSqr = _far >= float.MaxValue ? float.MaxValue : _far * _far;
+            // The point before (a): world, depth, distance squared, screen.
+            float ax = points[start].x, ay = points[start].y, az = points[start].z;
+            float adx = ax - _ex, ady = ay - _ey, adz = az - _ez;
+            float za = adx * _fx + ady * _fy + adz * _fz;
+            float da = adx * adx + ady * ady + adz * adz;
+            float asx = 0f, asy = 0f;
+            if (za >= _near) { asx = (adx * _rx + ady * _ry + adz * _rz) * _k / za; asy = (adx * _ux + ady * _uy + adz * _uz) * _k / za; }
+
             for (int i = start + 1; i < end; i++)
             {
-                Vector3 a = points[i - 1], b = points[i];
-                float za = Depth(a), zb = Depth(b);
-                if (za < _near && zb < _near) { Close(); continue; }
-                if ((a - _eye).sqrMagnitude > farSqr && (b - _eye).sqrMagnitude > farSqr) { Close(); continue; }
+                float bx = points[i].x, by = points[i].y, bz = points[i].z;
+                float bdx = bx - _ex, bdy = by - _ey, bdz = bz - _ez;
+                float zb = bdx * _fx + bdy * _fy + bdz * _fz;
+                float db = bdx * bdx + bdy * bdy + bdz * bdz;
+                float bsx = 0f, bsy = 0f;
+                if (zb >= _near) { bsx = (bdx * _rx + bdy * _ry + bdz * _rz) * _k / zb; bsy = (bdx * _ux + bdy * _uy + bdz * _uz) * _k / zb; }
 
-                bool cutA = false, cutB = false;
-                if (za < _near) { a = a + (b - a) * ((_near - za) / (zb - za)); za = _near; cutA = true; }
-                else if (zb < _near) { b = a + (b - a) * ((_near - za) / (zb - za)); zb = _near; cutB = true; }
+                Segment(ax, ay, az, za, da, asx, asy, bx, by, bz, zb, db, bsx, bsy);
 
-                float ax = Dot(a - _eye, _right) * _k / za, ay = Dot(a - _eye, _up) * _k / za;
-                float bx = Dot(b - _eye, _right) * _k / zb, by = Dot(b - _eye, _up) * _k / zb;
-                if ((ax < -_edgeX && bx < -_edgeX) || (ax > _edgeX && bx > _edgeX) ||
-                    (ay < -_edgeY && by < -_edgeY) || (ay > _edgeY && by > _edgeY))
-                {
-                    Close();
-                    continue;
-                }
-
-                // A cut start is a new point on the near plane: the strip
-                // before ended at another one (or behind the camera).
-                if (cutA) Close();
-                if (!_open)
-                {
-                    _open = true;
-                    Starts.Add(Points.Count);
-                    Keep(a, ax, ay);
-                }
-
-                float dx = bx - _lastX, dy = by - _lastY;
-                if (cutB || dx * dx + dy * dy >= _minPxSqr) Keep(b, bx, by);
-                else { _pending = true; _pendingP = b; }
-
-                if (cutB) Close();
+                ax = bx; ay = by; az = bz; za = zb; da = db; asx = bsx; asy = bsy;
             }
             Close();
         }
 
-        private void Keep(Vector3 p, float x, float y)
+        private void Segment(float ax, float ay, float az, float za, float da, float asx, float asy,
+                             float bx, float by, float bz, float zb, float db, float bsx, float bsy)
         {
-            Points.Add(p);
-            _lastX = x;
-            _lastY = y;
+            if (za < _near && zb < _near) { Close(); return; }
+            if (da > _farSqr && db > _farSqr) { Close(); return; }
+
+            bool cutA = false, cutB = false;
+            if (za < _near || zb < _near)
+            {
+                // The point on the near plane, and where it lands on screen.
+                float t = (_near - za) / (zb - za);
+                float cx = ax + (bx - ax) * t, cy = ay + (by - ay) * t, cz = az + (bz - az) * t;
+                float cdx = cx - _ex, cdy = cy - _ey, cdz = cz - _ez;
+                float csx = (cdx * _rx + cdy * _ry + cdz * _rz) * _k / _near;
+                float csy = (cdx * _ux + cdy * _uy + cdz * _uz) * _k / _near;
+                if (za < _near) { ax = cx; ay = cy; az = cz; asx = csx; asy = csy; cutA = true; }
+                else { bx = cx; by = cy; bz = cz; bsx = csx; bsy = csy; cutB = true; }
+            }
+
+            if ((asx < -_edgeX && bsx < -_edgeX) || (asx > _edgeX && bsx > _edgeX) ||
+                (asy < -_edgeY && bsy < -_edgeY) || (asy > _edgeY && bsy > _edgeY))
+            {
+                Close();
+                return;
+            }
+
+            // A cut start is a new point on the near plane: the strip
+            // before ended at another one (or behind the camera).
+            if (cutA) Close();
+            if (!_open)
+            {
+                _open = true;
+                if (StripCount == Starts.Length) Array.Resize(ref Starts, Starts.Length * 2);
+                Starts[StripCount++] = Count;
+                Keep(ax, ay, az, asx, asy);
+            }
+
+            float dx = bsx - _lastX, dy = bsy - _lastY;
+            if (cutB || dx * dx + dy * dy >= _minPxSqr) Keep(bx, by, bz, bsx, bsy);
+            else { _pending = true; _pendX = bx; _pendY = by; _pendZ = bz; }
+
+            if (cutB) Close();
+        }
+
+        private void Keep(float x, float y, float z, float sx, float sy)
+        {
+            if (Count == Points.Length)
+            {
+                int n = Points.Length * 2;
+                Array.Resize(ref Points, n);
+                Array.Resize(ref Sides, n);
+                Array.Resize(ref Fade, n);
+            }
+            Points[Count].x = x; Points[Count].y = y; Points[Count].z = z;
+            Count++;
+            _lastX = sx;
+            _lastY = sy;
             _pending = false;
         }
 
@@ -154,71 +195,70 @@ namespace ForestOverlay.Data
         {
             if (!_open) return;
             _open = false;
-            if (_pending) { Points.Add(_pendingP); _pending = false; }
+            if (_pending) Keep(_pendX, _pendY, _pendZ, 0f, 0f);
 
-            int first = Starts[Starts.Count - 1];
-            int count = Points.Count - first;
-            if (count < 2)
+            int first = Starts[StripCount - 1];
+            if (Count - first < 2)
             {
-                Points.RemoveRange(first, count);
-                Starts.RemoveAt(Starts.Count - 1);
+                Count = first;
+                StripCount--;
                 return;
             }
 
-            for (int j = first; j < Points.Count; j++)
+            int last = Count - 1;
+            for (int j = first; j <= last; j++)
             {
-                Vector3 p = Points[j];
-                Vector3 v = p - _eye;
-                Vector3 sa = j > first ? Across(Points[j] - Points[j - 1], v) : Vector3.zero;
-                Vector3 sb = j < Points.Count - 1 ? Across(Points[j + 1] - Points[j], v) : Vector3.zero;
+                float px = Points[j].x, py = Points[j].y, pz = Points[j].z;
+                float vx = px - _ex, vy = py - _ey, vz = pz - _ez;
 
-                Vector3 s;
-                bool hasA = sa.sqrMagnitude > 0f, hasB = sb.sqrMagnitude > 0f;
+                // Across the segment before and the one after: cross(along, view), unit.
+                float sax = 0f, say = 0f, saz = 0f, sbx = 0f, sby = 0f, sbz = 0f;
+                bool hasA = false, hasB = false;
+                if (j > first)
+                {
+                    float tx = px - Points[j - 1].x, ty = py - Points[j - 1].y, tz = pz - Points[j - 1].z;
+                    sax = ty * vz - tz * vy; say = tz * vx - tx * vz; saz = tx * vy - ty * vx;
+                    float m = sax * sax + say * say + saz * saz;
+                    if (m > 1e-12f) { m = 1f / (float)Math.Sqrt(m); sax *= m; say *= m; saz *= m; hasA = true; }
+                }
+                if (j < last)
+                {
+                    float tx = Points[j + 1].x - px, ty = Points[j + 1].y - py, tz = Points[j + 1].z - pz;
+                    sbx = ty * vz - tz * vy; sby = tz * vx - tx * vz; sbz = tx * vy - ty * vx;
+                    float m = sbx * sbx + sby * sby + sbz * sbz;
+                    if (m > 1e-12f) { m = 1f / (float)Math.Sqrt(m); sbx *= m; sby *= m; sbz *= m; hasB = true; }
+                }
+
+                float sx, sy, sz;
                 if (hasA && hasB)
                 {
-                    s = Unit(sa + sb);
-                    // Turned right round: the two cancel - take the one before.
-                    if (s.sqrMagnitude == 0f) s = sa;
+                    sx = sax + sbx; sy = say + sby; sz = saz + sbz;
+                    float m = sx * sx + sy * sy + sz * sz;
+                    if (m < 1e-12f) { sx = sax; sy = say; sz = saz; }   // turned right round: the one before
                     else
                     {
-                        float c = Dot(s, sa);
-                        s = s * (1f / (c > MinMitreCos ? c : MinMitreCos));
+                        m = 1f / (float)Math.Sqrt(m);
+                        sx *= m; sy *= m; sz *= m;
+                        float c = sx * sax + sy * say + sz * saz;
+                        float mitre = 1f / (c > MinMitreCos ? c : MinMitreCos);
+                        sx *= mitre; sy *= mitre; sz *= mitre;
                     }
                 }
-                else if (hasA) s = sa;
-                else if (hasB) s = sb;
-                else s = _right;     // the line points straight at the camera
+                else if (hasA) { sx = sax; sy = say; sz = saz; }
+                else if (hasB) { sx = sbx; sy = sby; sz = sbz; }
+                else { sx = _rx; sy = _ry; sz = _rz; }     // the line points straight at the camera
 
-                float z = Depth(p);
-                Sides.Add(s * (z / _k));
+                float px1 = (vx * _fx + vy * _fy + vz * _fz) / _k;   // one pixel at this depth
+                Sides[j].x = sx * px1; Sides[j].y = sy * px1; Sides[j].z = sz * px1;
 
-                float d = (float)Math.Sqrt(v.sqrMagnitude);
-                Fade.Add(d <= _fadeFrom ? 1f : Mathf.Clamp((_far - d) / (_far - _fadeFrom), 0f, 1f));
+                float d2 = vx * vx + vy * vy + vz * vz;
+                if (d2 <= _fadeFromSqr) Fade[j] = 1f;
+                else
+                {
+                    float d = (float)Math.Sqrt(d2);
+                    Fade[j] = Mathf.Clamp((_far - d) / (_far - _fadeFrom), 0f, 1f);
+                }
             }
-        }
-
-        /// The unit vector across a segment as seen from the eye, zero when
-        /// the segment lies along the view ray.
-        private static Vector3 Across(Vector3 along, Vector3 view)
-        {
-            return Unit(Vector3.Cross(along, view));
-        }
-
-        private static Vector3 Unit(Vector3 v)
-        {
-            float m = v.sqrMagnitude;
-            if (m < 1e-12f) return Vector3.zero;
-            return v * (1f / (float)Math.Sqrt(m));
-        }
-
-        private float Depth(Vector3 p)
-        {
-            return Dot(p - _eye, _fwd);
-        }
-
-        private static float Dot(Vector3 a, Vector3 b)
-        {
-            return a.x * b.x + a.y * b.y + a.z * b.z;
         }
     }
 }
