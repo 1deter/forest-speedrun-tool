@@ -1101,3 +1101,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     patch count rows from the top: unflipped the patch came a row off,
     flipping v alone mirrored it - flip both v ends when
     `SystemInfo.graphicsUVStartsAtTop`.
+
+112. **Under a scaled `GUI.matrix`, a window's offsets are not where the
+    API says.** (2026-10-15, T-0324, seen live at 1920x1080 with the F2
+    window at x1.406.) The drawing scales point + every window / group /
+    scroll offset, but `GUIUtility.GUIToScreenPoint` returned offset +
+    k * point (the map's origin read 311 = the unscaled window + body
+    offset): the map's GL spots and key symbols drew off the map. Use
+    `UiKit.Unclip` (subtracts (k - 1) * point) for the tooltip anchor and
+    the map's GL origin. Second trap: groups clip BEFORE the matrix, so
+    `CrispText` (text enlarged by k inside a local 1/k scale) was cut at
+    1/k of its width inside the window - window text is drawn plain
+    (`CrispText.Plain`, slightly soft), CrispText stays for the HUD,
+    which has no groups.

@@ -187,7 +187,9 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
    Method notes (2026-10-09): measure text height on the PNG the shot
    printed (the file on disk is the full frame; `region` crops only the
    returned image) - rows of bright pixels, ascender to descender, then
-   scale to 1080p for check 25; read every `set` flag back at the end
+   scale to 1080p for check 25 (the F2 window scales with the screen's
+   height from 768p since T-0324, so a 768p shot x1.41 is the 1080p size;
+   before it the window stayed in pixels); read every `set` flag back at the end
    (`fields` on the module); `Hotkeys.Bindings.Count` and `HudLines.All`
    give the true list sizes for check 23.
    Method notes (2026-10-11): the bridge has no click and `set` cannot index a dictionary, so a fold (`UiKit.Open`) or a

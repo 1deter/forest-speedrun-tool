@@ -92,6 +92,12 @@ only while on) and the ghost's switch + an opacity for the ghost and replay
 under *Ghost and replay*; the results panel has its own load-time choice. The QA tab goes at the public release. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
 
+**The window scales with the screen's height** (T-0324, author 2026-10-15):
+it is laid out in pixels of a 768-high screen and drawn x`Screen.height / 768`
+above that (x1.41 at 1080p, `Data/UiScale.WindowFactor`), so body text is
+~17 px at 1080p (XAG 101: 18); hints, tips and fold summaries are body size.
+`MainWindowModule.ScreenRect` stays in screen pixels for the HUD pieces.
+
 While the window is open the player is held (`LockView`) and the game's key
 map is switched to `Menu` (`Game/GameInput`), so clicks never reach the game.
 Settings shows *Game input: blocked* when that is working.
@@ -241,6 +247,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting. [judgement]
 107. **A dynamic font forgets glyphs not asked for lately** - a large font size whose characters change (Speed 0.00 <-> digits) rebuilt its texture, ~20 ms a time; keep the glyph set requested every repaint (`HudWidgets.KeptGlyphs`). [judgement]
 109. **A scaled `GUI.matrix` stretches text** - glyphs are rasterised at the font size and blurred by the scale (x1.88 at 2560x1440, T-0333); text in the scaled HUD goes through `Core/CrispText` (draw and measure). [judgement]
+112. **In a scaled window, offsets and clips ignore the matrix** - `GUIToScreenPoint` leaves window / group offsets unscaled (use `UiKit.Unclip`) and groups clip before the scale, so CrispText is off in the F2 window (`CrispText.Plain`). [check: T-0324]
 
 ### Run mode and detectors
 

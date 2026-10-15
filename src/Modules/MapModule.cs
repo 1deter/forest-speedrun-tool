@@ -596,13 +596,9 @@ namespace ForestOverlay.Modules
         {
             if (_material == null) return false;
             // The window's scale (T-0324): GL draws in screen pixels, the map
-            // in window units. The drawing scales the point plus every
-            // window / group offset above it, but GUIToScreenPoint returns
-            // offset + k * point (seen live at 1080p), so the unscaled sum
-            // is that minus (k - 1) * point, then scaled.
+            // in window units, so its origin is scaled and so is every vertex.
             _k = GUI.matrix.m00 > 0f ? GUI.matrix.m00 : 1f;
-            Vector2 local = new Vector2(map.x, map.y);
-            Vector2 o = GUIUtility.GUIToScreenPoint(local) - (_k - 1f) * local;
+            Vector2 o = UiKit.Unclip(new Vector2(map.x, map.y));
             _ox = o.x * _k; _oy = o.y * _k; _screenH = Screen.height;
             _clipW = map.width; _clipH = map.height;
 

@@ -557,7 +557,7 @@ namespace ForestOverlay.Core
         private const float TipDelay = 0.35f;
         private const float TipMaxW = 280f;
         private static GUIContent _tipHover;      // hovered this pass
-        private static Vector2 _tipScreen;
+        private static Vector2 _tipAt;          // the mouse, unclipped (Unclip)
         private static GUIContent _tipShown;      // what the delay is timing
         private static float _tipSince;
 
@@ -570,7 +570,19 @@ namespace ForestOverlay.Core
             if (e == null || e.type != EventType.Repaint || tip == null || string.IsNullOrEmpty(tip.text)) return;
             if (!r.Contains(e.mousePosition)) return;
             _tipHover = tip;
-            _tipScreen = GUIUtility.GUIToScreenPoint(e.mousePosition);
+            _tipAt = Unclip(e.mousePosition);
+        }
+
+        /// A local GUI point as the sum of it and every window / group /
+        /// scroll offset above it: the space GUI.matrix scales (T-0324).
+        /// GUIToScreenPoint scales the point but not the offsets (seen live
+        /// in the scaled F2 window), so the scaled part comes back off. At
+        /// scale 1 this is GUIToScreenPoint itself.
+        public static Vector2 Unclip(Vector2 local)
+        {
+            float k = GUI.matrix.m00;
+            Vector2 p = GUIUtility.GUIToScreenPoint(local);
+            return k > 0.999f && k < 1.001f ? p : p - (k - 1f) * local;
         }
 
         /// Hover tip for a control that carries its own GUIContent.tooltip text.
@@ -594,7 +606,7 @@ namespace ForestOverlay.Core
             if (Time.unscaledTime - _tipSince < TipDelay) return;
 
             Ensure();
-            Vector2 local = GUIUtility.ScreenToGUIPoint(_tipScreen);
+            Vector2 local = _tipAt - Unclip(Vector2.zero);
             float w = Mathf.Min(TipMaxW, bounds.width - 12f);
             float h = _tip.CalcHeight(tip, w);
             float x = local.x + 14f, y = local.y + 20f;
