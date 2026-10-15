@@ -110,8 +110,10 @@ sharing and community packs, the gameplay mods ("ON NOW").
   +430 since 2026-10-07). The paint tool (T-0219) is its own module.
 - Stability **A**.
 - Gaps **B**: Megan's health bar vs her death (T-0085); reload-on-death
-  parity (T-0041); paint hidden on bumpy ground and overhanging edges
-  (T-0296, T-0299); the death default (T-0316); an unused member in
+  parity (T-0041); paint's known limits (gotcha 110: far pool rocks
+  T-0352, the 8 % cut band's trade, old strokes on rock spheres vanish,
+  +2.2 ms a frame while painting - accepted by the author 2026-10-15);
+  the death default (T-0316); an unused member in
   PaintSet (T-0350). Released, not yet confirmed: paint (T-0219), Keep
   loaded (T-0212), the Import view (T-0254, T-0307).
 

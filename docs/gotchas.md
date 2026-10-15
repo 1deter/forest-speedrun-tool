@@ -1080,6 +1080,17 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     drawn surface; clear paint only 8 % in front of the scene (hide it 2 %
     behind). A fresh arrival in a cave shows the coarse mesh from far, a
     near visit the full one even from far (+-17 cm on the same rays).
+    Known limits, shipped as such (author, 2026-10-15): (1) a pool rock's
+    Mid view (~30 m) has only a trigger sphere, so paint aimed at it from
+    far lands on whatever is behind it (T-0352; bushes carry trigger
+    spheres too, so accepting triggers would paint bushes). (2) The 8 %
+    cut band is a trade: a 30 cm disc on a thin trunk seen from under 1 m
+    loses its rim (a flat disc on a curve floats ~4 cm; the band is 7 cm
+    at 0.9 m, was 1.8 cm), and up to 2.4 m of overhang past an edge shows
+    at 30 m. (3) Strokes saved before v0.24.298 that floated on a rock's
+    collider sphere are now cut as overhang and vanish on load. (4) The
+    probe costs ~2.2 ms a frame while the paint key is held (3.46 ->
+    5.62 ms, the readback / late pass, not the copy); nothing when idle.
 
 111. **D3D11 flips textures under you.** (2026-10-15, T-0296, all on the
     bridge.) `Graphics.DrawTexture` drew the paint layer mirrored about

@@ -198,7 +198,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 102. **List a flag's writers before reading it as one event** - `onRope` is also every cave-mouth crawl and four cutscenes; a game snap (a cave mouth, 9 m) is not a teleport (T-0242). [judgement]
 103. **A restore in place keeps everything outside the save, running Invokes and coroutines too** - diff the player's fields after a Full load vs in place, then check `IsInvoking` (T-0248). [judgement]
 104. **A render-thread crash names the command, not who queued it** - find a native call's senders by its vtable slot in the exe; Unity's own errors (the d3d11 line) are in no kept log (T-0190). [judgement]
-110. **A collider is not the drawn shape** - a pool rock's collider is a sphere (Rock05, r ~2.6 m), far off the game may draw a coarser cave mesh (+-17 cm), and a cave's mesh collider is itself up to 10 cm off its near mesh; aim at what is drawn (the depth texture), snap to a mesh collider only from 10 m, and let paint show further in front of the scene (8 %) than behind it (2 %) (T-0296). [check: T-0296]
+110. **A collider is not the drawn shape** - a pool rock's collider is a sphere (Rock05, r ~2.6 m), far off the game may draw a coarser cave mesh (+-17 cm), and a cave's mesh collider is itself up to 10 cm off its near mesh; aim at what is drawn (the depth texture), snap to a mesh collider only from 10 m, and let paint show further in front of the scene (8 %) than behind it (2 %) (T-0296); known limits shipped: far pool rocks (trigger sphere only, T-0352), the 8 % band's trade, old strokes on rock spheres vanish, +2.2 ms a frame while painting. [check: T-0296]
 
 ### Restores (savestates)
 
