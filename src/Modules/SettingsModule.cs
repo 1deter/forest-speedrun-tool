@@ -57,8 +57,9 @@ namespace ForestOverlay.Modules
         private GUIContent[] _groupHeadings;
         private GUIContent[] _hudHeadings;
         private GUIStyle _groupStyle;
-        // The frame each list's rows were last drawn (0 Settings, 1 Developer).
-        private readonly int[] _rowsDrawnFrame = new int[2];
+        // The frame each list's rows were last drawn (0 Settings, 1 Developer,
+        // 2 a key beside its switch - DrawKeyRow, T-0322).
+        private readonly int[] _rowsDrawnFrame = new int[3];
         // A rebind / reset result, shown in place of the Game input status
         // for a few seconds, then the status comes back (T-0261).
         private const float MessageSeconds = 5f;
@@ -208,7 +209,7 @@ namespace ForestOverlay.Modules
             // which never fires for a tab.) The row can be in Settings or in
             // the Developer tab (T-0263).
             HotkeyMap.Binding awaiting = Host.Hotkeys.AwaitingRebind;
-            if (awaiting != null && Time.frameCount - _rowsDrawnFrame[KeyGroups.IsDeveloper(awaiting.Id) ? 1 : 0] > 2)
+            if (awaiting != null && Time.frameCount - _rowsDrawnFrame[ListOf(awaiting.Id)] > 2)
                 Host.Hotkeys.AwaitingRebind = null;
 
             // The HUD view's changing text, built here (not in OnGUI) and
@@ -318,7 +319,7 @@ namespace ForestOverlay.Modules
 
             // Capture has to run before DragWindow, or dragging swallows
             // the key event we are waiting for.
-            if (map.AwaitingRebind != null) CaptureKey(map, false);
+            if (map.AwaitingRebind != null) CaptureKey(map, false, false);
         }
 
         private float DrawNetwork(float y, float w)
@@ -390,8 +391,14 @@ namespace ForestOverlay.Modules
             EnsureGroups(map);
             y = DrawPrompt(y, w, map, true, _devPrompt);
             y = DrawBindRows(y, w, map, KeyGroups.Developer);
-            if (map.AwaitingRebind != null) CaptureKey(map, true);
+            if (map.AwaitingRebind != null) CaptureKey(map, true, false);
             return y + 6f;
+        }
+
+        // Which _rowsDrawnFrame a key's row stamps: 0 Settings, 1 Developer, 2 beside its switch.
+        private static int ListOf(string id)
+        {
+            return KeyGroups.BesideSwitch(id) ? 2 : KeyGroups.IsDeveloper(id) ? 1 : 0;
         }
 
         private void EnsureGroups(HotkeyMap map)
@@ -745,13 +752,13 @@ namespace ForestOverlay.Modules
             HotkeyMap.Binding b = map.Find(id);
             if (b == null) return y;
             bool dev = KeyGroups.IsDeveloper(id);
-            _rowsDrawnFrame[dev ? 1 : 0] = Time.frameCount;
+            _rowsDrawnFrame[2] = Time.frameCount;
             y = DrawBindRow(y, w - 16f, map, b, dev);
             // The prompt only while this row captures, or its own result.
             HotkeyMap.Binding awaiting = map.AwaitingRebind;
             if (awaiting == b || (awaiting == null && _messageAbout == b && _message.Length > 0))
                 y = DrawPrompt(y, w, map, dev, _rowPrompt);
-            if (awaiting == b) CaptureKey(map, dev);
+            if (awaiting == b) CaptureKey(map, dev, true);
             return y;
         }
 
@@ -763,10 +770,13 @@ namespace ForestOverlay.Modules
         }
 
         // `dev`: the list drawing this pass; a capture belongs to its row's list.
-        private void CaptureKey(HotkeyMap map, bool dev)
+        // `beside`: drawn by DrawKeyRow; a key beside its switch is captured
+        // there only, so it never stays armed with no row on screen.
+        private void CaptureKey(HotkeyMap map, bool dev, bool beside)
         {
             HotkeyMap.Binding target = map.AwaitingRebind;
             if (KeyGroups.IsDeveloper(target.Id) != dev) return;
+            if (KeyGroups.BesideSwitch(target.Id) != beside) return;
 
             // Mouse buttons (middle and the side ones; left / right click the
             // window) never come as key events: polled.
