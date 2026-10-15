@@ -9,8 +9,8 @@ namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
     // Input overlay (T-0302; author, 2026-10-11): the keys and mouse buttons
-    // you press, drawn on the game screen, modelled on girlglock/input-overlay
-    // - for a stream, a recording, or checking your own hands.
+    // you press, drawn on the game screen, modelled on girlglock/input-overlay.
+    // It follows the HUD's show / hide (F5 hides it), like the splits panel.
     //
     // - Fully modular: every tile (a key, the mouse box, the wheel) is placed
     //   on its own, shown or hidden, sized on its own (Data/InputLayout). The

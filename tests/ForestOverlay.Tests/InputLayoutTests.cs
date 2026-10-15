@@ -79,11 +79,12 @@ namespace ForestOverlay.Tests
         [Fact]
         public void PositionsConvertToAnotherReferenceScreen()
         {
-            string s = InputLayout.ConvertPositions("W,100,200,2,1;Q,0,50,1,0", 1920, 1080, 3840, 2160);
+            string s = InputLayout.ConvertPositions("W,100,200,1,1;E,5,5,2,1;Q,0,50,1,0", 1920, 1080, 3840, 2160);
             InputLayout l = InputLayout.Parse(s);
             Assert.Equal(200f, l.Find("W").X);
             Assert.Equal(400f, l.Find("W").Y);
-            Assert.Equal(2f, l.Find("W").Scale);
+            Assert.Equal(2f, l.Find("W").Scale);   // sizes follow the height ratio
+            Assert.Equal(InputLayout.MaxScale, l.Find("E").Scale);   // clamped
             Assert.False(l.Find("Q").Shown);
             Assert.Equal(100f, l.Find("Q").Y);
         }

@@ -180,6 +180,8 @@ namespace ForestOverlay.Data
             {
                 l.Tiles[i].X = ProfileUnits.Convert(l.Tiles[i].X, ProfileUnit.X, fw, fh, tw, th);
                 l.Tiles[i].Y = ProfileUnits.Convert(l.Tiles[i].Y, ProfileUnit.Y, fw, fh, tw, th);
+                // Sizes follow the screen's height, as the other profile sizes do.
+                l.Tiles[i].Scale = ClampScale(ProfileUnits.Convert(l.Tiles[i].Scale * 1000f, ProfileUnit.Size, fw, fh, tw, th) / 1000f);
             }
             return l.Format();
         }
