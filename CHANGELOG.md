@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.302 - 2026-10-15
+
+- Map tab: a new look in the overlay's own colours - navy water, blue-grey land, a thin tan coast.
+- Map tab: the comparison line, the ghost and 'Only cave spots' are gone; the hollow mark is now called 'Runner spot'.
+
 ## v0.24.301 - 2026-10-15
 
 - The always-on lines (ON NOW, the practice marker, run mode's line) now show as the game's own bottom-left messages, with an icon each and a dark outline; where the game hides its messages (inventory open, HUD off) they show in the same spot as before.
