@@ -1092,7 +1092,7 @@ Written by Plugin.cs; error.
 
 ## `Paint`
 
-Meaning: The paint tool (T-0219): a stroke painted, paint erased / undone / cleared, a spot's paint loaded from or saved to config/ForestOverlay/paint/.
+Meaning: The paint tool (T-0219): a stroke painted (how many dots landed on the drawn surface, and how many of those on a mesh / terrain collider agreeing with it - the rest on a collider alone, T-0296), paint erased / undone / cleared, a spot's paint loaded from or saved to config/ForestOverlay/paint/.
 Written by PaintModule.cs; info / warning.
 
 - info `Paint: <recovered> (<path>)`
@@ -1102,7 +1102,7 @@ Written by PaintModule.cs; info / warning.
 - warning `Paint: could not save <path>: <ex.Message>`
 - info `Paint: erased <_erased> dot(s) - <..> (<Current.Count> left)`
 - info `Paint: loaded <set.Count> dot(s) for spot '<id>'<..>`
-- info `Paint: stroke of <dots> dot(s), colour <Colour>, size <..>, <_onSurface> on the drawn surface - <..> (<set.Count> in all)`
+- info `Paint: stroke of <dots> dot(s), colour <Colour>, size <..>, <_onSurface> on the drawn surface (<_onCollider> on its collider) - <..> (<set.Count> in all)`
 - info `Paint: undid a stroke of <n> dot(s) - <..> (<Current.Count> left)`
 
 ## `PanelKeeper`

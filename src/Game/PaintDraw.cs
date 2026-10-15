@@ -25,14 +25,18 @@ namespace ForestOverlay.Game
     //
     // In the late pass paint shows only where it lies ON the surface
     // (T-0296 / T-0299): drawn into a target of its own against the
-    // scene's depth, kept where the scene is no nearer than Band in front
-    // of it (so it is not hidden by the rock it is on - LOD meshes and
-    // colliders sit a little off the drawn surface - but is hidden by
-    // things in front) and no further than Band behind it (so past a
-    // wall's edge, where the scene is the ground far behind, it is cut
-    // off rather than hanging in the air). Band is a share of the distance,
-    // done by scaling the meshes about the eye: every vertex slides along
-    // its own view ray, so the picture does not move.
+    // scene's depth where the scene is no nearer than Band in front of it
+    // (so it is not hidden by the rock it is on - the game's coarser
+    // meshes sit a little off the full-detail one - but is hidden by
+    // things in front), then cleared where it still lies in front of the
+    // scene when pushed Band further away (past a wall's edge, where the
+    // scene is the ground far behind, it is cut off rather than hanging
+    // in the air). The clear only hits paint off its surface: paint hidden
+    // behind a trunk, pushed back, is still behind the trunk and clears
+    // nothing (kept first and cleared after, the far side's stroke took
+    // the paint on the trunk's near side with it, T-0351). Band is a share
+    // of the distance, done by scaling the meshes about the eye: every
+    // vertex slides along its own view ray, so the picture does not move.
     // ------------------------------------------------------------------
     public sealed class PaintDraw : MonoBehaviour, ILateDrawer
     {
@@ -55,6 +59,9 @@ namespace ForestOverlay.Game
         private const float ProbeSlack = 1.5f, ProbeSlackShare = 0.05f;
         /// ... or this close to some collider (a rock's sphere sits within ~1 m of the rock).
         private const float NearCollider = 1.2f;
+        /// A mesh / terrain collider this close to the drawn surface is taken
+        /// instead of it: metres, or a share of the distance if more.
+        private const float SnapSlack = 0.3f, SnapSlackShare = 0.03f;
 
         private static readonly float[] RimCos = new float[Rim];
         private static readonly float[] RimSin = new float[Rim];
@@ -68,8 +75,8 @@ namespace ForestOverlay.Game
         private readonly List<int> _tris = new List<int>();
 
         private Material _material;      // the fallback draw
-        private Material _bandKeep;      // late pass: paint where the scene is in front of its far edge
-        private Material _bandCut;       // late pass: clears it where the scene is in front of its near edge
+        private Material _bandDraw;      // late pass: paint where its near edge is in front of the scene
+        private Material _bandCut;       // late pass: clears it where its far edge is still in front
         private Material _over;          // late pass: the paint target blended onto the picture
 
         // The palette as written into the vertices. The game renders in
@@ -110,9 +117,14 @@ namespace ForestOverlay.Game
         /// up to `range` m. Triggers, the player's own layer and Ignore
         /// Raycast are skipped. The drawn surface (Game/SurfaceProbe) when
         /// it agrees with the collider the ray hits, else the collider: a
-        /// leaf or a bush far in front of it is not painted on. False for a
-        /// frame or two at the start of a stroke while the first reading
-        /// comes in.
+        /// leaf or a bush far in front of it is not painted on. Where the
+        /// collider is a mesh or the terrain and lies within SnapSlack of
+        /// the drawn surface, the collider's point: it is the full-detail
+        /// shape, while the drawn one far off is a coarser mesh the game
+        /// swaps for it up close (a Cave 6 wall 17 cm in front of its near
+        /// mesh at 29 m; its mesh collider within 5 cm of the near mesh,
+        /// bridge 2026-10-15). False for a frame or two at the start of a
+        /// stroke while the first reading comes in.
         public static bool Aim(Transform player, float range, out Vector3 point, out Vector3 normal)
         {
             point = Vector3.zero;
@@ -134,31 +146,48 @@ namespace ForestOverlay.Game
                 {
                     dir /= dist;
                     bool hitAny = Physics.Raycast(new Ray(eye, dir), out hit, range, mask, QueryTriggerInteraction.Ignore);
+                    float off = hitAny ? Mathf.Abs(hit.distance - dist) : float.MaxValue;
+                    if (off <= Mathf.Max(SnapSlack, SnapSlackShare * dist)
+                        && (hit.collider is MeshCollider || hit.collider is TerrainCollider))
+                    {
+                        point = hit.point;
+                        normal = hit.normal;
+                        LastFrom = AimSource.SurfaceCollider;
+                        return true;
+                    }
                     // Or a collider close by: the crosshair on a rock's edge
                     // misses its smaller sphere and hits the ground behind.
-                    if (!hitAny || Mathf.Abs(hit.distance - dist) <= ProbeSlack + ProbeSlackShare * dist
+                    if (!hitAny || off <= ProbeSlack + ProbeSlackShare * dist
                         || Physics.CheckSphere(sp, NearCollider, mask, QueryTriggerInteraction.Ignore))
                     {
                         point = sp;
                         normal = sn;
-                        LastFromSurface = true;
+                        LastFrom = AimSource.Surface;
                         return true;
                     }
                 }
             }
             else if (SurfaceProbe.Pending) return false;
 
+            // The collider alone: the probe cannot read (no late pass, no
+            // depth texture), or the drawn surface under the crosshair has
+            // no collider near it (a bush in front of the ground). A dot on
+            // a collider far off the drawn surface (a rock's sphere) is cut
+            // from view in the late pass like any paint off its surface.
             Transform t = cam.transform;
             if (!Physics.Raycast(new Ray(t.position, t.forward), out hit, range, mask, QueryTriggerInteraction.Ignore))
                 return false;
             point = hit.point;
             normal = hit.normal;
-            LastFromSurface = false;
+            LastFrom = AimSource.Collider;
             return true;
         }
 
-        /// The last Aim used the drawn surface (true) or the collider.
-        public static bool LastFromSurface;
+        public enum AimSource { Collider, Surface, SurfaceCollider }
+
+        /// What the last Aim used: the collider alone, the drawn surface, or
+        /// a mesh / terrain collider agreeing with the drawn surface.
+        public static AimSource LastFrom;
 
         // --- meshes ---------------------------------------------------------
 
@@ -269,8 +298,8 @@ namespace ForestOverlay.Game
             Shader shader = Shader.Find("Hidden/Internal-Colored");
             if (shader == null) return;
             _material = Colored(shader, BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha, CompareFunction.LessEqual, -2f);
-            _bandKeep = Colored(shader, BlendMode.One, BlendMode.Zero, CompareFunction.GreaterEqual, 0f);
-            _bandCut = Colored(shader, BlendMode.Zero, BlendMode.Zero, CompareFunction.Greater, 0f);
+            _bandDraw = Colored(shader, BlendMode.One, BlendMode.Zero, CompareFunction.LessEqual, 0f);
+            _bandCut = Colored(shader, BlendMode.Zero, BlendMode.Zero, CompareFunction.Less, 0f);
             Shader over = Shader.Find("Unlit/Transparent");
             if (over != null)
             {
@@ -315,7 +344,7 @@ namespace ForestOverlay.Game
             if (SurfaceProbe.Wanted)
             {
                 SurfaceProbe.Sample(camera);
-                if (picture != null) Graphics.SetRenderTarget(picture.colorBuffer, depth);
+                LatePass.Rebind();
             }
             if (!HasPaint) return;
 
@@ -330,14 +359,14 @@ namespace ForestOverlay.Game
                 Graphics.SetRenderTarget(paint.colorBuffer, depth);
                 GL.Clear(false, true, new Color(0f, 0f, 0f, 0f));
                 Vector3 eye = camera.transform.position;
-                DrawMeshes(_bandKeep, AboutEye(eye, 1f + Band));
-                DrawMeshes(_bandCut, AboutEye(eye, 1f - Band));
+                DrawMeshes(_bandDraw, AboutEye(eye, 1f - Band));
+                DrawMeshes(_bandCut, AboutEye(eye, 1f + Band));
 
                 // A Blit, not DrawTexture: target to target keeps the rows the right
                 // way up (DrawTexture drew the paint mirrored about the crosshair on
                 // D3D11, 2026-10-15). Unlit/Transparent blends by alpha.
                 Graphics.Blit(paint, picture, _over);
-                Graphics.SetRenderTarget(picture.colorBuffer, depth);
+                LatePass.Rebind();
             }
             finally { RenderTexture.ReleaseTemporary(paint); }
         }
@@ -376,7 +405,7 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < _meshes.Count; i++) if (_meshes[i] != null) Destroy(_meshes[i]);
                 _meshes.Clear();
                 if (_material != null) Destroy(_material);
-                if (_bandKeep != null) Destroy(_bandKeep);
+                if (_bandDraw != null) Destroy(_bandDraw);
                 if (_bandCut != null) Destroy(_bandCut);
                 if (_over != null) Destroy(_over);
                 SurfaceProbe.Release();
