@@ -13,7 +13,8 @@ namespace ForestOverlay.Data
     }
 
     // ------------------------------------------------------------------
-    // The Map tab's camera: a top-down view of the island, turned 180 degrees (north DOWN, east LEFT, as the game's map).
+    // The Map tab's camera: a top-down view of the island, turned 180 degrees (north DOWN, east LEFT;
+    // author 2026-10-12, T-0341: "rotate ingame map 180 degrees").
     //
     // View pixels have their origin at the map area's top-left corner,
     // +x WEST and +y NORTH (GUI space, Y down); the world is (x, z).
