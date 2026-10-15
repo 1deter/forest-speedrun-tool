@@ -16,16 +16,19 @@ namespace ForestOverlay.Modules
     //   - the picture: a shaded relief made once from the live terrain
     //     and cached (Game/MapRelief), no hitch;
     //   - spots: a dot per entry with a spawn, coloured by category;
-    //     hollow = a community spot, a triangle = underground (a cave set
-    //     on the spot, or well below the terrain there); "Only cave spots";
+    //     hollow = a runner's (community) spot, a triangle = underground
+    //     (a cave set on the spot, or well below the terrain there);
     //   - the selected entry's zones (start / checkpoints / end: spheres,
     //     turned boxes, polygons), the timed segment's too, or every
     //     segment's with "Every segment's zones";
-    //   - the comparison run's line and its ghost (Runs tab's Compare to),
-    //     and the player with their facing;
+    //   - the player with their facing (no comparison line or ghost:
+    //     decisions.md *The Map tab is a minor view*);
     //   - wheel / buttons zoom at the pointer, drag pans, hover names a
     //     spot, a click selects it in Practice; Go is Practice's Go (run
     //     mode refuses it the same way);
+    //   - the slate look (T-0332, mockup A): the relief in the UI's navy
+    //     and grey-blue (Data/ReliefImage), category colours that read on
+    //     it, zone colours no category uses;
     //   - no instructions to read (author, 2026-10-09: pictures over
     //     instructions): category colours top left, a key of the marks
     //     on the map now top right, how to zoom / pan while the pointer
@@ -47,24 +50,23 @@ namespace ForestOverlay.Modules
 
         private const float PickRadius = 9f;
         private const float DotSize = 4f;
-        private const int LineCapacity = 3000;
         private const int MaxLegend = 8;
 
+        // Category colours: bright, read on navy water and grey-blue land,
+        // and none of them green, amber or red (the zones' own).
         private static readonly Color[] Palette =
         {
-            new Color(0.30f, 0.65f, 1.00f), new Color(1.00f, 0.55f, 0.20f),
-            new Color(0.55f, 0.90f, 0.35f), new Color(0.95f, 0.35f, 0.75f),
-            new Color(0.25f, 0.90f, 0.85f), new Color(1.00f, 0.88f, 0.25f),
-            new Color(0.70f, 0.50f, 1.00f), new Color(1.00f, 0.40f, 0.40f),
+            new Color(0.35f, 0.75f, 1.00f), new Color(1.00f, 0.45f, 0.82f),
+            new Color(0.25f, 0.95f, 0.88f), new Color(0.72f, 0.55f, 1.00f),
+            new Color(0.85f, 1.00f, 0.40f), new Color(1.00f, 0.66f, 0.52f),
+            new Color(0.92f, 0.94f, 1.00f), new Color(0.58f, 0.64f, 1.00f),
         };
-        private static readonly Color StartColour = new Color(0.38f, 0.85f, 0.45f, 0.95f);
-        private static readonly Color CheckColour = new Color(0.98f, 0.75f, 0.26f, 0.95f);
-        private static readonly Color EndColour = new Color(0.95f, 0.36f, 0.36f, 0.95f);
-        private static readonly Color LineColour = new Color(0.35f, 0.95f, 1.00f, 0.9f);
-        private static readonly Color GhostColour = new Color(0.85f, 0.45f, 1.00f, 1f);
+        private static readonly Color StartColour = new Color(0.30f, 0.88f, 0.42f, 0.95f);
+        private static readonly Color CheckColour = new Color(1.00f, 0.78f, 0.18f, 0.95f);
+        private static readonly Color EndColour = new Color(1.00f, 0.32f, 0.32f, 0.95f);
         private static readonly Color Outline = new Color(0.05f, 0.05f, 0.05f, 0.9f);
         private static readonly Color SelectRing = new Color(1f, 1f, 1f, 1f);
-        private static readonly Color MapBackground = new Color(0.07f, 0.16f, 0.24f, 1f);
+        private static readonly Color MapBackground = new Color(0.05f, 0.07f, 0.13f, 1f);
         private static readonly Color KeyMark = new Color(0.85f, 0.85f, 0.85f, 1f);
 
         private MapView _view;
@@ -74,8 +76,8 @@ namespace ForestOverlay.Modules
         private Material _material;
         private Texture2D _white;
 
-        private ConfigEntry<bool> _onlyCavesCfg, _allZonesCfg, _lineCfg;
-        private bool _onlyCaves, _allZones, _showLine;
+        private ConfigEntry<bool> _allZonesCfg;
+        private bool _allZones;
 
         // --- spot cache (rebuilt when the library changes) ---------------
         private Segment[] _spots = new Segment[0];
@@ -94,12 +96,6 @@ namespace ForestOverlay.Modules
         private int _drawnCount;
         private int _hover = -1;
 
-        // --- comparison line ----------------------------------------------
-        private readonly float[] _lineX = new float[LineCapacity], _lineZ = new float[LineCapacity];
-        private int _lineCount;
-        private Attempt _lineFor;
-        private int _lineForSamples;
-
         // --- interaction -----------------------------------------------------
         private bool _dragging, _dragMoved;
         private Vector2 _dragFrom;
@@ -113,19 +109,17 @@ namespace ForestOverlay.Modules
         // The key (top right of the map): one row per kind of mark, shown
         // only while that mark is on the map (KeyShown, set in Tick).
         private const int KeySpot = 0, KeyCommunity = 1, KeyUnder = 2, KeyStart = 3, KeyCheck = 4,
-                          KeyEnd = 5, KeyLine = 6, KeyGhost = 7, KeyYou = 8, KeyRows = 9;
+                          KeyEnd = 5, KeyYou = 6, KeyRows = 7;
         private readonly GUIContent[] _key =
         {
-            new GUIContent("Spot"), new GUIContent("Community spot"), new GUIContent("Underground"),
+            new GUIContent("Spot"), new GUIContent("Runner spot"), new GUIContent("Underground"),
             new GUIContent("Start zone"), new GUIContent("Checkpoint"), new GUIContent("End zone"),
-            new GUIContent("Comparison run"), new GUIContent("Its ghost"), new GUIContent("You"),
+            new GUIContent("You"),
         };
         private readonly bool[] _keyShown = new bool[KeyRows];
         private int _keyCount;
-        private readonly GUIContent _hint = new GUIContent("Wheel or + / - to zoom, drag to pan, click a spot to select it");
-        private readonly GUIContent _onlyCavesLabel = new GUIContent("Only cave spots");
+        private readonly GUIContent _hint = new GUIContent("Wheel or + / - to zoom, drag to pan");
         private readonly GUIContent _allZonesLabel = new GUIContent("Every segment's zones");
-        private readonly GUIContent _lineLabel = new GUIContent("Comparison line + ghost");
         private GUIContent[] _legend = new GUIContent[0];
         private int[] _legendColour = new int[0];
         private Segment _selectedFor;
@@ -162,12 +156,8 @@ namespace ForestOverlay.Modules
             _practice = Host.Find<PracticeModule>();
             _runs = Host.Find<PracticeRunModule>();
 
-            _onlyCavesCfg = ctx.Config.Bind("Map", "OnlyCaveSpots", false, "Map tab: show only underground spots.");
             _allZonesCfg = ctx.Config.Bind("Map", "EverySegmentsZones", false, "Map tab: draw every timed segment's zones, not only the selected one's.");
-            _lineCfg = ctx.Config.Bind("Map", "ComparisonLine", true, "Map tab: draw the comparison run's line and ghost.");
-            _onlyCaves = _onlyCavesCfg.Value;
             _allZones = _allZonesCfg.Value;
-            _showLine = _lineCfg.Value;
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -204,7 +194,6 @@ namespace ForestOverlay.Modules
                 else if (_underNeedsTerrain && Terrain.activeTerrain != null) RebuildSpots();
             }
 
-            UpdateLine();
             UpdateSelected();
             UpdateStatus(now);
             UpdateKey();
@@ -227,14 +216,12 @@ namespace ForestOverlay.Modules
             bool spot = false, community = false, under = false, start = false, checks = false, end = false;
             for (int i = 0; i < _spots.Length; i++)
             {
-                if (!SpotShown(i)) continue;
                 if (_community[i]) community = true; else spot = true;
                 if (_under[i]) under = true;
                 if (_allZones) KeyZones(_spots[i], ref start, ref checks, ref end);
             }
             KeyZones(_practice != null ? _practice.SelectedSegment : null, ref start, ref checks, ref end);
             KeyZones(_runs != null ? _runs.TimedSegment : null, ref start, ref checks, ref end);
-            Vector3 ghost;
 
             _keyShown[KeySpot] = spot;
             _keyShown[KeyCommunity] = community;
@@ -242,8 +229,6 @@ namespace ForestOverlay.Modules
             _keyShown[KeyStart] = start;
             _keyShown[KeyCheck] = checks;
             _keyShown[KeyEnd] = end;
-            _keyShown[KeyLine] = _showLine && _lineCount > 1;
-            _keyShown[KeyGhost] = _showLine && _runs != null && _runs.GhostOnMap(out ghost);
             _keyShown[KeyYou] = Ctx.Player.Found;
             _keyCount = 0;
             for (int i = 0; i < KeyRows; i++) if (_keyShown[i]) _keyCount++;
@@ -322,19 +307,6 @@ namespace ForestOverlay.Modules
             _selectedRevision = int.MinValue;   // its "underground" may have changed
         }
 
-        private void UpdateLine()
-        {
-            Attempt a = _runs != null && _showLine ? _runs.ComparisonRun : null;
-            int count = a != null ? a.Samples.Count : 0;
-            if (ReferenceEquals(a, _lineFor) && count == _lineForSamples) return;
-            _lineFor = a;
-            _lineForSamples = count;
-            // ~1 m apart, coarser for a long run so it fits the arrays.
-            float step = 1f;
-            if (a != null && a.PathLength > LineCapacity) step = a.PathLength / (LineCapacity - 1);
-            _lineCount = a != null ? MapGeometry.Thin(a.Samples, step, _lineX, _lineZ) : 0;
-        }
-
         private void UpdateSelected()
         {
             Segment s = _practice != null ? _practice.SelectedSegment : null;
@@ -400,15 +372,9 @@ namespace ForestOverlay.Modules
             GUI.enabled = true;
             y += 26f;
 
-            // Toggles flow onto as many rows as the width needs.
-            float x = 0f;
-            bool v;
-            v = FlowToggle(ref x, ref y, w, _onlyCaves, _onlyCavesLabel);
-            if (v != _onlyCaves) { _onlyCaves = v; _onlyCavesCfg.Value = v; _hover = -1; }
-            v = FlowToggle(ref x, ref y, w, _allZones, _allZonesLabel);
+            float tw = Mathf.Min(w, GUI.skin.toggle.CalcSize(_allZonesLabel).x + 6f);
+            bool v = UiKit.Toggle(new Rect(0f, y, tw, 20f), _allZones, _allZonesLabel);
             if (v != _allZones) { _allZones = v; _allZonesCfg.Value = v; }
-            v = FlowToggle(ref x, ref y, w, _showLine, _lineLabel);
-            if (v != _showLine) { _showLine = v; _lineCfg.Value = v; }
             y += 24f;
 
             // The bottom panel's height, measured before the map takes the rest.
@@ -439,15 +405,6 @@ namespace ForestOverlay.Modules
             y += 26f;
             y += UiText.Draw(0f, y, w, _goStatus);
             UiText.DrawDim(0f, y, w, _status);
-        }
-
-        private static bool FlowToggle(ref float x, ref float y, float width, bool value, GUIContent label)
-        {
-            float tw = GUI.skin.toggle.CalcSize(label).x + 6f;
-            if (x > 0f && x + tw > width) { x = 0f; y += 22f; }
-            bool r = UiKit.Toggle(new Rect(x, y, tw, 20f), value, label);
-            x += tw + 10f;
-            return r;
         }
 
         // ------------------------------------------------------------------
@@ -530,17 +487,11 @@ namespace ForestOverlay.Modules
             return i >= 0 ? _vIndex[i] : -1;
         }
 
-        private bool SpotShown(int i)
-        {
-            return !_onlyCaves || _under[i];
-        }
-
         private void ProjectSpots()
         {
             _drawnCount = 0;
             for (int i = 0; i < _spots.Length; i++)
             {
-                if (!SpotShown(i)) continue;
                 Vector2 p = _view.WorldToView(_sx[i], _sz[i]);
                 if (p.x < DotSize || p.y < DotSize || p.x > _view.ViewW - DotSize || p.y > _view.ViewH - DotSize) continue;
                 _vx[_drawnCount] = p.x;
@@ -586,7 +537,6 @@ namespace ForestOverlay.Modules
         {
             if (!BeginGL(map)) return;
             DrawZones();
-            DrawRunLine();
             DrawSpots();
             DrawPlayer();
             EndGL();
@@ -622,7 +572,7 @@ namespace ForestOverlay.Modules
             if (_allZones)
             {
                 for (int i = 0; i < _spots.Length; i++)
-                    if (_spots[i].IsTimed && SpotShown(i)) DrawSegmentZones(_spots[i]);
+                    if (_spots[i].IsTimed) DrawSegmentZones(_spots[i]);
             }
             if (sel != null && sel.IsTimed) DrawSegmentZones(sel);
             if (timed != null && timed.IsTimed && !ReferenceEquals(timed, sel)) DrawSegmentZones(timed);
@@ -671,27 +621,6 @@ namespace ForestOverlay.Modules
             float r = t.Radius * s;
             if (r < 3f) { Dot(centre.x, centre.y, 3f, c); return; }
             Ring(centre.x, centre.y, r, c);
-        }
-
-        private void DrawRunLine()
-        {
-            if (!_showLine) return;
-            if (_lineCount > 1)
-            {
-                Vector2 prev = _view.WorldToView(_lineX[0], _lineZ[0]);
-                for (int i = 1; i < _lineCount; i++)
-                {
-                    Vector2 p = _view.WorldToView(_lineX[i], _lineZ[i]);
-                    Line(prev.x, prev.y, p.x, p.y, 2f, LineColour);
-                    prev = p;
-                }
-            }
-            Vector3 ghost;
-            if (_runs != null && _runs.GhostOnMap(out ghost))
-            {
-                Vector2 g = _view.WorldToView(ghost.x, ghost.z);
-                if (InsideBy(g, 6f)) { Dot(g.x, g.y, 6f, Outline); Dot(g.x, g.y, 4.5f, GhostColour); }
-            }
         }
 
         private void DrawSpots()
@@ -869,8 +798,6 @@ namespace ForestOverlay.Modules
                 case KeyStart: Ring(x, y, 5f, StartColour); break;
                 case KeyCheck: Ring(x, y, 5f, CheckColour); break;
                 case KeyEnd: Ring(x, y, 5f, EndColour); break;
-                case KeyLine: Line(x - 7f, y + 3f, x + 7f, y - 3f, 2f, LineColour); break;
-                case KeyGhost: Dot(x, y, 6f, Outline); Dot(x, y, 4.5f, GhostColour); break;
                 case KeyYou:
                     Arrow(new Vector2(x, y + 1f), 0f, -1f, 1f, 0f, 8f, Outline);
                     Arrow(new Vector2(x, y + 1f), 0f, -1f, 1f, 0f, 6f, Color.white); break;

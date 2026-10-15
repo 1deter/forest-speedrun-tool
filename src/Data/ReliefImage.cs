@@ -55,10 +55,17 @@ namespace ForestOverlay.Data
                     if (lit < 0f) lit = 0f;
 
                     float r, g, b;
+                    int o = (z * w + x) * 3;
+                    if (y >= seaLevel && (heights[z * w + xw] < seaLevel || heights[z * w + xe] < seaLevel ||
+                                          heights[zs * w + x] < seaLevel || heights[zn * w + x] < seaLevel))
+                    {
+                        // The coast: a thin tan line, one pixel, unshaded.
+                        rgb[o] = ToByte(CoastR); rgb[o + 1] = ToByte(CoastG); rgb[o + 2] = ToByte(CoastB);
+                        continue;
+                    }
                     HeightColour(y, seaLevel, out r, out g, out b);
                     float k = y < seaLevel ? 1f : 0.35f + 0.85f * lit;
 
-                    int o = (z * w + x) * 3;
                     rgb[o] = ToByte(r * k);
                     rgb[o + 1] = ToByte(g * k);
                     rgb[o + 2] = ToByte(b * k);
@@ -66,33 +73,37 @@ namespace ForestOverlay.Data
             }
         }
 
-        /// A colour for a height: sea blues by depth, then sand, forest
-        /// greens, rock and snow on the peaks (values 0..1).
+        /// The coast line's tan (the slate look, author 2026-10-11: mockup A).
+        public const float CoastR = 0.84f, CoastG = 0.74f, CoastB = 0.54f;
+
+        /// A colour for a height in the slate look (T-0332, mockup A: the
+        /// UI's navy): navy water darker with depth, grey-blue land a
+        /// little lighter with height, light slate snow on the peaks
+        /// (values 0..1, before the hill shading).
         public static void HeightColour(float y, float seaLevel, out float r, out float g, out float b)
         {
             if (y < seaLevel)
             {
                 float d = Math.Min(1f, (seaLevel - y) / 40f);
-                r = Lerp(0.20f, 0.06f, d); g = Lerp(0.42f, 0.18f, d); b = Lerp(0.58f, 0.36f, d);
+                r = Lerp(0.12f, 0.05f, d); g = Lerp(0.16f, 0.07f, d); b = Lerp(0.26f, 0.13f, d);
                 return;
             }
 
             float a = y - seaLevel;
-            if (a < 4f) { r = 0.78f; g = 0.72f; b = 0.52f; return; }            // shore
-            if (a < 90f)                                                         // forest
+            if (a < 90f)                                                         // land
             {
-                float t = (a - 4f) / 86f;
-                r = Lerp(0.36f, 0.42f, t); g = Lerp(0.52f, 0.48f, t); b = Lerp(0.28f, 0.30f, t);
+                float t = a / 90f;
+                r = Lerp(0.36f, 0.42f, t); g = Lerp(0.42f, 0.47f, t); b = Lerp(0.56f, 0.60f, t);
                 return;
             }
             if (a < 150f)                                                        // rock
             {
                 float t = (a - 90f) / 60f;
-                r = Lerp(0.42f, 0.55f, t); g = Lerp(0.48f, 0.52f, t); b = Lerp(0.30f, 0.48f, t);
+                r = Lerp(0.42f, 0.52f, t); g = Lerp(0.47f, 0.55f, t); b = Lerp(0.60f, 0.66f, t);
                 return;
             }
             float s = Math.Min(1f, (a - 150f) / 25f);                            // snow
-            r = Lerp(0.55f, 0.93f, s); g = Lerp(0.52f, 0.94f, s); b = Lerp(0.48f, 0.96f, s);
+            r = Lerp(0.52f, 0.86f, s); g = Lerp(0.55f, 0.89f, s); b = Lerp(0.66f, 0.95f, s);
         }
 
         private static float Lerp(float a, float b, float t) { return a + (b - a) * t; }

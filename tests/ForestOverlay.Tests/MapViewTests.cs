@@ -183,20 +183,16 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void ThinDropsClosePointsAndKeepsTheEnd()
+        public void ShadeDrawsAThinCoastBetweenSeaAndLand()
         {
-            List<RunSample> s = new List<RunSample>();
-            for (int i = 0; i <= 100; i++) s.Add(new RunSample { T = i * 0.1f, P = new Vector3(i * 0.5f, 0f, 0f) });
-            float[] xs = new float[100], zs = new float[100];
-            int n = MapGeometry.Thin(s, 2f, xs, zs);
-            Assert.Equal(26, n);   // 0, 2, 4 ... 50
-            Assert.Equal(0f, xs[0]);
-            Assert.Equal(50f, xs[n - 1]);
-
-            float[] small = new float[5], smallZ = new float[5];
-            n = MapGeometry.Thin(s, 2f, small, smallZ);
-            Assert.Equal(5, n);
-            Assert.Equal(50f, small[4]);   // full: the end still ends it
+            int w = 4, h = 1;
+            float[] hs = { 0f, 0f, 60f, 60f };   // sea, sea, land, land
+            byte[] rgb = new byte[w * h * 3];
+            ReliefImage.Shade(hs, w, h, 1f, 1f, ReliefImage.SeaLevel, rgb);
+            byte tan = (byte)(ReliefImage.CoastR * 255f + 0.5f);
+            Assert.Equal(tan, rgb[2 * 3]);        // the first land pixel: coast
+            Assert.NotEqual(tan, rgb[3 * 3]);     // one in: land
+            Assert.True(rgb[1 * 3 + 2] > rgb[1 * 3]);   // the sea stays blue
         }
 
         [Fact]

@@ -227,34 +227,6 @@ namespace ForestOverlay.Data
             }
         }
 
-        /// Keeps a run's positions at least `minStep` metres apart (the last
-        /// always kept), into xs / zs; returns how many. Past the arrays'
-        /// length the rest is dropped but the final point still ends it.
-        public static int Thin(IList<RunSample> samples, float minStep, float[] xs, float[] zs)
-        {
-            if (samples == null || xs == null || zs == null) return 0;
-            int cap = Math.Min(xs.Length, zs.Length);
-            int n = samples.Count;
-            if (n == 0 || cap == 0) return 0;
-
-            float step2 = minStep * minStep;
-            int count = 0;
-            for (int i = 0; i < n; i++)
-            {
-                Vector3 p = samples[i].P;
-                bool last = i == n - 1;
-                if (count > 0 && !last)
-                {
-                    float dx = p.x - xs[count - 1], dz = p.z - zs[count - 1];
-                    if (dx * dx + dz * dz < step2) continue;
-                }
-                if (count == cap) count = cap - 1;   // full: the end replaces the tail
-                xs[count] = p.x; zs[count] = p.z;
-                count++;
-            }
-            return count;
-        }
-
         /// A category's colour slot, stable across launches (FNV-1a of the
         /// category key, case and outer spaces ignored).
         public static int PaletteIndex(string category, int paletteSize)

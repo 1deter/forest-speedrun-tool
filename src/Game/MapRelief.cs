@@ -11,7 +11,7 @@ namespace ForestOverlay.Game
     // The Map tab's picture: a shaded relief of the island made once from
     // the live terrain (Terrain.activeTerrain = MainTerrain, 3500 x 3500 m
     // at (-1750, -1742.63), heightmap 2049 - docs/website.md), cached as
-    // config/ForestOverlay/map/relief-<size x>x<size z>-<px>.png so later
+    // config/ForestOverlay/map/relief-slate-<size x>x<size z>-<px>.png so later
     // launches only read a file.
     //
     // No hitch: the heights are read a few rows a frame on the main thread
@@ -71,7 +71,8 @@ namespace ForestOverlay.Game
 
         public static string CacheName(float sizeX, float sizeZ, int px)
         {
-            return "relief-" + Mathf.RoundToInt(sizeX) + "x" + Mathf.RoundToInt(sizeZ) + "-" + px + ".png";
+            // "slate": the look's version (T-0332), so an older look's file is not loaded.
+            return "relief-slate-" + Mathf.RoundToInt(sizeX) + "x" + Mathf.RoundToInt(sizeZ) + "-" + px + ".png";
         }
 
         /// The terrain's height at (x, z), or NaN with no terrain.
@@ -100,6 +101,13 @@ namespace ForestOverlay.Game
             }
 
             _cachePath = Path.Combine(_folder, CacheName(SizeX, SizeZ, Size));
+            // The green look's file (before T-0332): ~3 MB nothing reads now.
+            try
+            {
+                string old = Path.Combine(_folder, "relief-" + Mathf.RoundToInt(SizeX) + "x" + Mathf.RoundToInt(SizeZ) + "-" + Size + ".png");
+                if (File.Exists(old)) File.Delete(old);
+            }
+            catch (Exception) { }
             if (File.Exists(_cachePath)) { StartLoad(); return; }
 
             if (t == null || t.terrainData == null)
