@@ -157,14 +157,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-15 (T-0036 confirmed on v0.24.292):** with auto-restart a
-  finish shows the results panel, not the 1.2 s toast (toast only with
-  `[Splits] ResultsPanel` off); a checkpoint-resumed finish gets a
-  practice results panel (`RunResults.BuildPractice`: live rows only, no
-  PB). Author chose: panel still closes at the next clock start.
-  Checker accept, smoke PASS, forest-tester confirmed. T-0337 confirmed
-  too. **Next:** `tasks.py next`. Unchanged: T-0333 needs a non-maker
-  confirmation; cloud/t-0320 and cloud/t-0321 to merge + check.
+- **2026-10-15 overnight (loop R-0008, 5 rounds, author away):** released
+  **v0.24.293-297**: T-0302 input overlay (Edit HUD > Panels; .294 fixed
+  the defaults at 1366x768; hand test -> testers, forest-ux follow-ups
+  T-0353..T-0357, three parked), and T-0316 (When I die defaults to the
+  game's death, a stored Automatic migrates), T-0320 (trend colours page),
+  T-0321 (Reset profile lines) - all three confirmed in game. T-0296 paint
+  parked for the author (checker block: T-0352 far rock collider, 8 % band
+  trade-offs, old strokes on collider spheres vanish, probe +2.2 ms); its
+  code stays on branch t-0296-paint-surface (4ac9858f, not merged). New:
+  `loop.py begin --max-context`, `scripts/sendinput.py` (real OS input, no
+  click). **Next:** the author's T-0296 / T-0355..T-0357 answers, then
+  `tasks.py next`. Unchanged: T-0333 needs a non-maker confirmation.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

@@ -2,6 +2,17 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-15 (overnight run R-0008 handoff)
+
+- **2026-10-15 (T-0036 confirmed on v0.24.292):** with auto-restart a
+  finish shows the results panel, not the 1.2 s toast (toast only with
+  `[Splits] ResultsPanel` off); a checkpoint-resumed finish gets a
+  practice results panel (`RunResults.BuildPractice`: live rows only, no
+  PB). Author chose: panel still closes at the next clock start.
+  Checker accept, smoke PASS, forest-tester confirmed. T-0337 confirmed
+  too. **Next:** `tasks.py next`. Unchanged: T-0333 needs a non-maker
+  confirmation; cloud/t-0320 and cloud/t-0321 to merge + check.
+
 ## Moved out 2026-10-14 (session-start handoff)
 
 - **2026-10-11 (T-0025 merge + release, author present):** ui-redesign
