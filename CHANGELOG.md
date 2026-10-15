@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.310 - 2026-10-15
+
+- Text in the F2 window is now sharp at 1080p, 1440p and above instead of slightly blurry; the window's layout is unchanged.
+
 ## v0.24.309 - 2026-10-15
 
 - Edit HUD, input overlay: a tile you add now appears in a free spot at the bottom right of the screen instead of behind the Edit HUD window, so you can drag it straight away.
