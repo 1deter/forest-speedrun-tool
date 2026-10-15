@@ -406,3 +406,4 @@ Confirmed 2026-10-10 (game, bridge, ui-redesign f0e0707, banner v0.24.267): **th
 - T-0355: Input overlay added tiles (E, F, Q via AddTile) land side by side in free bottom-right slots, clear of the Edit HUD window and health ring, none stacked (shot t0355-added; 1920x1200 only, called AddTile not clicked, + Wheel not added: already in default) - v0.24.309, bridge 2026-10-15
 - v0.24.310: F2 window text sharp at 1080p-class (1920x1200) and 1440p, layout unchanged, scroll clips, map aligned; 768p unchanged (T-0360, bridge 2026-10-15)
 - T-0358: Input overlay "Only while pressed": no key tile idle, held W (SendInput) = only W tile at Level 1, gone on release (Active False), Edit HUD shows all tiles (shots inputs-only-idle, inputs-held-auto3, inputs-released-auto3, inputs-only-edit) - v0.24.313, bridge 2026-10-16
+- Map tab category colours by legend order: 8 categories, 8 distinct colours, dots match legend (v0.24.314, bridge 2026-10-16)
