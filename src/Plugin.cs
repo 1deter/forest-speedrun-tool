@@ -447,7 +447,7 @@ namespace ForestOverlay
             float colW = 0f, colH = 0f;
             for (int i = 0; i < lines; i++)
             {
-                if (widgets != null && widgets.IsFree(hud.LineIndex(i))) continue;
+                if (widgets != null && widgets.LeavesColumn(hud.LineIndex(i))) continue;
                 GUIContent c = hud.ValueAt(i);
                 float cw = Mathf.Min(wrapW, CrispText.CalcSize(_hudLabelStyle, c).x);
                 float ch = Mathf.Max(lineHeight, CrispText.CalcHeight(_hudLabelStyle, c, wrapW));
@@ -481,7 +481,7 @@ namespace ForestOverlay
                 for (int i = 0; i < lines; i++)
                 {
                     int li = hud.LineIndex(i);
-                    if (widgets.IsFree(li)) continue;
+                    if (widgets.LeavesColumn(li)) continue;
                     widgets.ColumnLineEvent(new Rect(x, ly, _colW[i], _colH[i]), li, blocked);
                     ly += _colH[i];
                 }
@@ -498,7 +498,7 @@ namespace ForestOverlay
             float yy = y;
             for (int i = 0; i < lines; i++)
             {
-                if (widgets != null && widgets.IsFree(hud.LineIndex(i))) continue;
+                if (widgets != null && widgets.LeavesColumn(hud.LineIndex(i))) continue;
                 int trend = hud.TrendAt(i);
                 if (trend >= 0)
                 {

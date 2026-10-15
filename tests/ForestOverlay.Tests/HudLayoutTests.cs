@@ -29,6 +29,25 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DockedValueRoundTripsAndExcludesFree()
+        {
+            HudLayout a = new HudLayout();
+            Assert.True(a.Dock("ShowSpeed"));
+            Assert.False(a.Dock("ShowSpeed"));
+            a.Detach("ShowPosition", 5f, 6f);
+            a.Dock("ShowPosition");
+            Assert.False(a.Find("ShowPosition").Free);
+            HudLayout b = HudLayout.Parse(a.Format());
+            Assert.True(b.IsDocked("ShowSpeed"));
+            Assert.True(b.IsDocked("ShowPosition"));
+            Assert.True(b.Attach("ShowSpeed"));
+            Assert.Null(b.Find("ShowSpeed"));
+            b.Detach("ShowPosition", 1f, 2f);
+            Assert.False(b.IsDocked("ShowPosition"));
+            Assert.False(HudLayout.Parse("ShowSpeed: free, x=1, y=2, docked").Find("ShowSpeed").Docked);
+        }
+
+        [Fact]
         public void TextWithCommasQuotesAndBackslashesRoundTrips()
         {
             HudLayout a = new HudLayout();

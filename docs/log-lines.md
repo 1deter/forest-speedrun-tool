@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-241 prefixes from 789 log calls.
+241 prefixes from 790 log calls.
 
 ## `Aerial capture`
 
@@ -672,6 +672,7 @@ Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of th
 Written by HudWidgets.cs; info.
 
 - info `HUD widget '<..>' <..>.`
+- info `HUD widget '<..>' docked in the splits panel.`
 - info `HUD widget '<..>' placed on its own at (<..>, <..>).`
 - info `HUD widget '<..>' put back in the column.`
 - info `HUD widget '<..>' text: before "<..>", after "<..>".`

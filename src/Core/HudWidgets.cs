@@ -99,6 +99,7 @@ namespace ForestOverlay.Core
         private readonly ManualLogSource _log;
         private HudLayout _layout = new HudLayout();
         private readonly bool[] _free = new bool[HudLines.All.Length];
+        private readonly bool[] _docked = new bool[HudLines.All.Length];
         private readonly string[] _before = new string[HudLines.All.Length];
         private readonly string[] _after = new string[HudLines.All.Length];
         private readonly bool[] _trendOn = new bool[HudLines.All.Length];
@@ -133,6 +134,19 @@ namespace ForestOverlay.Core
             return lineIndex >= 0 && lineIndex < _free.Length && _free[lineIndex];
         }
 
+        /// Whether line `lineIndex` is a row of the splits panel (T-0338).
+        public bool IsDocked(int lineIndex)
+        {
+            return lineIndex >= 0 && lineIndex < _docked.Length && _docked[lineIndex];
+        }
+
+        /// Whether the column skips line `lineIndex`: placed on its own or
+        /// docked in the splits panel.
+        public bool LeavesColumn(int lineIndex)
+        {
+            return IsFree(lineIndex) || IsDocked(lineIndex);
+        }
+
         /// Whether line `lineIndex` is coloured by its trend (T-0023).
         public bool TrendOn(int lineIndex)
         {
@@ -160,6 +174,7 @@ namespace ForestOverlay.Core
             for (int i = 0; i < _free.Length; i++)
             {
                 _free[i] = false;
+                _docked[i] = false;
                 _before[i] = "";
                 _after[i] = "";
                 _trendOn[i] = false;
@@ -176,6 +191,7 @@ namespace ForestOverlay.Core
                 _widgetLine[i] = line;
                 if (line < 0) continue;     // a key from a newer version: kept in the file, not drawn
                 _free[line] = w.Free;
+                _docked[line] = w.Docked;
                 _before[line] = w.Before;
                 _after[line] = w.After;
                 _trendOn[line] = w.Trend && HudLines.All[line].Trend;
@@ -199,6 +215,16 @@ namespace ForestOverlay.Core
             Rebuild();
             Save();
             if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' placed on its own at (" + Mathf.RoundToInt(x) + ", " + Mathf.RoundToInt(y) + ").");
+        }
+
+        /// The value becomes a row of the splits panel (T-0338).
+        public void Dock(int lineIndex)
+        {
+            if (lineIndex < 0 || lineIndex >= HudLines.All.Length || HudLines.All[lineIndex].ConfigKey == null) return;
+            if (!_layout.Dock(HudLines.All[lineIndex].ConfigKey)) return;
+            Rebuild();
+            Save();
+            if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' docked in the splits panel.");
         }
 
         public void Attach(int lineIndex)
@@ -580,6 +606,10 @@ namespace ForestOverlay.Core
         private static readonly GUIContent TrendText = new GUIContent("Trend");
         private static readonly GUIContent TrendTip = new GUIContent(
             "Colour the value by its trend: gaining, losing or steady. The colours are in Settings -> HUD.");
+        private static readonly GUIContent PanelText = new GUIContent("In panel");
+        private static readonly GUIContent PanelTip = new GUIContent(
+            "Make this value a row of the splits panel, under its lines, as a LiveSplit component. It shows there while the panel does.");
+        private static readonly GUIContent UndockTip = new GUIContent("Take this value out of the splits panel, back into the column.");
         private static readonly GUIContent ColumnText = new GUIContent("To column");
         private static readonly GUIContent ColumnTip = new GUIContent("Put this value back in the column.");
         private static readonly GUIContent SmallerText = new GUIContent("-");
@@ -685,7 +715,7 @@ namespace ForestOverlay.Core
             return done;
         }
 
-        private const float TextW = 56f, TrendW = 54f, Gap = 6f, StepW = 26f, ScaleW = 40f, ColumnW = 84f;
+        private const float TextW = 56f, TrendW = 54f, Gap = 6f, StepW = 26f, ScaleW = 40f, ColumnW = 84f, PanelW = 66f;
         private GUIStyle _centred;
 
         // name toggle ... (placed:) [-] 1x [+] [To column] [Trend] [Text] -
@@ -719,6 +749,20 @@ namespace ForestOverlay.Core
             }
 
             HudWidgetLayout wl = WidgetOf(i);
+            if (wl == null || !wl.Docked)
+            {
+                x -= Gap + PanelW;
+                Rect dockR = new Rect(x, ry, PanelW, h);
+                if (GUI.Button(dockR, PanelText)) Dock(i);
+                UiKit.Hint(dockR, PanelTip);
+            }
+            if (wl != null && wl.Docked)
+            {
+                x -= Gap + ColumnW;
+                Rect undockR = new Rect(x, ry, ColumnW, h);
+                if (GUI.Button(undockR, ColumnText)) Attach(i);
+                UiKit.Hint(undockR, UndockTip);
+            }
             if (wl != null && wl.Free)
             {
                 x -= Gap + ColumnW;

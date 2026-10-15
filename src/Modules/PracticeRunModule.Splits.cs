@@ -943,7 +943,21 @@ namespace ForestOverlay.Modules
             int cols = 0;
             for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
             int rows = full ? Mathf.Max(maxRows, VisibleRows(maxRows)) : VisibleRows(maxRows);
-            return 8f + RowH + (cols > 0 ? RowH : 0f) + rows * RowH + (TimerInPanel ? TimerH : 0f) + (lines > 0 ? 4f + lines * RowH : 0f);
+            int docked = DockedRows();
+            return 8f + RowH + (cols > 0 ? RowH : 0f) + rows * RowH + (TimerInPanel ? TimerH : 0f) + (lines > 0 ? 4f + lines * RowH : 0f)
+                   + (docked > 0 ? 4f + docked * RowH : 0f);
+        }
+
+        /// How many HUD values the runner docked in the panel (T-0338) that
+        /// have something to show now.
+        private int DockedRows()
+        {
+            HudBuilder hud = Host.Hud;
+            HudWidgets widgets = hud.Widgets;
+            if (widgets == null) return 0;
+            int n = 0;
+            for (int j = 0; j < hud.Count; j++) if (widgets.IsDocked(hud.LineIndex(j))) n++;
+            return n;
         }
 
         /// The table at (x, y), `w` wide; returns its height. `header` adds
@@ -1021,6 +1035,26 @@ namespace ForestOverlay.Modules
                 // is cut only when it meets its label, not at a fixed column.
                 CrispText.Label(new Rect(x, y, w, RowH), _lineValues[i], st);
                 y += RowH;
+            }
+
+            // The HUD values docked here (T-0338): LiveSplit's extra components,
+            // a name left and its value right, under the summary lines.
+            HudBuilder hud = Host.Hud;
+            HudWidgets widgets = hud.Widgets;
+            bool anyDocked = false;
+            if (widgets != null)
+            {
+                for (int j = 0; j < hud.Count; j++)
+                {
+                    int li = hud.LineIndex(j);
+                    if (!widgets.IsDocked(li)) continue;
+                    if (!anyDocked) { y += 4f; anyDocked = true; }
+                    GUIContent label = hud.LabelAt(j);
+                    if (HudLines.All[li].Label != null && !string.IsNullOrEmpty(label.text))
+                        CrispText.Label(new Rect(x, y, w - 90f, RowH), label, _nameStyle);
+                    CrispText.Label(new Rect(x, y, w, RowH), hud.ValueAt(j), _cellStyle);
+                    y += RowH;
+                }
             }
             return y - y0;
         }

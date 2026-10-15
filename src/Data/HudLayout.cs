@@ -36,9 +36,12 @@ namespace ForestOverlay.Data
         public string Before = "", After = "";
         /// Coloured by its trend (T-0023).
         public bool Trend;
+        /// A row of the splits panel (T-0338): docked under its lines, as a
+        /// LiveSplit component. Never together with Free.
+        public bool Docked;
 
         /// Nothing left to keep: in the column, no text, no trend colour.
-        public bool IsDefault { get { return !Free && Before.Length == 0 && After.Length == 0 && !Trend; } }
+        public bool IsDefault { get { return !Free && !Docked && Before.Length == 0 && After.Length == 0 && !Trend; } }
     }
 
     public sealed class HudLayout
@@ -80,17 +83,38 @@ namespace ForestOverlay.Data
         {
             HudWidgetLayout w = Get(key);
             w.Free = true;
+            w.Docked = false;
             w.X = x;
             w.Y = y;
             return w;
+        }
+
+        public bool IsDocked(string key)
+        {
+            HudWidgetLayout w = Find(key);
+            return w != null && w.Docked;
+        }
+
+        /// The value into the splits panel. False when it already was.
+        public bool Dock(string key)
+        {
+            if (key == null) return false;
+            HudWidgetLayout w = Find(key);
+            if (w != null && w.Docked) return false;
+            w = Get(key);
+            w.Docked = true;
+            w.Free = false;
+            w.Scale = 1f;
+            return true;
         }
 
         /// Back into the column (its text stays). False when it already was.
         public bool Attach(string key)
         {
             HudWidgetLayout w = Find(key);
-            if (w == null || !w.Free) return false;
+            if (w == null || (!w.Free && !w.Docked)) return false;
             w.Free = false;
+            w.Docked = false;
             w.Scale = 1f;
             if (w.IsDefault) Widgets.Remove(w);
             return true;
@@ -198,7 +222,8 @@ namespace ForestOverlay.Data
                 {
                     string tok = tokens[t].Trim();
                     if (tok.Length == 0) continue;
-                    if (string.Equals(tok, "free", StringComparison.OrdinalIgnoreCase)) { w.Free = true; continue; }
+                    if (string.Equals(tok, "free", StringComparison.OrdinalIgnoreCase)) { w.Free = true; w.Docked = false; continue; }
+                    if (string.Equals(tok, "docked", StringComparison.OrdinalIgnoreCase)) { w.Docked = !w.Free; continue; }
                     if (string.Equals(tok, "trend", StringComparison.OrdinalIgnoreCase)) { w.Trend = true; continue; }
                     int eq = tok.IndexOf('=');
                     if (eq <= 0) continue;
@@ -214,6 +239,7 @@ namespace ForestOverlay.Data
                         case "after": w.After = CleanText(Unquote(val)); break;
                     }
                 }
+                if (w.Free) w.Docked = false;
                 if (!w.IsDefault) layout.Widgets.Add(w);
             }
             return layout;
@@ -278,6 +304,7 @@ namespace ForestOverlay.Data
                       .Append(", scale=").Append(N(ClampScale(w.Scale)));
                     sep = ", ";
                 }
+                if (w.Docked) { sb.Append(" docked"); sep = ", "; }
                 if (w.Before.Length > 0) { sb.Append(sep).Append("before=").Append(Quote(w.Before)); sep = ", "; }
                 if (w.After.Length > 0) { sb.Append(sep).Append("after=").Append(Quote(w.After)); sep = ", "; }
                 if (w.Trend) sb.Append(sep).Append("trend");
