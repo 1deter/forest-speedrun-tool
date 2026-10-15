@@ -520,7 +520,7 @@ namespace ForestOverlay.Modules
         {
             float w = area.width - 20f;
             Rect content = new Rect(0, 0, w, _contentHeight);
-            _scroll = GUI.BeginScrollView(area, _scroll, content);
+            _scroll = WinPx.BeginScrollView(area, _scroll, content);
 
             float y = 4f;
 
@@ -550,9 +550,9 @@ namespace ForestOverlay.Modules
             }
             y += Row + 6f;
 
-            GUI.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
+            WinPx.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
             y += 20f;
-            _radius = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _radius, 5f, 120f);
+            _radius = WinPx.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _radius, 5f, 120f);
             y += Row + 6f;
 
             // --- filters ----------------------------------------------------
@@ -562,20 +562,20 @@ namespace ForestOverlay.Modules
 
             if (_limitSize)
             {
-                float size = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _maxSize,
+                float size = WinPx.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _maxSize,
                                                   MinSizeLimit, MaxSizeLimit);
                 if (!Mathf.Approximately(size, _maxSize)) { _maxSize = size; FiltersChanged(); }
                 y += Row;
             }
 
             UiText.Note(12, y, w - 24, FilterHelp);
-            string text = GUI.TextField(new Rect(12, y, w - 24, 22), _excludeText);
+            string text = WinPx.TextField(new Rect(12, y, w - 24, 22), _excludeText);
             if (text != _excludeText) { _excludeText = text; FiltersChanged(); }
             y += Row + 2f;
 
             if (_hiddenLabel.Length > 0)
             {
-                GUI.Label(new Rect(12, y, w - 24, 20), _hiddenLabel);
+                WinPx.Label(new Rect(12, y, w - 24, 20), _hiddenLabel);
                 y += 22f;
             }
 
@@ -583,17 +583,17 @@ namespace ForestOverlay.Modules
 
             if (_largestCount > 0)
             {
-                GUI.Label(new Rect(12, y, w - 24, 20), "Largest drawn - Hide adds the name to the list:");
+                WinPx.Label(new Rect(12, y, w - 24, 20), "Largest drawn - Hide adds the name to the list:");
                 y += 22f;
 
                 for (int i = 0; i < _largestCount; i++)
                 {
-                    if (GUI.Button(new Rect(12, y, 56, 20), "Hide"))
+                    if (WinPx.Button(new Rect(12, y, 56, 20), "Hide"))
                     {
                         _excludeText = VolumeFilter.AddToExclude(_excludeText, _largestNames[i]);
                         FiltersChanged();
                     }
-                    GUI.Label(new Rect(74, y, w - 86, 20), _largestLabels[i]);
+                    WinPx.Label(new Rect(74, y, w - 86, 20), _largestLabels[i]);
                     y += 22f;
                 }
             }
@@ -606,7 +606,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, "Boxes, spheres, capsules and simple meshes show their real shape; very large or unreadable meshes show their bounds.") + 4f;
 
             _contentHeight = y;
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
 
         // --- drawn by the Settings tab's Performance fold ---------------------

@@ -334,9 +334,9 @@ namespace ForestOverlay.Modules
                     bool before = GUI.enabled;
                     // A click meant for the F2 window over the panel is the window's.
                     GUI.enabled = before && !overWindow;
-                    if (GUI.Button(new Rect(x, y, 110f, 24f), "Restart")) Restart();
-                    if (GUI.Button(new Rect(x + 116f, y, 80f, 24f), "Close")) CloseResults();
-                    if (_resLink.Length > 0 && GUI.Button(new Rect(x + 202f, y, 110f, 24f), "Copy link"))
+                    if (WinPx.Button(new Rect(x, y, 110f, 24f), "Restart")) Restart();
+                    if (WinPx.Button(new Rect(x + 116f, y, 80f, 24f), "Close")) CloseResults();
+                    if (_resLink.Length > 0 && WinPx.Button(new Rect(x + 202f, y, 110f, 24f), "Copy link"))
                     {
                         GUIUtility.systemCopyBuffer = _resLink;
                         Ctx.Notice.Show("Copied the attempt's link.", 3f);
@@ -427,9 +427,9 @@ namespace ForestOverlay.Modules
 
             Color before = GUI.color;
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Mathf.Max(Opacity, 0.85f)));
-            GUI.Box(panel, GUIContent.none, _panelStyle);
+            WinPx.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
-            if (_resDragging || editing) GUI.Box(panel, GUIContent.none, UiKit.Outline);
+            if (_resDragging || editing) WinPx.Box(panel, GUIContent.none, UiKit.Outline);
             if (real) ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
             else
             {
@@ -437,7 +437,7 @@ namespace ForestOverlay.Modules
                 UiText.Draw(x + 8f, y + 8f + ResRowH, inner, ResultsPlaceholder, _placeholderStyle);
             }
             // The right edge's grip.
-            if (editing) GUI.Box(new Rect(panel.xMax - 5f, panel.y + panel.height * 0.5f - 12f, 5f, 24f), GUIContent.none, UiKit.Handle);
+            if (editing) WinPx.Box(new Rect(panel.xMax - 5f, panel.y + panel.height * 0.5f - 12f, 5f, 24f), GUIContent.none, UiKit.Handle);
         }
 
         // Edit HUD mode: the right edge sets the width, written on release.

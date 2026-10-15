@@ -257,14 +257,14 @@ namespace ForestOverlay.Modules
         {
             if (!Ctx.Run.Active)
             {
-                if (GUI.Button(new Rect(0, y + 2, 28, 22), "<")) Pick(-1);
-                if (GUI.Button(new Rect(32, y + 2, 28, 22), ">")) Pick(1);
+                if (WinPx.Button(new Rect(0, y + 2, 28, 22), "<")) Pick(-1);
+                if (WinPx.Button(new Rect(32, y + 2, 28, 22), ">")) Pick(1);
                 // Automatic refresh off (Settings > Network, T-0326).
                 if (!Ctx.Network.Refresh.Value)
                 {
                     GUI.enabled = !_fetching;
                     Rect checkR = new Rect(64, y + 2, 90, 22);
-                    if (GUI.Button(checkR, CheckNowText))
+                    if (WinPx.Button(checkR, CheckNowText))
                     {
                         Ctx.Log.LogInfo("Run mode: categories Check now.");
                         FetchCategories();

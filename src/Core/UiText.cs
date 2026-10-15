@@ -57,7 +57,7 @@ namespace ForestOverlay.Core
             // One shared cache: set only for the row under the mouse.
             Rect r = new Rect(0f, y - 24f, x + width, 24f);
             Event e = Event.current;
-            if (e == null || !r.Contains(e.mousePosition)) return 0f;
+            if (e == null || !r.Contains(WinPx.Mouse)) return 0f;
             UiKit.Hint(r, text, NoteCache);
             return 0f;
         }
@@ -87,7 +87,7 @@ namespace ForestOverlay.Core
         public static float BoxHeight(string text, float width)
         {
             Scratch.text = string.IsNullOrEmpty(text) ? " " : text;
-            return Mathf.Max(22f, Box.CalcHeight(Scratch, width));
+            return Mathf.Max(22f, WinPx.CalcHeight(Box, Scratch, width));
         }
 
         /// A text box that wraps and grows downwards instead of scrolling
@@ -95,7 +95,7 @@ namespace ForestOverlay.Core
         /// go into one-line log and answer formats, so a newline is a space.
         public static string TextBox(float x, float y, float width, float height, string value)
         {
-            string v = GUI.TextArea(new Rect(x, y, width, height), value ?? "", Box);
+            string v = WinPx.TextArea(new Rect(x, y, width, height), value ?? "", Box);
             if (v.IndexOf('\n') >= 0) v = v.Replace('\n', ' ');
             return v;
         }

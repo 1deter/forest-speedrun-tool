@@ -394,7 +394,7 @@ namespace ForestOverlay.Modules
             {
                 GUI.enabled = !_recentCheckBusy;
                 Rect checkR = new Rect(0, y + 1, 90, 20);
-                if (GUI.Button(checkR, RecentCheckText))
+                if (WinPx.Button(checkR, RecentCheckText))
                 {
                     Ctx.Log.LogInfo("Attempts: Check now - asking the website about the listed attempts.");
                     _askedThisOpen.Clear();
@@ -407,7 +407,7 @@ namespace ForestOverlay.Modules
             }
             for (int i = 0; i < _recentIds.Count && i < _recentText.Count; i++)
             {
-                if (GUI.Button(new Rect(0, y + 1, 80, 20), "Copy link"))
+                if (WinPx.Button(new Rect(0, y + 1, 80, 20), "Copy link"))
                 {
                     GUIUtility.systemCopyBuffer = SiteProtocol.AttemptUrl(_url.Value, _recentIds[i]);
                     _attemptState = "copied the link to attempt " + _recentIds[i];

@@ -417,7 +417,7 @@ namespace ForestOverlay.Modules
                 GUI.enabled = false;
                 for (int i = 0; i < _runCaps.Count && i < _runCapLabels.Count; i++)
                 {
-                    GUI.Label(new Rect(30, y, w - 20f, 22), _runCapLabels[i]);
+                    WinPx.Label(new Rect(30, y, w - 20f, 22), _runCapLabels[i]);
                     y += 22f;
                 }
                 GUI.enabled = guiWas;
@@ -429,8 +429,8 @@ namespace ForestOverlay.Modules
 
             for (int i = 0; i < _caps.Count && i < _capLabels.Count && i < _capTexts.Count; i++)
             {
-                GUI.Label(new Rect(30, y, 260, 22), _capLabels[i]);
-                string t = GUI.TextField(new Rect(294, y, 60, 22), _capTexts[i]);
+                WinPx.Label(new Rect(30, y, 260, 22), _capLabels[i]);
+                string t = WinPx.TextField(new Rect(294, y, 60, 22), _capTexts[i]);
                 if (t != _capTexts[i])
                 {
                     _capTexts[i] = t;
@@ -442,12 +442,12 @@ namespace ForestOverlay.Modules
                         _capsWriteAt = Time.unscaledTime + 0.6f;   // one config write once typing stops
                     }
                 }
-                if (GUI.Button(new Rect(360, y, 24, 22), "x")) { RemoveCap(i); break; }
+                if (WinPx.Button(new Rect(360, y, 24, 22), "x")) { RemoveCap(i); break; }
                 y += 24f;
             }
 
-            GUI.Label(new Rect(30, y, 60, 22), "Find");
-            string q = GUI.TextField(new Rect(90, y, 200, 22), _capQuery);
+            WinPx.Label(new Rect(30, y, 60, 22), "Find");
+            string q = WinPx.TextField(new Rect(90, y, 200, 22), _capQuery);
             if (q != _capQuery)
             {
                 _capQuery = q;
@@ -458,7 +458,7 @@ namespace ForestOverlay.Modules
             y += 24f;
             for (int i = 0; i < _capResults.Count && i < _capResultLabels.Count; i++)
             {
-                if (GUI.Button(new Rect(90, y, 200, 20), _capResultLabels[i])) { AddCap(_capResults[i]); break; }
+                if (WinPx.Button(new Rect(90, y, 200, 20), _capResultLabels[i])) { AddCap(_capResults[i]); break; }
                 y += 22f;
             }
             y += UiText.Draw(30, y, w - 20f, _capsStatus) + 2f;
@@ -642,10 +642,10 @@ namespace ForestOverlay.Modules
 
             float top = DrawFastBuild(DrawCaps(DrawLogs(4f)));
 
-            GUI.Label(new Rect(10, top, 46, 22), "Filter");
-            _filter = GUI.TextField(new Rect(58, top, 200, 22), _filter);
+            WinPx.Label(new Rect(10, top, 46, 22), "Filter");
+            _filter = WinPx.TextField(new Rect(58, top, 200, 22), _filter);
 
-            if (GUI.Button(new Rect(266, top, 56, 22), "Clear")) _filter = "";
+            if (WinPx.Button(new Rect(266, top, 56, 22), "Clear")) _filter = "";
             if (!ReferenceEquals(_filter, _shownFilter)) RebuildShown();
             // No Refresh (T-0254): Tick rebuilds the rows 4 times a second while the tab shows.
 
@@ -695,17 +695,17 @@ namespace ForestOverlay.Modules
             bool forced = Ctx.Run.Forces("logs");
             if (!_logsCfg.Value && !forced) return y + 4f;
 
-            GUI.Label(new Rect(30, y, 110, 22), "Logs it holds");
+            WinPx.Label(new Rect(30, y, 110, 22), "Logs it holds");
             if (forced)
             {
                 // The category's number, greyed (the runner's own is kept).
                 GUI.enabled = false;
-                GUI.Label(new Rect(140, y, w - 130f, 22), _runLogCapText);
+                WinPx.Label(new Rect(140, y, w - 130f, 22), _runLogCapText);
                 GUI.enabled = guiWas;
             }
             else
             {
-                string t = GUI.TextField(new Rect(140, y, 50, 22), _capText);
+                string t = WinPx.TextField(new Rect(140, y, 50, 22), _capText);
                 if (t != _capText)
                 {
                     _capText = t;
@@ -732,7 +732,7 @@ namespace ForestOverlay.Modules
             // The held rows, then the items not held the filter matches.
             int rows = _shown.Count + _notHeld.Count;
             Rect content = new Rect(0, 0, listRect.width - 20f, rows * RowHeight);
-            _scroll = GUI.BeginScrollView(listRect, _scroll, content);
+            _scroll = WinPx.BeginScrollView(listRect, _scroll, content);
 
             // Virtualised: only rows inside the viewport are drawn. Drawing
             // every row on every OnGUI pass is what caused the GC spike the
@@ -748,8 +748,8 @@ namespace ForestOverlay.Modules
                     int c = _notHeld[thisRow - _shown.Count];
                     if (c >= _catalogNames.Count) continue;
                     if (IsPinned(_catalogNames[c]))
-                        GUI.Label(new Rect(2f, thisRow * RowHeight, 14f, RowHeight), PinMark);
-                    if (GUI.Button(new Rect(16f, thisRow * RowHeight, content.width - 16f, RowHeight), _catalogLabels[c], _notHeldStyle))
+                        WinPx.Label(new Rect(2f, thisRow * RowHeight, 14f, RowHeight), PinMark);
+                    if (WinPx.Button(new Rect(16f, thisRow * RowHeight, content.width - 16f, RowHeight), _catalogLabels[c], _notHeldStyle))
                         TogglePin(_catalogNames[c]);
                     continue;
                 }
@@ -760,13 +760,13 @@ namespace ForestOverlay.Modules
                 Rect r = new Rect(16f, thisRow * RowHeight, content.width - 16f, RowHeight);
 
                 if (IsPinned(stacks[i].Name))
-                    GUI.Label(new Rect(2f, thisRow * RowHeight, 14f, RowHeight), PinMark);
+                    WinPx.Label(new Rect(2f, thisRow * RowHeight, 14f, RowHeight), PinMark);
 
-                if (GUI.Button(r, _rowLabels[i], _rowStyle))
+                if (WinPx.Button(r, _rowLabels[i], _rowStyle))
                     TogglePin(stacks[i].Name);
             }
 
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
 
         private bool IsPinned(string name)

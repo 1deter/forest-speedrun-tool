@@ -339,8 +339,8 @@ namespace ForestOverlay.Modules
             Rect box = new Rect(x, y, w, h);
             HandleCodeDrag(box, w);
 
-            GUI.Box(box, GUIContent.none, _boxStyle);
-            if (_dragging || HudEditing) GUI.Box(box, GUIContent.none, UiKit.Outline);
+            WinPx.Box(box, GUIContent.none, _boxStyle);
+            if (_dragging || HudEditing) WinPx.Box(box, GUIContent.none, UiKit.Outline);
             CrispText.Label(new Rect(x, y + 2f, w, size * 1.25f), _codeText, _codeStyle);
             CrispText.Label(new Rect(x, y + size * 1.25f + 2f, w, _subStyle.fontSize * 1.6f), _codeSub, _subStyle);
         }

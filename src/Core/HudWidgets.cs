@@ -442,12 +442,12 @@ namespace ForestOverlay.Core
 
             // No card (author, 2026-10-05: transparent, like Momentum Mod) and no
             // text shadow (author, 2026-10-11, T-0022: plain text for now).
-            if (Editing) GUI.Box(rect, GUIContent.none, UiKit.WidgetCard);
+            if (Editing) WinPx.Box(rect, GUIContent.none, UiKit.WidgetCard);
             float cy = rect.y + CardPad - 1f;
             float cx = rect.x + CardPad;
             if (slots == 0)
             {
-                GUI.Label(new Rect(cx, cy, width, valueH), NotShowing, st.Label);
+                WinPx.Label(new Rect(cx, cy, width, valueH), NotShowing, st.Label);
             }
             else
             {
@@ -463,10 +463,10 @@ namespace ForestOverlay.Core
                         // The colour only: the glyphs (and the font's texture) stay.
                         Color normal = st.Value.normal.textColor;
                         st.Value.normal.textColor = _settings.TrendColour((TrendState)trend);
-                        GUI.Label(vr, hud.ValueAt(j), st.Value);
+                        WinPx.Label(vr, hud.ValueAt(j), st.Value);
                         st.Value.normal.textColor = normal;
                     }
-                    else GUI.Label(vr, hud.ValueAt(j), st.Value);
+                    else WinPx.Label(vr, hud.ValueAt(j), st.Value);
                     GUI.matrix = m;
                     cy += valueH;
                 }
@@ -474,8 +474,8 @@ namespace ForestOverlay.Core
 
             if (Editing)
             {
-                GUI.Box(rect, GUIContent.none, UiKit.Outline);
-                GUI.Box(new Rect(rect.xMax - HandleSize, rect.yMax - HandleSize, HandleSize, HandleSize), GUIContent.none, UiKit.Handle);
+                WinPx.Box(rect, GUIContent.none, UiKit.Outline);
+                WinPx.Box(new Rect(rect.xMax - HandleSize, rect.yMax - HandleSize, HandleSize, HandleSize), GUIContent.none, UiKit.Handle);
             }
         }
 
@@ -662,7 +662,7 @@ namespace ForestOverlay.Core
             y += UiText.Draw(0f, y, w, EditHint, UiKit.HintStyle) + 4f;
             if (UiKit.PrimaryButton(new Rect(0f, y, 100f, 26f), DoneText)) done = true;
             bool resetArmed = Time.unscaledTime <= _resetArmedUntil;
-            if (GUI.Button(new Rect(106f, y, 120f, 26f), resetArmed ? ResetSureText : ResetText)) ResetProfile();
+            if (WinPx.Button(new Rect(106f, y, 120f, 26f), resetArmed ? ResetSureText : ResetText)) ResetProfile();
             UiKit.Hint(new Rect(106f, y, 120f, 26f), ResetTip);
             y += 30f;
             // One short line under Reset profile (T-0321): what it wipes while armed, then that it was done.
@@ -691,15 +691,15 @@ namespace ForestOverlay.Core
             float viewH = area.height - y;
             bool scrolls = contentH > viewH;
             float cw = scrolls ? w - 18f : w;
-            _scroll = GUI.BeginScrollView(new Rect(0f, y, w, viewH), _scroll, new Rect(0f, 0f, cw, contentH));
+            _scroll = WinPx.BeginScrollView(new Rect(0f, y, w, viewH), _scroll, new Rect(0f, 0f, cw, contentH));
             float ry = DrawProfiles(0f, cw);
             // The on-screen panels first (author, 2026-10-10: set up where
             // they are shown, and visible - not under 24 value rows).
             if (host != null)
             {
-                GUI.Label(new Rect(0f, ry, cw, 22f), PanelsTitle, UiKit.Title);
+                WinPx.Label(new Rect(0f, ry, cw, 22f), PanelsTitle, UiKit.Title);
                 float after = host.DrawHudEditors(ry + 24f, cw);
-                GUI.Label(new Rect(0f, after + 4f, cw, 22f), ValuesTitle, UiKit.Title);
+                WinPx.Label(new Rect(0f, after + 4f, cw, 22f), ValuesTitle, UiKit.Title);
                 ry = after + 30f;
             }
             _panelsH = ry;
@@ -712,7 +712,7 @@ namespace ForestOverlay.Core
                 string heading = HudLines.HeadingAt(i);
                 if (heading != null)
                 {
-                    GUI.Label(new Rect(0f, ry + 2f, cw, 22f), heading, _headStyle);
+                    WinPx.Label(new Rect(0f, ry + 2f, cw, 22f), heading, _headStyle);
                     ry += HeadH;
                 }
                 ry = DrawRow(i, ry, cw, settings);
@@ -730,7 +730,7 @@ namespace ForestOverlay.Core
             }
             _idleH = idleH;   // sizes the next pass's scroll view
             UiText.Draw(0f, ry + 4f, cw - 4f, LockedNote, UiKit.HintStyle);
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
             return done;
         }
 
@@ -774,28 +774,28 @@ namespace ForestOverlay.Core
             {
                 x -= Gap + PanelW;
                 Rect dockR = new Rect(x, ry, PanelW, h);
-                if (GUI.Button(dockR, PanelText)) Dock(i);
+                if (WinPx.Button(dockR, PanelText)) Dock(i);
                 UiKit.Hint(dockR, PanelTip);
             }
             if (wl != null && wl.Docked)
             {
                 x -= Gap + ColumnW;
                 Rect undockR = new Rect(x, ry, ColumnW, h);
-                if (GUI.Button(undockR, ColumnText)) Attach(i);
+                if (WinPx.Button(undockR, ColumnText)) Attach(i);
                 UiKit.Hint(undockR, UndockTip);
             }
             if (wl != null && wl.Free)
             {
                 x -= Gap + ColumnW;
                 Rect backR = new Rect(x, ry, ColumnW, h);
-                if (GUI.Button(backR, ColumnText)) Attach(i);
+                if (WinPx.Button(backR, ColumnText)) Attach(i);
                 UiKit.Hint(backR, ColumnTip);
                 x -= Gap + StepW;
-                if (GUI.Button(new Rect(x, ry, StepW, h), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
+                if (WinPx.Button(new Rect(x, ry, StepW, h), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
                 x -= ScaleW;
-                GUI.Label(new Rect(x, ry, ScaleW, h), ScaleText(wl.Scale), _centred);
+                WinPx.Label(new Rect(x, ry, ScaleW, h), ScaleText(wl.Scale), _centred);
                 x -= StepW;
-                if (GUI.Button(new Rect(x, ry, StepW, h), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
+                if (WinPx.Button(new Rect(x, ry, StepW, h), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
             }
 
             // The 100% totals: its own module's switch (HudLines External).
@@ -814,7 +814,7 @@ namespace ForestOverlay.Core
             if (wl != null && wl.Free)
             {
                 Rect dockR = new Rect(cw - PanelW, ry - 4f, PanelW, h);
-                if (GUI.Button(dockR, PanelText)) Dock(i);
+                if (WinPx.Button(dockR, PanelText)) Dock(i);
                 UiKit.Hint(dockR, PanelTip);
                 ry += RowH;
             }
@@ -822,10 +822,10 @@ namespace ForestOverlay.Core
             if (_textLine == i)
             {
                 float half = (cw - 8f) * 0.5f;
-                GUI.Label(new Rect(8f, ry, 46f, h), BeforeText);
-                string b = GUI.TextField(new Rect(54f, ry, half - 54f, h), _beforeEdit, HudLayout.MaxText);
-                GUI.Label(new Rect(half + 8f, ry, 40f, h), AfterText);
-                string a = GUI.TextField(new Rect(half + 48f, ry, cw - half - 48f, h), _afterEdit, HudLayout.MaxText);
+                WinPx.Label(new Rect(8f, ry, 46f, h), BeforeText);
+                string b = WinPx.TextField(new Rect(54f, ry, half - 54f, h), _beforeEdit, HudLayout.MaxText);
+                WinPx.Label(new Rect(half + 8f, ry, 40f, h), AfterText);
+                string a = WinPx.TextField(new Rect(half + 48f, ry, cw - half - 48f, h), _afterEdit, HudLayout.MaxText);
                 if (!string.Equals(b, _beforeEdit) || !string.Equals(a, _afterEdit))
                 {
                     _beforeEdit = b;

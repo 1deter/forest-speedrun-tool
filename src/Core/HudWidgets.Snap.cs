@@ -103,8 +103,8 @@ namespace ForestOverlay.Core
             if (!Editing || (!_guideX && !_guideY) || e == null || e.type != EventType.Repaint) return;
             Texture2D t = UiKit.AccentTexture;
             UiScale ui = _settings.Ui;
-            if (_guideX) GUI.DrawTexture(new Rect(Mathf.Min(Mathf.Round(_guideAtX), ui.VW - 1f), 0f, 1f, ui.VH), t);
-            if (_guideY) GUI.DrawTexture(new Rect(0f, Mathf.Min(Mathf.Round(_guideAtY), ui.VH - 1f), ui.VW, 1f), t);
+            if (_guideX) WinPx.DrawTexture(new Rect(Mathf.Min(Mathf.Round(_guideAtX), ui.VW - 1f), 0f, 1f, ui.VH), t);
+            if (_guideY) WinPx.DrawTexture(new Rect(0f, Mathf.Min(Mathf.Round(_guideAtY), ui.VH - 1f), ui.VW, 1f), t);
         }
     }
 }

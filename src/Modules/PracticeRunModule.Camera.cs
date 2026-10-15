@@ -298,7 +298,7 @@ namespace ForestOverlay.Modules
 
         private float DrawGhostLook(float y, float w)
         {
-            GUI.Label(new Rect(0, y, 90, 20), "Ghost look:");
+            WinPx.Label(new Rect(0, y, 90, 20), "Ghost look:");
             bool figure = FigureLook;
             if (UiKit.Toggle(new Rect(94, y, 80, 20), !figure, " marker") && figure) _ghostLookCfg.Value = GhostMarker;
             if (UiKit.Toggle(new Rect(178, y, 160, 20), figure, " figure (facing)") && !figure) _ghostLookCfg.Value = GhostFigureLook;
@@ -308,10 +308,10 @@ namespace ForestOverlay.Modules
         private float DrawCameraSection(float y, float w)
         {
             y += UiText.Draw(0, y, w, CameraHeading);
-            if (GUI.Button(new Rect(0, y, 200, 22), _camOn ? "Stop watching" : "Watch the comparison run")) ToggleReplayCamera();
+            if (WinPx.Button(new Rect(0, y, 200, 22), _camOn ? "Stop watching" : "Watch the comparison run")) ToggleReplayCamera();
             y += 26f;
 
-            GUI.Label(new Rect(0, y, 50, 20), "View:");
+            WinPx.Label(new Rect(0, y, 50, 20), "View:");
             bool oneRow = w >= 420f;
             float x = 54f;
             ReplayView v = _camView;
@@ -328,18 +328,18 @@ namespace ForestOverlay.Modules
             if (_camOn)
             {
                 y += UiText.Draw(0, y, w, _camTimeText);
-                float t = GUI.HorizontalSlider(new Rect(0, y + 4, w - 4, 16), _clock.T, 0f, Mathf.Max(0.01f, _clock.Duration));
+                float t = WinPx.HorizontalSlider(new Rect(0, y + 4, w - 4, 16), _clock.T, 0f, Mathf.Max(0.01f, _clock.Duration));
                 if (Mathf.Abs(t - _clock.T) > 0.0001f) { _clock.T = t; _camSnap = true; }
                 y += 24f;
                 // One row when it fits, else two (narrow windows).
                 bool wide = w >= 350f;
-                if (GUI.Button(new Rect(0, y, 90, 22), _clock.Paused ? "Play" : "Pause")) _clock.TogglePause();
-                if (GUI.Button(new Rect(94, y, 60, 22), "-1 s")) { _clock.Seek(-1f); _camSnap = true; }
-                if (GUI.Button(new Rect(158, y, 60, 22), "+1 s")) { _clock.Seek(1f); _camSnap = true; }
+                if (WinPx.Button(new Rect(0, y, 90, 22), _clock.Paused ? "Play" : "Pause")) _clock.TogglePause();
+                if (WinPx.Button(new Rect(94, y, 60, 22), "-1 s")) { _clock.Seek(-1f); _camSnap = true; }
+                if (WinPx.Button(new Rect(158, y, 60, 22), "+1 s")) { _clock.Seek(1f); _camSnap = true; }
                 float bx = wide ? 222f : 0f;
                 if (!wide) y += 26f;
-                if (GUI.Button(new Rect(bx, y, 60, 22), "slower")) _clock.Slower();
-                if (GUI.Button(new Rect(bx + 64f, y, 60, 22), "faster")) _clock.Faster();
+                if (WinPx.Button(new Rect(bx, y, 60, 22), "slower")) _clock.Slower();
+                if (WinPx.Button(new Rect(bx + 64f, y, 60, 22), "faster")) _clock.Faster();
                 y += 26f;
             }
             if (_camStatusText.text.Length > 0) y += UiText.Draw(0, y, w, _camStatusText);

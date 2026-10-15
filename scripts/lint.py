@@ -581,6 +581,38 @@ def check_render(hits):
             for path, n, cls in hits]
 
 
+# ---------------------------------------------------------------- window pixels
+
+RAW_GUI = re.compile(r"\bGUI\.(Label|Button|Box|Toggle|Toolbar|SelectionGrid|TextField|TextArea|PasswordField|"
+                     r"HorizontalSlider|VerticalSlider|DrawTexture|DrawTextureWithTexCoords|BeginGroup|EndGroup|"
+                     r"BeginScrollView|EndScrollView|DragWindow)\s*\(")
+# The facade itself, and CrispText (it hands over to WinPx in the window before its own GUI calls).
+RAW_GUI_ALLOWED = ("src/Core/WinPx.cs", "src/Core/CrispText.cs")
+
+
+def raw_gui_hits(path, text):
+    """[(path, line, call)] of every plain GUI control in src/Core or src/Modules outside WinPx (T-0360): the F2
+    window draws at identity in pixels and lays out in units, so a control that skips WinPx draws 1/K size in the
+    wrong place. Outside the window WinPx is the plain GUI call, so the HUD loses nothing."""
+    if not (path.startswith("src/Core/") or path.startswith("src/Modules/")) or path in RAW_GUI_ALLOWED:
+        return []
+    out = []
+    for n, c in code_lines(text):
+        m = RAW_GUI.search(c)
+        if m:
+            out.append((path, n, "GUI." + m.group(1)))
+    return out
+
+
+def check_raw_gui(hits):
+    return [Problem("%s:%d calls %s directly" % (path, n, call),
+                    "the F2 window draws at identity in screen pixels while modules lay out in window units; only "
+                    "Core/WinPx converts (T-0360) - a plain GUI call there draws 1/K size in the wrong place",
+                    "call WinPx.%s with the same arguments (it is the plain GUI call outside the window); a mouse "
+                    "read in window code is WinPx.Mouse" % call.split(".")[1])
+            for path, n, call in hits]
+
+
 # ---------------------------------------------------------------- UnityWebRequest
 
 def web_request_hits(path, text):
@@ -622,7 +654,7 @@ def check_bot_globalization(csproj):
 
 # ---------------------------------------------------------------- UI heuristics
 
-LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
+LABEL_20 = re.compile(r'(?:GUI|WinPx)\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
 DRAW_METHOD = re.compile(r"\bvoid\s+(OnGUI|DrawTab)\s*\([^)]*\)\s*(\{.*)?$")
 # `new` of a struct allocates nothing; everything else does.
 STRUCTS = r"(?:Rect|Vector2|Vector3|Vector4|Color|Color32|Quaternion|Matrix4x4|KeyValuePair<[^>]*>)"
@@ -737,8 +769,8 @@ def moveto_hits(path, text):
     return out
 
 
-SLIDER_OR_FIELD = re.compile(r"\bGUI(?:Layout)?\.(?:HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
-OTHER_CONTROL = re.compile(r"\bGUI(?:Layout)?\.(?:Button|Toggle|Label|Box|Toolbar|SelectionGrid|HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+SLIDER_OR_FIELD = re.compile(r"\b(?:GUI(?:Layout)?|WinPx)\.(?:HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+OTHER_CONTROL = re.compile(r"\b(?:GUI(?:Layout)?|WinPx)\.(?:Button|Toggle|Label|Box|Toolbar|SelectionGrid|HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
 CONFIG_WRITE = re.compile(r"\.Value\s*=(?!=)")
 # A write that waits for the value to settle: a timer, or the mouse release.
 SETTLED = re.compile(r"MouseUp|unscaledTime|realtimeSinceStartup|_writeAt|[Ss]ettle|[Dd]ebounce")
@@ -1010,6 +1042,7 @@ def main(argv=None):
     probs += check_bot_globalization(read(BOT_CSPROJ))
     probs += check_web_requests([h for p, t in src_texts() for h in web_request_hits(p, t)])
     probs += check_render([h for p, t in src_texts() for h in render_hits(p, t)])
+    probs += check_raw_gui([h for p, t in src_texts() for h in raw_gui_hits(p, t)])
     probs += check_mojibake(tracked_text())
     probs += check_deploy(read(DEPLOY))
     probs += check_router(read(ROUTER))

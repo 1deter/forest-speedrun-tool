@@ -904,24 +904,24 @@ namespace ForestOverlay.Modules
             float t = DrawStartStrip(w);
 
             // --- toolbar ---------------------------------------------------
-            if (GUI.Button(new Rect(0, t, 70, 24), "New")) CreateNew();
+            if (WinPx.Button(new Rect(0, t, 70, 24), "New")) CreateNew();
 
             GUI.enabled = _selected != null;
-            if (GUI.Button(new Rect(74, t, 80, 24), "Duplicate")) Duplicate();
+            if (WinPx.Button(new Rect(74, t, 80, 24), "Duplicate")) Duplicate();
             GUI.enabled = _selected != null && !SegmentLibrary.IsCommunity(_selected);
-            if (GUI.Button(new Rect(158, t, 70, 24), "Delete")) Delete();
+            if (WinPx.Button(new Rect(158, t, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
             if (UiKit.Toggle(new Rect(232, t, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
 
             // --- filter ----------------------------------------------------
-            GUI.Label(new Rect(0, t + 30, 36, 20), "Find");
-            string filter = GUI.TextField(new Rect(38, t + 28, ListWidth - 80, 22), _filter);
+            WinPx.Label(new Rect(0, t + 30, 36, 20), "Find");
+            string filter = WinPx.TextField(new Rect(38, t + 28, ListWidth - 80, 22), _filter);
             if (filter != _filter) { _filter = filter; RebuildVisible(); }
-            if (GUI.Button(new Rect(ListWidth - 38, t + 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
+            if (WinPx.Button(new Rect(ListWidth - 38, t + 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
 
             // Which zones are drawn (all / next only during a run / off).
             float zx = ListWidth + 14;
-            GUI.Label(new Rect(zx, t + 30, 46, 20), "Zones");
+            WinPx.Label(new Rect(zx, t + 30, 46, 20), "Zones");
             ZoneMode mode = _zoneMode;
             if (UiKit.Toggle(new Rect(zx + 48, t + 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
             if (UiKit.Toggle(new Rect(zx + 96, t + 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
@@ -963,7 +963,7 @@ namespace ForestOverlay.Modules
         {
             RefreshStripText();
             float h = _stripH;
-            GUI.Box(new Rect(0, 0, w, h), GUIContent.none, UiKit.Card);
+            WinPx.Box(new Rect(0, 0, w, h), GUIContent.none, UiKit.Card);
 
             Segment s = _selected;
             Rect r = new Rect(6, 5, 96, 24);
@@ -1052,10 +1052,10 @@ namespace ForestOverlay.Modules
 
         private void DrawList(Rect area)
         {
-            GUI.Box(area, GUIContent.none);
+            WinPx.Box(area, GUIContent.none);
 
             Rect content = new Rect(0, 0, area.width - 20f, _rows.Count * RowHeight + 4f);
-            _listScroll = GUI.BeginScrollView(area, _listScroll, content);
+            _listScroll = WinPx.BeginScrollView(area, _listScroll, content);
 
             for (int i = 0; i < _rows.Count; i++)
             {
@@ -1066,7 +1066,7 @@ namespace ForestOverlay.Modules
 
                 if (_rows[i].IsHeader)
                 {
-                    if (GUI.Button(new Rect(2f, rowY, content.width - 4f, RowHeight - 2f),
+                    if (WinPx.Button(new Rect(2f, rowY, content.width - 4f, RowHeight - 2f),
                                    _rowLabels[i], _headerStyle))
                     {
                         ToggleCategory(_rows[i].Category);
@@ -1082,7 +1082,7 @@ namespace ForestOverlay.Modules
                 // A click on the selected row too closes the Import view: an
                 // import selects its spot, so that is the row clicked next
                 // (author, 2026-10-11, T-0307).
-                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
+                if (WinPx.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
                 {
                     if (isSelected) _importing = false;
                     else
@@ -1093,7 +1093,7 @@ namespace ForestOverlay.Modules
                 }
 
                 GUI.enabled = entry.HasSpawn;
-                if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
+                if (WinPx.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
                 {
                     // Go selects its row too (author, 2026-10-10, T-0271): the
                     // strip, F7 and the HUD's Spot then name the same spot.
@@ -1104,11 +1104,11 @@ namespace ForestOverlay.Modules
                 GUI.enabled = true;
             }
 
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
 
             if (_entryCount == 0)
             {
-                GUI.Label(new Rect(area.x + 8, area.y + 8, area.width - 16, 80),
+                WinPx.Label(new Rect(area.x + 8, area.y + 8, area.width - 16, 80),
                           _library.All.Count == 0
                               ? "Nothing yet.\n\nStand somewhere and\npress New (or F6)."
                               : "No matches for that filter.");
@@ -1122,7 +1122,7 @@ namespace ForestOverlay.Modules
 
             if (_selected == null)
             {
-                GUI.Label(new Rect(area.x, area.y + 8, area.width, 80),
+                WinPx.Label(new Rect(area.x, area.y + 8, area.width, 80),
                           "Select an entry on the left, or press New.\n\n" +
                           "Every entry is somewhere you can teleport to.\n" +
                           "Tick 'Timed segment' to make it a timed run.");
@@ -1135,7 +1135,7 @@ namespace ForestOverlay.Modules
 
             // The height drawn last pass - wrapped text makes it vary.
             Rect content = new Rect(0, 0, w - 20f, Mathf.Max(_editHeight, 200f));
-            _editScroll = GUI.BeginScrollView(area, _editScroll, content);
+            _editScroll = WinPx.BeginScrollView(area, _editScroll, content);
 
             // Not 0: a text field sits 2 px above its row and the scroll
             // view clipped its top edge (author, v0.22.3).
@@ -1155,19 +1155,19 @@ namespace ForestOverlay.Modules
             y += 6f;
 
             // --- spawn -----------------------------------------------------
-            GUI.Label(new Rect(0, y, 74, 20), "Spawn");
+            WinPx.Label(new Rect(0, y, 74, 20), "Spawn");
             Vector3 typed;
-            if (!s.HasSpawn) GUI.Label(new Rect(80, y, cw - 220, 20), "(none - cannot teleport here)");
+            if (!s.HasSpawn) WinPx.Label(new Rect(80, y, cw - 220, 20), "(none - cannot teleport here)");
             else if (CoordsField(new Rect(80, y - 1, cw - 220, 20), SpawnSlot, 0, s.SpawnPosition, true, out typed))
             {
                 s.SpawnPosition = typed;
                 Touch();
             }
 
-            if (GUI.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
+            if (WinPx.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
 
             GUI.enabled = s.HasSpawn;
-            if (GUI.Button(new Rect(cw - 76, y - 2, 42, 22), "Go")) Teleport(s);
+            if (WinPx.Button(new Rect(cw - 76, y - 2, 42, 22), "Go")) Teleport(s);
             GUI.enabled = true;
             y += 30f;
 
@@ -1180,7 +1180,7 @@ namespace ForestOverlay.Modules
             bool timed = UiKit.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
             if (timed != s.IsTimed) ToggleTimed(s, timed);
 
-            GUI.Label(new Rect(156, y, cw - 166, 20),
+            WinPx.Label(new Rect(156, y, cw - 166, 20),
                       timed ? "runs start -> end, splitting at checkpoints"
                             : "teleport only - tick to add a start and end",
                       _dimStyle);
@@ -1212,7 +1212,7 @@ namespace ForestOverlay.Modules
                         Touch();
                     }
 
-                    if (GUI.Button(new Rect(cw - 26f, before - 2f, 22f, 22f), "x"))
+                    if (WinPx.Button(new Rect(cw - 26f, before - 2f, 22f, 22f), "x"))
                     {
                         s.RemoveCheckpoint(i);
                         Touch();
@@ -1220,7 +1220,7 @@ namespace ForestOverlay.Modules
                     }
                 }
 
-                if (GUI.Button(new Rect(0, y, 160, 22), "Add checkpoint here"))
+                if (WinPx.Button(new Rect(0, y, 160, 22), "Add checkpoint here"))
                 {
                     s.Checkpoints.Add(ZoneHere());
                     Touch();
@@ -1232,7 +1232,7 @@ namespace ForestOverlay.Modules
             }
 
             _editHeight = y + 40f;   // room for the item search results below a trigger
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
 
         // --- autosplit list (v0.24.186) ---------------------------------------
@@ -1248,8 +1248,8 @@ namespace ForestOverlay.Modules
             if (s.AutoSplit.Count == 0 && !UsesAutoSplit(s)) return y;
             if (!ReferenceEquals(_autoFor, s)) { _autoFor = s; _autoText = SegmentFormat.AutoSplitText(s); }
 
-            GUI.Label(new Rect(0, y, 74, 20), "Autosplit");
-            string edited = GUI.TextField(new Rect(80, y - 2, cw - 90, 22), _autoText);
+            WinPx.Label(new Rect(0, y, 74, 20), "Autosplit");
+            string edited = WinPx.TextField(new Rect(80, y - 2, cw - 90, 22), _autoText);
             if (edited != _autoText)
             {
                 _autoText = edited;
@@ -1323,10 +1323,10 @@ namespace ForestOverlay.Modules
 
         private float DrawCave(float y, float cw, Segment s)
         {
-            GUI.Label(new Rect(0, y, 74, 20), "Cave");
+            WinPx.Label(new Rect(0, y, 74, 20), "Cave");
             int at = Array.IndexOf(CaveChoices, s.Cave ?? "");
-            if (GUI.Button(new Rect(80, y - 2, 26, 22), "<")) { s.Cave = CaveChoices[((at < 0 ? 0 : at) - 1 + CaveChoices.Length) % CaveChoices.Length]; Touch(); }
-            if (GUI.Button(new Rect(108, y - 2, 26, 22), ">")) { s.Cave = CaveChoices[((at < 0 ? 0 : at) + 1) % CaveChoices.Length]; Touch(); }
+            if (WinPx.Button(new Rect(80, y - 2, 26, 22), "<")) { s.Cave = CaveChoices[((at < 0 ? 0 : at) - 1 + CaveChoices.Length) % CaveChoices.Length]; Touch(); }
+            if (WinPx.Button(new Rect(108, y - 2, 26, 22), ">")) { s.Cave = CaveChoices[((at < 0 ? 0 : at) + 1) % CaveChoices.Length]; Touch(); }
             if (!ReferenceEquals(_caveLabelFor, s.Cave))
             {
                 _caveLabelFor = s.Cave;
@@ -1365,7 +1365,7 @@ namespace ForestOverlay.Modules
             const float labelW = 74f;
             float x0 = labelW + 6f;
 
-            GUI.Label(new Rect(0, y, labelW, 20), label);
+            WinPx.Label(new Rect(0, y, labelW, 20), label);
 
             float x = x0;
             x = KindButton(x, ref y, x0, w, "zone", TriggerKind.Zone, ZoneShape.Sphere, ref t);
@@ -1392,7 +1392,7 @@ namespace ForestOverlay.Modules
                             Touch();
                         }
 
-                        if (GUI.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
+                        if (WinPx.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
                         {
                             Vector3 p;
                             if (TryPlayerPosition(out p))
@@ -1425,17 +1425,17 @@ namespace ForestOverlay.Modules
                         // step within the group shown; the text field takes
                         // any name (crafted-<item> for an item not listed).
                         int group = EventGroupOf(t.EventName);
-                        if (GUI.Button(new Rect(x0, y - 2f, 92f, 22f), EventGroupNames[group]))
+                        if (WinPx.Button(new Rect(x0, y - 2f, 92f, 22f), EventGroupNames[group]))
                         {
                             t.EventName = EventGroup((group + 1) % EventGroupNames.Length)[0];
                             Touch();
                         }
                         y += 24f;
 
-                        if (GUI.Button(new Rect(x0, y - 2f, 26f, 22f), "<")) { t.EventName = StepEvent(t.EventName, -1); Touch(); }
-                        if (GUI.Button(new Rect(x0 + 28f, y - 2f, 26f, 22f), ">")) { t.EventName = StepEvent(t.EventName, 1); Touch(); }
+                        if (WinPx.Button(new Rect(x0, y - 2f, 26f, 22f), "<")) { t.EventName = StepEvent(t.EventName, -1); Touch(); }
+                        if (WinPx.Button(new Rect(x0 + 28f, y - 2f, 26f, 22f), ">")) { t.EventName = StepEvent(t.EventName, 1); Touch(); }
 
-                        string name = GUI.TextField(new Rect(x0 + 58f, y - 2f, w - x0 - 64f, 22f), t.EventName ?? "");
+                        string name = WinPx.TextField(new Rect(x0 + 58f, y - 2f, w - x0 - 64f, 22f), t.EventName ?? "");
                         // A typed `moving` is the first input now, as a stored one is (T-0282).
                         if (name != t.EventName) { t.EventName = TriggerParser.MigrateEventName(name); Touch(); }
                         y += 24f;
@@ -1448,12 +1448,12 @@ namespace ForestOverlay.Modules
                     }
 
                 case TriggerKind.Manual:
-                    GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "only fires on the hotkey", _dimStyle);
+                    WinPx.Label(new Rect(x0, y, w - x0 - 6f, 20), "only fires on the hotkey", _dimStyle);
                     y += 22f;
                     break;
 
                 default:
-                    GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "not set - pick a kind above", _dimStyle);
+                    WinPx.Label(new Rect(x0, y, w - x0 - 6f, 20), "not set - pick a kind above", _dimStyle);
                     y += 22f;
                     break;
             }
@@ -1629,14 +1629,14 @@ namespace ForestOverlay.Modules
 
         private float SphereFields(float y, float w, float x0, ref Trigger t, int slot)
         {
-            GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, 1, "radius", t.Radius));
+            WinPx.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, 1, "radius", t.Radius));
 
             // Written only when dragged: the slider shows a default for a
             // zero size and clamps to its range, and writing that back
             // marked an entry edited just for being looked at.
             float sliderX = x0 + 114f;
             float shown = Mathf.Clamp(t.Radius <= 0f ? DefaultRadius : t.Radius, 0.5f, 25f);
-            float r = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f), shown, 0.5f, 25f);
+            float r = WinPx.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f), shown, 0.5f, 25f);
             if (!Mathf.Approximately(r, shown)) { t.Radius = r; Touch(); }
 
             return y + 26f;
@@ -1664,9 +1664,9 @@ namespace ForestOverlay.Modules
 
             // The turn: Here / switching to box set it from your facing;
             // this fine-tunes. Depth runs along it.
-            GUI.Label(new Rect(x0, y, 110f, 20), DegreesLabel(slot, 6, "turn", t.Yaw));
+            WinPx.Label(new Rect(x0, y, 110f, 20), DegreesLabel(slot, 6, "turn", t.Yaw));
             float sliderX = x0 + 114f;
-            float yaw = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f), t.Yaw, 0f, 359f);
+            float yaw = WinPx.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f), t.Yaw, 0f, 359f);
             if (Mathf.Abs(yaw - t.Yaw) > 0.01f) { t.Yaw = TriggerParser.NormalizeYaw(Mathf.Round(yaw)); Touch(); }
             y += 26f;
             return y;
@@ -1690,7 +1690,7 @@ namespace ForestOverlay.Modules
             int n = pts != null ? pts.Length : 0;
             for (int i = 0; i < n; i++)
             {
-                GUI.Label(new Rect(x0, y, 34f, 20), PointName(i));
+                WinPx.Label(new Rect(x0, y, 34f, 20), PointName(i));
 
                 Vector2 typed;
                 if (PointField(new Rect(x0 + 36f, y - 1, w - x0 - 36f - 100f, 20), slot, i, pts[i], out typed))
@@ -1700,7 +1700,7 @@ namespace ForestOverlay.Modules
                     Touch();
                 }
 
-                if (GUI.Button(new Rect(w - 92f, y - 2f, 54f, 22f), "Here"))
+                if (WinPx.Button(new Rect(w - 92f, y - 2f, 54f, 22f), "Here"))
                 {
                     Vector3 p;
                     if (TryPlayerPosition(out p))
@@ -1714,7 +1714,7 @@ namespace ForestOverlay.Modules
                 // Three points is the least an outline can have.
                 bool was = GUI.enabled;
                 GUI.enabled = was && n > 3;
-                bool remove = GUI.Button(new Rect(w - 34f, y - 2f, 26f, 22f), "x");
+                bool remove = WinPx.Button(new Rect(w - 34f, y - 2f, 26f, 22f), "x");
                 GUI.enabled = was;
                 y += 24f;
                 if (remove)
@@ -1726,7 +1726,7 @@ namespace ForestOverlay.Modules
                 }
             }
 
-            if (GUI.Button(new Rect(x0, y - 2f, 130f, 22f), "Add point here"))
+            if (WinPx.Button(new Rect(x0, y - 2f, 130f, 22f), "Add point here"))
             {
                 Vector3 p;
                 if (TryPlayerPosition(out p))
@@ -1761,22 +1761,22 @@ namespace ForestOverlay.Modules
 
         private float ExtentSlider(float y, float w, float x0, int slot, int field, string label, float value)
         {
-            GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, field, label, value * 2f));
+            WinPx.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, field, label, value * 2f));
 
             float sliderX = x0 + 114f;
-            return GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
+            return WinPx.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
                                         value, 0.5f, 30f);
         }
 
         // Item triggers search by NAME, because nobody knows item ids.
         private float ItemFields(float y, float w, float x0, ref Trigger t, int slot)
         {
-            GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), ItemLabel(slot, t.ItemId));
+            WinPx.Label(new Rect(x0, y, w - x0 - 6f, 20), ItemLabel(slot, t.ItemId));
             y += 24f;
 
             bool searching = _itemSearchTarget == slot;
 
-            if (GUI.Button(new Rect(x0, y - 2f, 70f, 22f), searching ? "close" : "find"))
+            if (WinPx.Button(new Rect(x0, y - 2f, 70f, 22f), searching ? "close" : "find"))
             {
                 _itemSearchTarget = searching ? -1 : slot;
                 _itemQuery = "";
@@ -1784,13 +1784,13 @@ namespace ForestOverlay.Modules
                 RebuildItemResultLabels();
             }
 
-            if (GUI.Button(new Rect(x0 + 76f, y - 2f, 44f, 22f), Trigger.OpText(t.Compare)))
+            if (WinPx.Button(new Rect(x0 + 76f, y - 2f, 44f, 22f), Trigger.OpText(t.Compare)))
             {
                 t.Compare = (Comparison)(((int)t.Compare + 1) % 3);
                 Touch();
             }
 
-            string amtText = GUI.TextField(new Rect(x0 + 126f, y - 2f, 50f, 22f), AmountText(slot, t.Amount));
+            string amtText = WinPx.TextField(new Rect(x0 + 126f, y - 2f, 50f, 22f), AmountText(slot, t.Amount));
             if (!ReferenceEquals(amtText, AmountText(slot, t.Amount)))
             {
                 _amountText[slot] = amtText;
@@ -1802,7 +1802,7 @@ namespace ForestOverlay.Modules
             if (rel != t.Relative) { t.Relative = rel; Touch(); }
             y += 24f;
 
-            GUI.Label(new Rect(x0, y, w - x0 - 6f, 20),
+            WinPx.Label(new Rect(x0, y, w - x0 - 6f, 20),
                       t.Relative
                           ? "fires after gaining this many MORE than at the start"
                           : "fires when the total held crosses this",
@@ -1812,8 +1812,8 @@ namespace ForestOverlay.Modules
             if (!searching) return y;
 
             // --- search ----------------------------------------------------
-            GUI.Label(new Rect(x0, y, 46f, 20), "name");
-            string q = GUI.TextField(new Rect(x0 + 48f, y - 2f, w - x0 - 58f, 22f), _itemQuery);
+            WinPx.Label(new Rect(x0, y, 46f, 20), "name");
+            string q = WinPx.TextField(new Rect(x0 + 48f, y - 2f, w - x0 - 58f, 22f), _itemQuery);
 
             if (q != _itemQuery)
             {
@@ -1825,7 +1825,7 @@ namespace ForestOverlay.Modules
 
             for (int i = 0; i < _itemResults.Count && i < _itemResultLabels.Count; i++)
             {
-                if (GUI.Button(new Rect(x0 + 10f, y, w - x0 - 20f, 20f), _itemResultLabels[i], _rowStyle))
+                if (WinPx.Button(new Rect(x0 + 10f, y, w - x0 - 20f, 20f), _itemResultLabels[i], _rowStyle))
                 {
                     t.ItemId = _itemResults[i].Id;
                     _itemSearchTarget = -1;
@@ -1855,7 +1855,7 @@ namespace ForestOverlay.Modules
 
             bool on = t.Kind == kind && (kind != TriggerKind.Zone || t.Shape == shape);
 
-            if (GUI.Button(new Rect(x, y - 2f, 54f, 22f), text, on ? _selectedRowStyle : _rowStyle))
+            if (WinPx.Button(new Rect(x, y - 2f, 54f, 22f), text, on ? _selectedRowStyle : _rowStyle))
             {
                 if (!on)
                 {
@@ -2052,16 +2052,16 @@ namespace ForestOverlay.Modules
 
             float cw = area.width - 20f;
             Rect content = new Rect(0, 0, cw, Mathf.Max(_editHeight, 200f));
-            _editScroll = GUI.BeginScrollView(area, _editScroll, content);
+            _editScroll = WinPx.BeginScrollView(area, _editScroll, content);
             float y = 4f;
             y += UiText.DrawDim(0, y, cw - 10, _communityNote) + 6f;
             y += UiText.Draw(0, y, cw - 10, _communityInfo) + 8f;
 
-            GUI.Label(new Rect(0, y, 74, 20), "Spawn");
+            WinPx.Label(new Rect(0, y, 74, 20), "Spawn");
             Vector3 unused;
             if (s.HasSpawn) CoordsField(new Rect(80, y - 1, cw - 140, 20), SpawnSlot, 0, s.SpawnPosition, false, out unused);
             GUI.enabled = s.HasSpawn;
-            if (GUI.Button(new Rect(cw - 56, y - 2, 42, 22), "Go")) Teleport(s);
+            if (WinPx.Button(new Rect(cw - 56, y - 2, 42, 22), "Go")) Teleport(s);
             GUI.enabled = true;
             y += 30f;
 
@@ -2072,9 +2072,9 @@ namespace ForestOverlay.Modules
                     if (!ReferenceEquals(_startStateFor, s)) StartStatus("");
                     RefreshStartStateLabel(s);
                 }
-                GUI.Label(new Rect(0, y, 74, 20), "Start state");
+                WinPx.Label(new Rect(0, y, 74, 20), "Start state");
                 GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s) && s.HasSpawn;
-                if (GUI.Button(new Rect(80, y - 2, 110, 22), s.StartRestoreWithLoad ? "Restart (Full)" : "Restart (Quick)")) Restart(s);
+                if (WinPx.Button(new Rect(80, y - 2, 110, 22), s.StartRestoreWithLoad ? "Restart (Full)" : "Restart (Quick)")) Restart(s);
                 GUI.enabled = true;
                 y += 26f;
                 y += UiText.DrawDim(80, y, cw - 90, _startStateLabel);
@@ -2083,7 +2083,7 @@ namespace ForestOverlay.Modules
 
             y = DrawShare(y, cw, s);
             _editHeight = y + 10f;
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
         }
 
         private void Delete()
@@ -2309,17 +2309,17 @@ namespace ForestOverlay.Modules
             // Buttons on the label's row, the description on a full-width
             // line of its own: squeezed beside the buttons it wrapped into
             // two half-visible lines (author, v0.21.0).
-            GUI.Label(new Rect(0, y, 74, 20), "Start state");
+            WinPx.Label(new Rect(0, y, 74, 20), "Start state");
 
             GUI.enabled = !_savestates.Busy && s.Id.Length > 0;
-            if (GUI.Button(new Rect(80, y - 2, 110, 22),
+            if (WinPx.Button(new Rect(80, y - 2, 110, 22),
                            Time.unscaledTime <= _captureStartArmedUntil ? "Sure?" : "Capture here")) CaptureStartState(s);
             GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s);
-            if (GUI.Button(new Rect(196, y - 2, 70, 22),
+            if (WinPx.Button(new Rect(196, y - 2, 70, 22),
                            Time.unscaledTime <= _deleteStartArmedUntil ? "Sure?" : "Delete")) DeleteStartState(s);
             GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s) && s.HasSpawn;
             // Says which load it does (maks: the old toggle was unclear).
-            if (GUI.Button(new Rect(272, y - 2, 110, 22),
+            if (WinPx.Button(new Rect(272, y - 2, 110, 22),
                            s.StartRestoreWithLoad ? "Restart (Full)" : "Restart (Quick)")) Restart(s);
             GUI.enabled = true;
             y += 26f;
@@ -2331,7 +2331,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(80, y, cw - 90, _startStatusLabel);
 
             // A two-button switch: the active mode shows pressed at a glance.
-            GUI.Label(new Rect(80, y, 70, 20), "Restore by");
+            WinPx.Label(new Rect(80, y, 70, 20), "Restore by");
             bool quick = UiKit.Toggle(new Rect(152, y - 2, 100, 22), !s.StartRestoreWithLoad, "Quick load", GUI.skin.button);
             bool full = UiKit.Toggle(new Rect(256, y - 2, 100, 22), s.StartRestoreWithLoad, "Full load", GUI.skin.button);
             if (quick && s.StartRestoreWithLoad) { s.StartRestoreWithLoad = false; Touch(); }
@@ -2341,7 +2341,7 @@ namespace ForestOverlay.Modules
             // Only with a start state to keep (it does nothing without one).
             if (_savestates.HasStartState(s))
             {
-                bool keep = GUI.Toggle(new Rect(80, y, 200, 20), s.KeepLoaded, "Keep loaded");
+                bool keep = WinPx.Toggle(new Rect(80, y, 200, 20), s.KeepLoaded, "Keep loaded");
                 if (keep != s.KeepLoaded)
                 {
                     s.KeepLoaded = keep;
@@ -2464,19 +2464,19 @@ namespace ForestOverlay.Modules
                 _exportAttemptsLabel.text = " with my attempts (" + n + ")";
             }
 
-            GUI.Label(new Rect(0, y, 74, 20), "Share");
+            WinPx.Label(new Rect(0, y, 74, 20), "Share");
             GUI.enabled = s.Id.Length > 0;
-            if (GUI.Button(new Rect(80, y - 2, 70, 22), "Export")) Export(s);
+            if (WinPx.Button(new Rect(80, y - 2, 70, 22), "Export")) Export(s);
             GUI.enabled = true;
             _exportAttempts = UiKit.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
-            if (GUI.Button(new Rect(350, y - 2, 96, 22), "Open folder")) OpenSharedFolder();
+            if (WinPx.Button(new Rect(350, y - 2, 96, 22), "Open folder")) OpenSharedFolder();
             y += 26f;
             if (_upload != null)
             {
                 GUI.enabled = s.Id.Length > 0 && !_upload.Submitting;
-                if (GUI.Button(new Rect(80, y - 2, 160, 22), "Submit to community")) SubmitToCommunity(s);
+                if (WinPx.Button(new Rect(80, y - 2, 160, 22), "Submit to community")) SubmitToCommunity(s);
                 GUI.enabled = s.Id.Length > 0 && !_upload.Deleting && !SegmentLibrary.IsCommunity(s);
-                if (GUI.Button(new Rect(246, y - 2, 170, 22),
+                if (WinPx.Button(new Rect(246, y - 2, 170, 22),
                                Time.unscaledTime <= _deleteSiteArmedUntil && ReferenceEquals(_deleteSiteFor, s) ? "Sure? Click again"
                                : "Delete from the website")) DeleteFromSite(s);
                 GUI.enabled = true;
@@ -2774,18 +2774,18 @@ namespace ForestOverlay.Modules
         private void DrawImport(Rect area)
         {
             float w = area.width;
-            GUI.BeginGroup(area);
+            WinPx.BeginGroup(area);
             float y = 2f;
             y += UiText.Draw(0, y, w - 10, _importHeader);
-            if (GUI.Button(new Rect(0, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
-            if (GUI.Button(new Rect(100, y + 2, 60, 22), "Close")) _importing = false;
+            if (WinPx.Button(new Rect(0, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
+            if (WinPx.Button(new Rect(100, y + 2, 60, 22), "Close")) _importing = false;
             // Automatic refresh off (Settings > Network, T-0326): the lists
             // below are asked for only on this click; the answer shows under it.
             if (_community != null && !Ctx.Network.Refresh.Value)
             {
                 GUI.enabled = !_community.Busy && !_community.WebBusy;
                 Rect checkR = new Rect(164, y + 2, 90, 22);
-                if (GUI.Button(checkR, CheckNowText)) _community.CheckAllNow();
+                if (WinPx.Button(checkR, CheckNowText)) _community.CheckAllNow();
                 UiKit.Hint(checkR, CheckNowTip);
                 GUI.enabled = true;
             }
@@ -2816,7 +2816,7 @@ namespace ForestOverlay.Modules
             // or id off on the right (bridge sweep, v0.24.71).
             Rect list = new Rect(0, y, w, area.height - y);
             Rect content = new Rect(0, 0, w - 20f, Mathf.Max(_importListHeight, 40f));
-            _importScroll = GUI.BeginScrollView(list, _importScroll, content);
+            _importScroll = WinPx.BeginScrollView(list, _importScroll, content);
             float ry = 2f;
             if (_community != null)
             {
@@ -2824,13 +2824,13 @@ namespace ForestOverlay.Modules
                 {
                     CommunityModule.WebEntry we = _community.WebSpots[i];
                     GUI.enabled = !_community.WebBusy;
-                    if (GUI.Button(new Rect(4f, ry, 70f, 22f), we.Armed ? "Replace?" : we.Added || we.Mine ? "Update" : "Add"))
+                    if (WinPx.Button(new Rect(4f, ry, 70f, 22f), we.Armed ? "Replace?" : we.Added || we.Mine ? "Update" : "Add"))
                     {
                         _community.WebAdd(we);
                         GUI.enabled = true;
                         break;
                     }
-                    if (we.Added && GUI.Button(new Rect(78f, ry, 66f, 22f), "Remove")) { _community.WebRemove(we); GUI.enabled = true; break; }
+                    if (we.Added && WinPx.Button(new Rect(78f, ry, 66f, 22f), "Remove")) { _community.WebRemove(we); GUI.enabled = true; break; }
                     GUI.enabled = true;
                     ry += Mathf.Max(24f, UiText.Draw(150f, ry + 2f, content.width - 154f, we.Label) + 4f) + 4f;
                     // The answer to a click on this row, under it.
@@ -2841,7 +2841,7 @@ namespace ForestOverlay.Modules
             {
                 ImportEntry e = _imports[i];
                 bool armed = _importArmedPath == e.Path && Time.unscaledTime <= _importArmedUntil;
-                if (GUI.Button(new Rect(4f, ry, 80f, 22f), armed ? "Replace?" : "Import"))
+                if (WinPx.Button(new Rect(4f, ry, 80f, 22f), armed ? "Replace?" : "Import"))
                 {
                     Import(e);
                     break;   // the list may have been rebuilt
@@ -2849,8 +2849,8 @@ namespace ForestOverlay.Modules
                 ry += Mathf.Max(24f, UiText.Draw(90f, ry + 2f, content.width - 94f, e.Label) + 4f) + 4f;
             }
             _importListHeight = ry;
-            GUI.EndScrollView();
-            GUI.EndGroup();
+            WinPx.EndScrollView();
+            WinPx.EndGroup();
         }
 
         /// Adds the file's segment, its start state and its attempts. An id
@@ -3118,7 +3118,7 @@ namespace ForestOverlay.Modules
 
             Color before = GUI.color;
             if (f.Bad) GUI.color = new Color(1f, 0.55f, 0.55f);
-            string text = GUI.TextField(r, f.Text);
+            string text = WinPx.TextField(r, f.Text);
             GUI.color = before;
             if (ReferenceEquals(text, f.Text) || text == f.Text) return false;
             if (!editable) return false;   // the text stays as it was
@@ -3164,7 +3164,7 @@ namespace ForestOverlay.Modules
 
             Color before = GUI.color;
             if (f.Bad) GUI.color = new Color(1f, 0.55f, 0.55f);
-            string text = GUI.TextField(r, f.Text);
+            string text = WinPx.TextField(r, f.Text);
             GUI.color = before;
             if (ReferenceEquals(text, f.Text) || text == f.Text) return false;
 
@@ -3253,9 +3253,9 @@ namespace ForestOverlay.Modules
 
         private float Field(float y, float w, string label, ref string value)
         {
-            GUI.Label(new Rect(0, y, 74, 20), label);
+            WinPx.Label(new Rect(0, y, 74, 20), label);
 
-            string edited = GUI.TextField(new Rect(80, y - 2, w - 90, 22), value ?? "");
+            string edited = WinPx.TextField(new Rect(80, y - 2, w - 90, 22), value ?? "");
             if (edited != value) { value = edited; Touch(); }
 
             return y + 26f;

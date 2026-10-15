@@ -504,8 +504,8 @@ namespace ForestOverlay.Modules
             y += 22f;
             y += UiText.Draw(0, y, w, _stateText);
 
-            if (GUI.Button(new Rect(0, y + 2, 200, 22), "Upload this spot's saved runs")) { EnqueueSaved(); _nextText = 0f; }
-            if (GUI.Button(new Rect(206, y + 2, 150, 22), "Open on the website"))
+            if (WinPx.Button(new Rect(0, y + 2, 200, 22), "Upload this spot's saved runs")) { EnqueueSaved(); _nextText = 0f; }
+            if (WinPx.Button(new Rect(206, y + 2, 150, 22), "Open on the website"))
             {
                 Segment seg = CurrentSegment != null ? CurrentSegment() : null;
                 Application.OpenURL(seg != null ? SiteProtocol.SpotUrl(_url.Value, seg.Id) : SiteProtocol.TrimUrl(_url.Value));

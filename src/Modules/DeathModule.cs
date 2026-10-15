@@ -596,7 +596,7 @@ namespace ForestOverlay.Modules
             float y = 4f;
 
             // The one choice: what a death does.
-            GUI.Label(new Rect(0, y, w, 20), ChoiceTitle);
+            WinPx.Label(new Rect(0, y, w, 20), ChoiceTitle);
             y += 22f;
             DeathChoice choice = Choice;
             int ci = (int)choice;
@@ -629,7 +629,7 @@ namespace ForestOverlay.Modules
                 if (boss != _quickLoadBossCfg.Value) _quickLoadBossCfg.Value = boss;
                 y += 26f;
 
-                GUI.Label(new Rect(20, y, w - 20, 20), ReloadHowTitle);
+                WinPx.Label(new Rect(20, y, w - 20, 20), ReloadHowTitle);
                 y += 22f;
                 bool withLoad = UiKit.Toggle(new Rect(30, y, w - 30, 22), !_inPlaceCfg.Value, ReloadWithLoad);
                 if (withLoad && _inPlaceCfg.Value) { _inPlaceCfg.Value = false; _nextDeathAt = 0f; }

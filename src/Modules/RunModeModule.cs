@@ -366,7 +366,7 @@ namespace ForestOverlay.Modules
             if (Ctx.Run.Active)
             {
                 bool confirming = Time.unscaledTime < _confirmUntil;
-                if (GUI.Button(new Rect(0, y + 2, 200, 22), confirming ? "Click again to end" : "End run mode"))
+                if (WinPx.Button(new Rect(0, y + 2, 200, 22), confirming ? "Click again to end" : "End run mode"))
                 {
                     if (confirming) { _confirmUntil = 0f; EndRunMode(); }
                     else { _confirmUntil = Time.unscaledTime + 4f; _nextText = 0f; }
@@ -375,7 +375,7 @@ namespace ForestOverlay.Modules
             }
             else
             {
-                if (GUI.Button(new Rect(0, y + 2, 200, 22), "Start run mode")) StartByHand();
+                if (WinPx.Button(new Rect(0, y + 2, 200, 22), "Start run mode")) StartByHand();
                 y += 28f;
             }
             if (_findingsText.text.Length > 0) y += UiText.Draw(0, y, w, _findingsText) + 4f;

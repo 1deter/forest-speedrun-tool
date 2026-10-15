@@ -331,7 +331,7 @@ namespace ForestOverlay.Modules
             {
                 bool was = GUI.enabled;
                 GUI.enabled = was && _cpRowUsable[i] && !_cpRestoring;
-                if (GUI.Button(new Rect(0, y, 120, 22), _cpButtons[i])) RestartFromCheckpoint(i);
+                if (WinPx.Button(new Rect(0, y, 120, 22), _cpButtons[i])) RestartFromCheckpoint(i);
                 GUI.enabled = was;
                 float h = UiText.Draw(126, y + 2, w - 126, _cpLines[i]);
                 y += Mathf.Max(24f, h + 4f);
@@ -339,7 +339,7 @@ namespace ForestOverlay.Modules
 
             if (_cpUsable.Count > 0)
             {
-                if (GUI.Button(new Rect(0, y, 200, 22), "Delete checkpoint states"))
+                if (WinPx.Button(new Rect(0, y, 200, 22), "Delete checkpoint states"))
                 {
                     int n = _savestates != null ? _savestates.DeleteCheckpointStates(_segment) : 0;
                     _cpStatus.text = n + " checkpoint state file(s) deleted.";

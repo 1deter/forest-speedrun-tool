@@ -281,7 +281,7 @@ namespace ForestOverlay.Modules
             Rect area = new Rect(0, 0, _tabW, _tabH);
             bool scrolls = _pageH > _tabH;
             float w = scrolls ? _tabW - 20f : _tabW;
-            _pageScroll = GUI.BeginScrollView(area, _pageScroll, new Rect(0, 0, w, Mathf.Max(_pageH, _tabH)));
+            _pageScroll = WinPx.BeginScrollView(area, _pageScroll, new Rect(0, 0, w, Mathf.Max(_pageH, _tabH)));
 
             float y = 4f;
             bool lockPlayer = UiKit.Toggle(new Rect(12, y, w - 24, 22),
@@ -315,7 +315,7 @@ namespace ForestOverlay.Modules
                 y = DrawNetwork(y, w);
 
             _pageH = y + 4f;
-            GUI.EndScrollView();
+            WinPx.EndScrollView();
 
             // Capture has to run before DragWindow, or dragging swallows
             // the key event we are waiting for.
@@ -350,7 +350,7 @@ namespace ForestOverlay.Modules
             EnsureGroups(map);
             Rect resetR = new Rect(12, y, 118, 22);
             bool armed = Time.unscaledTime <= _resetKeysArmedUntil;
-            if (GUI.Button(resetR, armed ? SureText : ResetKeysText))
+            if (WinPx.Button(resetR, armed ? SureText : ResetKeysText))
             {
                 if (!armed) _resetKeysArmedUntil = Time.unscaledTime + ConfirmSeconds;
                 else
@@ -373,7 +373,7 @@ namespace ForestOverlay.Modules
             {
                 int g = KeyGroups.Order[o];
                 if (_groupCount[g] == 0) continue;
-                GUI.Label(new Rect(12, y, w - 24f, 22f), _groupHeadings[g], _groupStyle);
+                WinPx.Label(new Rect(12, y, w - 24f, 22f), _groupHeadings[g], _groupStyle);
                 y += 22f;
                 y = DrawBindRows(y, w, map, g) + 4f;
             }
@@ -450,8 +450,8 @@ namespace ForestOverlay.Modules
             if (prompt.text.Length == 0) return y;
             GUIStyle promptStyle = rebinding ? _promptStyle : _labelStyle;
             float promptW = w - 24f;
-            float promptH = Mathf.Max(20f, promptStyle.CalcHeight(prompt, promptW));
-            GUI.Label(new Rect(12, y, promptW, promptH), prompt, promptStyle);
+            float promptH = Mathf.Max(20f, WinPx.CalcHeight(promptStyle, prompt, promptW));
+            WinPx.Label(new Rect(12, y, promptW, promptH), prompt, promptStyle);
             return y + promptH + 4f;
         }
 
@@ -489,7 +489,7 @@ namespace ForestOverlay.Modules
             // decisions.md *Easy to learn*): compact, size and position act
             // with the box off too (widgets, the practice / ON NOW warnings),
             // so none of them sits under the box.
-            GUI.Label(new Rect(4, y, cw - 8, 22), HudWideText, _labelStyle);
+            WinPx.Label(new Rect(4, y, cw - 8, 22), HudWideText, _labelStyle);
             y += 22f;
             Rect compactR = new Rect(4, y, cw - 8, 22);
             bool compact = UiKit.Toggle(compactR, s.Compact, CompactText);
@@ -497,17 +497,17 @@ namespace ForestOverlay.Modules
             UiKit.Hint(compactR, CompactNote);
             y += 24f;
 
-            GUI.Label(new Rect(4, y, 160, 22), _sizeText, _labelStyle);
+            WinPx.Label(new Rect(4, y, 160, 22), _sizeText, _labelStyle);
             UiKit.Hint(new Rect(4, y, 160, 22), SizeTip);
-            if (GUI.Button(new Rect(168, y, 30, 22), "-")) s.TextSize = HudLines.StepTextSize(s.TextSize, -1);
-            if (GUI.Button(new Rect(202, y, 30, 22), "+")) s.TextSize = HudLines.StepTextSize(s.TextSize, +1);
-            if (GUI.Button(new Rect(236, y, 70, 22), "default")) s.TextSize = 0;
+            if (WinPx.Button(new Rect(168, y, 30, 22), "-")) s.TextSize = HudLines.StepTextSize(s.TextSize, -1);
+            if (WinPx.Button(new Rect(202, y, 30, 22), "+")) s.TextSize = HudLines.StepTextSize(s.TextSize, +1);
+            if (WinPx.Button(new Rect(236, y, 70, 22), "default")) s.TextSize = 0;
             y += 26f;
 
             float placeH = Mathf.Max(22f, UiText.Draw(4, y, cw - 8, _placeText));
             UiKit.Hint(new Rect(4, y, cw - 8, placeH), PlaceTip);
             y += placeH;
-            if (GUI.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
+            if (WinPx.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
             y += 30f;
 
             Rect followR = new Rect(4, y, cw - 8, 22);
@@ -522,7 +522,7 @@ namespace ForestOverlay.Modules
 
             y = DrawTrendColours(y, cw, s);
 
-            GUI.Label(new Rect(4, y, cw - 8, 22), ValuesText, _labelStyle);
+            WinPx.Label(new Rect(4, y, cw - 8, 22), ValuesText, _labelStyle);
             UiKit.Hint(new Rect(4, y, cw - 8, 22), HudIntro);
             y += 22f;
             for (int i = 0; i < HudLines.All.Length; i++)
@@ -531,15 +531,15 @@ namespace ForestOverlay.Modules
                 // The values under short headings (T-0263).
                 if (_hudHeadings[i] != null)
                 {
-                    GUI.Label(new Rect(4, y + 2f, cw - 8, 22), _hudHeadings[i], _groupStyle);
+                    WinPx.Label(new Rect(4, y + 2f, cw - 8, 22), _hudHeadings[i], _groupStyle);
                     y += 24f;
                 }
                 // Every row's description is its hover tip (T-0259).
                 Rect row = new Rect(4, y, cw - 8, 22);
                 if (l.Locked)
                 {
-                    GUI.Label(new Rect(4, y, 208, 22), _hudNames[i], _lockedNameStyle);
-                    GUI.Label(new Rect(212, y, cw - 216, 22), LockedNote, _lockedStyle);
+                    WinPx.Label(new Rect(4, y, 208, 22), _hudNames[i], _lockedNameStyle);
+                    WinPx.Label(new Rect(212, y, cw - 216, 22), LockedNote, _lockedStyle);
                 }
                 else if (l.External)
                 {
@@ -565,7 +565,7 @@ namespace ForestOverlay.Modules
 
             Rect resetR = new Rect(4, y + 2f, 150, 22);
             bool armed = Time.unscaledTime <= _resetValuesArmedUntil;
-            if (GUI.Button(resetR, armed ? SureText : ResetValuesText))
+            if (WinPx.Button(resetR, armed ? SureText : ResetValuesText))
             {
                 if (!armed) _resetValuesArmedUntil = Time.unscaledTime + ConfirmSeconds;
                 else
@@ -591,7 +591,7 @@ namespace ForestOverlay.Modules
         // and its default. A field that is not a colour says so under it.
         private float DrawTrendColours(float y, float cw, HudSettings s)
         {
-            GUI.Label(new Rect(4, y, cw - 8, 22), TrendTitle, _labelStyle);
+            WinPx.Label(new Rect(4, y, cw - 8, 22), TrendTitle, _labelStyle);
             UiKit.Hint(new Rect(4, y, cw - 8, 22), TrendTip);
             y += 22f;
             y += UiText.DrawDim(8, y, cw - 12, TrendWhere) + 4f;
@@ -606,18 +606,18 @@ namespace ForestOverlay.Modules
                     _trendEdit[r] = stored ?? "";
                 }
 
-                GUI.Label(new Rect(8, y, 80, 22), TrendNames[r], _labelStyle);
+                WinPx.Label(new Rect(8, y, 80, 22), TrendNames[r], _labelStyle);
                 Color old = GUI.color;
                 GUI.color = s.TrendColour(state);
-                GUI.DrawTexture(new Rect(92, y + 3, 16, 16), Texture2D.whiteTexture);
+                WinPx.DrawTexture(new Rect(92, y + 3, 16, 16), Texture2D.whiteTexture);
                 GUI.color = old;
-                string typed = GUI.TextField(new Rect(114, y, 90, 22), _trendEdit[r], 9);
+                string typed = WinPx.TextField(new Rect(114, y, 90, 22), _trendEdit[r], 9);
                 if (!string.Equals(typed, _trendEdit[r]))
                 {
                     _trendEdit[r] = typed;
                     if (s.SetTrendText(state, typed)) _trendFrom[r] = s.TrendText(state);   // keep the text as typed
                 }
-                if (GUI.Button(new Rect(210, y, 70, 22), "default"))
+                if (WinPx.Button(new Rect(210, y, 70, 22), "default"))
                 {
                     // The field follows even when the stored colour already is the
                     // default (bad text typed over it changes nothing stored).
@@ -638,14 +638,14 @@ namespace ForestOverlay.Modules
                     if (pc == current)
                     {
                         GUI.color = UiKit.TextColour;
-                        GUI.DrawTexture(new Rect(sw.x - 3, sw.y - 3, sw.width + 6, sw.height + 6), Texture2D.whiteTexture);
+                        WinPx.DrawTexture(new Rect(sw.x - 3, sw.y - 3, sw.width + 6, sw.height + 6), Texture2D.whiteTexture);
                         GUI.color = Color.black;
-                        GUI.DrawTexture(new Rect(sw.x - 1, sw.y - 1, sw.width + 2, sw.height + 2), Texture2D.whiteTexture);
+                        WinPx.DrawTexture(new Rect(sw.x - 1, sw.y - 1, sw.width + 2, sw.height + 2), Texture2D.whiteTexture);
                     }
                     GUI.color = new Color(UiPalette.R(pc), UiPalette.G(pc), UiPalette.B(pc), 1f);
-                    GUI.DrawTexture(sw, Texture2D.whiteTexture);
+                    WinPx.DrawTexture(sw, Texture2D.whiteTexture);
                     GUI.color = keep;
-                    if (GUI.Button(sw, GUIContent.none, GUIStyle.none))
+                    if (WinPx.Button(sw, GUIContent.none, GUIStyle.none))
                     {
                         s.SetTrendText(state, HudTrend.Format(pc));
                         _trendFrom[r] = s.TrendText(state);
@@ -717,22 +717,22 @@ namespace ForestOverlay.Modules
 
         private float DrawBindRow(float y, float contentW, HotkeyMap map, HotkeyMap.Binding b, bool dev)
         {
-            GUI.Label(new Rect(12, y, contentW - 252f, RowHeight), b.Description, _labelStyle);
+            WinPx.Label(new Rect(12, y, contentW - 252f, RowHeight), b.Description, _labelStyle);
 
             HotkeyMap.Binding clash = map.Conflict(b.Key, b);
             if (clash != null)
             {
-                GUI.Label(new Rect(contentW - 236f, y, 60f, RowHeight), "clash", _warnStyle);
+                WinPx.Label(new Rect(contentW - 236f, y, 60f, RowHeight), "clash", _warnStyle);
             }
 
             bool waiting = map.AwaitingRebind == b;
             GUIContent label = waiting ? PressText : (b.Key == KeyCode.None ? UnboundText : KeyLabel(b.Key));
 
             // Wide enough for the longest key name (KeypadMultiply was cut off).
-            if (GUI.Button(new Rect(contentW - 172f, y + 2f, 124f, RowHeight - 6f), label))
+            if (WinPx.Button(new Rect(contentW - 172f, y + 2f, 124f, RowHeight - 6f), label))
                 map.AwaitingRebind = waiting ? null : b;
 
-            if (GUI.Button(new Rect(contentW - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
+            if (WinPx.Button(new Rect(contentW - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
             {
                 b.Key = b.Default;
                 Say(b.Description + " reset to " + HotkeyMap.KeyName(b.Default) + ".", dev, b);
