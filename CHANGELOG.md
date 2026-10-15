@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.308 - 2026-10-15
+
+- Edit HUD, input overlay: the message after + Key, + Wheel or + Mouse box now shows right under the add buttons, no scrolling past Default layout to read it.
+
 ## v0.24.307 - 2026-10-15
 
 - Edit HUD, input overlay: the + Key button now shows 'Press a key...' in full instead of cutting it off.
