@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.305 - 2026-10-15
+
+- The Map tab is turned 180 degrees; spots, zones, the relief and the player arrow turn with it.
+
 ## v0.24.304 - 2026-10-15
 
 - Collision view outlines mesh colliders by their real shape, not a box around the whole model (very large ones still show as boxes; the Views tab says how many).
