@@ -13,29 +13,21 @@ namespace ForestOverlay.Modules
     //
     // "When I die" (runner feedback: the revive was confusing, worse with
     // practice mode on and another spot current) picks one of: the game's
-    // own death (the default), Reload the save, Restart the current
-    // spot (F7: its start state, Quick / Full as the spot says), Revive at
-    // the current spot (a teleport, nothing restored). The decision is Data/DeathPlan (pure, tested); the Deaths tab
-    // shows "Next death: ..." - what it will do and why - so the choice is
-    // never a guess. The old Automatic choice (dropped 2026-10-15; a stored
-    // one reads as the game's death) was:
+    // own death (the default), Reload the save, Restart the current spot
+    // (F7: its start state, Quick / Full as the spot says) or Revive at the
+    // current spot (a teleport, nothing restored). The decision is
+    // Data/DeathPlan (pure, tested); the Deaths tab shows "Next death: ..."
+    // - what it will do and why - so the choice is never a guess. The old
+    // Automatic choice is gone (2026-10-15); a stored one reads as the
+    // game's own death and the config is saved back with that name.
     //
-    //   1. Practice mode on and a current spot  -> REVIVE at the spot.
-    //      Every death, the capture included. Health and blood reset, no
-    //      reload, then teleported back. Writes state -> practice marker.
-    //      A current spot WITH A START STATE revives even with practice
-    //      mode off: the restart restores the state, the segment's way
-    //      (author, 2026-09-23: practising from a savestate should reload
-    //      it entirely on death - v0.21.1 quick-loaded the slot instead).
-    //   2. Otherwise, quick-load on (default)   -> QUICK-LOAD the save.
-    //      Every death. The capture (first death) and the boss-fight
-    //      wake-up each have their own toggle, both on by default - no
-    //      current route relies on being captured (author's call), but a
-    //      future one might; the boss toggle was the author's request
-    //      (2026-09-23) so the game's own wake-up can be kept. The author rules quick-load allowed in normal runs: it
-    //      skips the death animation and the menu but loads through the
-    //      title screen's own path, so the loaded game is identical.
-    //   3. Otherwise                            -> the game's own death.
+    // A reload (picked, or the fallback when a spot choice cannot apply)
+    // is a QUICK-LOAD of the save: every death, with its own toggles for
+    // the capture (first death) and the boss-fight wake-up, both on by
+    // default (the boss toggle was the author's request, 2026-09-23). The
+    // author rules quick-load allowed in normal runs: it skips the death
+    // animation and the menu but loads through the title screen's own
+    // path, so the loaded game is identical.
     //
     // Never: permadeath (the game deletes the save on death, nothing to
     // load) or multiplayer.
@@ -113,14 +105,17 @@ namespace ForestOverlay.Modules
         private DeathHooks _hooks;
         private ConfigEntry<string> _choiceCfg;
 
-        private DeathChoice Choice
+        // Parsed once (Initialise, and when the config changes), never per frame.
+        private DeathChoice _choice = DeathChoice.GameDeath;
+        private DeathChoice Choice { get { return _choice; } }
+
+        private void ReadChoice()
         {
-            get
-            {
-                try { return (DeathChoice)Enum.Parse(typeof(DeathChoice), DeathPlan.MigrateStored(_choiceCfg.Value) ?? "", true); }
-                catch (ArgumentException) { return DeathChoice.GameDeath; }
-            }
+            string canonical;
+            _choice = DeathPlan.ParseStored(_choiceCfg.Value, out canonical);
+            if (_choiceCfg.Value != canonical) _choiceCfg.Value = canonical;   // fires SettingChanged once
         }
+
         private ConfigEntry<bool> _quickLoadCaptureCfg;
         private ConfigEntry<bool> _quickLoadBossCfg;
         private ConfigEntry<bool> _skipMenuCfg;
@@ -179,14 +174,13 @@ namespace ForestOverlay.Modules
                 "teleport to the current spot. The QuickLoad* keys still apply " +
                 "wherever a reload happens; never permadeath or multiplayer.");
 
-            // Kept as text so a stored "Automatic" (dropped 2026-10-15) loads as GameDeath
-            // with no config warning, and the file is saved back with the new name.
-            string stored = _choiceCfg.Value;
-            if (DeathPlan.MigrateStored(stored) != stored)
-            {
-                _choiceCfg.Value = DeathPlan.MigrateStored(stored);
-                Ctx.Log.LogInfo("Deaths: OnDeath = Automatic read as GameDeath (the choice was dropped)");
-            }
+            // Kept as text so a stored "Automatic" (or any unknown value) loads as
+            // GameDeath with no config warning and is saved back with that name.
+            string before = _choiceCfg.Value;
+            ReadChoice();
+            if (before != _choiceCfg.Value)
+                Ctx.Log.LogInfo("Deaths: OnDeath '" + before + "' read as " + _choiceCfg.Value);
+            _choiceCfg.SettingChanged += delegate { ReadChoice(); };
 
             _quickLoadCaptureCfg = Ctx.Config.Bind("Deaths", "QuickLoadOnCapture", true,
                 "Reload the save also on the first death, which the game otherwise turns into the capture " +

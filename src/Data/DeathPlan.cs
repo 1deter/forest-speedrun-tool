@@ -1,4 +1,4 @@
-﻿namespace ForestOverlay.Data
+namespace ForestOverlay.Data
 {
     /// What the runner picked in the Deaths tab's "When I die" (config
     /// `[Deaths] OnDeath`). The default is the game's own death; the order is
@@ -92,19 +92,27 @@
     // ------------------------------------------------------------------
     // What a death does (pure; Modules/DeathModule acts on it).
     //
-    // The runner's choice does just that thing (the default is the game's
-    // own death); when it cannot (no current
-    // spot, locked by run mode) the reload fallback, then the game's death, decide,
-    // and the text says why. Multiplayer is never touched; permadeath
-    // never reloads (the save is gone).
+    // The runner's choice does just that thing; the default is the game's
+    // own death. When the choice cannot apply (no current spot, or run
+    // mode locks it) the save reloads instead, and the text says why.
+    // Run mode's reload lock and force still decide the reload. Multiplayer
+    // is never touched; permadeath never reloads (the save is gone).
     // ------------------------------------------------------------------
     public static class DeathPlan
     {
-        /// A stored OnDeath of "Automatic" (the choice dropped 2026-10-15)
-        /// reads as the game's own death; anything else is unchanged.
-        public static string MigrateStored(string stored)
+        /// Reads a stored OnDeath: a choice name in any case, else the game's
+        /// own death ("Automatic", dropped 2026-10-15, and garbage included).
+        /// `canonical` is what the config should hold; write it back when it
+        /// differs from the stored text.
+        public static DeathChoice ParseStored(string stored, out string canonical)
         {
-            return stored != null && stored.Trim() == "Automatic" ? DeathChoice.GameDeath.ToString() : stored;
+            DeathChoice result = DeathChoice.GameDeath;
+            string t = stored == null ? "" : stored.Trim();
+            foreach (string name in System.Enum.GetNames(typeof(DeathChoice)))
+                if (string.Equals(name, t, System.StringComparison.OrdinalIgnoreCase))
+                    result = (DeathChoice)System.Enum.Parse(typeof(DeathChoice), name);
+            canonical = result.ToString();
+            return result;
         }
 
         public static DeathDecision Decide(DeathChoice choice, DeathSituation s)
