@@ -295,12 +295,11 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < legend; i++)
             {
                 _legend[i] = new GUIContent(categories[i].Length > 0 ? categories[i] : "(no category)");
-                _legendColour[i] = i % Palette.Length;
+                _legendColour[i] = MapGeometry.PaletteSlot(categories, categories[i], Palette.Length);
             }
             for (int i = 0; i < n; i++)
             {
-                for (int c = 0; c < categories.Count; c++)
-                    if (SegmentLibrary.SameCategory(categories[c], _spots[i].Category)) { _colour[i] = c % Palette.Length; break; }
+                _colour[i] = Math.Max(0, MapGeometry.PaletteSlot(categories, _spots[i].Category, Palette.Length));
             }
             if (more)
             {
