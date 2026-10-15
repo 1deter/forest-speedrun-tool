@@ -134,61 +134,103 @@ namespace ForestOverlay.Game
             _material.SetInt("_ZWrite", 0);
         }
 
-        // Real mesh-collider edges (T-0340). Cached per mesh: each distinct
-        // edge once. Meshes over MaxMeshEdges, or not readable, keep their
-        // world bounds; MeshEdgeBudget caps the edges drawn in one frame.
-        private sealed class MeshEdges { public Vector3[] Verts; public int[] Pairs; }
+        // Real mesh-collider edges (T-0340). Built on the refresh throttle
+        // (Prepare), a few meshes per refresh; the draw only reads the cache,
+        // and a mesh not built yet is drawn as its bounds that frame. Each
+        // distinct edge once. A mesh over MaxMeshEdges, or not readable, keeps
+        // its world bounds; MeshEdgeBudget caps the edges drawn in one frame.
+        // Entries not seen for a couple of minutes are dropped (a scene change
+        // clears the lot that way, and a failed mesh is tried again).
+        private sealed class MeshEdges
+        {
+            public Vector3[] Verts;      // null: drawn as bounds
+            public int[] Pairs;
+            public bool Unreadable;      // why Verts is null (else: too large)
+            public int Seen;             // the refresh that last saw it
+        }
         private const int MaxMeshEdges = 6000;
         private const int MeshEdgeBudget = 40000;
+        private const int BuildsPerRefresh = 6;
+        private const int KeepRefreshes = 240;   // 2 min at 0.5 s
         private static readonly Dictionary<int, MeshEdges> _edgeCache = new Dictionary<int, MeshEdges>();
+        private static int _stamp;
+        private static int _lines;
+        private int _buildsLeft;
         private int _edgesThisFrame;
 
-        private static MeshEdges EdgesOf(Mesh mesh)
+        /// Mesh colliders drawn as their bounds box in the last draw: too
+        /// large (or over the frame's edge budget), and not readable.
+        public int MeshBoxesLarge { get; private set; }
+        public int MeshBoxesUnreadable { get; private set; }
+
+        private static MeshEdges Build(Mesh mesh)
         {
-            int id = mesh.GetInstanceID();
-            MeshEdges e;
-            if (_edgeCache.TryGetValue(id, out e)) return e;
-            e = null;
+            MeshEdges e = new MeshEdges();
             try
             {
-                if (mesh.isReadable)
+                if (!mesh.isReadable) { e.Unreadable = true; return e; }
+                int[] tris = mesh.triangles;
+                if (tris.Length > MaxMeshEdges * 2) return e;
+                HashSet<long> seen = new HashSet<long>();
+                List<int> pairs = new List<int>();
+                for (int t = 0; t + 2 < tris.Length; t += 3)
                 {
-                    int[] tris = mesh.triangles;
-                    if (tris.Length <= MaxMeshEdges * 2)
+                    for (int k = 0; k < 3; k++)
                     {
-                        HashSet<long> seen = new HashSet<long>();
-                        List<int> pairs = new List<int>();
-                        for (int t = 0; t + 2 < tris.Length; t += 3)
-                        {
-                            for (int k = 0; k < 3; k++)
-                            {
-                                int a = tris[t + k], b = tris[t + (k + 1) % 3];
-                                int lo = a < b ? a : b, hi = a < b ? b : a;
-                                if (seen.Add(((long)lo << 32) | (uint)hi)) { pairs.Add(lo); pairs.Add(hi); }
-                            }
-                        }
-                        if (pairs.Count / 2 <= MaxMeshEdges)
-                        {
-                            e = new MeshEdges();
-                            e.Verts = mesh.vertices;
-                            e.Pairs = pairs.ToArray();
-                        }
+                        int a = tris[t + k], b = tris[t + (k + 1) % 3];
+                        int lo = a < b ? a : b, hi = a < b ? b : a;
+                        if (seen.Add(((long)lo << 32) | (uint)hi)) { pairs.Add(lo); pairs.Add(hi); }
                     }
                 }
+                if (pairs.Count / 2 > MaxMeshEdges) return e;
+                e.Verts = mesh.vertices;
+                e.Pairs = pairs.ToArray();
             }
-            catch (Exception) { e = null; }
-            _edgeCache[id] = e;
+            catch (Exception) { e.Verts = null; e.Pairs = null; }
             return e;
         }
 
+        // Refresh throttle: build what a found mesh collider needs.
+        private void Prepare(MeshCollider mc)
+        {
+            Mesh mesh = mc.sharedMesh;
+            if (mesh == null) return;
+            int id = mesh.GetInstanceID();
+            MeshEdges e;
+            if (_edgeCache.TryGetValue(id, out e)) { e.Seen = _stamp; return; }
+            if (_buildsLeft <= 0) return;
+            _buildsLeft--;
+            e = Build(mesh);
+            e.Seen = _stamp;
+            _edgeCache[id] = e;
+        }
+
+        private static void EvictOld()
+        {
+            List<int> drop = null;
+            foreach (KeyValuePair<int, MeshEdges> kv in _edgeCache)
+                if (_stamp - kv.Value.Seen > KeepRefreshes)
+                {
+                    if (drop == null) drop = new List<int>();
+                    drop.Add(kv.Key);
+                }
+            if (drop != null) for (int i = 0; i < drop.Count; i++) _edgeCache.Remove(drop[i]);
+        }
+
+        // Draw: reads the cache only. False = draw the bounds instead.
         private bool DrawMeshCollider(MeshCollider mc)
         {
             Mesh mesh = mc.sharedMesh;
             if (mesh == null) return false;
-            MeshEdges e = EdgesOf(mesh);
-            if (e == null) return false;
+            MeshEdges e;
+            if (!_edgeCache.TryGetValue(mesh.GetInstanceID(), out e)) return false;   // not built yet
+            if (e.Verts == null)
+            {
+                if (e.Unreadable) MeshBoxesUnreadable++; else MeshBoxesLarge++;
+                return false;
+            }
             int n = e.Pairs.Length / 2;
-            if (_edgesThisFrame + n > MeshEdgeBudget) return false;
+            if (_edgesThisFrame + n > MeshEdgeBudget) { MeshBoxesLarge++; return false; }
             _edgesThisFrame += n;
             Matrix4x4 m = mc.transform.localToWorldMatrix;
             for (int i = 0; i < e.Pairs.Length; i += 2)
@@ -207,6 +249,9 @@ namespace ForestOverlay.Game
         {
             _found.Clear();
             Largest.Clear();
+            _stamp++;
+            _buildsLeft = BuildsPerRefresh;
+            if (_stamp % 20 == 0) EvictOld();
             HiddenBySize = 0;
             HiddenByName = 0;
             if (Origin == null) return;
@@ -245,6 +290,12 @@ namespace ForestOverlay.Game
 
                 _found.Add(c);
                 if (ranks) Largest.Add(name, largest);
+            }
+
+            for (int i = 0; i < _found.Count; i++)
+            {
+                MeshCollider mc = _found[i] as MeshCollider;
+                if (mc != null) Prepare(mc);
             }
         }
 
@@ -301,6 +352,9 @@ namespace ForestOverlay.Game
                                                     : UnityEngine.Rendering.CompareFunction.Always));
             _material.SetPass(0);
             _edgesThisFrame = 0;
+            _lines = 0;
+            MeshBoxesLarge = 0;
+            MeshBoxesUnreadable = 0;
 
             GL.PushMatrix();
             if (Occlude)
@@ -341,7 +395,7 @@ namespace ForestOverlay.Game
 
             GL.End();
             GL.PopMatrix();
-            DrawTarget.Record(start, _found.Count * 24);
+            DrawTarget.Record(start, _lines * 2);
         }
 
         private const int Segments = 16;
@@ -426,6 +480,7 @@ namespace ForestOverlay.Game
 
         private static void Line(Vector3 a, Vector3 b)
         {
+            _lines++;
             GL.Vertex(a);
             GL.Vertex(b);
         }

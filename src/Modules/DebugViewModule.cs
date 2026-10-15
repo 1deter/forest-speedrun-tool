@@ -84,6 +84,8 @@ namespace ForestOverlay.Modules
         private string _radiusLabel = "";
         private string _sizeLabel = "";
         private string _hiddenLabel = "";
+        private string _meshBoxLabel = "";
+        private int _builtMeshLarge = -1, _builtMeshUnread = -1;
         private readonly string[] _largestLabels = new string[5];
         private readonly string[] _largestNames = new string[5];
         private int _largestCount;
@@ -450,12 +452,22 @@ namespace ForestOverlay.Modules
             if (!_draw.ShowColliders && !_draw.ShowTriggers)
             {
                 _hiddenLabel = "";
+                _meshBoxLabel = "";
                 _largestCount = 0;
                 return;
             }
 
             _hiddenLabel = "Hidden: " + _draw.HiddenBySize + " by size, " +
                            _draw.HiddenByName + " by name";
+
+            int ml = _draw.MeshBoxesLarge, mu = _draw.MeshBoxesUnreadable;
+            if (ml != _builtMeshLarge || mu != _builtMeshUnread)
+            {
+                _builtMeshLarge = ml;
+                _builtMeshUnread = mu;
+                _meshBoxLabel = ml + mu == 0 ? "" :
+                    (ml + mu) + " mesh colliders shown as boxes (" + ml + " too large, " + mu + " not readable)";
+            }
 
             LargestList l = _draw.Largest;
             _largestCount = Mathf.Min(l.Count, _largestLabels.Length);
@@ -529,8 +541,13 @@ namespace ForestOverlay.Modules
             if (trigs != _draw.ShowTriggers) { _draw.ShowTriggers = trigs; _draw.RefreshSoon(); }
             y += Row;
 
-            bool occ = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.Occlude, " Hide what is behind walls");
-            if (occ != _draw.Occlude) { _draw.Occlude = occ; _occludeCfg.Value = occ; }
+            bool occ = UiKit.Toggle(new Rect(12, y, w - 24, 22), _draw.Occlude, " Hide behind walls");
+            if (occ != _draw.Occlude)
+            {
+                _draw.Occlude = occ;
+                _occludeCfg.Value = occ;
+                Ctx.Log.LogInfo(occ ? "Hide behind walls: on." : "Hide behind walls: off.");   // log: Hide behind walls
+            }
             y += Row + 6f;
 
             GUI.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
@@ -561,6 +578,8 @@ namespace ForestOverlay.Modules
                 GUI.Label(new Rect(12, y, w - 24, 20), _hiddenLabel);
                 y += 22f;
             }
+
+            if (_meshBoxLabel.Length > 0) y += UiText.Draw(12, y, w - 24, _meshBoxLabel) + 2f;
 
             if (_largestCount > 0)
             {
