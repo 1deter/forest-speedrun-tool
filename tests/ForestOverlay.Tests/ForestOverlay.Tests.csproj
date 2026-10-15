@@ -34,6 +34,7 @@
   <!-- Logic under test, compiled from the real source. -->
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+    <Compile Include="../../src/Data/RibbonPath.cs" Link="Linked/RibbonPath.cs" />
     <Compile Include="../../src/Data/ExternalMods.cs" Link="Linked/ExternalMods.cs" />
     <Compile Include="../../src/Data/ArmCause.cs" Link="Linked/ArmCause.cs" />
     <Compile Include="../../src/Data/ColdNote.cs" Link="Linked/ColdNote.cs" />
