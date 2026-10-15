@@ -163,7 +163,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   body size; body ~17 px at 1080p (was ~12). Window text is stretched
   (slightly soft), the HUD stays crisp - gotcha 112 (`UiKit.Unclip`,
   `CrispText.Plain`). Checker accept (after one revise: tooltips),
-  **released v0.24.300**. **Next:** `tasks.py next`; T-0358 waits for
+  **released v0.24.300**, smoke PASS, confirmed in game by forest-tester. **Next:** `tasks.py next`; T-0358 waits for
   T-0359's options. Unchanged: T-0333 needs a non-maker confirmation.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
