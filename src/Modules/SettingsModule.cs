@@ -379,7 +379,8 @@ namespace ForestOverlay.Modules
             return y + 2f;
         }
 
-        /// The developer keys (dumps, type explorer, trajectory preview, TAS, QA) for the
+        /// The developer keys (dumps, type explorer, TAS, QA; the trajectory
+        /// preview's is under its switch, DrawKeyRow) for the
         /// Developer tab's Keys fold (T-0263): the same rows, rebinding and
         /// messages as the runner's keys here. Returns the y under them.
         public float DrawDeveloperKeys(float y, float w)
@@ -417,7 +418,11 @@ namespace ForestOverlay.Modules
         private float DrawPrompt(float y, float w, HotkeyMap map, bool dev, GUIContent prompt)
         {
             HotkeyMap.Binding awaiting = map.AwaitingRebind;
-            bool rebinding = awaiting != null && KeyGroups.IsDeveloper(awaiting.Id) == dev;
+            // A key rebound beside its switch has its prompt and result
+            // there only, not again in its group's list (T-0322).
+            bool beside = ReferenceEquals(prompt, _rowPrompt);
+            bool rebinding = awaiting != null && KeyGroups.IsDeveloper(awaiting.Id) == dev
+                             && KeyGroups.BesideSwitch(awaiting.Id) == beside;
             if (rebinding)
             {
                 if (!ReferenceEquals(_promptFor, awaiting))
@@ -430,7 +435,9 @@ namespace ForestOverlay.Modules
             else
             {
                 if (_message.Length > 0 && Time.unscaledTime > _messageUntil) _message = "";
-                prompt.text = _message.Length > 0 && _messageDev == dev ? _message : (dev ? "" : StatusLine());
+                bool mine = _messageDev == dev
+                            && (_messageAbout != null && KeyGroups.BesideSwitch(_messageAbout.Id)) == beside;
+                prompt.text = _message.Length > 0 && mine ? _message : (dev ? "" : StatusLine());
             }
 
             if (prompt.text.Length == 0) return y;
