@@ -261,5 +261,26 @@ class Scratch(unittest.TestCase):
         self.assertEqual(C.stale(entries, now, 0.5), ["/t/old", "/t/new", "/t/current"])
 
 
+class ChainLine(unittest.TestCase):
+    """The last unattended chain in the report (T-0016)."""
+
+    def test_none_open_and_ended(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "loop.jsonl")
+            self.assertIsNone(S.chain_line(path))  # no file: no line
+            ev = [{"at": "2026-10-15T22:00:00", "event": "chain-begin", "chain": "C-0001", "target": None}]
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(json.dumps(e) for e in ev))
+            self.assertIn("loop chain: C-0001 open since 2026-10-15T22:00", S.chain_line(path))
+            ev.append({"at": "2026-10-16T06:00:00", "event": "chain-stop", "chain": "C-0001", "reason": "pool empty"})
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(json.dumps(e) for e in ev))
+            line = S.chain_line(path)
+            self.assertIn("C-0001 ended 2026-10-16T06:00, 0 run(s)", line)
+            self.assertIn("stop: pool empty", line)
+
+
 if __name__ == "__main__":
     unittest.main()

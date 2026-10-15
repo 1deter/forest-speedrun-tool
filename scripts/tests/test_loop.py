@@ -521,6 +521,17 @@ class Chain(unittest.TestCase):
         self.assertIn("C-0001 ended", L.chain_line(ev))
         self.assertIn("1 run(s), 1 round(s), 0 progressed", L.chain_line(ev))
 
+    def test_a_run_without_a_round_stops_the_chain(self):
+        ts = [task("T-0001")]
+        ev = []
+        run(ev, L.cmd_chain_begin, ts)
+        run(ev, L.cmd_chain_next, ts)
+        run(ev, L.cmd_begin, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0001")
+        run(ev, L.cmd_stop, "its session crashed")  # begun, never a round
+        text, code = run(ev, L.cmd_chain_next, ts)
+        self.assertEqual(code, L.EXIT_STOP)
+        self.assertIn("run R-0001 ended without a round (its session crashed)", text)
+
     def test_a_due_job_goes_first_once(self):
         L.dues = lambda tasks, today=None: [("cleanup", "cleanup: last run 2026-10-01 -> due", True, "cleanup {cid}"),
                                             ("harness review", "harness review: due (needs the author)", True, None)]

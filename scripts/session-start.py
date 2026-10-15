@@ -156,6 +156,12 @@ def review_line(rows, finished_since, today):
     return "harness review: last %s, next due %s" % (last, nxt), False
 
 
+def chain_line(path=None):
+    """The last unattended chain's line (T-0016), or None when there was none."""
+    import loop
+    return loop.chain_line(loop.load(path or loop.LOOP))
+
+
 def badge_state(svg):
     """A GitHub Actions badge SVG -> 'passing' | 'failing' | whatever its title says."""
     m = re.search(r"<title>[^<]*?-\s*([^<]+)</title>", svg or "")
@@ -539,8 +545,7 @@ def report(force_local=False):
         problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
 
     try:  # Stage B's chain (T-0016): the night's result, or the chain still open
-        import loop
-        chain = loop.chain_line(loop.load())
+        chain = chain_line()
         if chain:
             lines.append(chain)
     except (OSError, T.TaskError) as e:

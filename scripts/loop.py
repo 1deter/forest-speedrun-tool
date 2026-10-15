@@ -752,7 +752,10 @@ def chain_stop_reason(events, tasks, ch):
         f = fails[-1]
         return "the post-release smoke failed on %s (%s) - parked for the author" % (f["task"], f.get("report") or "no report")
     rs = chain_runs(events, ch["id"])
-    if rs and rs[-1]["rounds"] and not any(x["end"] and x["end"].get("progress") for x in rs[-1]["rounds"]):
+    if rs and not rs[-1]["rounds"]:  # a crashed session or an empty pool: never start another blind
+        last = rs[-1]
+        return "run %s ended without a round (%s)" % (last["id"], last["stop"]["reason"] if last["stop"] else "open")
+    if rs and not any(x["end"] and x["end"].get("progress") for x in rs[-1]["rounds"]):
         return "run %s made no progress - look at what keeps failing (`loop.py report %s`)" % (rs[-1]["id"], rs[-1]["id"])
     return None
 
