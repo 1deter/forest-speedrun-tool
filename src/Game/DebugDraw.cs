@@ -132,110 +132,71 @@ namespace ForestOverlay.Game
             _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             _material.SetInt("_ZWrite", 0);
+
+            // The same shader for the mesh wireframes; its own material, as
+            // their colour goes through _Color (the GL lines' is GL.Color).
+            _meshMaterial = new Material(_material);
+            _meshMaterial.hideFlags = HideFlags.HideAndDontSave;
         }
 
-        // Real mesh-collider edges (T-0340). Built on the refresh throttle
-        // (Prepare), a few meshes per refresh; the draw only reads the cache,
-        // and a mesh not built yet is drawn as its bounds that frame. Each
-        // distinct edge once. A mesh over MaxMeshEdges, or not readable, keeps
-        // its world bounds; MeshEdgeBudget caps the edges drawn in one frame.
-        // Entries not seen for a couple of minutes are dropped (a scene change
-        // clears the lot that way, and a failed mesh is tried again).
-        private sealed class MeshEdges
-        {
-            public Vector3[] Verts;      // null: drawn as bounds
-            public int[] Pairs;
-            public bool Unreadable;      // why Verts is null (else: too large)
-            public int Seen;             // the refresh that last saw it
-        }
-        private const int MaxMeshEdges = 6000;
-        private const int MeshEdgeBudget = 40000;
-        private const int BuildsPerRefresh = 6;
-        private const int KeepRefreshes = 240;   // 2 min at 0.5 s
-        private static readonly Dictionary<int, MeshEdges> _edgeCache = new Dictionary<int, MeshEdges>();
-        private static int _stamp;
+        // Mesh colliders (T-0367): shipped meshes are not readable on the CPU
+        // (Mesh.isReadable false, every one sampled), but their GPU copy is
+        // there (GetNativeVertexBufferPtr non-zero, cave collision meshes
+        // included), so each is drawn as a wireframe of that copy:
+        // GL.wireframe + Graphics.DrawMeshNow, after the GL lines. A convex
+        // collider collides as the hull of this mesh. MeshVertexBudget caps
+        // the vertices drawn in one frame; past it a mesh shows its bounds.
+        private const int MeshVertexBudget = 600000;
+        private Material _meshMaterial;
+        private readonly List<MeshCollider> _meshDraws = new List<MeshCollider>();
+        private int _meshVerts;
         private static int _lines;
-        private int _buildsLeft;
-        private int _edgesThisFrame;
 
-        /// Mesh colliders drawn as their bounds box in the last draw: too
-        /// large (or over the frame's edge budget), and not readable.
+        /// Mesh colliders drawn as their bounds box in the last draw (over
+        /// the frame's vertex budget).
         public int MeshBoxesLarge { get; private set; }
-        public int MeshBoxesUnreadable { get; private set; }
 
-        private static MeshEdges Build(Mesh mesh)
-        {
-            MeshEdges e = new MeshEdges();
-            try
-            {
-                if (!mesh.isReadable) { e.Unreadable = true; return e; }
-                int[] tris = mesh.triangles;
-                if (tris.Length > MaxMeshEdges * 2) return e;
-                HashSet<long> seen = new HashSet<long>();
-                List<int> pairs = new List<int>();
-                for (int t = 0; t + 2 < tris.Length; t += 3)
-                {
-                    for (int k = 0; k < 3; k++)
-                    {
-                        int a = tris[t + k], b = tris[t + (k + 1) % 3];
-                        int lo = a < b ? a : b, hi = a < b ? b : a;
-                        if (seen.Add(((long)lo << 32) | (uint)hi)) { pairs.Add(lo); pairs.Add(hi); }
-                    }
-                }
-                if (pairs.Count / 2 > MaxMeshEdges) return e;
-                e.Verts = mesh.vertices;
-                e.Pairs = pairs.ToArray();
-            }
-            catch (Exception) { e.Verts = null; e.Pairs = null; }
-            return e;
-        }
-
-        // Refresh throttle: build what a found mesh collider needs.
-        private void Prepare(MeshCollider mc)
-        {
-            Mesh mesh = mc.sharedMesh;
-            if (mesh == null) return;
-            int id = mesh.GetInstanceID();
-            MeshEdges e;
-            if (_edgeCache.TryGetValue(id, out e)) { e.Seen = _stamp; return; }
-            if (_buildsLeft <= 0) return;
-            _buildsLeft--;
-            e = Build(mesh);
-            e.Seen = _stamp;
-            _edgeCache[id] = e;
-        }
-
-        private static void EvictOld()
-        {
-            List<int> drop = null;
-            foreach (KeyValuePair<int, MeshEdges> kv in _edgeCache)
-                if (_stamp - kv.Value.Seen > KeepRefreshes)
-                {
-                    if (drop == null) drop = new List<int>();
-                    drop.Add(kv.Key);
-                }
-            if (drop != null) for (int i = 0; i < drop.Count; i++) _edgeCache.Remove(drop[i]);
-        }
-
-        // Draw: reads the cache only. False = draw the bounds instead.
-        private bool DrawMeshCollider(MeshCollider mc)
+        // Draw, GL pass: queue the mesh for the wireframe pass. False = draw
+        // the bounds instead.
+        private bool QueueMesh(MeshCollider mc)
         {
             Mesh mesh = mc.sharedMesh;
             if (mesh == null) return false;
-            MeshEdges e;
-            if (!_edgeCache.TryGetValue(mesh.GetInstanceID(), out e)) return false;   // not built yet
-            if (e.Verts == null)
-            {
-                if (e.Unreadable) MeshBoxesUnreadable++; else MeshBoxesLarge++;
-                return false;
-            }
-            int n = e.Pairs.Length / 2;
-            if (_edgesThisFrame + n > MeshEdgeBudget) { MeshBoxesLarge++; return false; }
-            _edgesThisFrame += n;
-            Matrix4x4 m = mc.transform.localToWorldMatrix;
-            for (int i = 0; i < e.Pairs.Length; i += 2)
-                Line(m.MultiplyPoint3x4(e.Verts[e.Pairs[i]]), m.MultiplyPoint3x4(e.Verts[e.Pairs[i + 1]]));
+            int n = mesh.vertexCount;
+            if (_meshVerts + n > MeshVertexBudget) { MeshBoxesLarge++; return false; }
+            _meshVerts += n;
+            _meshDraws.Add(mc);
             return true;
+        }
+
+        // Draw, after GL.End: the queued meshes as wireframes in the collider
+        // colours. pull: the occlusion's toward-the-eye scale (identity off).
+        private void DrawMeshWires(Matrix4x4 pull)
+        {
+            if (_meshDraws.Count == 0 || _meshMaterial == null) return;
+            _meshMaterial.SetInt("_ZTest", (int)(Occlude ? UnityEngine.Rendering.CompareFunction.LessEqual
+                                                         : UnityEngine.Rendering.CompareFunction.Always));
+            int colour = -1;
+            GL.wireframe = true;
+            try
+            {
+                for (int i = 0; i < _meshDraws.Count; i++)
+                {
+                    MeshCollider mc = _meshDraws[i];
+                    if (mc == null) continue;
+                    Mesh mesh = mc.sharedMesh;
+                    if (mesh == null) continue;
+                    int want = mc.isTrigger ? 1 : 0;
+                    if (want != colour)
+                    {
+                        colour = want;
+                        _meshMaterial.SetColor("_Color", want == 1 ? TriggerColour : SolidColour);
+                        _meshMaterial.SetPass(0);
+                    }
+                    Graphics.DrawMeshNow(mesh, pull * mc.transform.localToWorldMatrix);
+                }
+            }
+            finally { GL.wireframe = false; }
         }
 
         /// Forces the next Update to re-gather, so a filter change shows
@@ -249,9 +210,6 @@ namespace ForestOverlay.Game
         {
             _found.Clear();
             Largest.Clear();
-            _stamp++;
-            _buildsLeft = BuildsPerRefresh;
-            if (_stamp % 20 == 0) EvictOld();
             HiddenBySize = 0;
             HiddenByName = 0;
             if (Origin == null) return;
@@ -290,12 +248,6 @@ namespace ForestOverlay.Game
 
                 _found.Add(c);
                 if (ranks) Largest.Add(name, largest);
-            }
-
-            for (int i = 0; i < _found.Count; i++)
-            {
-                MeshCollider mc = _found[i] as MeshCollider;
-                if (mc != null) Prepare(mc);
             }
         }
 
@@ -351,12 +303,12 @@ namespace ForestOverlay.Game
             _material.SetInt("_ZTest", (int)(Occlude ? UnityEngine.Rendering.CompareFunction.LessEqual
                                                     : UnityEngine.Rendering.CompareFunction.Always));
             _material.SetPass(0);
-            _edgesThisFrame = 0;
             _lines = 0;
+            _meshVerts = 0;
+            _meshDraws.Clear();
             MeshBoxesLarge = 0;
-            MeshBoxesUnreadable = 0;
 
-            GL.PushMatrix();
+            Matrix4x4 pull = Matrix4x4.identity;
             if (Occlude)
             {
                 Camera view = DrawTarget.View();
@@ -364,9 +316,11 @@ namespace ForestOverlay.Game
                 {
                     Vector3 eye = view.transform.position;
                     float k = 0.99f;
-                    GL.MultMatrix(Matrix4x4.TRS(eye * (1f - k), Quaternion.identity, new Vector3(k, k, k)));
+                    pull = Matrix4x4.TRS(eye * (1f - k), Quaternion.identity, new Vector3(k, k, k));
                 }
             }
+            GL.PushMatrix();
+            GL.MultMatrix(pull);
             GL.Begin(GL.LINES);
 
             for (int i = 0; i < _found.Count; i++)
@@ -377,15 +331,16 @@ namespace ForestOverlay.Game
                 GL.Color(c.isTrigger ? TriggerColour : SolidColour);
 
                 // The real shape for boxes, spheres and capsules (runners:
-                // "more detailed hitboxes", v0.24.199); a mesh collider keeps
-                // its edges (cached, within a budget), else its world bounds.
+                // "more detailed hitboxes", v0.24.199); a mesh collider is
+                // drawn as its mesh's wireframe after the lines (within a
+                // budget), else its world bounds.
                 BoxCollider box = c as BoxCollider;
                 SphereCollider sphere = box == null ? c as SphereCollider : null;
                 CapsuleCollider capsule = box == null && sphere == null ? c as CapsuleCollider : null;
                 if (box != null) DrawBox(box);
                 else if (sphere != null) DrawSphere(sphere);
                 else if (capsule != null) DrawCapsule(capsule);
-                else if (c is MeshCollider && DrawMeshCollider((MeshCollider)c)) { }
+                else if (c is MeshCollider && QueueMesh((MeshCollider)c)) { }
                 else
                 {
                     Bounds b = c.bounds;
@@ -395,7 +350,9 @@ namespace ForestOverlay.Game
 
             GL.End();
             GL.PopMatrix();
-            DrawTarget.Record(start, _lines * 2);
+            DrawMeshWires(pull);
+            _meshDraws.Clear();
+            DrawTarget.Record(start, _lines * 2 + _meshVerts);
         }
 
         private const int Segments = 16;
@@ -490,6 +447,7 @@ namespace ForestOverlay.Game
             try
             {
                 if (_material != null) UnityEngine.Object.Destroy(_material);
+                if (_meshMaterial != null) UnityEngine.Object.Destroy(_meshMaterial);
             }
             catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.OnDestroy", ex); }
         }
