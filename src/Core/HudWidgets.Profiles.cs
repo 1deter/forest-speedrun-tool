@@ -355,7 +355,7 @@ namespace ForestOverlay.Core
         // The one line under Reset profile (T-0321): what a second click wipes
         // while armed, then that it was done for a few seconds.
         private static readonly GUIContent ResetArmedNote = new GUIContent(
-            "Click again to reset: every value back in the column with its label, the panels, Compact and Text size. No undo.");
+            "Click again: values, labels, panels, Compact and Text size reset. No undo.");
         private readonly GUIContent _resetDoneNote = new GUIContent("");
         private float _resetDoneUntil = -1f;
 
