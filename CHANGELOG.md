@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.306 - 2026-10-15
+
+- Run lines and the ghost are now a few pixels wide with soft edges and a dark rim, fading out in the distance (new Runs > Run lines > Width).
+- Run lines no longer streak across the screen when they pass beside or behind the camera.
+
 ## v0.24.305 - 2026-10-15
 
 - The Map tab is turned 180 degrees; spots, zones, the relief and the player arrow turn with it.
