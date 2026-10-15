@@ -409,6 +409,9 @@ namespace ForestOverlay.Core
 
         // --- styles --------------------------------------------------------------
         public static GUISkin Skin { get { Ensure(); return _skin; } }
+        /// The widget card's fill and border colours, for flat (square-cornered) drawing.
+        public static Color WidgetFill { get { Ensure(); return _widget; } }
+        public static Color WidgetEdge { get { Ensure(); return _widgetBorder; } }
         public static Texture2D AccentTexture { get { Ensure(); return _tAccentFlat; } }
         public static GUIStyle Tab { get { Ensure(); return _tab; } }
         public static GUIStyle TabActive { get { Ensure(); return _tabActive; } }
