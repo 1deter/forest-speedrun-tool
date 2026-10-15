@@ -140,6 +140,43 @@ with `get static:Rewired.ReInput UserData.keyboardMaps[i].actionElementMaps[j].k
 (mouse: `.elementIdentifierId`); a runner's own rebinds live in their
 saved maps, not here.
 
+**Keys with two actions, and runners' rebinds (bridge + SendInput,
+2026-10-16, T-0361).** The shipped Default keyboard map binds some keys
+to two actions: E = Take + Build, C = Save + Craft, Left Ctrl = Crouch +
+Batch; the Default mouse map: left = Equip + Fire1, right = Combine +
+AltFire (element 3 / 4), X / Y = `Mouse X` / `Mouse Y` (0 / 1); the
+wheel (2) is bound only in the Menu map (`ScrollY`). W / S are
+`Vertical` +/-, D / A `Horizontal` +/- (`axisContribution`). Action
+names and ids: `ReInput.mapping.Actions` (53; e.g. Jump 9, Run 16,
+Crouch 21, Fire1 10, AltFire 11, Take 17, Vertical 8, Horizontal 7,
+Mouse X 12, Mouse Y 13; `categoryId` is the action category - 6 moves,
+2 actions, 3 building, 4 inventory, 1 menus, 7 chat). **Rebinds are
+real and live**: the game's rebinding UI (`TheForest.Utils.
+InputMappingButton`, IL) saves Rewired XML to PlayerPrefs (registry
+`HKCU\Software\SKS\TheForest`, `UserRemapping_v3&playerName=Player&
+dataType=ControllerMap&controllerMapType=KeyboardMap&categoryId=0...`),
+and `InputMapping.LoadAllMaps` loads it into `Input.player`'s maps, then
+`InputMappingIcons.RefreshMappings` rebuilds the HUD's key hints
+(`KeyboardMappings[]`, indexed by `InputMappingIcons.Actions`) and
+increments the static `InputMappingIcons.Version` (6 on this run). On
+the author's install Crouch is on C, Inventory Tab, Book F, Lighter Q,
+Craft V, Save E: with Left Ctrl held (SendInput), `Input.player.
+GetButton("Crouch")` read False and `"Batch"` True; with C held,
+Crouch True, Save / Craft False - Rewired reads the live maps, never
+`UserData`. Live maps by reflection: `player.controllers.maps.
+GetAllMaps(ControllerType)` -> `ControllerMap.categoryId` / `.enabled`
+/ `.AllMaps` -> `ActionElementMap.actionId` / `.keyCode` (a
+`UnityEngine.KeyCode`) / `.elementIdentifierId` / `.axisContribution`
+(the game's own RefreshMappings walks exactly this - IL).
+**Reading an action**: with S held, `GetAxisRaw("Vertical")` and
+`GetAxis` both -1 (no ramp: the saved InputBehavior has digital axis
+gravity / sensitivity 1000, snap on), `GetNegativeButton("Vertical")`
+True, `GetButton("Vertical")` False; both 0 / False on the release
+frame. With the plugin's window open (`Menu` state, only the Menu maps
+enabled), Space still read `GetButton("Jump")` True (the Menu map binds
+Space to Jump) and W read `Vertical` 0. `Player` has `GetButton(int)`,
+`GetNegativeButton(int)`, `GetAxisRaw(int)` by id as well.
+
 ### Mouse and keys as Unity sees them (bridge + SendInput, 2026-10-15, T-0302)
 
 Rewired runs with `ReInput.configuration.windowsStandalonePrimaryInputSource
