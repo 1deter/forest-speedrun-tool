@@ -277,7 +277,6 @@ namespace ForestOverlay.Modules
                 Segment s = _spots[i];
                 Vector3 p = s.SpawnPosition;
                 _sx[i] = p.x; _sz[i] = p.z; _spawn[i] = p; _revision[i] = s.Revision;
-                _colour[i] = MapGeometry.PaletteIndex(s.Category, Palette.Length);
                 _community[i] = SegmentLibrary.IsCommunity(s);
                 _under[i] = MapGeometry.IsUnderground(p.y, terrain ? MapRelief.TerrainY(p.x, p.z) : float.NaN, s.Cave);
                 if (_under[i]) _underCount++;
@@ -296,7 +295,12 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < legend; i++)
             {
                 _legend[i] = new GUIContent(categories[i].Length > 0 ? categories[i] : "(no category)");
-                _legendColour[i] = MapGeometry.PaletteIndex(categories[i], Palette.Length);
+                _legendColour[i] = i % Palette.Length;
+            }
+            for (int i = 0; i < n; i++)
+            {
+                for (int c = 0; c < categories.Count; c++)
+                    if (SegmentLibrary.SameCategory(categories[c], _spots[i].Category)) { _colour[i] = c % Palette.Length; break; }
             }
             if (more)
             {
