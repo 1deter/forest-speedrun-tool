@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.293 - 2026-10-15
+
+- New Input overlay: shows the keys and mouse buttons you press, lit in your theme's colours with a short pop. Turn it on in Edit HUD > Panels > Input overlay (off by default).
+- Each tile is placed, sized, hidden or removed on its own anywhere on screen; + Key adds any key you press, plus M1, M2, the mouse wheel and a mouse box that draws your mouse movement as a fading trail.
+- The tiles hide while a cursor is on screen and with the HUD (F5), and the layout is saved in your HUD profile.
+
 ## v0.24.292 - 2026-10-15
 
 - With Auto-restart on, a finished run's time shows in the results panel instead of a quick flash at the top (the flash stays if the results panel is off).
