@@ -538,6 +538,14 @@ def report(force_local=False):
     except (OSError, ValueError, T.TaskError) as e:
         problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
 
+    try:  # Stage B's chain (T-0016): the night's result, or the chain still open
+        import loop
+        chain = loop.chain_line(loop.load())
+        if chain:
+            lines.append(chain)
+    except (OSError, T.TaskError) as e:
+        problems.append("tasks/loop.jsonl: %s" % str(e).replace("\n", " "))
+
     if f_feedback is None:
         lines.append("bot feedback: paused - no bot work until it has much more data (author, 2026-10-10; decisions.md *Knowledge bot*)")
     else:

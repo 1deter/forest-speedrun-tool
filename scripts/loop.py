@@ -7,15 +7,27 @@ next step is read from the task's state in tasks/tasks.jsonl, never from the
 model's say-so, and the stop conditions are machine checks.
 
 tasks/loop.jsonl is append-only (one event per line, merges cleanly):
-begin / round / park / end / intervene / stop.
+begin / round / park / end / intervene / stop / smoke-fail, and the chain's
+chain-begin / chain-dispatch / chain-stop.
 
-    python scripts/loop.py begin [--bridge] [--max-rounds 5] [--max-context N]   # opens a run, lists parked questions
+    python scripts/loop.py begin [--bridge] [--max-rounds 5] [--max-context N] [--unattended --chain C-n]
     python scripts/loop.py next          # the open round's next action, or opens the next round, or STOP
     python scripts/loop.py peek          # what next would say, writing nothing
     python scripts/loop.py end --summary "one paragraph the author can skim"
     python scripts/loop.py intervene "what the author fixed or decided"
     python scripts/loop.py stop --reason "..."                 # ends the run early
     python scripts/loop.py report [R-0001]                     # the run: rounds, passes, parked, summaries
+    python scripts/loop.py smoke-fail T-n --report PATH        # a failed post-release smoke: park, stop the chain
+
+Stage B, the unattended chain (docs/harness.md 12, T-0016; author 2026-10-15): the author
+starts it from a conversation and steps away; that conversation (the driver) asks `chain next`
+and starts one fresh session per action - a due job (the weekly cleanup) or one unattended run
+(`begin --unattended --chain C-n`: nothing asked, the target only) - and is woken when it ends.
+
+    python scripts/loop.py chain begin [--target T-1,T-2 | --area A] [--bridge]
+    python scripts/loop.py chain next [--again]   # the driver's next action: due job, run, wait or STOP
+    python scripts/loop.py chain status           # progress to the target, the days to each due item
+    python scripts/loop.py chain stop --reason "..."
 
 Stop conditions (author, 2026-10-07): max rounds done (5), nothing left in the
 pool (`tasks.py next`: needs none, + bridge with --bridge), no progress for 3
@@ -24,6 +36,11 @@ rounds in a row; and the orchestrator's own context past 250k (author,
 four days' usage) - `begin` refuses then too, so the next run starts in a
 fresh session. A task given a third checker revise in its round is parked
 (needs author-decision, the faults as its question) and the loop moves on.
+
+A chain stops when its target / pool is empty, a run of it made no progress, a
+post-release smoke failed (`smoke-fail` parks the release's task; no rollback -
+author 2026-10-15), the driver's context passes the cap, or on `chain stop`; its
+summary goes to a file on the Desktop and the session-start report.
 
 Errors print WHAT / WHY / FIX and exit 1, like tasks.py. `next` exits 0 with
 an action, 3 with STOP (so a shell loop can tell them apart).
@@ -126,7 +143,7 @@ def runs(events):
     for e in events:
         kind = e.get("event")
         if kind == "begin":
-            r = {"id": e["run"], "begin": e, "rounds": [], "interventions": [], "stop": None}
+            r = {"id": e["run"], "begin": e, "rounds": [], "interventions": [], "stop": None, "smoke": []}
             out.append(r)
             by_id[e["run"]] = r
             continue
@@ -139,6 +156,8 @@ def runs(events):
             r["rounds"][-1][kind] = e
         elif kind == "intervene":
             r["interventions"].append(e)
+        elif kind == "smoke-fail":
+            r["smoke"].append(e)
         elif kind == "stop":
             r["stop"] = e
     return out
@@ -231,9 +250,27 @@ def stop_reason(run, tasks):
     return None
 
 
+def in_target(t, target):
+    """The chain's target: None = the whole pool, {"ids": [...]} or {"area": A}."""
+    if not target:
+        return True
+    if target.get("ids"):
+        return t["id"] in target["ids"]
+    return t["area"] == target.get("area")
+
+
+def unattended_skip(tasks, target):
+    """What an unattended run passes over: outside the target, or worked by main at an effort this
+    session may not be on (nobody is there to switch it)."""
+    return {t["id"] for t in tasks if not in_target(t, target) or needs_bump(t)}
+
+
 def pick(run, tasks):
-    taken = {r["task"] for r in run["rounds"]}
-    return T.pick_next(tasks, bridge=run["begin"].get("bridge", False), by="main", skip=taken)
+    b = run["begin"]
+    skip = {r["task"] for r in run["rounds"]}
+    if b.get("unattended"):
+        skip |= unattended_skip(tasks, b.get("target"))
+    return T.pick_next(tasks, bridge=b.get("bridge", False), by="main", skip=skip)
 
 
 PLUGIN_PATHS = T.PLUGIN_PATHS
@@ -343,7 +380,8 @@ def action(t, rnd):
 
 # ---------------------------------------------------------------- commands
 
-def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main", max_context=MAX_CONTEXT):
+def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main", max_context=MAX_CONTEXT,
+              unattended=False, chain=None):
     run = open_run(events)
     if run:
         raise LoopError("run %s is still open" % run["id"], "one loop run at a time",
@@ -351,13 +389,33 @@ def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main", max
     why = context_reason(context_tokens(), max_context)
     if why:
         raise LoopError("no new run in this session", why, "the handoff, then a new session (/clear) runs `loop.py begin`")
+    ch = None
+    if chain or unattended:
+        ch = open_chain(events)
+        if not (chain and unattended):
+            raise LoopError("--unattended and --chain go together", "an unattended run is one run of a chain "
+                            "(its target, its stop conditions, its report)",
+                            "`loop.py begin --unattended --chain C-n` (the id `chain next` printed)")
+        if not ch or ch["id"] != chain:
+            raise LoopError("chain %s is not open" % chain, "a run belongs to the open chain",
+                            "`loop.py chain status` names it; `chain begin` opens one")
+        bridge = bridge or ch["begin"].get("bridge", False)
     rid = new_run_id(events)
     new = [{"at": now(), "event": "begin", "run": rid, "max_rounds": max_rounds, "bridge": bridge, "by": by}]
     if max_context != MAX_CONTEXT:
         new[0]["max_context"] = max_context
+    if ch:
+        new[0].update({"unattended": True, "chain": ch["id"], "target": ch["begin"].get("target")})
     parked = [t for t in tasks if t.get("question") and t["status"] not in T.DONE]
     lines = ["run %s begun: at most %d rounds, pool needs none%s, context limit %dk"
              % (rid, max_rounds, " + bridge" if bridge else "", max_context // 1000)]
+    if ch:
+        lines.append("unattended, chain %s (%s): ask nothing - an open choice is parked (`tasks.py set T-n "
+                     "--question ... --needs author-decision`) and the round ends; %d parked question(s) wait "
+                     "for the author; unset tiers run as normal; tasks main would work at a higher effort "
+                     "are skipped" % (ch["id"], target_text(ch["begin"].get("target")), len(parked)))
+        lines.append("next: `python scripts/loop.py next`")
+        return new, "\n".join(lines), 0
     if parked:
         lines.append("parked questions - ask the author now (`tasks.py set T-n --answer \"...\"`):")
         lines += ["  %s %s\n    Q: %s" % (t["id"], t["title"], t["question"]) for t in parked]
@@ -560,6 +618,294 @@ def stats_line(events):
                                      len(done) / float(len(rs))))
 
 
+# ---------------------------------------------------------------- Stage B: the chain (T-0016)
+
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop")  # the chain's summary file (author 2026-10-15)
+RUN_BRIEF = (
+    "Unattended loop run, chain {cid} (docs/harness.md 12 Stage B, T-0016). The author is away: ask "
+    "nothing. Follow skill work-loop from `python scripts/loop.py begin --unattended --chain {cid}`, then "
+    "`loop.py next` until STOP. An open choice (intent, design, wording, scope) is parked with its question, "
+    "never guessed. Plugin rounds release with skill release; if its post-release smoke fails: "
+    "`python scripts/loop.py smoke-fail T-n --report <the e2e report path>`, end the round and "
+    "`loop.py stop --reason \"smoke failed\"`. At STOP: `loop.py report`, the handoff (docs, commit, push), "
+    "then end the session with one line.")
+CLEANUP_BRIEF = (
+    "Unattended weekly cleanup for loop chain {cid} (T-0016): the author is away, ask nothing. Run skill "
+    "weekly-cleanup; anything that needs the author is filed as a task with its question (needs "
+    "author-decision), never guessed. Commit and push, then end the session with one line.")
+DRIVER = ("start a fresh session for it (start_session: initiation user_asked - the author started the chain -, "
+          "context fresh, use_worktree false, wake_when_done true, title \"{title}\") with this brief, then end "
+          "the turn; when it ends, `python scripts/loop.py chain next` again:\n\n{brief}")
+
+
+def session_start():
+    """scripts/session-start.py as a module (its name has a hyphen): the due rules live there."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("session_start", os.path.join(T.ROOT, "scripts", "session-start.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def dues(tasks, today=None):
+    """Date-gated work: [(name, line, due, brief)]. brief is the job a fresh session does when it is due;
+    None = it needs the author (the harness review's start and end), so the chain only reports it. A task
+    held "until DATE" needs no job: on that day it is in the pool by itself (tasks.held)."""
+    today = today or T.today()
+    out = []
+    try:
+        ss = session_start()
+        qtext = ss.lint.read(ss.lint.QUALITY)
+        line, due = ss.cleanup_line(ss.log_table(qtext, "Cleanup log"), today)
+        out.append(("cleanup", line, due, CLEANUP_BRIEF))
+        line, due = ss.review_line(ss.log_table(qtext, "Simplification log"),
+                                   lambda d: len(T.finished_between(tasks, since=d)), today)
+        out.append(("harness review", line + (" (needs the author: reported, not run)" if due else ""), due, None))
+    except Exception as e:  # a due check never stops a chain; status shows it
+        out.append(("due dates", "due dates: could not read docs/quality.md (%s)" % type(e).__name__, False, None))
+    for i, (name, line, due, brief) in enumerate(out):
+        m = re.search(r"next due (\d{4}-\d{2}-\d{2})", line)
+        if m and not due:
+            days = (datetime.date.fromisoformat(m.group(1)) - datetime.date.fromisoformat(today)).days
+            out[i] = (name, "%s (%d day(s) to go)" % (line, days), due, brief)
+    for t in tasks:
+        d = T.hold_until(t)
+        if d and t["status"] not in T.DONE:
+            days = (datetime.date.fromisoformat(d) - datetime.date.fromisoformat(today)).days
+            out.append((t["id"], "%s held until %s - %s" % (t["id"], d, "in the pool now" if days <= 0 else
+                                                             "%d day(s) to go" % days), False, None))
+    return out
+
+
+def chains(events):
+    """The chains, oldest first: {id, begin, dispatches, stop}."""
+    out, by_id = [], {}
+    for e in events:
+        kind = e.get("event")
+        if kind == "chain-begin":
+            c = {"id": e["chain"], "begin": e, "dispatches": [], "stop": None}
+            out.append(c)
+            by_id[e["chain"]] = c
+        elif kind in ("chain-dispatch", "chain-stop") and e.get("chain") in by_id:
+            if kind == "chain-dispatch":
+                by_id[e["chain"]]["dispatches"].append(e)
+            else:
+                by_id[e["chain"]]["stop"] = e
+    return out
+
+
+def open_chain(events):
+    cs = chains(events)
+    return cs[-1] if cs and cs[-1]["stop"] is None else None
+
+
+def chain_runs(events, cid):
+    return [r for r in runs(events) if r["begin"].get("chain") == cid]
+
+
+def target_text(target):
+    if not target:
+        return "the whole pool"
+    if target.get("ids"):
+        return "tasks " + ", ".join(target["ids"])
+    return "area " + target["area"]
+
+
+def pool(tasks, bridge, target):
+    """The tasks an unattended run of this chain could still take (main's own in-progress one first)."""
+    skip = unattended_skip(tasks, target)
+    out = [t for t in tasks if t["status"] == "in-progress" and t.get("owner") == "main" and t["id"] not in skip]
+    skip |= {t["id"] for t in out}
+    while True:
+        t = T.pick_next(tasks, bridge=bridge, skip=skip)
+        if t is None:
+            return out
+        out.append(t)
+        skip.add(t["id"])
+
+
+def progress_text(tasks, ch):
+    b = ch["begin"]
+    target = b.get("target")
+    if target and target.get("ids"):
+        ts = [T.find(tasks, i) for i in target["ids"]]
+        done = [t["id"] for t in ts if progressed(t)]
+        left = [t["id"] for t in ts if not progressed(t)]
+        return "target: %d of %d moved forward%s%s" % (len(done), len(ts), " (%s)" % ", ".join(done) if done else "",
+                                                       "; left: " + ", ".join(left) if left else "")
+    n = len(pool(tasks, b.get("bridge", False), target))
+    return "%s: %d task(s) left in the pool (%d when the chain began)" % (target_text(target), n, b.get("pool", 0))
+
+
+def run_counts(rs):
+    done = [x for r in rs for x in r["rounds"] if x["end"]]
+    return (len(rs), len(done), len([x for x in done if x["end"].get("progress")]),
+            len([x for x in done if x["end"].get("parked")]))
+
+
+def chain_stop_reason(events, tasks, ch):
+    why = context_reason(context_tokens())
+    if why:
+        return "the driver's own context: " + why
+    fails = [e for e in events if e.get("event") == "smoke-fail" and e.get("chain") == ch["id"]]
+    if fails:
+        f = fails[-1]
+        return "the post-release smoke failed on %s (%s) - parked for the author" % (f["task"], f.get("report") or "no report")
+    rs = chain_runs(events, ch["id"])
+    if rs and rs[-1]["rounds"] and not any(x["end"] and x["end"].get("progress") for x in rs[-1]["rounds"]):
+        return "run %s made no progress - look at what keeps failing (`loop.py report %s`)" % (rs[-1]["id"], rs[-1]["id"])
+    return None
+
+
+def cmd_chain_begin(events, tasks, ids=None, area=None, bridge=False, by="main"):
+    ch = open_chain(events)
+    if ch:
+        raise LoopError("chain %s is still open" % ch["id"], "one chain at a time",
+                        "`loop.py chain next` continues it, `loop.py chain stop --reason \"...\"` ends it")
+    run = open_run(events)
+    if run:
+        raise LoopError("run %s is open" % run["id"], "a chain starts between runs",
+                        "finish it (`loop.py next`) or `loop.py stop --reason \"...\"`")
+    if ids and area:
+        raise LoopError("--target and --area together", "a chain has one target", "pick one")
+    target = None
+    if ids:
+        target = {"ids": [T.find(tasks, T.normalise_id(i.strip()))["id"] for i in ids.split(",") if i.strip()]}
+    elif area:
+        if area not in T.AREAS:
+            raise LoopError("unknown area %r" % area, "the target is a task file area", "one of " + ", ".join(T.AREAS))
+        target = {"area": area}
+    cid = "C-%04d" % (len(chains(events)) + 1)
+    e = {"at": now(), "event": "chain-begin", "chain": cid, "target": target, "bridge": bridge, "by": by,
+         "pool": len(pool(tasks, bridge, target))}
+    lines = ["chain %s begun: %s, pool needs none%s, %d task(s) in it" % (cid, target_text(target),
+                                                                        " + bridge" if bridge else "", e["pool"])]
+    lines += ["  " + d[1] for d in dues(tasks)]
+    lines.append("next: `python scripts/loop.py chain next`")
+    return [e], "\n".join(lines), 0
+
+
+def cmd_chain_next(events, tasks, again=False):
+    ch = open_chain(events)
+    if not ch:
+        raise LoopError("no open chain", "chain next drives an open chain", "`loop.py chain begin`")
+    cid = ch["id"]
+    run = open_run(events)
+    if run:
+        if run["begin"].get("chain") != cid:
+            raise LoopError("run %s is open outside chain %s" % (run["id"], cid), "the chain runs one run at a time",
+                            "finish it or `loop.py stop --reason \"...\"`")
+        return [], ("wait: run %s is open in its own session. When that session has ended without closing it, "
+                    "`loop.py stop --reason \"its session ended\"` (after `loop.py end` for an open round), then "
+                    "`loop.py chain next`" % run["id"]), 0
+    rs = chain_runs(events, cid)
+    started = [d for d in ch["dispatches"] if d["kind"] == "run"]
+    if started and not again and not any(r["begin"]["at"] >= started[-1]["at"] for r in rs):
+        return [], ("wait: a run session was started at %s and has not begun its run. If that session failed to "
+                    "start or ended without `begin`: `loop.py chain next --again`" % started[-1]["at"]), 0
+    why = chain_stop_reason(events, tasks, ch)
+    if not why:
+        done = {d["kind"] for d in ch["dispatches"]}
+        for name, line, due, brief in dues(tasks):
+            if due and brief and name not in done:
+                e = {"at": now(), "event": "chain-dispatch", "chain": cid, "kind": name}
+                return [e], "due: %s\n%s" % (line, DRIVER.format(title="Weekly cleanup (chain %s)" % cid,
+                                                                  brief=brief.format(cid=cid))), 0
+        target = ch["begin"].get("target")
+        if not pool(tasks, ch["begin"].get("bridge", False), target):
+            ids = (target or {}).get("ids")
+            all_done = ids and all(progressed(T.find(tasks, i)) for i in ids)
+            why = ("the target is done" if all_done else "nothing left it can take alone - the rest waits on the "
+                   "game, a tester or the author") + " (%s)" % progress_text(tasks, ch)
+    if why:
+        e = {"at": now(), "event": "chain-stop", "chain": cid, "reason": why}
+        return [e], "STOP chain %s: %s\nsummary: %s" % (cid, why, chain_file(cid)), EXIT_STOP
+    e = {"at": now(), "event": "chain-dispatch", "chain": cid, "kind": "run"}
+    return [e], "run %d of chain %s (%s)\n%s" % (len(rs) + 1, cid, progress_text(tasks, ch), DRIVER.format(
+        title="Loop run %d (chain %s)" % (len(rs) + 1, cid), brief=RUN_BRIEF.format(cid=cid))), 0
+
+
+def cmd_chain_stop(events, reason):
+    ch = open_chain(events)
+    if not ch:
+        raise LoopError("no open chain", "nothing to stop", "`loop.py chain status` shows the last one")
+    run = open_run(events)
+    if run and run["begin"].get("chain") == ch["id"]:
+        raise LoopError("run %s of the chain is open" % run["id"], "a chain ends between runs",
+                        "`loop.py stop --reason \"...\"` first")
+    if not (reason or "").strip():
+        raise LoopError("no --reason", "the summary says why the chain ended", "--reason \"...\"")
+    e = {"at": now(), "event": "chain-stop", "chain": ch["id"], "reason": reason.strip()}
+    return [e], "chain %s stopped: %s\nsummary: %s" % (ch["id"], reason.strip(), chain_file(ch["id"])), 0
+
+
+def chain_status(events, tasks, cid=None):
+    cs = chains(events)
+    if cid:
+        cs = [c for c in cs if c["id"] == cid]
+    if not cs:
+        return "(no loop chains)"
+    ch = cs[-1]
+    n, rounds, passed, parked = run_counts(chain_runs(events, ch["id"]))
+    lines = ["chain %s begun %s by %s: %s, %d run(s), %d round(s), %d progressed, %d parked%s" % (
+        ch["id"], ch["begin"]["at"], ch["begin"].get("by", "?"), target_text(ch["begin"].get("target")), n, rounds,
+        passed, parked, "" if ch["stop"] else " - open")]
+    if ch["stop"]:
+        lines.append("stopped %s: %s" % (ch["stop"]["at"], ch["stop"]["reason"]))
+    lines.append(progress_text(tasks, ch))
+    lines.append("due:")
+    lines += ["  " + d[1] for d in dues(tasks)]
+    return "\n".join(lines)
+
+
+def chain_file(cid):
+    return os.path.join(DESKTOP, "forest-chain-%s.md" % cid)
+
+
+def write_chain_file(events, tasks, cid):
+    """The chain's summary on the Desktop (author 2026-10-15): status, then every run's report."""
+    text = ["# Loop chain %s" % cid, "", chain_status(events, tasks, cid), ""]
+    for r in chain_runs(events, cid):
+        text += ["## " + r["id"], "", report(events, r["id"]), ""]
+    try:
+        os.makedirs(DESKTOP, exist_ok=True)
+        with open(chain_file(cid), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(text))
+    except OSError:
+        pass  # the session-start line and `chain status` still have it
+
+
+def chain_line(events):
+    """session-start's line for the last chain, or None (T-0016)."""
+    cs = chains(events)
+    if not cs:
+        return None
+    ch = cs[-1]
+    n, rounds, passed, parked = run_counts(chain_runs(events, ch["id"]))
+    counts = "%d run(s), %d round(s), %d progressed, %d parked" % (n, rounds, passed, parked)
+    if ch["stop"] is None:
+        return "loop chain: %s open since %s, %s - the driver continues with `loop.py chain next`" % (
+            ch["id"], ch["begin"]["at"][:16], counts)
+    return "loop chain: %s ended %s, %s; stop: %s (summary %s)" % (
+        ch["id"], ch["stop"]["at"][:16], counts, ch["stop"]["reason"], chain_file(ch["id"]))
+
+
+def cmd_smoke_fail(events, tasks, tid, report_path):
+    """A failed post-release smoke: the task is parked for the author and its chain stops (no rollback,
+    author 2026-10-15). The task file change is made by run()."""
+    t = T.find(tasks, T.normalise_id(tid))
+    run = open_run(events)
+    ch = open_chain(events)
+    e = {"at": now(), "event": "smoke-fail", "run": run["id"] if run else None, "task": t["id"],
+         "chain": (run["begin"].get("chain") if run else None) or (ch["id"] if ch else None),
+         "report": report_path, "release": t.get("release"),
+         "question": "The post-release smoke failed%s (report %s). Fix how, or revert?" % (
+             " on " + t["release"] if t.get("release") else "", report_path or "none")}
+    return [e], "%s parked: smoke failed%s%s" % (t["id"], " - chain %s stops at its next step" % e["chain"]
+                                                 if e["chain"] else "", "; end the round, then `loop.py stop`"
+                                                 if run else ""), 0
+
+
 def main(argv=None, loop_path=None, tasks_path=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -569,6 +915,8 @@ def main(argv=None, loop_path=None, tasks_path=None):
     sp.add_argument("--max-context", type=int, default=MAX_CONTEXT,
                     help="tokens; a run's own limit when the author raises it for one session (author 2026-10-15: 350000)")
     sp.add_argument("--by", default="main")
+    sp.add_argument("--unattended", action="store_true", help="a chain's run: nothing asked (T-0016)")
+    sp.add_argument("--chain", help="the open chain this run belongs to (with --unattended)")
     sub.add_parser("next")
     sub.add_parser("peek")
     sp = sub.add_parser("end")
@@ -580,6 +928,22 @@ def main(argv=None, loop_path=None, tasks_path=None):
     sp.add_argument("--reason", required=True)
     sp = sub.add_parser("report")
     sp.add_argument("run", nargs="?")
+    sp = sub.add_parser("smoke-fail")
+    sp.add_argument("id")
+    sp.add_argument("--report", required=True, help="the e2e report's path")
+    sp = sub.add_parser("chain")
+    csub = sp.add_subparsers(dest="chain_cmd", required=True)
+    cp = csub.add_parser("begin")
+    cp.add_argument("--target", help="task ids, comma-separated")
+    cp.add_argument("--area")
+    cp.add_argument("--bridge", action="store_true")
+    cp.add_argument("--by", default="main")
+    cp = csub.add_parser("next")
+    cp.add_argument("--again", action="store_true", help="start a run session again (the last one never began)")
+    cp = csub.add_parser("status")
+    cp.add_argument("chain", nargs="?")
+    cp = csub.add_parser("stop")
+    cp.add_argument("--reason", required=True)
     a = p.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -601,11 +965,15 @@ def run(a, loop_path, tasks_path):
         if a.cmd == "report":
             print(report(events, a.run))
             return 0
+        if a.cmd == "chain" and a.chain_cmd == "status":
+            print(chain_status(events, tasks, a.chain))
+            return 0
         if a.cmd == "begin":
             if a.max_rounds < 1:
                 raise LoopError("--max-rounds %d" % a.max_rounds, "a run takes at least one round",
                                 "--max-rounds %d (the default)" % MAX_ROUNDS)
-            new, text, code = cmd_begin(events, tasks, a.max_rounds, a.bridge, a.by, a.max_context)
+            new, text, code = cmd_begin(events, tasks, a.max_rounds, a.bridge, a.by, a.max_context,
+                                        a.unattended, a.chain)
         elif a.cmd in ("next", "peek"):
             new, text, code = cmd_next(events, tasks)
             if a.cmd == "peek":
@@ -614,6 +982,15 @@ def run(a, loop_path, tasks_path):
             new, text, code = cmd_end(events, tasks, a.summary, a.id)
         elif a.cmd == "intervene":
             new, text, code = cmd_intervene(events, a.what)
+        elif a.cmd == "smoke-fail":
+            new, text, code = cmd_smoke_fail(events, tasks, a.id, a.report)
+        elif a.cmd == "chain":
+            if a.chain_cmd == "begin":
+                new, text, code = cmd_chain_begin(events, tasks, a.target, a.area, a.bridge, a.by)
+            elif a.chain_cmd == "next":
+                new, text, code = cmd_chain_next(events, tasks, a.again)
+            else:
+                new, text, code = cmd_chain_stop(events, a.reason)
         else:
             new, text, code = cmd_stop(events, a.reason)
         if new and any(e["event"] == "park" for e in new):
@@ -626,7 +1003,19 @@ def run(a, loop_path, tasks_path):
                 T.transition(tasks, t, "blocked", by="loop")
                 t["updated"] = T.today()
                 T.save(tasks, tasks_path or T.TASKS, None if tasks_path else T.VIEW)
+        if new and any(e["event"] == "smoke-fail" for e in new):
+            fail = [e for e in new if e["event"] == "smoke-fail"][0]
+            with T.locked(tasks_path or T.TASKS):
+                tasks = T.load(tasks_path or T.TASKS)
+                t = T.find(tasks, fail["task"])
+                t["question"] = fail["question"]  # status stays (released): no rollback, the author decides
+                t["needs"] = "author-decision"
+                t["updated"] = T.today()
+                T.save(tasks, tasks_path or T.TASKS, None if tasks_path else T.VIEW)
         append(new, loop_path)
+        stopped = [e for e in new if e["event"] == "chain-stop"]
+        if stopped:
+            write_chain_file(events + new, tasks, stopped[0]["chain"])
         print(text)
         return code
     except T.TaskError as e:

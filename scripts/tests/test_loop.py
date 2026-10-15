@@ -431,5 +431,150 @@ class ThroughMain(unittest.TestCase):
         self.assertEqual(self.main("begin", "--max-rounds", "0"), 1)
 
 
+class Chain(unittest.TestCase):
+    """Stage B (T-0016): the chain the author starts and a driver conversation walks, one fresh session
+    per run or due job."""
+
+    def setUp(self):
+        self.dues = L.dues
+        L.dues = lambda tasks, today=None: []
+        self.dir = tempfile.mkdtemp()
+        self.desktop = L.DESKTOP
+        L.DESKTOP = self.dir
+
+    def tearDown(self):
+        L.dues = self.dues
+        L.DESKTOP = self.desktop
+        shutil.rmtree(self.dir)
+
+    def test_held_until_a_date_comes_due_by_itself(self):
+        ts = [task("T-0001", priority=1, hold="until 2999-01-01"), task("T-0002", priority=2, hold="v1 group 4"),
+              task("T-0003", priority=3, hold="until 2000-01-01")]
+        self.assertEqual(T.pick_next(ts)["id"], "T-0003")
+        self.assertTrue(T.held(ts[0]) and T.held(ts[1]) and not T.held(ts[2]))
+        self.assertFalse(T.held(ts[0], day="2999-01-01"))
+        self.assertEqual((T.hold_until(ts[0]), T.hold_until(ts[1])), ("2999-01-01", None))
+
+    def test_begin_takes_one_target_and_counts_its_pool(self):
+        ts = [task("T-0001"), task("T-0002", area="site"), task("T-0003", needs="author-present")]
+        ev = []
+        text, _ = run(ev, L.cmd_chain_begin, ts, "T-0001,t-3")
+        self.assertIn("chain C-0001 begun: tasks T-0001, T-0003", text)
+        self.assertEqual(ev[0]["pool"], 1)  # T-0003 waits on the author
+        with self.assertRaises(L.LoopError):
+            L.cmd_chain_begin(ev, ts)  # one chain at a time
+        for args in (("T-0001", "site"), (None, "nowhere")):
+            with self.assertRaises(L.LoopError):
+                L.cmd_chain_begin([], ts, *args)
+        with self.assertRaises(T.TaskError):
+            L.cmd_chain_begin([], ts, "T-0099")
+
+    def test_next_starts_a_run_session_then_waits_for_it(self):
+        ts = [task("T-0001")]
+        ev = []
+        run(ev, L.cmd_chain_begin, ts)
+        text, code = run(ev, L.cmd_chain_next, ts)
+        self.assertEqual(code, 0)
+        self.assertIn("begin --unattended --chain C-0001", text)
+        self.assertIn("wake_when_done true", text)
+        n = len(ev)
+        text, _ = run(ev, L.cmd_chain_next, ts)
+        self.assertTrue(text.startswith("wait: a run session was started"))
+        self.assertEqual(len(ev), n)
+        text, _ = run(ev, L.cmd_chain_next, ts, True)  # --again: that session never began
+        self.assertIn("run 1 of chain C-0001", text)
+        run(ev, L.cmd_begin, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0001")
+        text, _ = run(ev, L.cmd_chain_next, ts)
+        self.assertTrue(text.startswith("wait: run R-0001 is open"))
+
+    def test_an_unattended_run_takes_only_the_target_and_nothing_main_must_bump_for(self):
+        ts = [task("T-0001", priority=1), task("T-0002", priority=3),
+              task("T-0003", priority=2, tier="hard"), task("T-0004", priority=3, area="site")]
+        ev = []
+        run(ev, L.cmd_chain_begin, ts, "T-0002,T-0003,T-0004")
+        with self.assertRaises(L.LoopError):
+            L.cmd_begin(ev, ts, 5, False, "main", L.MAX_CONTEXT, True, None)  # --unattended needs --chain
+        with self.assertRaises(L.LoopError):
+            L.cmd_begin(ev, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0009")
+        text, _ = run(ev, L.cmd_begin, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0001")
+        self.assertIn("ask nothing", text)
+        self.assertNotIn("tiers to settle", text)
+        self.assertEqual(ev[-1]["target"], {"ids": ["T-0002", "T-0003", "T-0004"]})
+        text, _ = run(ev, L.cmd_next, ts)
+        self.assertIn("T-0002", text)  # not T-0001 (outside), not T-0003 (main at high effort)
+        self.assertEqual([t["id"] for t in L.pool(ts, False, ev[0]["target"])], ["T-0002", "T-0004"])
+
+    def test_a_run_without_progress_stops_the_chain_and_writes_the_summary(self):
+        ts = [task("T-0001"), task("T-0002")]
+        ev = []
+        run(ev, L.cmd_chain_begin, ts)
+        run(ev, L.cmd_chain_next, ts)
+        run(ev, L.cmd_begin, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0001")
+        run(ev, L.cmd_next, ts)
+        ts[0]["notes"] = "gave up"
+        run(ev, L.cmd_end, ts, SUMMARY)
+        run(ev, L.cmd_stop, "the author is away and it could not go on")
+        text, code = run(ev, L.cmd_chain_next, ts)
+        self.assertEqual(code, L.EXIT_STOP)
+        self.assertIn("run R-0001 made no progress", text)
+        self.assertIsNone(L.open_chain(ev))
+        self.assertIn("C-0001 ended", L.chain_line(ev))
+        self.assertIn("1 run(s), 1 round(s), 0 progressed", L.chain_line(ev))
+
+    def test_a_due_job_goes_first_once(self):
+        L.dues = lambda tasks, today=None: [("cleanup", "cleanup: last run 2026-10-01 -> due", True, "cleanup {cid}"),
+                                            ("harness review", "harness review: due (needs the author)", True, None)]
+        ts = [task("T-0001")]
+        ev = []
+        run(ev, L.cmd_chain_begin, ts)
+        text, _ = run(ev, L.cmd_chain_next, ts)
+        self.assertTrue(text.startswith("due: cleanup"))
+        self.assertIn("cleanup C-0001", text)
+        text, _ = run(ev, L.cmd_chain_next, ts)  # dispatched once; the review needs the author: not run
+        self.assertIn("run 1 of chain C-0001", text)
+
+    def test_an_empty_target_stops(self):
+        ts = [task("T-0001", status="released", release="v1")]
+        ev = []
+        run(ev, L.cmd_chain_begin, ts, "T-0001")
+        text, code = run(ev, L.cmd_chain_next, ts)
+        self.assertEqual(code, L.EXIT_STOP)
+        self.assertIn("the target is done (target: 1 of 1 moved forward (T-0001))", text)
+
+    def test_stop_waits_for_the_run(self):
+        ts = [task("T-0001")]
+        ev = []
+        with self.assertRaises(L.LoopError):
+            L.cmd_chain_stop(ev, "x")
+        run(ev, L.cmd_chain_begin, ts)
+        run(ev, L.cmd_chain_next, ts)
+        run(ev, L.cmd_begin, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0001")
+        with self.assertRaises(L.LoopError):
+            L.cmd_chain_stop(ev, "author back")
+        run(ev, L.cmd_stop, "author back")
+        text, _ = run(ev, L.cmd_chain_stop, "author back")
+        self.assertIn("chain C-0001 stopped: author back", text)
+        self.assertIsNone(L.chain_line([]))
+
+    def test_through_main_a_failed_smoke_parks_and_stops_the_chain(self):
+        tp, lp = os.path.join(self.dir, "tasks.jsonl"), os.path.join(self.dir, "loop.jsonl")
+        T.save([task("T-0001", area="plugin", status="released", release="v0.24.9"), task("T-0002")], tp, None)
+        main = lambda *a: L.main(list(a), loop_path=lp, tasks_path=tp)
+        self.assertEqual(main("chain", "begin"), 0)
+        self.assertEqual(main("chain", "next"), 0)
+        self.assertEqual(main("begin", "--unattended", "--chain", "C-0001"), 0)
+        self.assertEqual(main("smoke-fail", "T-0001", "--report", "tests/e2e/reports/x.md"), 0)
+        t = T.load(tp)[0]
+        self.assertEqual((t["status"], t["needs"]), ("released", "author-decision"))
+        self.assertIn("smoke failed on v0.24.9", t["question"])
+        self.assertEqual(main("stop", "--reason", "smoke failed"), 0)
+        self.assertEqual(main("chain", "next"), L.EXIT_STOP)
+        with open(os.path.join(self.dir, "forest-chain-C-0001.md"), encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("smoke failed on T-0001", text)
+        self.assertIn("## R-0001", text)
+        self.assertEqual(main("chain", "status"), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

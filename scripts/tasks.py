@@ -24,6 +24,7 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
            [--faults "file:line - what is wrong" ...]
     python scripts/tasks.py note T-0001 "multi-session notes line"
     python scripts/tasks.py set T-0001 --hold "v1 group 4"   # not now: next skips it (--hold none clears)
+    python scripts/tasks.py set T-0001 --hold "until 2026-10-22"  # a date gate: in the pool from that day (T-0016)
     python scripts/tasks.py lift "v1 group 4"               # the scope starts: clear every task held under it
     python scripts/tasks.py stats [--since YYYY-MM-DD] [--until YYYY-MM-DD]
            # a window: only tasks finished (first built) in it - the monthly review's before / after
@@ -369,6 +370,25 @@ def hold_ok(name):
     return isinstance(name, str) and 0 < len(name) <= HOLD_MAX and name == name.strip()
 
 
+HOLD_UNTIL = re.compile(r"^until (\d{4}-\d{2}-\d{2})$")
+
+
+def held(t, day=None):
+    """The task is held out of next. A hold "until YYYY-MM-DD" is a date gate: it holds only before that
+    day, so the work comes due by itself (T-0016); any other hold waits for `lift`."""
+    hold = t.get("hold")
+    if not hold:
+        return False
+    m = HOLD_UNTIL.match(hold)
+    return not (m and m.group(1) <= (day or today()))
+
+
+def hold_until(t):
+    """The date of a task's "until" hold, or None."""
+    m = HOLD_UNTIL.match(t.get("hold") or "")
+    return m.group(1) if m else None
+
+
 def set_hold(t, a):
     """--hold on add and set; --hold none drops it."""
     hold = getattr(a, "hold", None)
@@ -564,7 +584,7 @@ def pick_next(tasks, bridge=False, by=None, skip=()):
     ids = {t["id"]: t for t in tasks}
     ready = []
     for t in tasks:
-        if (t["status"] != "todo" or t["needs"] not in allowed or t.get("question") or t.get("hold")
+        if (t["status"] != "todo" or t["needs"] not in allowed or t.get("question") or held(t)
                 or t["id"] in skip):
             continue
         if any(ids[d]["status"] not in ("built", "released", "confirmed") for d in t.get("blocked_by") or []):

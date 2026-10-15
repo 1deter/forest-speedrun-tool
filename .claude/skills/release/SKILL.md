@@ -61,7 +61,10 @@ Facts behind each step (the updater, the 404 window, rollback):
    python scripts/e2e.py --smoke --update --release v0.24.N
    ```
    A FAIL is the next task, before anything new (the report in
-   `tests/e2e/reports/` says which check).
+   `tests/e2e/reports/` says which check). In an unattended chain run
+   (T-0016): `python scripts/loop.py smoke-fail T-n --report <report>`
+   for the release's task, end the round and `loop.py stop` - the chain
+   stops and the author decides (no rollback).
 
 6. **Handoff in the next push** (docs-only, no version): the router's
    *Where we are* (unreleased line), new gotchas in `docs/gotchas.md` +

@@ -611,6 +611,9 @@ state) and reports rounds, passes, failures and human interventions.
   tasks. Each release passes the 8b smoke before the next task. What it
   may publish unattended: main and releases, once the smoke passes
   (see *Decisions*). Ladder levels 2 and 4 (scheduled, self-feeding).
+  **Built** (T-0016, decision 9): `loop.py chain` - the author starts it
+  from a conversation (no clock), which drives one fresh session per run
+  or due job; docs/areas/workflow.md *The unattended chain*.
 - **Stage C, graph** - only if it scores at least three of L14's five
   criteria when we get there. A dispatcher fans independent tasks out to
   the role agents (`forest-dev` / `-site` / `-knowledge` in worktrees, at
@@ -789,6 +792,16 @@ Asked after the deeper pass; each replaces an "open question" above.
    **all but the safety guards** (rules 2, 4, 13, 15 and their hooks) -
    five tasks of stats cannot show the worth of a guard against a rare,
    costly event.
+9. **The unattended chain** (12 Stage B, T-0016; author, 2026-10-15):
+   started by the author from a conversation, **no clock** ("i'll start
+   the routine manually"); the conversation drives **a chain of fresh
+   sessions**, one per 5-round run, woken as each ends; it keeps track of
+   **date-gated work** (the cleanup, the review, holds `until DATE`) and
+   **progress to its target**; a **failed post-release smoke stops and
+   parks** the task (no rollback); the result reaches the author as a
+   **session-start line** plus a summary file on the Desktop. Started
+   2026-10-15 although `loop.py` changed on 10-11 / 10-15 (author: those
+   were additions, not fixes).
 - **Usage (author, 2026-10-09, T-0249):** of the measured cuts
   (tasks/notes/T-0249.md) only one: the loop stops a run once the
   orchestrator's context passes 200k (300k from 2026-10-10, author: 200k too harsh, trial; 250k for every session from 2026-10-11, T-0319) and refuses a new run in that
@@ -960,3 +973,8 @@ Asked after the deeper pass; each replaces an "open question" above.
 - 2026-10-08: first harness review ended - the line is **removed**
   (author): nothing got worse with it off (`docs/quality.md`
   *Simplification log*). Next review due 30 days on.
+- 2026-10-15: Stage B built (T-0016, decision 9): `loop.py chain begin /
+  next / status / stop`, `begin --unattended --chain`, `smoke-fail`,
+  `until DATE` holds in `tasks.py`, the session-start chain line, the
+  Desktop summary; test_loop 41. First real chain run next, with the
+  author.

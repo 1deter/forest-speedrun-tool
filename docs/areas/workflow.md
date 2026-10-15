@@ -174,6 +174,32 @@ end. Author's calls (2026-10-07, harness.md *Decisions* 7):
   logged with `loop.py intervene`. `loop.py report` is the run, `tasks.py
   stats` its *loop* line. State: `tasks/loop.jsonl` (append-only).
 
+**The unattended chain** (Stage B, T-0016; author, 2026-10-15, harness.md
+*Decisions* 9). The author says "start the routine" (optionally a target:
+task ids or an area) and steps away; no clock starts it. The conversation
+becomes the driver: `loop.py chain begin [--target T-1,T-2 | --area A]
+[--bridge]`, then `loop.py chain next` names one action at a time and the
+driver does it, ending its turn after each:
+- **due job** - the weekly cleanup once it is due, in a fresh session
+  (skill `weekly-cleanup`, nothing asked). The harness review needs the
+  author, so it is only reported;
+- **run** - a fresh session (`start_session`, fresh context, this
+  checkout, `wake_when_done`) runs skill `work-loop` from `loop.py begin
+  --unattended --chain C-n`: nothing asked, open choices parked, unset
+  tiers as normal, the target only, tasks main would work at a higher
+  effort skipped. Plugin rounds release and run the post-release smoke
+  as usual; a failed smoke is `loop.py smoke-fail T-n --report PATH`
+  (the task keeps its status and gets the question; no rollback);
+- **wait** - a run is open, or a started session has not begun its run
+  (`chain next --again` when it never will);
+- **STOP** - the target / pool is empty, a run made no progress, a smoke
+  failed, the driver's context passed the cap, or `chain stop`.
+`loop.py chain status` gives progress to the target and the days to each
+due item (the cleanup, the review, a task held `until YYYY-MM-DD` - such a
+hold lets the task into the pool by itself on that day). At STOP the
+summary goes to `~/Desktop/forest-chain-C-n.md` and session-start shows
+the last chain.
+
 **Awaiting an in-game check:** tasks with `needs: bridge` / `author-eyes`
 (`tasks.py list --open --needs bridge`). Confirmed features, by version
 and by whom: [`docs/confirmed.md`](../confirmed.md) (check it before

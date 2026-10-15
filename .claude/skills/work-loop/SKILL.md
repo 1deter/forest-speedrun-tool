@@ -58,6 +58,22 @@ again. Never move a task by your own say-so - the gates in `tasks.py` and
    (T-0249: one night session grew to 541k, 15 % of four days' usage) -
    a night of runs is one fresh session per run, never one long session.
 
+## Unattended (Stage B, T-0016)
+
+**Driving a chain** - the author said "start the routine" here: `python
+scripts/loop.py chain begin` (`--target T-1,T-2` or `--area A` when they
+named one; `--bridge` with the game up), then `loop.py chain next` and do
+what it says - a fresh session for a due job or a run (it names the
+start_session settings and the brief), `wait`, or `STOP` - ending the
+turn after each start; when a session's note wakes you, `chain next`
+again. Answer nothing for a run session; at STOP tell the author in one
+line (the summary file is on the Desktop).
+
+**A run of the chain** - the brief says `begin --unattended --chain
+C-n`: steps 2-4 above with nobody there. Never ask: an open choice is
+parked and the round ends; a failed post-release smoke is `loop.py
+smoke-fail T-n --report <path>`, then end the round and `loop.py stop`.
+
 ## Boundaries
 
 - One task per round, WIP = 1 (`--by main`); the round's work goes to a
