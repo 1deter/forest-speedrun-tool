@@ -407,3 +407,4 @@ Confirmed 2026-10-10 (game, bridge, ui-redesign f0e0707, banner v0.24.267): **th
 - v0.24.310: F2 window text sharp at 1080p-class (1920x1200) and 1440p, layout unchanged, scroll clips, map aligned; 768p unchanged (T-0360, bridge 2026-10-15)
 - T-0358: Input overlay "Only while pressed": no key tile idle, held W (SendInput) = only W tile at Level 1, gone on release (Active False), Edit HUD shows all tiles (shots inputs-only-idle, inputs-held-auto3, inputs-released-auto3, inputs-only-edit) - v0.24.313, bridge 2026-10-16
 - Map tab category colours by legend order: 8 categories, 8 distinct colours, dots match legend (v0.24.314, bridge 2026-10-16)
+- Collision view mesh wireframes (T-0367, v0.24.315, bridge 2026-10-16): unreadable cave / plane-hull MeshColliders draw their real triangles (59.8k verts in Cave 6, 0 boxes), GL 0.05 ms/frame, 282 fps, GC x0.
