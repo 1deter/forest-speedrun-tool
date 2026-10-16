@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.335 - 2026-10-17
+
+- Input overlay (game input): the Esc tile now reads Menu and lights when you press Esc, including the press that opens the pause menu - it shows over the menu while held.
+
 ## v0.24.334 - 2026-10-16
 
 - Runs > Run options > Checkpoints: the label picker is now a short list of stats (Health, Stamina, Energy, Fullness, Thirst, Body temp, Armor) instead of every recorded field.
