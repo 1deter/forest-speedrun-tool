@@ -160,6 +160,30 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DragKeepsScaleOnATinyMove()
+        {
+            Assert.Equal(1f, InputLayout.ScaleFromDrag("W", 1f, 100f, 100f, 101f, 101f, 10f, 10f, 1920f, 1080f));
+            Assert.Equal(1.5f, InputLayout.ScaleFromDrag("W", 1.5f, 100f, 100f, 99f, 100f, 10f, 10f, 1920f, 1080f));
+        }
+
+        [Fact]
+        public void DragSnapsGrowsAndShrinks()
+        {
+            float w1 = InputLayout.TileW("W", 1f);
+            Assert.Equal(2f, InputLayout.ScaleFromDrag("W", 1f, 0f, 0f, w1, w1, 0f, 0f, 1920f, 1080f));
+            Assert.Equal(0.5f, InputLayout.ScaleFromDrag("W", 1f, 0f, 0f, -w1, -w1, 0f, 0f, 1920f, 1080f));
+            Assert.Equal(InputLayout.MaxScale, InputLayout.ScaleFromDrag("W", 1f, 0f, 0f, 5000f, 5000f, 0f, 0f, 19200f, 10800f));
+        }
+
+        [Fact]
+        public void DragStaysOnScreen()
+        {
+            // 100 px of room to the right edge: a 44 px tile fits at most 2.25x, snapped down to 2x
+            float v = InputLayout.ScaleFromDrag("W", 1f, 0f, 0f, 3000f, 0f, 1820f, 0f, 1920f, 1080f);
+            Assert.True(InputLayout.TileW("W", v) <= 100.01f);
+        }
+
+        [Fact]
         public void PositionsConvertToAnotherReferenceScreen()
         {
             string s = InputLayout.ConvertPositions("W,100,200,1,1;E,5,5,2,1;Q,0,50,1,0", 1920, 1080, 3840, 2160);
