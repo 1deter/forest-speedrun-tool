@@ -274,6 +274,7 @@ namespace ForestOverlay.Modules
             }
             _camHud = ReplayCamera.Label(_camView) + "  " + ClockText.Clock(_clock.T) + _camTail;
             _barInfo.text = "Watching the comparison run:  " + _camHud;
+            if (_reference != null) _barStats.text = ReplayStats.Line(_reference, _clock.T);
             // The tab's line: only built while the tab shows it.
             if (!TabShowing) return;
             _camTimeText.text = "Watching: " + _camHud +
