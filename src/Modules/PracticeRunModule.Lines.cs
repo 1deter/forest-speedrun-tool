@@ -25,6 +25,11 @@ namespace ForestOverlay.Modules
         private ConfigEntry<float> _lineOpacity, _lineAhead, _replayOpacity, _lineWidth;
         private ConfigEntry<bool> _lineAheadOn, _keepFailedCfg, _ghostCfg;
         private ConfigEntry<string> _lineBehindCfg;
+        private ConfigEntry<bool> _lineBySpeedCfg;
+        private static readonly GUIContent TipLineColour = new GUIContent(
+            "The comparison line's colour: one colour, or along its length by the speed it was run at (green fast, amber, red slow).");
+        private readonly GUIContent _speedLegend = new GUIContent("");
+        private float _legendMin = -1f, _legendMax = -1f;
         private static readonly string[] BehindNames = { "Hidden", "Faint", "Through" };
         private static readonly GUIContent TipLineBehind = new GUIContent(
             "What the run lines do behind plants, rocks and the ground: hidden by them, faint through them, or drawn fully through.");
@@ -78,6 +83,8 @@ namespace ForestOverlay.Modules
                 "Run lines' and the ghost's width in pixels on a 1080p screen (scaled with the screen's height), 1-8.");
             _lineBehindCfg = ctx.Config.Bind("Runs", "RunLineBehind", "Hidden",
                 "Run lines behind plants, rocks and the ground: Hidden (depth-tested), Faint (the hidden parts at a third of the opacity) or Through (drawn fully through).");
+            _lineBySpeedCfg = ctx.Config.Bind("Runs", "RunLineBySpeed", false,
+                "Colour the comparison line along its length by the speed it was run at (green fast, amber, red slow) instead of one colour.");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
@@ -86,6 +93,39 @@ namespace ForestOverlay.Modules
         {
             _lineBehindCfg.Value = BehindNames[i];
             Ctx.Log.LogInfo("Run lines: behind things set to " + BehindNames[i] + ".");
+        }
+
+        private void SetLineBySpeed(bool on)
+        {
+            _lineBySpeedCfg.Value = on;
+            Ctx.Log.LogInfo("Run lines: comparison colour set to " + (on ? "by speed" : "one colour") + ".");
+        }
+
+        /// The ramp's legend: a bar of the buckets, slow to fast, with the
+        /// comparison run's slowest and fastest speed under its ends.
+        private float DrawSpeedLegend(float x, float y, float w)
+        {
+            float min = _referenceLine.MinSpeed, max = _referenceLine.MaxSpeed;
+            if (min != _legendMin || max != _legendMax)
+            {
+                _legendMin = min; _legendMax = max;
+                _speedLegend.text = _referenceLine.Count < 2 ? "No comparison run yet."
+                    : "slowest " + min.ToString("0.0") + " m/s  -  fastest " + max.ToString("0.0") + " m/s";
+            }
+            int n = ForestOverlay.Data.SpeedRamp.Buckets;
+            float barW = Mathf.Min(w - 124f, 256f), cell = barW / n;
+            Color keep = GUI.color;
+            for (int i = 0; i < n; i++)
+            {
+                float r, g, b;
+                ForestOverlay.Data.SpeedRamp.Colour(i, out r, out g, out b);
+                GUI.color = new Color(r, g, b, keep.a);
+                WinPx.DrawTexture(new Rect(x + 124f + i * cell, y + 2, cell + 0.5f, 10), Texture2D.whiteTexture);
+            }
+            GUI.color = keep;
+            y += 14f;
+            y += UiText.Draw(x + 124f, y, w - 124f, _speedLegend);
+            return y + 4f;
         }
 
         private void FlushLineOptions()
@@ -139,6 +179,14 @@ namespace ForestOverlay.Modules
             if (UiKit.Toggle(new Rect(x + 204f, y, 66, 20), behind == 1, " faint") && behind != 1) SetLineBehind(1);
             if (UiKit.Toggle(new Rect(x + 274f, y, 130, 20), behind == 2, " drawn through") && behind != 2) SetLineBehind(2);
             y += 24f;
+
+            WinPx.Label(new Rect(x, y, 120, 20), "Comparison colour");
+            UiKit.Hint(new Rect(x, y, 120, 20), TipLineColour);
+            bool bySpeed = _lineBySpeedCfg.Value;
+            if (UiKit.Toggle(new Rect(x + 124f, y, 96, 20), !bySpeed, " one colour") && bySpeed) SetLineBySpeed(false);
+            if (UiKit.Toggle(new Rect(x + 224f, y, 96, 20), bySpeed, " by speed") && !bySpeed) SetLineBySpeed(true);
+            y += 24f;
+            if (_lineBySpeedCfg.Value) y = DrawSpeedLegend(x, y, w);
 
             bool failed = UiKit.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
             if (failed != _keepFailedCfg.Value) _keepFailedCfg.Value = failed;

@@ -38,6 +38,12 @@ namespace ForestOverlay.Data
         /// with Points - for showing only a window of the line (v0.24.191).
         public float[] Times = new float[256];
 
+        /// Each kept point's recorded speed, index-aligned (T-0372), and the
+        /// slowest / fastest of them (the range the by-speed colour spans;
+        /// MinSpeed > MaxSpeed while empty).
+        public float[] Speeds = new float[256];
+        public float MinSpeed = float.MaxValue, MaxSpeed = float.MinValue;
+
         /// How many source samples have been consumed, so Sync only walks
         /// the new ones.
         public int SourceCount;
@@ -53,6 +59,8 @@ namespace ForestOverlay.Data
         {
             Count = 0;
             SourceCount = 0;
+            MinSpeed = float.MaxValue;
+            MaxSpeed = float.MinValue;
         }
 
         public void Append(Vector3 p)
@@ -60,7 +68,9 @@ namespace ForestOverlay.Data
             Append(p, Count > 0 ? Times[Count - 1] : 0f);
         }
 
-        public void Append(Vector3 p, float t)
+        public void Append(Vector3 p, float t) { Append(p, t, 0f); }
+
+        public void Append(Vector3 p, float t, float speed)
         {
             if (Count > 0 && (p - Points[Count - 1]).sqrMagnitude < _minSpacingSqr) return;
 
@@ -72,9 +82,15 @@ namespace ForestOverlay.Data
                 float[] times = new float[Points.Length];
                 Array.Copy(Times, times, Count);
                 Times = times;
+                float[] speeds = new float[Points.Length];
+                Array.Copy(Speeds, speeds, Count);
+                Speeds = speeds;
             }
 
             Times[Count] = t;
+            Speeds[Count] = speed;
+            if (speed < MinSpeed) MinSpeed = speed;
+            if (speed > MaxSpeed) MaxSpeed = speed;
             Points[Count++] = p;
         }
 
@@ -101,7 +117,7 @@ namespace ForestOverlay.Data
             if (samples == null) { Clear(); return; }
             if (samples.Count < SourceCount) Clear();
 
-            for (int i = SourceCount; i < samples.Count; i++) Append(samples[i].P, samples[i].T);
+            for (int i = SourceCount; i < samples.Count; i++) Append(samples[i].P, samples[i].T, samples[i].Speed);
             SourceCount = samples.Count;
         }
     }

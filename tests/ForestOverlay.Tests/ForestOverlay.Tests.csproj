@@ -37,6 +37,7 @@
     <Compile Include="../../src/Data/TrailClip.cs" Link="Linked/TrailClip.cs" />
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/RibbonPath.cs" Link="Linked/RibbonPath.cs" />
+    <Compile Include="../../src/Data/SpeedRamp.cs" Link="Linked/SpeedRamp.cs" />
     <Compile Include="../../src/Data/ExternalMods.cs" Link="Linked/ExternalMods.cs" />
     <Compile Include="../../src/Data/ArmCause.cs" Link="Linked/ArmCause.cs" />
     <Compile Include="../../src/Data/ColdNote.cs" Link="Linked/ColdNote.cs" />
