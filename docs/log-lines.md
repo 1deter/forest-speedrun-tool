@@ -719,7 +719,7 @@ Written by InputInject.cs; info / warning.
 
 ## `Inputs`
 
-Meaning: The input overlay (Edit HUD) was switched on or off, or a tile was added, removed, moved, scaled, shown or hidden, or the layout reset; the warning says the mouse box could not read the mouse.
+Meaning: The input overlay (Edit HUD) was switched on or off, or a tile was added, removed, moved, scaled (by the buttons or by dragging its corner), shown or hidden, or the layout reset; the warning says the mouse box could not read the mouse.
 Written by InputOverlayModule.cs; info / warning.
 
 - info `Inputs: <..>.`

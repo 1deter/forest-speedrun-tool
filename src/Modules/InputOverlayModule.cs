@@ -99,6 +99,8 @@ namespace ForestOverlay.Modules
         private int _drag = -1;
         private int _resize = -1;   // a tile whose corner handle is being dragged
         private const float HandlePx = 12f;
+        private float _resizeStartScale;
+        private Vector2 _resizeStartMouse;
         private Vector2 _dragOffset;
         private int _removeAt = -1;
         private bool _resetArmed;
@@ -571,8 +573,9 @@ namespace ForestOverlay.Modules
         {
             if (_on == null || !_on.Value || _states.Count == 0) return;
             bool editing = Editing;
-            if (!editing && Cursor.visible) { _drag = -1; _resize = -1; return; }
-            if (!editing) { _drag = -1; _resize = -1; }
+            if (!editing) FinishResize();   // Edit HUD closed mid-drag: keep the size reached
+            if (!editing && Cursor.visible) { _drag = -1; return; }
+            if (!editing) _drag = -1;
 
             Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
             try
@@ -646,7 +649,7 @@ namespace ForestOverlay.Modules
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a);
                 WinPx.Box(s.Rect, GUIContent.none, UiKit.Outline);
-                Flat(HandleRect(s.Rect), UiKit.Accent);
+                WinPx.Box(HandleRect(s.Rect), GUIContent.none, UiKit.Handle);
             }
         }
 
@@ -804,6 +807,22 @@ namespace ForestOverlay.Modules
             return new Rect(r.xMax - h, r.yMax - h, h, h);
         }
 
+        // The grab area is 4 px larger than the square, as the HUD values' handle.
+        private static Rect HandleHit(Rect r)
+        {
+            Rect h = HandleRect(r);
+            return new Rect(h.x - 2f, h.y - 2f, h.width + 4f, h.height + 4f);
+        }
+
+        private void FinishResize()
+        {
+            if (_resize < 0) return;
+            TileState z = _states[Mathf.Min(_resize, _states.Count - 1)];
+            _resize = -1;
+            Commit();   // once per gesture
+            Ctx.Log.LogInfo("Inputs: tile " + z.Tile.Key + " resized by dragging to " + z.Tile.Scale.ToString("0.##") + ".");
+        }
+
         private void EditEvents(UiScale ui, Event e)
         {
             MainWindowModule main = Host.Find<MainWindowModule>();
@@ -816,7 +835,7 @@ namespace ForestOverlay.Modules
                     {
                         TileState s = _states[i];
                         if (!s.Valid || !s.Rect.Contains(e.mousePosition)) continue;
-                        if (e.button == 0 && HandleRect(s.Rect).Contains(e.mousePosition)) { _resize = i; e.Use(); return; }
+                        if (e.button == 0 && HandleHit(s.Rect).Contains(e.mousePosition)) { _resize = i; _resizeStartScale = s.Tile.Scale; _resizeStartMouse = e.mousePosition; e.Use(); return; }
                         if (e.button == 1) { SetShown(s, !s.Tile.Shown); e.Use(); return; }
                         if (e.button != 0) return;
                         _drag = i;
@@ -829,13 +848,8 @@ namespace ForestOverlay.Modules
                     if (_resize >= 0 && _resize < _states.Count)
                     {
                         TileState rs = _states[_resize];
-                        string k = rs.Tile.Key;
-                        float w1 = InputLayout.TileW(k, 1f), h1 = InputLayout.TileH(k, 1f);
-                        float want = ((e.mousePosition.x - rs.Rect.x) / w1 + (e.mousePosition.y - rs.Rect.y) / h1) * 0.5f;
-                        float fit = Mathf.Min((ui.VW - rs.Rect.x) / w1, (ui.VH - rs.Rect.y) / h1);   // stay on screen
-                        float v = Mathf.Round(Mathf.Min(want, fit) * 4f) / 4f;
-                        while (v > InputLayout.MinScale && v > fit + 0.001f) v -= 0.25f;
-                        v = InputLayout.ClampScale(v);
+                        float v = InputLayout.ScaleFromDrag(rs.Tile.Key, _resizeStartScale, _resizeStartMouse.x, _resizeStartMouse.y,
+                            e.mousePosition.x, e.mousePosition.y, rs.Rect.x, rs.Rect.y, ui.VW, ui.VH);
                         if (v != rs.Tile.Scale) rs.Tile.Scale = v;
                         e.Use();
                         return;
@@ -851,15 +865,7 @@ namespace ForestOverlay.Modules
                     e.Use();
                     break;
                 case EventType.MouseUp:
-                    if (_resize >= 0)
-                    {
-                        TileState z = _states[Mathf.Min(_resize, _states.Count - 1)];
-                        _resize = -1;
-                        Commit();   // once per gesture
-                        Ctx.Log.LogInfo("Inputs: tile " + z.Tile.Key + " resized by dragging to " + z.Tile.Scale.ToString("0.##") + ".");
-                        e.Use();
-                        return;
-                    }
+                    if (_resize >= 0) { FinishResize(); e.Use(); return; }
                     if (_drag < 0) return;
                     TileState m = _states[Mathf.Min(_drag, _states.Count - 1)];
                     _drag = -1;

@@ -149,6 +149,23 @@ namespace ForestOverlay.Data
             return (UnitsW(key) * Pitch - (Pitch - Unit)) * scale;
         }
 
+        /// The scale a dragged corner gives (Edit HUD). Measured from the drag's start: the tile was
+        /// startScale big with its corner grabbed at (startMouse), the mouse is now at (mouse). Snaps to
+        /// 0.25, never past the screen edge (the tile's origin is at originX / originY, the screen is
+        /// vw x vh) and stays within MinScale..MaxScale. A tiny move keeps the scale.
+        public static float ScaleFromDrag(string key, float startScale, float startMouseX, float startMouseY,
+            float mouseX, float mouseY, float originX, float originY, float vw, float vh)
+        {
+            float w1 = TileW(key, 1f), h1 = TileH(key, 1f);
+            float newW = TileW(key, startScale) + (mouseX - startMouseX);
+            float newH = TileH(key, startScale) + (mouseY - startMouseY);
+            float want = (newW / w1 + newH / h1) * 0.5f;
+            float fit = Math.Min((vw - originX) / w1, (vh - originY) / h1);
+            float v = (float)Math.Round(Math.Min(want, fit) * 4.0) / 4f;
+            while (v > fit + 0.001f && v > MinScale) v -= 0.25f;
+            return ClampScale(v);
+        }
+
         public static float TileH(string key, float scale)
         {
             return (UnitsH(key) * Pitch - (Pitch - Unit)) * scale;
