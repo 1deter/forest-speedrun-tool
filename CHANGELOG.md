@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.328 - 2026-10-16
+
+- The input overlay's mouse is now a Comet by default: a dot with a fading tail of the last 0.4 s of movement, no frame.
+- A new Mouse style setting in Edit HUD switches back to the old Box.
+
 ## v0.24.327 - 2026-10-16
 
 - Edit HUD: drag the small handle at an input tile's bottom-right corner to resize it; it snaps to the same steps as the - / + buttons, which still work.
