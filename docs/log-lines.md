@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-244 prefixes from 804 log calls.
+245 prefixes from 805 log calls.
 
 ## `ActionReaders`
 
@@ -1537,6 +1537,13 @@ Written by ItemCounter.cs; info / warning.
 - warning `Run item track: PlayerInventory has no <..> - items not recorded.`
 - warning `Run item track: inventory types not found - items re-read every 5 s instead.`
 - info `Run item track: reading <list.Count> inventory entries (<counts.Count> items).`
+
+## `Run lines`
+
+Meaning: The runner chose how run lines meet plants, rocks and ground (Hidden, Faint, Through).
+Written by PracticeRunModule.Lines.cs; info.
+
+- info `Run lines: behind things set to <..>.`
 
 ## `Run mode`
 
