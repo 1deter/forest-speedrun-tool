@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.324 - 2026-10-16
+
+- "Only while pressed" now hides the mouse box while the mouse is still.
+- With "Only while pressed", the scroll-wheel tile shows only on frames you scroll.
+
 ## v0.24.323 - 2026-10-16
 
 - The input overlay's mouse path now runs right up to the box edge when the mouse wraps, and continues from the opposite edge instead of leaving a gap.
