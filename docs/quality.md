@@ -38,7 +38,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-15 |
 | Performance and loads | B | B | B | A | B | T-0034, T-0048 | 2026-10-14 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
-| Dev tools | B | B | B | B | B | T-0367 | 2026-10-15 |
+| Dev tools | B | B | B | B | B | | 2026-10-16 |
 | Bridge, e2e and QA | B | A | B | B | A | | 2026-10-14 |
 | Release and updater | A | A | A | A | A | | 2026-10-14 |
 | Site app | B | A | A | A | B | T-0285, T-0304 | 2026-10-14 |
@@ -219,14 +219,14 @@ Debug views and freecam, the explorer, dumps, the FSM / terrain / world
 exports, the offline IL scanner.
 - Verification **B**: used in every research session; freecam confirmed
   by the author (v0.17.0); VolumeFilter tested.
-- Legibility **B**: `DebugDraw.cs` 829 (also draws run lines and
-  markers); ILScan is documented in game-notes and plugin.md.
+- Legibility **B**: `DebugDraw.cs` 1,094 (also draws run lines and
+  markers; the GPU mesh-collider wireframes, T-0367); ILScan is documented in game-notes and plugin.md.
 - Stability **B**: ILScan's modes, errors and cap run in CI over a
   fixture assembly; the FSM export's value text and the dumps' cleaners
   are `Data/DumpText` with tests (T-0146). The game-walking parts of the
   dumps are proved only by use.
 - Gaps **A**. Since 2026-10-09: the Developer tab gathers the dev
-  features (T-0226), the stall watch names a hang (T-0284, released).
+  features (T-0226), the stall watch names a hang (T-0284, released); since 2026-10-16 mesh colliders draw as wireframes, confirmed in game v0.24.315 (T-0367).
 
 ### Bridge, e2e and QA
 
