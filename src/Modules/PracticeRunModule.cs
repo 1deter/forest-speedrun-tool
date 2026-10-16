@@ -1033,8 +1033,14 @@ namespace ForestOverlay.Modules
             _lines.Behind = LineBehind;
             _lines.BySpeed = _lineBySpeedCfg.Value && _referenceLine.Count >= 2;
             _lines.ReferenceSpeeds = _referenceLine.Speeds;
-            _lines.SpeedMin = _referenceLine.MinSpeed;
-            _lines.SpeedMax = _referenceLine.MaxSpeed;
+            if (_referenceLine.Count != _speedCount || !ReferenceEquals(_speedSource, _lineSource))
+            {
+                _speedCount = _referenceLine.Count;
+                _speedSource = _lineSource;
+                ForestOverlay.Data.SpeedRamp.Range(_referenceLine.Speeds, _speedCount, out _speedLo, out _speedHi);
+            }
+            _lines.SpeedMin = _speedLo;
+            _lines.SpeedMax = _speedHi;
             if (!_camOn && _showLines && _lineAheadOn.Value)
             {
                 // Only the next few seconds of the comparison (author, QA

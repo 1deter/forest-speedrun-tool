@@ -45,6 +45,36 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ARangeIgnoresASpikeAndAStretchAtZero()
+        {
+            float[] v = new float[100];
+            for (int i = 0; i < 100; i++) v[i] = 5f + (i % 5);          // 5..9
+            v[10] = 300f;                                                // a spike
+            v[0] = 0f; v[1] = 0f;                                        // a restore
+            float lo, hi;
+            SpeedRamp.Range(v, 100, out lo, out hi);
+            Assert.True(lo >= 5f && hi <= 9f, lo + " " + hi);
+            Assert.Equal(SpeedRamp.Buckets - 1, SpeedRamp.Bucket(9f, lo, hi));
+            Assert.True(SpeedRamp.Bucket(7f, lo, hi) > 0);
+            float l2, h2;
+            SpeedRamp.Range(null, 0, out l2, out h2);
+            Assert.Equal(0f, h2);
+        }
+
+        [Fact]
+        public void ThePerPointValueReachesItsBucket()
+        {
+            RibbonPath r = new RibbonPath();
+            r.SetView(Vector3.zero, new Vector3(0f, 0f, 1f), new Vector3(1f, 0f, 0f), new Vector3(0f, 1f, 0f), 0.1f,
+                      1000f, 960f, 540f, 0f, 0.25f, 0f);
+            r.Add(new[] { new Vector3(0f, -1f, 10f), new Vector3(0f, -1f, 11f), new Vector3(0f, -1f, 12f) },
+                  new[] { 2f, 6f, 10f }, 0, 3);
+            Assert.Equal(0, SpeedRamp.Bucket(r.Values[0], 2f, 10f));
+            Assert.Equal(SpeedRamp.Buckets / 2, SpeedRamp.Bucket(r.Values[1], 2f, 10f));
+            Assert.Equal(SpeedRamp.Buckets - 1, SpeedRamp.Bucket(r.Values[2], 2f, 10f));
+        }
+
+        [Fact]
         public void TheRibbonCarriesValuesToItsKeptPoints()
         {
             RibbonPath r = new RibbonPath();

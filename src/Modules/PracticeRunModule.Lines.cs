@@ -30,6 +30,11 @@ namespace ForestOverlay.Modules
             "The comparison line's colour: one colour, or along its length by the speed it was run at (green fast, amber, red slow).");
         private readonly GUIContent _speedLegend = new GUIContent("");
         private float _legendMin = -1f, _legendMax = -1f;
+        // The by-speed colour range of the comparison line (SpeedRamp.Range),
+        // worked out when the line changes.
+        private float _speedLo, _speedHi;
+        private int _speedCount = -1;
+        private object _speedSource;
         private static readonly string[] BehindNames = { "Hidden", "Faint", "Through" };
         private static readonly GUIContent TipLineBehind = new GUIContent(
             "What the run lines do behind plants, rocks and the ground: hidden by them, faint through them, or drawn fully through.");
@@ -105,15 +110,16 @@ namespace ForestOverlay.Modules
         /// comparison run's slowest and fastest speed under its ends.
         private float DrawSpeedLegend(float x, float y, float w)
         {
-            float min = _referenceLine.MinSpeed, max = _referenceLine.MaxSpeed;
+            float min = _speedLo, max = _speedHi;
             if (min != _legendMin || max != _legendMax)
             {
                 _legendMin = min; _legendMax = max;
                 _speedLegend.text = _referenceLine.Count < 2 ? "No comparison run yet."
-                    : "slowest " + min.ToString("0.0") + " m/s  -  fastest " + max.ToString("0.0") + " m/s";
+                    : "slow " + min.ToString("0.0") + " m/s  -  fast " + max.ToString("0.0") + " m/s (the line's 5th to 95th percentile)";
             }
+            if (_referenceLine.Count < 2) return y + UiText.Draw(x + 124f, y, Mathf.Max(60f, w - 124f), _speedLegend) + 4f;
             int n = ForestOverlay.Data.SpeedRamp.Buckets;
-            float barW = Mathf.Min(w - 124f, 256f), cell = barW / n;
+            float barW = Mathf.Clamp(w - 124f, 32f, 256f), cell = barW / n;
             Color keep = GUI.color;
             for (int i = 0; i < n; i++)
             {
@@ -124,7 +130,7 @@ namespace ForestOverlay.Modules
             }
             GUI.color = keep;
             y += 14f;
-            y += UiText.Draw(x + 124f, y, w - 124f, _speedLegend);
+            y += UiText.Draw(x + 124f, y, Mathf.Max(60f, w - 124f), _speedLegend);
             return y + 4f;
         }
 
