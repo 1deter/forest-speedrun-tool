@@ -45,6 +45,15 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void OldDefaultMovesOnlyOnce()
+        {
+            Assert.Equal(MarkSpec.Default, MarkSpec.MoveOldDefault(MarkSpec.OldDefault, false));
+            Assert.Equal(MarkSpec.OldDefault, MarkSpec.MoveOldDefault(MarkSpec.OldDefault, true));
+            Assert.Equal("time,ch:Thirst", MarkSpec.MoveOldDefault("time,ch:Thirst", false));
+            Assert.Equal("off", MarkSpec.MoveOldDefault("off", false));
+        }
+
+        [Fact]
         public void StatsInRunnerWordsAndItemsCount()
         {
             Assert.Equal(7, MarkSpec.Stats.Length);

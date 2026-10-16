@@ -1563,7 +1563,7 @@ Meaning: The runner chose how run lines meet plants, rocks and ground (Hidden, F
 Written by PracticeRunModule.Lines.cs; info.
 
 - info `Run lines: behind things set to <..>.`
-- info `Run lines: checkpoint labels moved from the old default to <MarkSpec.Default>.`
+- info `Run lines: checkpoint labels moved from the old default to <next>.`
 - info `Run lines: checkpoint markers set to <text>.`
 - info `Run lines: comparison colour set to <..>.`
 

@@ -46,6 +46,14 @@ namespace ForestOverlay.Data
             return channel;
         }
 
+        /// The config value after the one-time move off the old default:
+        /// `moved` = the move already happened (a later "time,delta" was
+        /// chosen by hand and stays).
+        public static string MoveOldDefault(string value, bool moved)
+        {
+            return !moved && value == OldDefault ? Default : value;
+        }
+
         /// Armor is left out of a label while it is 0 (author: "armor (if any)").
         public static bool HiddenAtZero(string channel)
         {

@@ -95,11 +95,16 @@ namespace ForestOverlay.Modules
                 "Colour the comparison line along its length by the speed it was run at (green fast, amber, red slow) instead of one colour.");
             _markFieldsCfg = ctx.Config.Bind("Runs", "RunLineCheckpoints", MarkSpec.Default,
                 "What the comparison line's checkpoint markers show: off, dot (dots only), or comma-separated label fields: time, delta, segment, speed, ch:<stat> (e.g. ch:Health), item:<item> (e.g. item:Soda).");
-            // v0.24.316-333's default moves to the new one once (T-0400).
-            if (_markFieldsCfg.Value == MarkSpec.OldDefault)
+            // v0.24.316-333's default moves to the new one once (T-0400);
+            // the marker keeps a later "time,delta" chosen by hand.
+            ConfigEntry<bool> moved = ctx.Config.Bind("Runs", "RunLineCheckpointsMoved", false,
+                "Set once the checkpoint labels' old default (time,delta) was moved to the new one; leave it.");
+            string next = MarkSpec.MoveOldDefault(_markFieldsCfg.Value, moved.Value);
+            if (!moved.Value) moved.Value = true;
+            if (next != _markFieldsCfg.Value)
             {
-                _markFieldsCfg.Value = MarkSpec.Default;
-                ctx.Log.LogInfo("Run lines: checkpoint labels moved from the old default to " + MarkSpec.Default + ".");
+                _markFieldsCfg.Value = next;
+                ctx.Log.LogInfo("Run lines: checkpoint labels moved from the old default to " + next + ".");
             }
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
@@ -316,7 +321,7 @@ namespace ForestOverlay.Modules
                 if (_markItems.IndexOf(sp.Items[i]) < 0) _markItems.Add(sp.Items[i]);
             _markItemLabels.Clear();
             for (int i = 0; i < _markItems.Count; i++) _markItemLabels.Add(" " + _markItems[i]);
-            _markItemsFold.text = " Items (" + _markItems.Count + ")";
+            _markItemsFold.text = " Items (" + sp.Items.Count + " of " + _markItems.Count + " shown)";
         }
 
         /// A toggle in the wrapping fields row: moves to the next line when
@@ -371,7 +376,7 @@ namespace ForestOverlay.Modules
                 // Items: folded, a run can hold dozens.
                 if (_markItems.Count > 0)
                 {
-                    Rect fr = new Rect(x0, y, 160, 20);
+                    Rect fr = new Rect(x0, y, 240, 20);
                     bool open = UiKit.Toggle(fr, _markItemsOpen, _markItemsFold);
                     UiKit.Hint(fr, TipMarkItems);
                     if (open != _markItemsOpen) _markItemsOpen = open;
