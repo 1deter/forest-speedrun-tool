@@ -278,7 +278,12 @@ namespace ForestOverlay.Modules
 
             if (_draw != null)
             {
-                _draw.Origin = _freeCam.Active ? _freeCam.Camera.transform : Ctx.Player.Transform;
+                // Gathered around the view, not the player: the freecam and
+                // the replay camera (a second FreeCamBehaviour, Runs) both
+                // set DrawTarget.FreeCam. On the player, a replay flown down
+                // a route drew only what was near the held player (T-0389).
+                Camera flown = DrawTarget.FreeCam;
+                _draw.Origin = flown != null ? flown.transform : Ctx.Player.Transform;
                 _draw.Radius = _radius;
             }
 

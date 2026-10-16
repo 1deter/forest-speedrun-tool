@@ -1157,3 +1157,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `BringWindowToTop` + `SetForegroundWindow`, then wait a few frames
     for the switch. `scripts/sendinput.py` does it; forest-tester's brief
     points at it.
+
+116. **A view gathered around the player goes stale under a flown camera.** (2026-10-16,
+    T-0389, in game.) The author reported the collision view missing the
+    Labskip Jumping Section's invisible platforms "since the mesh
+    wireframes" (T-0367); every mesh collider on the route drew. The cause
+    was in his session log: `Replay camera: on`, then a constant 18,156
+    verts/frame for ten minutes - the colliders were gathered within 30 m
+    of the player, held at the spawn, while the replay camera (a second
+    `FreeCamBehaviour`) flew the route; only Views' own freecam moved the
+    origin. Anything placed around "where the runner is" follows
+    `DrawTarget.FreeCam` (set by every flown camera), else the player. And
+    a version named in a report is a guess until the log agrees: read what
+    the runner had on before reproducing the named change.
