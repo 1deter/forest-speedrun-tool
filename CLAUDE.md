@@ -157,19 +157,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (chain C-0001, run R-0011; the author stepped in at the
-  end):** v0.24.310 T-0360 (F2 window drawn in screen pixels through
-  `Core/WinPx`: sharp text) and T-0359 (forest-ux input overlay review ->
-  T-0375..T-0378) confirmed. T-0363 (overlay crisp corners, one scale,
-  mouse path): v0.24.311's path drew dashes outside the box; v0.24.312
-  draws it with GL in pixel space - the author saw it right in game
-  (smoke / 2560 / Edit HUD resize still open). Parked for the author:
-  T-0358 (dynamic mode: idle tiles vanish or dim?), T-0361 (raw keys vs
-  actions: which shape, which words) + T-0335, T-0366, T-0369, T-0370,
-  T-0374. New: T-0379 (F2 mouse paths, testers), T-0380 (path stops
-  short of the box edge), T-0381 (drag to resize a tile), T-0382 (a
-  windowed 2560<->1920 bridge resize froze the game, cause unknown).
-  **Next:** T-0380, then the chain's next run (`loop.py chain next`).
+- **2026-10-16 (chain C-0001, run R-0012; the author stepped in once):**
+  5 rounds, 4 confirmed in game: v0.24.313 T-0358 (input overlay 'Only
+  while pressed', frame-true), v0.24.314 T-0364 (Map category colours by
+  legend order), v0.24.315 T-0367 (mesh colliders as GPU wireframes),
+  v0.24.316 T-0371 (checkpoint dots + split / delta labels on the
+  comparison line). T-0361 researched live and parked (game input: a
+  key's action now in this runner's game, or its shipped default?).
+  Author: tests are fully automatic, never "hold W" - forest-tester uses
+  `scripts/sendinput.py` (brings the game to the front; gotcha 115).
+  New: T-0383 (parked: mouse box / wheel in Only-while-pressed), T-0384
+  (P4 checkpoint-label edges). **Next:** the chain's next run
+  (`loop.py chain next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

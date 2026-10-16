@@ -1145,3 +1145,15 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     point through `GUI.matrix.MultiplyPoint3x4` with y flipped to
     `Screen.height - y`. Look for working GL in the codebase before
     inventing a route.
+
+115. **A background process cannot simply foreground the game.** (2026-10-16,
+    T-0358, in game.) A tester asked the author to hold W because the
+    bridge cannot press a key Unity's `Input.GetKey` sees; the author:
+    tests are automatic, never ask. Windows SendInput reaches the game,
+    but only while it has focus, and `SetForegroundWindow` from a
+    background process is refused (and a title lookup can miss). What
+    works: find the window by title or by the TheForest.exe pid,
+    `AttachThreadInput` to the current foreground thread, an Alt tap,
+    `BringWindowToTop` + `SetForegroundWindow`, then wait a few frames
+    for the switch. `scripts/sendinput.py` does it; forest-tester's brief
+    points at it.
