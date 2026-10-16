@@ -34,6 +34,7 @@
   <!-- Logic under test, compiled from the real source. -->
   <ItemGroup>
     <Compile Include="../../src/Data/TextOutline.cs" Link="Linked/TextOutline.cs" />
+    <Compile Include="../../src/Data/TrailClip.cs" Link="Linked/TrailClip.cs" />
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/RibbonPath.cs" Link="Linked/RibbonPath.cs" />
     <Compile Include="../../src/Data/ExternalMods.cs" Link="Linked/ExternalMods.cs" />
