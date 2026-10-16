@@ -610,7 +610,10 @@ namespace ForestOverlay.Modules
             if (_on == null || !_on.Value || _states.Count == 0) return;
             bool editing = Editing;
             if (!editing) FinishResize();   // Edit HUD closed mid-drag: keep the size reached
-            if (!editing && Cursor.visible) { _drag = -1; return; }
+            // A menu's cursor hides the tiles, all but the Esc tile while it is lit: the press that
+            // opened the pause menu shows over it (T-0391).
+            bool menuOnly = !editing && Cursor.visible;
+            if (menuOnly) { _drag = -1; if (!MenuLit()) return; }
             if (!editing) _drag = -1;
 
             Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
@@ -637,6 +640,7 @@ namespace ForestOverlay.Modules
                     if (!s.Valid) continue;
                     bool hidden = !s.Tile.Shown;
                     if (hidden && !editing) continue;
+                    if (menuOnly && (s.MenuAct < 0 || s.Level <= 0f)) continue;
                     if (!editing && _onlyPressed.Value && (!s.Special || s.Tile.Key == InputLayout.WheelKey ? !s.Active : s.Tile.Key == InputLayout.MouseKey && !MouseLive(now))) continue;   // vanish: nothing on screen while not pressed
                     DrawTile(s, hidden, editing, now, before);
                     if (editing) Host.Hud.Widgets.ReportPiece(s.SnapId, s.Rect);
@@ -644,6 +648,13 @@ namespace ForestOverlay.Modules
                 GUI.color = before;
             }
             finally { GUI.matrix = outer; }
+        }
+
+        private bool MenuLit()
+        {
+            for (int i = 0; i < _states.Count; i++)
+                if (_states[i].MenuAct >= 0 && _states[i].Level > 0f && _states[i].Tile.Shown) return true;
+            return false;
         }
 
         // Only while pressed: the Box shows on frames the mouse moved; the Comet too, and while its tail is alive.
