@@ -24,22 +24,6 @@ namespace ForestOverlay.Modules
     {
         private ConfigEntry<float> _lineOpacity, _lineAhead, _replayOpacity, _lineWidth;
         private ConfigEntry<bool> _lineAheadOn, _keepFailedCfg, _ghostCfg;
-        private ConfigEntry<string> _lineBehindCfg;
-        private static readonly string[] BehindNames = { "Hidden", "Faint", "Through" };
-        private static readonly GUIContent TipLineBehind = new GUIContent(
-            "What the run lines do behind plants, rocks and the ground: hidden by them, faint through them, or drawn fully through.");
-
-        /// 0 hidden, 1 faint, 2 drawn through (RunLineBehaviour.Behind).
-        private int LineBehind
-        {
-            get
-            {
-                string v = _lineBehindCfg == null ? null : _lineBehindCfg.Value;
-                for (int i = 0; i < BehindNames.Length; i++)
-                    if (string.Equals(v, BehindNames[i], System.StringComparison.OrdinalIgnoreCase)) return i;
-                return 0;
-            }
-        }
 
         private float _lineOpacityNow = -1f, _lineAheadNow = -1f, _replayOpacityNow = -1f, _lineWidthNow = -1f;   // < 0 = the config's value
         private float _lineWriteAt;
@@ -76,16 +60,8 @@ namespace ForestOverlay.Modules
             _lineAhead = ctx.Config.Bind("Runs", "RunLineAheadSeconds", 5f, "How far ahead the comparison line reaches with RunLineAheadOnly (1-60 s).");
             _lineWidth = ctx.Config.Bind("Runs", "RunLineWidth", 3f,
                 "Run lines' and the ghost's width in pixels on a 1080p screen (scaled with the screen's height), 1-8.");
-            _lineBehindCfg = ctx.Config.Bind("Runs", "RunLineBehind", "Hidden",
-                "Run lines behind plants, rocks and the ground: Hidden (depth-tested), Faint (the hidden parts at a third of the opacity) or Through (drawn fully through).");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
-        }
-
-        private void SetLineBehind(int i)
-        {
-            _lineBehindCfg.Value = BehindNames[i];
-            Ctx.Log.LogInfo("Run lines: behind things set to " + BehindNames[i] + ".");
         }
 
         private void FlushLineOptions()
@@ -130,14 +106,6 @@ namespace ForestOverlay.Modules
                 _lineWriteAt = Time.unscaledTime + 0.5f;
             }
             WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineWidthText);
-            y += 24f;
-
-            WinPx.Label(new Rect(x, y, 120, 20), "Behind things");
-            UiKit.Hint(new Rect(x, y, 120, 20), TipLineBehind);
-            int behind = LineBehind;
-            if (UiKit.Toggle(new Rect(x + 124f, y, 76, 20), behind == 0, " hidden") && behind != 0) SetLineBehind(0);
-            if (UiKit.Toggle(new Rect(x + 204f, y, 66, 20), behind == 1, " faint") && behind != 1) SetLineBehind(1);
-            if (UiKit.Toggle(new Rect(x + 274f, y, 130, 20), behind == 2, " drawn through") && behind != 2) SetLineBehind(2);
             y += 24f;
 
             bool failed = UiKit.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");

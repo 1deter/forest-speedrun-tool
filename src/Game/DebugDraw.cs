@@ -899,14 +899,6 @@ namespace ForestOverlay.Game
         /// Width), scaled with the screen's height (T-0368).
         public float Width = 3f;
 
-        /// How the lines meet plants, rocks and ground (T-0370): 0 hidden
-        /// (depth-tested), 1 faint (the hidden parts at a third of the
-        /// opacity), 2 drawn through (no depth test).
-        public const int BehindHidden = 0, BehindFaint = 1, BehindThrough = 2;
-        public int Behind = BehindHidden;
-        /// The hidden parts' share of the opacity with BehindFaint.
-        public const float FaintShare = 1f / 3f;
-
         // Tuned over the bridge (static, like Game/PaintDraw's bands).
         /// The dark edge each side, pixels at 1080p. 1 px at 60 % barely
         /// showed against the forest floor; 1.5 px at 85 % reads as a rim
@@ -1043,19 +1035,6 @@ namespace ForestOverlay.Game
                 AddDots(t, k, scale, soft - edge, Faded(ReferenceColour, ReferenceOpacity));
             _ribbon.End();
 
-            // The same meshes, once or twice (T-0370); _Color scales the
-            // vertex alpha (Internal-Colored multiplies it, as the wireframes use).
-            int behind = Behind;
-            if (behind == BehindFaint)
-            {
-                _material.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
-                _material.SetColor("_Color", new Color(1f, 1f, 1f, FaintShare));
-                _material.SetPass(0);
-                _ribbon.Draw();
-            }
-            _material.SetInt("_ZTest", (int)(behind == BehindThrough ? UnityEngine.Rendering.CompareFunction.Always
-                                                                       : UnityEngine.Rendering.CompareFunction.LessEqual));
-            _material.SetColor("_Color", Color.white);
             _material.SetPass(0);
             _ribbon.Draw();
 

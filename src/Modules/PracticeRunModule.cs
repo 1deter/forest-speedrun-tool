@@ -1030,7 +1030,6 @@ namespace ForestOverlay.Modules
             _lines.ReferenceOpacity = _camOn ? ReplayOpacity : LineOpacity;
             _lines.GhostOpacity = ReplayOpacity;
             _lines.Width = LineWidth;
-            _lines.Behind = LineBehind;
             if (!_camOn && _showLines && _lineAheadOn.Value)
             {
                 // Only the next few seconds of the comparison (author, QA
