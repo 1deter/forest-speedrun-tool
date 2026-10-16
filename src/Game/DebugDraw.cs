@@ -855,6 +855,12 @@ namespace ForestOverlay.Game
         public int ReferenceCount;
         /// The first reference point drawn (a window of the line, v0.24.191).
         public int ReferenceStart;
+        /// The comparison line coloured along its length by each point's
+        /// speed (T-0372): ReferenceSpeeds index-aligned with ReferenceLine,
+        /// over [SpeedMin, SpeedMax]. Off = the one colour.
+        public bool BySpeed;
+        public float[] ReferenceSpeeds;
+        public float SpeedMin, SpeedMax;
         /// Your run's lines (current, failed), 0..1 (Runs -> Run lines).
         public float Opacity = 1f;
         /// The comparison line: the run lines' opacity during a run, the
@@ -1017,7 +1023,8 @@ namespace ForestOverlay.Game
             LastPoints = 0;
             _ribbon.Begin();
 
-            AddLine(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity));
+            AddLine(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity),
+                    BySpeed ? ReferenceSpeeds : null);
             AddLine(CurrentLine, 0, CurrentCount, Faded(CurrentColour, Opacity));
             AddLine(FailedLine, 0, FailedCount, Faded(FailedColour, Opacity));
             AddLine(PathWindow, 0, PathCount, PathColour);
@@ -1107,12 +1114,16 @@ namespace ForestOverlay.Game
 
         /// One polyline into the meshes: its strips (Data/RibbonPath), a row
         /// of six vertices per point (Game/RibbonMesh).
-        private void AddLine(Vector3[] points, int start, int count, Color colour)
+        private void AddLine(Vector3[] points, int start, int count, Color colour) { AddLine(points, start, count, colour, null); }
+
+        /// `speeds` (index-aligned with points, or null): the colour's red,
+        /// green and blue follow SpeedRamp per point, the alpha stays.
+        private void AddLine(Vector3[] points, int start, int count, Color colour, float[] speeds)
         {
             if (points == null || count - start < 2) return;
 
             _path.Clear();
-            _path.Add(points, start, count);
+            _path.Add(points, speeds, start, count);
             LastPoints += _path.Count;
 
             Color32 full = colour;
@@ -1129,6 +1140,12 @@ namespace ForestOverlay.Game
                 {
                     float f = fade[j];
                     Color32 c = full, d = dark;
+                    if (speeds != null)
+                    {
+                        float cr, cg, cb;
+                        ForestOverlay.Data.SpeedRamp.Colour(ForestOverlay.Data.SpeedRamp.Bucket(_path.Values[j], SpeedMin, SpeedMax), out cr, out cg, out cb);
+                        c = new Color32((byte)(cr * 255f), (byte)(cg * 255f), (byte)(cb * 255f), full.a);
+                    }
                     if (f < 1f)
                     {
                         c.a = (byte)(Mathf.Clamp01(lineA * f) * 255f);

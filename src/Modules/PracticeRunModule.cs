@@ -1031,6 +1031,10 @@ namespace ForestOverlay.Modules
             _lines.GhostOpacity = ReplayOpacity;
             _lines.Width = LineWidth;
             _lines.Behind = LineBehind;
+            _lines.BySpeed = _lineBySpeedCfg.Value && _referenceLine.Count >= 2;
+            _lines.ReferenceSpeeds = _referenceLine.Speeds;
+            _lines.SpeedMin = _referenceLine.MinSpeed;
+            _lines.SpeedMax = _referenceLine.MaxSpeed;
             if (!_camOn && _showLines && _lineAheadOn.Value)
             {
                 // Only the next few seconds of the comparison (author, QA

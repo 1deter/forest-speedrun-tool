@@ -47,6 +47,8 @@ namespace ForestOverlay.Data
         public Vector3[] Sides = new Vector3[256];
         /// Per point: 0..1, the distance fade.
         public float[] Fade = new float[256];
+        /// Per point: the value Add was given for it (a speed; 0 without), for colouring along the line (T-0372).
+        public float[] Values = new float[256];
         public int Count;
         /// Per strip: the index of its first point (a strip ends where the
         /// next starts, the last at Count). Every strip has >= 2 points.
@@ -60,7 +62,8 @@ namespace ForestOverlay.Data
         private bool _open;
         private float _lastX, _lastY;          // screen position of the last kept point
         private bool _pending;                 // a skipped point that must end the strip
-        private float _pendX, _pendY, _pendZ;
+        private float _pendX, _pendY, _pendZ, _pendV;
+        private float _va, _vb;                // the values of the segment's ends
 
         /// A bend sharper than this keeps this much of the width at least
         /// (a mitre grows as 1 / cos of half the turn; capped at 2x).
@@ -98,7 +101,11 @@ namespace ForestOverlay.Data
         }
 
         /// Appends points[start..end) (end clamped to the array) as strips.
-        public void Add(Vector3[] points, int start, int end)
+        public void Add(Vector3[] points, int start, int end) { Add(points, null, start, end); }
+
+        /// Same, with a value per point (index-aligned with `points`; null =
+        /// all 0) carried to the kept points in Values.
+        public void Add(Vector3[] points, float[] values, int start, int end)
         {
             if (points == null) return;
             if (start < 0) start = 0;
@@ -113,8 +120,11 @@ namespace ForestOverlay.Data
             float asx = 0f, asy = 0f;
             if (za >= _near) { asx = (adx * _rx + ady * _ry + adz * _rz) * _k / za; asy = (adx * _ux + ady * _uy + adz * _uz) * _k / za; }
 
+            float va = values != null ? values[start] : 0f;
             for (int i = start + 1; i < end; i++)
             {
+                float vb = values != null ? values[i] : 0f;
+                _va = va; _vb = vb;
                 float bx = points[i].x, by = points[i].y, bz = points[i].z;
                 float bdx = bx - _ex, bdy = by - _ey, bdz = bz - _ez;
                 float zb = bdx * _fx + bdy * _fy + bdz * _fz;
@@ -124,7 +134,7 @@ namespace ForestOverlay.Data
 
                 Segment(ax, ay, az, za, da, asx, asy, bx, by, bz, zb, db, bsx, bsy);
 
-                ax = bx; ay = by; az = bz; za = zb; da = db; asx = bsx; asy = bsy;
+                ax = bx; ay = by; az = bz; za = zb; da = db; asx = bsx; asy = bsy; va = vb;
             }
             Close();
         }
@@ -163,17 +173,17 @@ namespace ForestOverlay.Data
                 _open = true;
                 if (StripCount == Starts.Length) Array.Resize(ref Starts, Starts.Length * 2);
                 Starts[StripCount++] = Count;
-                Keep(ax, ay, az, asx, asy);
+                Keep(ax, ay, az, asx, asy, _va);
             }
 
             float dx = bsx - _lastX, dy = bsy - _lastY;
-            if (cutB || dx * dx + dy * dy >= _minPxSqr) Keep(bx, by, bz, bsx, bsy);
-            else { _pending = true; _pendX = bx; _pendY = by; _pendZ = bz; }
+            if (cutB || dx * dx + dy * dy >= _minPxSqr) Keep(bx, by, bz, bsx, bsy, _vb);
+            else { _pending = true; _pendX = bx; _pendY = by; _pendZ = bz; _pendV = _vb; }
 
             if (cutB) Close();
         }
 
-        private void Keep(float x, float y, float z, float sx, float sy)
+        private void Keep(float x, float y, float z, float sx, float sy, float v)
         {
             if (Count == Points.Length)
             {
@@ -181,8 +191,10 @@ namespace ForestOverlay.Data
                 Array.Resize(ref Points, n);
                 Array.Resize(ref Sides, n);
                 Array.Resize(ref Fade, n);
+                Array.Resize(ref Values, n);
             }
             Points[Count].x = x; Points[Count].y = y; Points[Count].z = z;
+            Values[Count] = v;
             Count++;
             _lastX = sx;
             _lastY = sy;
@@ -195,7 +207,7 @@ namespace ForestOverlay.Data
         {
             if (!_open) return;
             _open = false;
-            if (_pending) Keep(_pendX, _pendY, _pendZ, 0f, 0f);
+            if (_pending) Keep(_pendX, _pendY, _pendZ, 0f, 0f, _pendV);
 
             int first = Starts[StripCount - 1];
             if (Count - first < 2)
