@@ -85,6 +85,43 @@ namespace ForestOverlay.Core
         public static void Label(Rect r, GUIContent c, GUIStyle s)
         {
             if (WinPx.K != 1f) { WinPx.Label(r, c, s); return; }
+            Halo(r, c, s, 1f, true);
+            Draw(r, c, s);
+        }
+
+        /// A HUD value drawn as is (GUI.Label, no enlarge trick) with the same
+        /// dark outline; dist is the outline's width in this rect's own units
+        /// (the placed values draw scaled, so 1 / their scale).
+        public static void LabelOutlined(Rect r, GUIContent c, GUIStyle s, float dist)
+        {
+            Halo(r, c, s, dist, false);
+            GUI.Label(r, c, s);
+        }
+
+        // The game's bottom-left messages are NGUI labels with effectStyle
+        // Outline8, black, distance (1, 1) (bridge 2026-10-16, T-0335): the
+        // text drawn eight times around itself in black, then once on top.
+        // The HUD gets the same so it reads over sky and snow; the F2 window
+        // (K != 1) has its own panels and is left alone.
+        private static readonly float[] OutDx = { -1f, 0f, 1f, -1f, 1f, -1f, 0f, 1f };
+        private static readonly float[] OutDy = { -1f, -1f, -1f, 0f, 0f, 1f, 1f, 1f };
+
+        private static void Halo(Rect r, GUIContent c, GUIStyle s, float dist, bool crisp)
+        {
+            if (s == null || c == null || string.IsNullOrEmpty(c.text)) return;
+            Color keep = s.normal.textColor;
+            if (keep.a <= 0f) return;
+            s.normal.textColor = new Color(0f, 0f, 0f, keep.a);
+            for (int i = 0; i < 8; i++)
+            {
+                Rect o = new Rect(r.x + OutDx[i] * dist, r.y + OutDy[i] * dist, r.width, r.height);
+                if (crisp) Draw(o, c, s); else GUI.Label(o, c, s);
+            }
+            s.normal.textColor = keep;
+        }
+
+        private static void Draw(Rect r, GUIContent c, GUIStyle s)
+        {
             float f = Scale();
             int real = RealSize(s, f);
             if (real == 0) { GUI.Label(r, c, s); return; }
