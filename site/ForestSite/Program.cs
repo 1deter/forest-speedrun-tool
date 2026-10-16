@@ -32,7 +32,8 @@ using Microsoft.AspNetCore.RateLimiting;
 //                       https://forest.deter.cloud) - never the request's
 //                       Host header.
 // ------------------------------------------------------------------
-const int MaxBody = 20 * 1024 * 1024;   // a run bundle is up to 16 MB (plugin MaxBundleBytes, T-0399)
+const int MaxBody = 4 * 1024 * 1024;
+const long MaxRunBody = 20L * 1024 * 1024;   // only /api/runs: a bundle is up to 16 MB (plugin MaxBundleBytes, T-0399)
 
 var builder = WebApplication.CreateBuilder(args);
 // No `Server: Kestrel` header: nothing to gain from naming the server
@@ -265,8 +266,10 @@ _ = Task.Run(() =>
     catch (Exception ex) { app.Logger.LogWarning("World Brotli copies failed: {m}", ex.Message); }
 });
 
-static async Task<string> Body(HttpRequest r)
+static async Task<string> Body(HttpRequest r, long limit = MaxBody)
 {
+    // Kestrel enforces its limit while reading; this also refuses by the declared length (and holds in the test server).
+    if (r.ContentLength > limit) throw new Microsoft.AspNetCore.Http.BadHttpRequestException("request body too large", 413);
     using var reader = new StreamReader(r.Body, Encoding.UTF8);
     return await reader.ReadToEndAsync();
 }
@@ -335,7 +338,9 @@ api.MapPost("/runs", async (HttpRequest req) =>
 {
     string runner = store.RunnerOf(Bearer(req));
     if (runner == null) return Problem(401, "unknown token");
-    var res = runs.Upload(runner, await Body(req));
+    var size = req.HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+    if (size != null && !size.IsReadOnly) size.MaxRequestBodySize = MaxRunBody;
+    var res = runs.Upload(runner, await Body(req, MaxRunBody));
     if (res.Error != null) return Problem(400, res.Error);
     if (res.Added.Count == 0 && res.Existing.Count == 0) return Problem(422, string.Join("; ", res.Skipped));
     // Only queued: the webhook never fails or slows an upload.

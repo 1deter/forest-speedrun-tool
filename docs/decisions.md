@@ -543,7 +543,8 @@ working on the site - i'm pretty excited to see what can be done").
   live check. One-time setup: `site/deploy/README.md`.
 - **Uploads:** a token per install (`POST /api/register`, first
   registration owns the runner id; the author can reset a token). Rate
-  limits per IP (`CF-Connecting-IP`) and token, 4 MB bodies. A time under
+  limits per IP (`CF-Connecting-IP`) and token, 4 MB bodies (20 MB on `POST /api/runs` only, T-0399: a run
+  bundle is up to 16 MB). A time under
   0.8 x the route's best (3+ runs) is flagged "under review".
 - **First version (author agreed):** browse spots, upload / view runs per
   spot and route, per-runner best with splits, a 2D map with a scrub bar.

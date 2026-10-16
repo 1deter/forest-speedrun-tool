@@ -96,6 +96,26 @@ public sealed class ApiTests : IDisposable
     private const string B = "r-00000000000000bb";
 
     [Fact]
+    public async Task BodyLimit_RunsTakeTwentyMb_OtherRoutesFourMb()
+    {
+        string token = await Register(A);
+        // 5 MB: over the global 4 MB, under the run route's 20 MB - read (junk content, so 4xx, never 413).
+        var mid = await Upload(token, new string('x', 5 * 1024 * 1024));
+        Assert.NotEqual(HttpStatusCode.RequestEntityTooLarge, mid.StatusCode);
+        Assert.NotEqual(HttpStatusCode.OK, mid.StatusCode);
+        // Over 20 MB: refused.
+        bool refused;
+        try { refused = (await Upload(token, new string('x', 21 * 1024 * 1024))).StatusCode == HttpStatusCode.RequestEntityTooLarge; }
+        catch (Exception) { refused = true; }   // the test server may abort the read instead
+        Assert.True(refused);
+        // Another route stays at 4 MB.
+        bool other;
+        try { other = (await Upload(token, new string('x', 5 * 1024 * 1024), "/api/submissions")).StatusCode == HttpStatusCode.RequestEntityTooLarge; }
+        catch (Exception) { other = true; }
+        Assert.True(other);
+    }
+
+    [Fact]
     public async Task Register_OwnsTheId()
     {
         await Register(A);

@@ -33,6 +33,8 @@ namespace ForestOverlay.Modules
         public override string DisplayName { get { return "Run uploads"; } }
 
         private const float RequestTimeout = 30f;
+        // The bundle upload: 30 s plus the bytes at a slow ~1 Mbps line (125 KB/s), so a 16 MB bundle is not cut off.
+        private static float BundleTimeout(int bytes) { return RequestTimeout + bytes / 125000f; }
         private const int MaxBundleBytes = 16 * 1024 * 1024;   // ~60 min with the arms track (T-0399); the site takes 20 MB
 
         private ConfigEntry<bool> _enabled;
@@ -199,7 +201,7 @@ namespace ForestOverlay.Modules
 
             long code = 0; string body = null, error = null;
             yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/runs", Encoding.UTF8.GetBytes(text),
-                "text/plain; charset=utf-8", _token.Value, RequestTimeout,
+                "text/plain; charset=utf-8", _token.Value, BundleTimeout(text.Length),
                 delegate(long c, string b, string e) { code = c; body = b; error = e; }));
 
             string name = Path.GetFileName(path);
