@@ -1163,13 +1163,44 @@ cutscene clips in and out of it), 186 parameters of which 35 floats,
   looking around, 8 in 1,006 with a swing), floats in ~30 % of frames.
   Missing on the copy: `playerAnimatorControl.LateUpdate`'s bone tweaks
   (neck pitch, the torch arm, flintlock aim) and the lit lighter's flame.
+- **What a replay must record** (measured 2026-10-16, T-0387: the live
+  animator and the head / hand bones every frame for 55 s of swings,
+  sprints, looks, jumps and item switches at 60 and 186 fps, replayed on
+  the copy; tasks/notes/T-0387.md has the table):
+  - `AnimatorStateInfo.length` already holds the state's speed: the
+    normalized time advances `animator.speed / length` a second
+    (measured mean error 0.0004; `speed / length` was off by 0.02-0.05).
+  - **Crossfades**: a swing, its end, an equip go through 0.1-0.3 s
+    transitions (1/5 of the frames with swings); `Play` shows one state, so
+    the copy snapped halfway (hands 4-5 cm off on those frames, worst bone
+    mean). Replayed as one - each layer `Play`ed `Step` (1 ms) before its
+    time, `Update(0)`, `CrossFadeInFixedTime(next, Step / progress, layer,
+    nextTime * length - Step)`, then `speed = 1; Update(Step); speed = 0` -
+    the copy matched the live bones to 0.1-0.7 mm mean (60 fps).
+    Unity 5.6 has no transition duration to read (no
+    `AnimatorTransitionInfo.duration`): the progress rate is measured
+    between frames. No AnimationEvent errors from the 1 ms updates.
+  - **The 35 floats matter**: held between changes of 0.01 they cost
+    ~3 mm at the hands; interpolated between change points (a value that
+    held, then moved, gets smeared over the hold) ~1 cm. Keyed with a rate
+    (dead reckoning) at 0.003 they add < 0.1 mm.
+  - Layer weights fade by script, continuously (layer 4 from 1 to 0 over
+    ~0.8 s after a swing), and a layer can switch off for one frame.
+  - The body's yaw (`player` transform) equalled the camera's yaw on all
+    ~20,000 frames (on foot); kept anyway, it is 1 % of the track.
+  - The head floor at 186 fps (~7 mm mean, the hands 0.2 mm) is
+    `playerAnimatorControl`'s neck pitch, not the recording.
 - **Blood and dirt** are per-renderer property blocks
   (`PlayerStats.MyBody`, `_Damage1-4`) a copy does not take: the copy's
   arms came out bloody until each renderer's block was copied over (same
   order in both hierarchies).
-- **Held models.** `PlayerInventory._equipmentSlotsIds` = the item id per
-  slot (0 right hand, 1 left; -1 empty); `InventoryItemView._held` = its
-  model. Only ~16 models live in `player_BASE`; the rest carry a
+- **Held models.** The item per slot (0 right hand, 1 left, ...) is the
+  live `PlayerInventory._equipmentSlots[i]._itemId` (an
+  `InventoryItemView`; `_noEquipedItem` = empty) - **not**
+  `_equipmentSlotsIds`, which only `OnSerializing` writes (IL: one store),
+  so it keeps the last save's ids: live, after equipping the spear it still
+  read 80 while `RightHand` was `Spear_Inv` (2026-10-16).
+  `InventoryItemView._held` = the model. Only ~16 models live in `player_BASE`; the rest carry a
   `FakeParent` and, while not held, sit **unparented at the scene root**
   (where the save loaded: `FlareHeld`, `spearHeld`), `ReParent` putting
   them under `target` (`rightHandHeld` / `leftHandHeld`) at

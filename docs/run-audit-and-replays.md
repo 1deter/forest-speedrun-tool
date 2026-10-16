@@ -94,21 +94,28 @@ stats at 5 Hz, the item changes and (2026-10-04) its interactions and
 buildings (`Data/RunRecorder`, below). Ghosts and run
 lines in game; on the site, the 2D / 3D map with lines, ghosts, a scrub
 bar and the *State* panel. Since the replay camera (below) the look
-direction is recorded too (`l|` lines); **no animation is recorded**.
+direction is recorded too (`l|` lines), and since T-0387 the player's
+animator (`anim` / `ak` / `af` / `ay` / `ah` lines, below).
 
 **What each part needs:**
 - **Interactions and buildings on the replay:** the audit log's events
   (part 1) drawn at their time and place: icons on the line, a blueprint
   as a ghost outline (in game: the game's own blueprint ghost model; on
   the site: the building's model from the world export, see-through).
-- **First-person replay true to the runner's view:** record the camera's
-  yaw / pitch with the position (30 Hz) and the player's animator - each
-  layer's state hash + normalized time and the parameters
-  (`Game/AnimProbe` already reads them; ~6 layers x 8 bytes x 30 Hz =
-  small). Playback in game: a camera at the recorded eye, a copy of the
-  first-person arms driven with `Animator.Play(hash, layer, time)`, the
-  held item from the item track. On the site: the recorded view over the
-  3D world (no arms at first).
+- **First-person replay true to the runner's view** (T-0387, built): the
+  look (`l|`, 30 Hz) and the player's animator as **changes only**: each
+  layer read every frame and keyed (`ak|`) when its state or crossfade
+  changes or when the playback's own advance (normalized time, crossfade
+  progress, weight by their rates) would drift more than 0.02; the 35
+  blend-tree floats (`af|`) and the body's yaw (`ay|`) read with the
+  position (30 Hz) and keyed when their extrapolation drifts (0.003 /
+  0.5 deg); the held items (`ah|`) from the live equipment slots. About
+  48-64 KB a minute (a run file is ~250-320 KB a minute without it).
+  Chosen over 30 Hz and 10 Hz samples after measuring all three against
+  the live arms: tasks/notes/T-0387.md. Playback in game: a copy of the
+  player's body (`Game/ArmsReplica`) posed per frame with a crossfade
+  replayed as one, the camera at its head with the recorded look. On the
+  site: the recorded view over the 3D world (no arms at first; T-0281).
 - **Trajectory view:** for a bomb boost, the path after the unpause with
   marks (blast, pause, unpause, peak speed, landing), the predicted arc
   from the velocity (gravity, drag 0 - game-notes) beside the real one,
