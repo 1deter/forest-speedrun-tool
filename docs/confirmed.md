@@ -420,3 +420,4 @@ Confirmed 2026-10-10 (game, bridge, ui-redesign f0e0707, banner v0.24.267): **th
 - T-0381: Edit HUD input tile corner handle drag resizes in 0.25 steps (key tile 1 -> 2.25 -> 1 -> 1.5), tile does not move, saved in the layout file and kept over a game restart; - / + buttons agreement and on-screen size after restart not viewed - v0.24.327, bridge 2026-10-16
 - v0.24.328 Input overlay Comet: fixed head, fading tail on real mouse moves, tail gone when still; Box framed as before (bridge 2026-10-16)
 - T-0385 v0.24.329: Comet in Only while pressed shows the head on every shot while moving (t329-s1..s5), tail on a fast move (t329-g1, g2); Comet still and Box framed ok; fps 184.7 Comet vs 186.1 Box over 30 s (bridge 2026-10-16)
+- T-0386 v0.24.330: replay bar line shows Health / Stamina / Speed at the playhead, changing with the scrub (t0386-b, -c, -d; bridge 2026-10-16)
