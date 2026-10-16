@@ -157,6 +157,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-17 (session 2):** v0.24.335 T-0391 released (Esc tile reads
+  'Menu' and lights on the press that opens the pause menu, drawn alone over
+  the menu while lit; checker accept, live SendInput proof by main - needs
+  forest-tester / e2e to confirm). Filed T-0409 (split multi-purpose input
+  tiles, the other half of the author's T-0391 answer). **Next:** confirm
+  T-0391 in game, then `tasks.py next`.
+
 - **2026-10-17 (session, author present):** v0.24.334 T-0400 confirmed
   (checkpoint labels: 7 stats in runner words + the run's items, new
   default time / delta / speed / Health / Stamina / Armor, moved once;
