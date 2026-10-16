@@ -1055,8 +1055,9 @@ namespace ForestOverlay.Modules
             int start = 0;
             if (visible < _shownRows)
             {
-                int focus = 0;
-                for (int r = 0; r < _shownRows; r++) if (_rowCurrent[r] || !float.IsNaN(_times[r])) focus = r;
+                // Watching a replay, the watched run's rows (not the live run's).
+                float[] focusTimes = _camOn && _reference != null && _watchTimes.Length >= _shownRows ? _watchTimes : _times;
+                int focus = ReplayBar.FocusRow(_rowCurrent, focusTimes, _shownRows);
                 start = Mathf.Clamp(focus - (visible - 2), 0, _shownRows - visible);
             }
 
