@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.325 - 2026-10-16
+
+- Run lines have a Behind things setting: Hidden (as before), Faint (the hidden parts drawn dimly) or Drawn through. The line, its checkpoint dots and their time labels all follow it.
+
 ## v0.24.324 - 2026-10-16
 
 - "Only while pressed" now hides the mouse box while the mouse is still.
