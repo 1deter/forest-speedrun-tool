@@ -197,6 +197,45 @@ the direct Rewired read stay 0. Real OS input (`scripts/sendinput.py`)
 reaches all of them. Look scale in that test: about 69 degrees of yaw per
 1000 SendInput counts at the save's sensitivity.
 
+### Who performed an input: the reader, and the player's FSM (probe build + bridge, 2026-10-16, T-0361)
+
+The game acts on an action where it **reads** it: about 180 call sites of
+`TheForest.Utils.Input.GetButtonDown` (141) / `GetButtonUp` (14) /
+`GetButtonAfterDelay` (27, a hold-to) / `GetButtonPress` (1) plus
+`GetButton`, each in the script that does the thing (`ilscan refs
+TheForest.Utils.Input::GetButtonDown`). The context ones read only in
+context: in the open world (2 s, `input seen`) the game read AltFire,
+checkArms, Crouch, Drop, Esc, Fire1, Inventory, ItemSlot1, Jump, Lighter,
+Run, SurvivalBook every frame and never Take, Save, Craft, Build, Batch,
+Equip or Combine; `Take` was read only while a stick's `PickUp` had focus
+(`GrabEnter`), `Save` only while a tent's `ShelterTrigger` had it; with
+the inventory open nothing read Equip / Combine / Batch until an item
+is hovered (IL: `InventoryItemView.Update`).
+**The reader is on the stack.** A dev-only probe (a postfix after
+InputInject's, `new StackTrace(1, false)` on a true result; never
+shipped) logged the frames `postfix | TheForest.Utils.Input::DMD<GetButtonDown> | <reader>`:
+Take by `PickUp::GetTakeInputDown`; Save by `ShelterTrigger::Update`
+(holding Save 1.2 s there opened the save-slot screen: `JustSave`);
+Jump by `FirstPersonCharacter::GetJumpInput`; Run by
+`FirstPersonCharacter::Update`; Crouch by `GetCrouchInput`, the next
+press by `GetStangUpInput` (stand up); Fire1 down by
+`PlayerInventory::Update` (-> `Attack` -> pmControl `SendEvent`); Fire1
+up by `PlayerInventory`, PlayMaker's `GetButtonUp` and
+`playerAnimatorControl+<checkChargeConditions>c__Iterator1::MoveNext`
+(an iterator: the outer type is `DeclaringType.DeclaringType`); AltFire
+down by `PlayerInventory`, PlayMaker's `GetButtonDown`, `weaponInfo`.
+One walk cost 10-50 us (80 us for a deep PlayMaker stack). Mono kept
+the small reader `GetTakeInputDown` as its own frame.
+**Light vs heavy attack** (Axe Plane, bridge `press` / `hold Fire1`):
+the player's `ScriptSetup.pmControl` went `waitForInput` -> `stickAttack`
+on the press frame (animator `stickAttack` + `chargingBool` on); a tap
+(3 frames) -> `waitForCombo` -> `waitForInput`, `doAttackHeavyBool`
+never set; held 1.2 s -> `initCharge` from 0.4 s
+(`playerAnimatorControl.checkChargeConditions`: `initChargeAttack` after
+0.4 s) -> `doCharge` on release, animator `doAttackHeavyBool` on,
+clip `stickHeavyAttack`. Held AltFire -> `doBlock`, back to
+`waitForInput` on release. Other attack states: docs/fsm/player-controlFSM.txt.
+
 ---
 
 ## `timeScale`
