@@ -377,3 +377,5 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 98. **Commit the contract before spawning the maker** - a worktree branches from HEAD. [judgement]
 99. **Never search a whole drive or the home folder** - give agents absolute paths; a `find /` crawled 22 min after its agent finished. [check: pre_tool.py wide_search]
 115. **Keys in a test go through `scripts/sendinput.py`, never the author** - it foregrounds the game (AttachThreadInput + Alt tap); a plain SetForegroundWindow is refused. [judgement]
+117. **Push main before spawning a worktree agent that must see local commits** - its branch can be cut from origin/main. [judgement]
+118. **Prove a merge with `merge-base --is-ancestor` before built / bump** - a piped merge hid a refusal and v0.24.318 shipped without its fix. [judgement]

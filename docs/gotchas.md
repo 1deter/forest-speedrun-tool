@@ -1170,3 +1170,19 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `DrawTarget.FreeCam` (set by every flown camera), else the player. And
     a version named in a report is a guess until the log agrees: read what
     the runner had on before reproducing the named change.
+
+117. **A worktree agent can start from origin/main, not local HEAD.** (2026-10-16,
+    R-0013, T-0361.) forest-dev was spawned right after main committed the
+    research merge (35a273a7, not pushed); its branch was cut from 1f87f367,
+    the last pushed commit, so it read the old build plan in
+    tasks/notes/T-0361.md and built the superseded design. Gotcha 98 (commit
+    the contract first) is not enough: push main before spawning a worktree
+    agent that must see local commits, and check the branch's base
+    (`git merge-base main <branch>`) when its report looks off-plan.
+
+118. **A piped merge hides its own failure.** (2026-10-16, R-0013, T-0389.)
+    `git merge ... | tail -1` printed `Updating a..b` and nothing else: the
+    merge had refused (uncommitted task files in the way) and v0.24.318 was
+    tagged with only a CHANGELOG line; v0.24.319 carried the fix. After a
+    merge, prove it: `git merge-base --is-ancestor <sha> HEAD` before
+    `tasks.py set --status built` or a bump.

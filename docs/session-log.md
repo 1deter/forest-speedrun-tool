@@ -2,6 +2,21 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-16 (chain C-0001 run R-0013 handoff)
+
+- **2026-10-16 (chain C-0001, run R-0012; the author stepped in once):**
+  5 rounds, 4 confirmed in game: v0.24.313 T-0358 (input overlay 'Only
+  while pressed', frame-true), v0.24.314 T-0364 (Map category colours by
+  legend order), v0.24.315 T-0367 (mesh colliders as GPU wireframes),
+  v0.24.316 T-0371 (checkpoint dots + split / delta labels on the
+  comparison line). T-0361 researched live and parked (game input: a
+  key's action now in this runner's game, or its shipped default?).
+  Author: tests are fully automatic, never "hold W" - forest-tester uses
+  `scripts/sendinput.py` (brings the game to the front; gotcha 115).
+  New: T-0383 (parked: mouse box / wheel in Only-while-pressed), T-0384
+  (P4 checkpoint-label edges). **Next:** the chain's next run
+  (`loop.py chain next`).
+
 ## Moved out 2026-10-16 (chain C-0001 run R-0012 handoff)
 
 - **2026-10-16 (chain C-0001, run R-0011; the author stepped in at the

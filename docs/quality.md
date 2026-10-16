@@ -31,11 +31,11 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067 | 2026-10-14 |
-| Timed runs | B | A | B | A | B | T-0365, T-0366 | 2026-10-15 |
+| Timed runs | B | A | B | A | B | T-0365, T-0366 | 2026-10-16 |
 | Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112, T-0243 | 2026-10-14 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
-| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-15 |
+| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-16 |
 | Performance and loads | B | B | B | A | B | T-0034, T-0048 | 2026-10-14 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |

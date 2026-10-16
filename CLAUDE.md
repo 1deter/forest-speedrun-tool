@@ -157,18 +157,19 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (chain C-0001, run R-0012; the author stepped in once):**
-  5 rounds, 4 confirmed in game: v0.24.313 T-0358 (input overlay 'Only
-  while pressed', frame-true), v0.24.314 T-0364 (Map category colours by
-  legend order), v0.24.315 T-0367 (mesh colliders as GPU wireframes),
-  v0.24.316 T-0371 (checkpoint dots + split / delta labels on the
-  comparison line). T-0361 researched live and parked (game input: a
-  key's action now in this runner's game, or its shipped default?).
-  Author: tests are fully automatic, never "hold W" - forest-tester uses
-  `scripts/sendinput.py` (brings the game to the front; gotcha 115).
-  New: T-0383 (parked: mouse box / wheel in Only-while-pressed), T-0384
-  (P4 checkpoint-label edges). **Next:** the chain's next run
-  (`loop.py chain next`).
+- **2026-10-16 (chain C-0001, run R-0013, unattended):** 5 rounds, 4
+  progressed. v0.24.317 T-0369 (replay bar; timer / splits follow the
+  replay; ticks + mouse seek unchecked), v0.24.319 T-0389 confirmed (not
+  a T-0367 regression: the collision view centred on the player held by
+  the replay camera, gotcha 116; v0.24.318 shipped without the merge,
+  gotcha 118), v0.24.320 T-0335 (8-way dark outline on all overlay text,
+  like the game's NGUI Outline8; popped-out panel / big timer shots
+  due), v0.24.321 T-0361 (input overlay Game input / Raw input, labels
+  the function performed; worktree built a stale plan first, gotcha
+  117). Parked: T-0370 (built on `pending/T-0370`, reverted on main:
+  checkpoint labels follow Behind things?), T-0390 (mesh-draws-nothing
+  fallback, keep?), T-0391 (Esc tile in game input). **Next:** the
+  chain's next run (`loop.py chain next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
