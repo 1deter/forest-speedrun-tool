@@ -173,7 +173,7 @@ namespace ForestOverlay.Data
                 }
                 if (!write) continue;
                 AnimLayerKey nk;
-                nk.T = Q(t, 1000f); nk.Layer = l; nk.S = c;
+                nk.T = KeyTime(t); nk.Layer = l; nk.S = c;
                 _lastLayerKey[l] = LayerKeys.Count;
                 AddLayerKey(nk);
             }
@@ -193,7 +193,7 @@ namespace ForestOverlay.Data
                 int ki = _lastFloatKey[i];
                 if (ki >= 0 && Math.Abs(FloatAt(FloatKeys[ki], t) - v) <= FloatThreshold) continue;
                 AnimFloatKey k;
-                k.T = Q(t, 1000f); k.Index = i; k.Value = Q(v, 1000f); k.Rate = Q(rate, 1000f);
+                k.T = KeyTime(t); k.Index = i; k.Value = Q(v, 1000f); k.Rate = Q(rate, 1000f);
                 _lastFloatKey[i] = FloatKeys.Count;
                 AddFloatKey(k);
             }
@@ -203,13 +203,13 @@ namespace ForestOverlay.Data
             if (YawKeys.Count == 0 || Math.Abs(DeltaAngle(YawAt(YawKeys[YawKeys.Count - 1], t), s.Yaw)) > YawThreshold)
             {
                 AnimYawKey y;
-                y.T = Q(t, 1000f); y.Yaw = Q(Repeat(s.Yaw), 10f); y.Rate = Q(yr, 10f);
+                y.T = KeyTime(t); y.Yaw = Q(Repeat(s.Yaw), 10f); y.Rate = Q(yr, 10f);
                 AddYawKey(y);
             }
             _prevFloatT = t;
 
             if (s.Held != null && s.Held.Length > 0 && HeldDiffers(s.Held))
-                AddHeld(Q(t, 1000f), (int[])s.Held.Clone());
+                AddHeld(KeyTime(t), (int[])s.Held.Clone());
         }
 
         public void AddLayerKey(AnimLayerKey k) { LayerKeys.Add(k); _indexDirty = true; }
@@ -258,6 +258,14 @@ namespace ForestOverlay.Data
             c.NextTime = Q(c.NextTime, 1000f); c.NextRate = Q(c.NextRate, 10000f);
             c.P = Q(c.P, 1000f); c.PRate = Q(c.PRate, 1000f);
             return c;
+        }
+
+        /// A key's time in the file's milliseconds, rounded down: a key never
+        /// starts after the frame it was read on (a state change shows on its
+        /// own frame, not the next).
+        private static float KeyTime(float t)
+        {
+            return (float)(Math.Floor(t * 1000.0 + 1e-4) / 1000.0);
         }
 
         private static float Q(float v, float scale)
