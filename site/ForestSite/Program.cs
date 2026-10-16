@@ -32,7 +32,7 @@ using Microsoft.AspNetCore.RateLimiting;
 //                       https://forest.deter.cloud) - never the request's
 //                       Host header.
 // ------------------------------------------------------------------
-const int MaxBody = 4 * 1024 * 1024;
+const int MaxBody = 20 * 1024 * 1024;   // a run bundle is up to 16 MB (plugin MaxBundleBytes, T-0399)
 
 var builder = WebApplication.CreateBuilder(args);
 // No `Server: Kestrel` header: nothing to gain from naming the server

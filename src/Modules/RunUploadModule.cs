@@ -33,7 +33,7 @@ namespace ForestOverlay.Modules
         public override string DisplayName { get { return "Run uploads"; } }
 
         private const float RequestTimeout = 30f;
-        private const int MaxBundleBytes = 3 * 1024 * 1024;
+        private const int MaxBundleBytes = 16 * 1024 * 1024;   // ~60 min with the arms track (T-0399); the site takes 20 MB
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<string> _url;
