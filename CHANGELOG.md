@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.333 - 2026-10-16
+
+- You can now choose what the comparison line's checkpoint markers show: nothing, just the dots, or labels with the fields you pick (Runs > Run options > Checkpoints).
+- Labels can show the split time, your delta, the segment time, the speed there, and health or stamina from the comparison run.
+
 ## v0.24.332 - 2026-10-16
 
 - First-person replays show the runner's own arms and held item, including the blend into and out of a swing (runs recorded from this version on).
