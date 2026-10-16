@@ -39,7 +39,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Performance and loads | B | B | B | A | B | T-0034, T-0048 | 2026-10-14 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |
-| Bridge, e2e and QA | B | A | B | B | A | | 2026-10-14 |
+| Bridge, e2e and QA | B | A | B | B | A | T-0394, T-0395 | 2026-10-16 |
 | Release and updater | A | A | A | A | A | | 2026-10-14 |
 | Site app | B | A | A | A | B | T-0285, T-0304 | 2026-10-14 |
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |

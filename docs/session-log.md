@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-16 (run R-0016 handoff)
+
+- **2026-10-16 (chain C-0001, run R-0015, unattended):** 3 rounds, 0
+  progressed, stopped (no progress 3 in a row). v0.24.324 T-0383
+  released (Only while pressed hides the still mouse box, wheel
+  frame-true) but fails in game: the box blinks on slow moves and the
+  path never builds (gotcha 119). Parked: T-0382 (may a run repro the
+  resize that blanked the monitor?), T-0383 (frame-true vs hold-off),
+  T-0385 (minimal mouse box: options A/B/C in tasks/notes/T-0385.md).
+  **Next:** the author's answers; then the chain's next run
+  (`loop.py chain next`).
+
 ## Moved out 2026-10-16 (chain C-0001 run R-0015 handoff)
 
 - **2026-10-16 (chain C-0001, run R-0014, unattended):** 5 rounds, 3

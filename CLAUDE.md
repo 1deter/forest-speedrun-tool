@@ -157,15 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (chain C-0001, run R-0015, unattended):** 3 rounds, 0
-  progressed, stopped (no progress 3 in a row). v0.24.324 T-0383
-  released (Only while pressed hides the still mouse box, wheel
-  frame-true) but fails in game: the box blinks on slow moves and the
-  path never builds (gotcha 119). Parked: T-0382 (may a run repro the
-  resize that blanked the monitor?), T-0383 (frame-true vs hold-off),
-  T-0385 (minimal mouse box: options A/B/C in tasks/notes/T-0385.md).
-  **Next:** the author's answers; then the chain's next run
-  (`loop.py chain next`).
+- **2026-10-16 (run R-0016, author present):** 5 rounds, 5 confirmed.
+  v0.24.325 T-0370 (run lines Behind things, labels follow), v0.24.326
+  T-0372 (comparison line by speed, green fast), v0.24.327 T-0381 (input
+  tile corner resize), T-0382 research (leading hypothesis: NVIDIA
+  driver fault, gotcha 120; live repro T-0394 needs the author),
+  v0.24.329 T-0385 (Comet mouse style, default; v0.24.328 blinked on
+  slow moves). Filed: T-0393 (current line off live), T-0395 (bridge
+  names GPU faults), T-0396 (Perf GL line reads 0 for the input
+  overlay). Open for the author: T-0382's GPU check / after-a-fault
+  rule; T-0366, T-0390 kept. **Next:** a fresh session, `loop.py begin`.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
