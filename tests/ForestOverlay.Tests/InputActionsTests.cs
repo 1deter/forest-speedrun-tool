@@ -97,5 +97,16 @@ namespace ForestOverlay.Tests
             Assert.Equal("Attack", InputActionTable.Label("Fire1", 1));
             Assert.Equal("Crouch", InputActionTable.Label("Crouch", 1));
         }
+
+        [Fact]
+        public void MoreThanMaxPerKey_IsCountedNotLost()
+        {
+            InputActionTable t = new InputActionTable();
+            for (int i = 0; i < InputActionTable.MaxPerKey + 2; i++) t.AddBinding("F", t.AddAction("A" + i, 2), 1);
+            int[] a = new int[InputActionTable.MaxPerKey], s = new int[InputActionTable.MaxPerKey];
+            Assert.Equal(InputActionTable.MaxPerKey, t.Resolve("F", a, s));
+            Assert.Equal(InputActionTable.MaxPerKey + 2, t.Total("F"));   // the module logs the difference
+            Assert.Equal(0, t.Total("G"));
+        }
     }
 }

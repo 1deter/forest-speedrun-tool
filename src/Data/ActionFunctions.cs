@@ -145,6 +145,39 @@ namespace ForestOverlay.Data
             return null;
         }
 
+        // The actions the player controller reads every frame in the open world (game-notes "Who
+        // performed an input", `input seen`) plus the two movement axes: held means performed.
+        // Every other action is read only in context (Take, Save, Craft, Build, Batch, Equip,
+        // Combine): held but unread, the game did nothing.
+        private static readonly string[] Continuous =
+        {
+            "Vertical", "Horizontal", "Jump", "Run", "Crouch", "Fire1", "AltFire", "checkArms", "Drop",
+            "Esc", "Inventory", "ItemSlot1", "Lighter", "SurvivalBook",
+        };
+
+        public static bool IsContinuous(string action)
+        {
+            return Array.IndexOf(Continuous, action) >= 0;
+        }
+
+        /// The attack and block actions: the player's control FSM tells which function.
+        public static bool UsesControlState(string action)
+        {
+            return action == "Fire1" || action == "AltFire";
+        }
+
+        /// The word for a performed press. A reader that named it wins (strength 100); else the
+        /// control FSM's word if stronger than what the press already showed (a heavy press that
+        /// ends in waitForCombo keeps saying Heavy attack); else what the press already showed;
+        /// else the fallback (null for an action whose function only the FSM can tell).
+        public static string Pick(string reader, string fsm, int fsmRank, string current, int strength, string fallback, out int newStrength)
+        {
+            newStrength = strength;
+            if (reader != null) { newStrength = 100; return reader; }
+            if (strength < 100 && fsm != null && fsmRank > strength) { newStrength = fsmRank; return fsm; }
+            return current ?? fallback;
+        }
+
         /// The idle word of a key's actions: its functions' names, one a line, in pick order.
         public static string Idle(string[] words, int count)
         {

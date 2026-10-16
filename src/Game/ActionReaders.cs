@@ -36,7 +36,7 @@ namespace ForestOverlay.Game
         private static string[] _names = new string[0];
         private static int[] _activeSince = new int[0];
         private static string[] _label = new string[0];
-        private static int[] _labelFrame = new int[0];
+        private static int[] _labelFrame = new int[0], _readFrame = new int[0];
         private static int[] _walkFrame = new int[0], _walkCount = new int[0];
         private static int _walksFrame, _walks;
         private static readonly HashSet<string> _unnamed = new HashSet<string>();
@@ -55,6 +55,7 @@ namespace ForestOverlay.Game
             _activeSince = new int[n];
             _label = new string[n];
             _labelFrame = new int[n];
+            _readFrame = new int[n];
             _walkFrame = new int[n];
             _walkCount = new int[n];
             for (int i = 0; i < n; i++) _activeSince[i] = -100;
@@ -75,6 +76,12 @@ namespace ForestOverlay.Game
             if (slot < 0 || slot >= _activeSince.Length) return;
             if (!active) { _activeSince[slot] = -100; return; }
             if (_activeSince[slot] < 0) _activeSince[slot] = Time.frameCount;
+        }
+
+        /// The last frame a game script read the action (any script, named or not), -1 if never.
+        public static int ReadFrame(int slot)
+        {
+            return slot >= 0 && slot < _readFrame.Length ? _readFrame[slot] : -1;
         }
 
         /// The last specific word a reader gave for the action, and the frame it was seen.
@@ -171,6 +178,7 @@ namespace ForestOverlay.Game
                 string full = t.FullName ?? t.Name;
                 if (full == "TheForest.Utils.Input" || full.StartsWith("HarmonyLib", StringComparison.Ordinal)) continue;
                 if (full.StartsWith("UnityEngine", StringComparison.Ordinal) || full.StartsWith("System", StringComparison.Ordinal)) return;   // Input.LateUpdate's own reads
+                _readFrame[slot] = frame;
                 string word;
                 if (ActionFunctions.Lookup(full, m.Name, _names[slot], out word))
                 {
@@ -187,32 +195,37 @@ namespace ForestOverlay.Game
 
         // --- the player's control FSM -------------------------------------------------------
 
-        private static FieldInfo _scriptSetup, _pmControl;
+        private static FieldInfo _scriptSetupField, _pmControlField;
+        private static Func<object> _getSetup;
+        private static Func<object, object> _getFsm;
         private static MethodInfo _stateGetter;
         private static object _fsm;
         private static Func<string> _state;
         private static bool _stateBroken;
 
-        /// pmControl.ActiveStateName of the local player ("" when unreadable). No allocation.
+        /// pmControl.ActiveStateName of the local player ("" when unreadable). No allocation:
+        /// FastField reads and a bound getter.
         public static string ControlState()
         {
             if (_stateBroken) return "";
             try
             {
-                if (_scriptSetup == null)
+                if (_getSetup == null)
                 {
                     Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
-                    _scriptSetup = local != null ? local.GetField("ScriptSetup", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
-                    if (_scriptSetup == null) { _stateBroken = true; return ""; }
+                    _scriptSetupField = local != null ? local.GetField("ScriptSetup", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                    _getSetup = FastField.Static<object>(_scriptSetupField);
+                    if (_getSetup == null) { _stateBroken = true; return ""; }
                 }
-                object setup = _scriptSetup.GetValue(null);
+                object setup = _getSetup();
                 if (setup == null) return "";
-                if (_pmControl == null)
+                if (_getFsm == null)
                 {
-                    _pmControl = setup.GetType().GetField("pmControl", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (_pmControl == null) { _stateBroken = true; return ""; }
+                    _pmControlField = setup.GetType().GetField("pmControl", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _getFsm = FastField.Instance<object>(_pmControlField);
+                    if (_getFsm == null) { _stateBroken = true; return ""; }
                 }
-                object fsm = _pmControl.GetValue(setup);
+                object fsm = _getFsm(setup);
                 if (fsm == null) return "";
                 if (!ReferenceEquals(fsm, _fsm))
                 {

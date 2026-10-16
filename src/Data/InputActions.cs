@@ -17,7 +17,7 @@ namespace ForestOverlay.Data
     // ------------------------------------------------------------------
     public sealed class InputActionTable
     {
-        public const int MaxPerKey = 3;
+        public const int MaxPerKey = 4;
 
         private sealed class Row
         {
@@ -106,6 +106,18 @@ namespace ForestOverlay.Data
                 signs[at] = r.Sign;
                 if (n < actions.Length) n++;
             }
+            return n;
+        }
+
+        /// How many actions the key has in all (Resolve fits MaxPerKey of them).
+        public int Total(string key)
+        {
+            int n = 0;
+            bool other = false;
+            for (int i = 0; i < _rows.Count; i++)
+                if (_rows[i].Key == key && !IsMenuCategory(_categories[_rows[i].Action])) { other = true; break; }
+            for (int i = 0; i < _rows.Count; i++)
+                if (_rows[i].Key == key && !(other && IsMenuCategory(_categories[_rows[i].Action]))) n++;
             return n;
         }
 

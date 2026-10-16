@@ -60,7 +60,9 @@ namespace ForestOverlay.Modules
             public readonly int[] Slots = new int[InputActionTable.MaxPerKey];   // ActionReaders' slot per action
             public GUIContent Idle;                // the functions' names, one a line, in pick order
             public bool UsesFsm;                   // an attack / block action: the player's control FSM tells which
-            public bool WasHeld;
+            public bool WasHeld, WasLit;
+            public int ReadAct = -1;               // the action a game script read in this press (-1 none yet)
+            public readonly bool[] Cont = new bool[InputActionTable.MaxPerKey], FsmAct = new bool[InputActionTable.MaxPerKey], HeldNow = new bool[InputActionTable.MaxPerKey];
             public int PressFrame, Strength;
             public string Performed;               // the function performed in this press (null: none yet)
             public float LingerUntil;
@@ -187,13 +189,20 @@ namespace ForestOverlay.Modules
                 words[k] = InputActionTable.Label(action, s.Signs[k]);
                 s.ActLabels[k] = LabelContent(words[k]);
                 all += (k > 0 ? " / " : "") + words[k];
-                if (action == "Fire1" || action == "AltFire") s.UsesFsm = true;
+                s.Cont[k] = ActionFunctions.IsContinuous(action);
+                s.FsmAct[k] = ActionFunctions.UsesControlState(action);
+                if (s.FsmAct[k]) s.UsesFsm = true;
             }
+            int total = table.Total(s.Tile.Key);
+            if (total > s.Count && _overflowTold.Add(s.Tile.Key))
+                Ctx.Log.LogInfo("Inputs: key " + s.Tile.Key + " has " + total + " game actions, the tile shows the first " + s.Count + ".");
             // Idle: the key's functions' names in pick order, one a line, until one is performed.
             s.Idle = new GUIContent(ActionFunctions.Idle(words, s.Count));
             s.Label = s.Idle;
             s.Performed = null;
             s.WasHeld = false;
+            s.WasLit = false;
+            s.ReadAct = -1;
             s.LingerUntil = 0f;
             s.Name = new GUIContent(s.RawName.text + " - " + all);
         }
@@ -209,6 +218,7 @@ namespace ForestOverlay.Modules
         }
 
         private bool _watching;
+        private readonly HashSet<string> _overflowTold = new HashSet<string>();
 
         // Which actions the shown tiles stand for: the readers watch exactly those, and only while
         // the overlay is on in game input.
@@ -241,29 +251,31 @@ namespace ForestOverlay.Modules
             ActionReaders.Watch(Ctx.Log, OverlayPlugin.PluginGuid, null);
         }
 
-        // The label while a tile's key is held (and a moment after): the function the game
-        // performed. A reader that named it wins; else the control FSM for attack / block;
-        // else the held action's own word.
+        // A game-input tile is lit and labelled only for what the game DID: a continuous action
+        // (movement, jump, run, crouch, attack: the controller reads it every frame) while held,
+        // any other action only once a game script read it in this press (Take with nothing in
+        // focus, Batch in the open world: held, but the game did nothing). The label is the
+        // function performed: a reader that named it wins; else the control FSM for attack /
+        // block; else the held action's own word. Rules in Data/ActionFunctions.Pick.
         private const float Linger = 0.75f;
 
         private void Perform(TileState s, int hit)
         {
-            string best = null;
+            string reader = null;
             int bestFrame = -2;
             for (int k = 0; k < s.Count; k++)
             {
                 int f;
                 string w = ActionReaders.LabelOf(s.Slots[k], out f);
-                if (w != null && f >= s.PressFrame - 1 && f > bestFrame) { best = w; bestFrame = f; }
+                if (w != null && f >= s.PressFrame - 1 && f > bestFrame) { reader = w; bestFrame = f; }
             }
-            if (best != null) { s.Performed = best; s.Strength = 100; return; }
-            if (s.UsesFsm && s.Strength < 100)
-            {
-                int rank;
-                string w = ActionFunctions.FsmLabel(ActionReaders.ControlState(), out rank);
-                if (w != null && rank > s.Strength) { s.Performed = w; s.Strength = rank; return; }
-            }
-            if (s.Performed == null) s.Performed = InputActionTable.Label(GameActions.Table.NameOf(s.Acts[hit]), s.Signs[hit]);
+            string fsm = null;
+            int rank = 0;
+            if (s.UsesFsm && s.Strength < 100 && reader == null) fsm = ActionFunctions.FsmLabel(ActionReaders.ControlState(), out rank);
+            string fallback = s.FsmAct[hit] ? null : InputActionTable.Label(GameActions.Table.NameOf(s.Acts[hit]), s.Signs[hit]);
+            int strength;
+            s.Performed = ActionFunctions.Pick(reader, fsm, rank, s.Performed, s.Strength, fallback, out strength);
+            s.Strength = strength;
         }
 
         private bool Editing { get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; } }
@@ -312,23 +324,35 @@ namespace ForestOverlay.Modules
                     {
                         if (!useActions)
                         {
-                            down = Input.GetKey(s.Code);
+                            // Edit HUD (the window turns the game's maps off) lights from the key, except
+                            // in game input a key with no game action, which never lights.
+                            down = !s.Dead && Input.GetKey(s.Code);
                             if (s.Count > 0) s.Label = s.Idle;
                         }
                         else if (s.Count > 0)
                         {
-                            int hit = -1;
+                            bool anyHeld = false;
                             for (int k = 0; k < s.Count; k++)
                             {
                                 bool held = GameActions.Held(s.Acts[k], s.Signs[k]);
+                                s.HeldNow[k] = held;
                                 ActionReaders.Report(s.Slots[k], held);
-                                if (held && hit < 0) hit = k;
+                                anyHeld |= held;
                             }
+                            if (anyHeld && !s.WasHeld) { s.PressFrame = Time.frameCount; s.Strength = 0; s.Performed = null; s.ReadAct = -1; }
+                            s.WasHeld = anyHeld;
+                            int hit = -1;
+                            for (int k = 0; k < s.Count; k++)
+                            {
+                                if (!s.HeldNow[k]) continue;
+                                if (s.Cont[k]) { if (hit < 0) hit = k; }
+                                else if (s.ReadAct < 0 && ActionReaders.ReadFrame(s.Slots[k]) >= s.PressFrame - 1) s.ReadAct = k;
+                            }
+                            if (hit < 0 && s.ReadAct >= 0 && s.HeldNow[s.ReadAct]) hit = s.ReadAct;
                             down = hit >= 0;
-                            if (down && !s.WasHeld) { s.PressFrame = Time.frameCount; s.Strength = 0; s.Performed = null; }
                             if (down) Perform(s, hit);
-                            else if (s.WasHeld) s.LingerUntil = now + Linger;
-                            s.WasHeld = down;
+                            else if (s.WasLit) s.LingerUntil = now + Linger;
+                            s.WasLit = down;
                             s.Label = s.Performed != null && (down || now < s.LingerUntil) ? LabelContent(s.Performed) : s.Idle;
                         }
                     }
