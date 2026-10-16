@@ -1,3 +1,4 @@
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Core
@@ -85,16 +86,31 @@ namespace ForestOverlay.Core
         public static void Label(Rect r, GUIContent c, GUIStyle s)
         {
             if (WinPx.K != 1f) { WinPx.Label(r, c, s); return; }
-            Halo(r, c, s, 1f, true);
+            Halo(r, c, s, true);
             Draw(r, c, s);
         }
 
-        /// A HUD value drawn as is (GUI.Label, no enlarge trick) with the same
-        /// dark outline; dist is the outline's width in this rect's own units
-        /// (the placed values draw scaled, so 1 / their scale).
-        public static void LabelOutlined(Rect r, GUIContent c, GUIStyle s, float dist)
+        /// The text only, no outline: for a pair that cross-fades (the input
+        /// overlay's idle / lit caps) after one Outline for the pair.
+        public static void LabelPlain(Rect r, GUIContent c, GUIStyle s)
         {
-            Halo(r, c, s, dist, false);
+            if (WinPx.K != 1f) { WinPx.Label(r, c, s); return; }
+            Draw(r, c, s);
+        }
+
+        /// The outline only (in the HUD; nothing in the F2 window), at the
+        /// style's text alpha and GUI.color.
+        public static void Outline(Rect r, GUIContent c, GUIStyle s)
+        {
+            if (WinPx.K == 1f) Halo(r, c, s, true);
+        }
+
+        /// A HUD value drawn as is (GUI.Label, no enlarge trick) with the same
+        /// dark outline. The placed values draw under their own scale; the
+        /// matrix scale is read, so the ring keeps the game's width.
+        public static void LabelOutlined(Rect r, GUIContent c, GUIStyle s)
+        {
+            Halo(r, c, s, false);
             GUI.Label(r, c, s);
         }
 
@@ -102,19 +118,24 @@ namespace ForestOverlay.Core
         // Outline8, black, distance (1, 1) (bridge 2026-10-16, T-0335): the
         // text drawn eight times around itself in black, then once on top.
         // The HUD gets the same so it reads over sky and snow; the F2 window
-        // (K != 1) has its own panels and is left alone.
-        private static readonly float[] OutDx = { -1f, 0f, 1f, -1f, 1f, -1f, 0f, 1f };
-        private static readonly float[] OutDy = { -1f, -1f, -1f, 0f, 0f, 1f, 1f, 1f };
-
-        private static void Halo(Rect r, GUIContent c, GUIStyle s, float dist, bool crisp)
+        // (K != 1) has its own panels and is left alone. One NGUI unit is
+        // Screen.height / 720 px (the HUD's own virtual unit is Screen.height /
+        // 768 at the 1366x768 reference: about 6 % off, so the offset is
+        // computed from the real pixels, not taken as 1 virtual unit);
+        // Data/TextOutline holds the directions and that arithmetic. Only on
+        // Repaint: the other GUI events draw nothing.
+        private static void Halo(Rect r, GUIContent c, GUIStyle s, bool crisp)
         {
+            Event e = Event.current;
+            if (e == null || e.type != EventType.Repaint) return;
             if (s == null || c == null || string.IsNullOrEmpty(c.text)) return;
             Color keep = s.normal.textColor;
             if (keep.a <= 0f) return;
+            float dist = TextOutline.Distance(Screen.height, GUI.matrix.m00);
             s.normal.textColor = new Color(0f, 0f, 0f, keep.a);
             for (int i = 0; i < 8; i++)
             {
-                Rect o = new Rect(r.x + OutDx[i] * dist, r.y + OutDy[i] * dist, r.width, r.height);
+                Rect o = new Rect(r.x + TextOutline.Dx[i] * dist, r.y + TextOutline.Dy[i] * dist, r.width, r.height);
                 if (crisp) Draw(o, c, s); else GUI.Label(o, c, s);
             }
             s.normal.textColor = keep;

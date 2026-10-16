@@ -412,11 +412,16 @@ namespace ForestOverlay.Modules
             {
                 SizeLabels(s.Tile.Scale);
                 GUI.color = new Color(before.r, before.g, before.b, before.a * a * (1f - level));
-                if (level < 0.99f) CrispText.Label(r, s.Label, _idle);
+                // One ring for the cross-fading pair, at the tile's full alpha
+                // (two rings would darken mid-fade).
+                GUI.color = new Color(before.r, before.g, before.b, before.a * a);
+                CrispText.Outline(r, s.Label, _idle);
+                GUI.color = new Color(before.r, before.g, before.b, before.a * a * (1f - level));
+                if (level < 0.99f) CrispText.LabelPlain(r, s.Label, _idle);
                 if (level > 0.01f)
                 {
                     GUI.color = new Color(before.r, before.g, before.b, before.a * a * level);
-                    CrispText.Label(r, s.Label, _lit);
+                    CrispText.LabelPlain(r, s.Label, _lit);
                 }
             }
             if (editing)
