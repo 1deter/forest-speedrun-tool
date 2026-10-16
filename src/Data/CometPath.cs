@@ -45,6 +45,12 @@ namespace ForestOverlay.Data
             return e;
         }
 
+        /// Frame-true input: a point for every frame with a raw delta, however small (only an identical point is skipped).
+        public static bool IsNewPoint(float dx, float dy)
+        {
+            return dx * dx + dy * dy > 1e-12f;
+        }
+
         /// A new tail starts from the origin only when no point is alive AND the mouse has not
         /// moved within span: a slow move from rest (each frame under the point spacing) keeps
         /// accumulating until a point is recorded, instead of being reset every frame.

@@ -39,6 +39,7 @@ namespace ForestOverlay.Modules
 
         private const float PopAmount = 0.1f, RiseTime = 0.1f, FallTime = 0.2f, MinLit = 0.05f;
         private const float TrailSeconds = 0.6f, MouseGain = 0.02f, TrailSpacing = 0.08f, CometSeconds = 0.4f;
+        private const int CometMax = 128;   // 0.4 s of a point per frame, to 300 fps
         private const int TrailMax = 48;
 
         private sealed class TileState
@@ -90,8 +91,8 @@ namespace ForestOverlay.Modules
         private readonly float[] _trailX = new float[TrailMax], _trailY = new float[TrailMax], _trailT = new float[TrailMax];
         private int _trailHead, _trailCount;
         // The Comet (T-0385): the accumulated path, not wrapped; drawn relative to the head.
-        private float _ux, _uy, _lastCx, _lastCy;
-        private readonly float[] _cometX = new float[TrailMax], _cometY = new float[TrailMax], _cometT = new float[TrailMax];
+        private float _ux, _uy;
+        private readonly float[] _cometX = new float[CometMax], _cometY = new float[CometMax], _cometT = new float[CometMax];
         private int _cometHead, _cometCount;
         private float _cometLastMove = -100f, _cometFit = 1f, _cometFitAt;
         private bool Comet { get { return _mouseStyle.Value != StyleBox; } }
@@ -439,23 +440,20 @@ namespace ForestOverlay.Modules
 
         private void SampleComet(float dx, float dy, float now)
         {
-            if (CometPath.ShouldRestart(CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds), now, _cometLastMove, CometSeconds))
+            if (CometPath.ShouldRestart(CometPath.Live(_cometT, _cometHead, _cometCount, CometMax, now, CometSeconds), now, _cometLastMove, CometSeconds))
             {
                 _cometCount = 0;   // at rest, nothing alive: restart at the origin, so the numbers stay small
-                _ux = 0f; _uy = 0f; _lastCx = 0f; _lastCy = 0f;
+                _ux = 0f; _uy = 0f;
             }
             _cometLastMove = now;
             _ux += dx * MouseGain;
             _uy -= dy * MouseGain;   // up on the mouse is up on the screen
-            float tx = _ux - _lastCx, ty = _uy - _lastCy;
-            if (tx * tx + ty * ty < TrailSpacing * TrailSpacing) return;
-            _lastCx = _ux;
-            _lastCy = _uy;
+            if (!CometPath.IsNewPoint(dx * MouseGain, dy * MouseGain)) return;   // frame-true: a point on every moved frame, no spacing gate
             _cometX[_cometHead] = _ux;
             _cometY[_cometHead] = _uy;
             _cometT[_cometHead] = now;
-            _cometHead = (_cometHead + 1) % TrailMax;
-            if (_cometCount < TrailMax) _cometCount++;
+            _cometHead = (_cometHead + 1) % CometMax;
+            if (_cometCount < CometMax) _cometCount++;
         }
 
         private static float Wrap(float v)
@@ -647,7 +645,7 @@ namespace ForestOverlay.Modules
         private bool MouseLive(float now)
         {
             if (_mouseMoved || !Comet) return _mouseMoved;
-            return CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds) > 0;
+            return CometPath.Live(_cometT, _cometHead, _cometCount, CometMax, now, CometSeconds) > 0;
         }
 
         private void DrawTile(TileState s, bool hidden, bool editing, float now, Color before)
@@ -802,11 +800,11 @@ namespace ForestOverlay.Modules
             float cx = r.x + r.width * 0.5f, cy = r.y + r.height * 0.5f;
             float thick = Thick(LineThickness * scale);
             GUI.color = Color.white;
-            int live = CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds);
+            int live = CometPath.Live(_cometT, _cometHead, _cometCount, CometMax, now, CometSeconds);
             if (live == 0) { _cometFit = 1f; _cometFitAt = now; }
             if (live > 0 && Event.current.type == EventType.Repaint && EnsureLineMaterial())
             {
-                float target = CometPath.FitScale(CometPath.Extent(_cometX, _cometY, _cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds, _ux, _uy), 1f);
+                float target = CometPath.FitScale(CometPath.Extent(_cometX, _cometY, _cometT, _cometHead, _cometCount, CometMax, now, CometSeconds, _ux, _uy), 1f);
                 _cometFit = CometPath.Ease(_cometFit, target, now - _cometFitAt, 1.5f);
                 _cometFitAt = now;
                 float fit = half * _cometFit;
@@ -817,9 +815,10 @@ namespace ForestOverlay.Modules
                 GL.Begin(GL.QUADS);
                 for (int k = 0; k < live; k++)
                 {
-                    int idx = (_cometHead - 1 - k + TrailMax * 2) % TrailMax;
+                    int idx = (_cometHead - 1 - k + CometMax * 2) % CometMax;
                     float age = now - _cometT[idx];
                     float tx = cx + (_cometX[idx] - _ux) * fit, ty = cy + (_cometY[idx] - _uy) * fit;
+                    if ((tx - px) * (tx - px) + (ty - py) * (ty - py) < 1f) continue;   // under a pixel: wait, so the path still builds
                     float f0 = CometPath.Fade(pAge, CometSeconds), f1 = CometPath.Fade(age, CometSeconds);
                     Quad(px, py, tx, ty, thick,
                         new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f0),
