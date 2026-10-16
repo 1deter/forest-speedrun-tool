@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.327 - 2026-10-16
+
+- Edit HUD: drag the small handle at an input tile's bottom-right corner to resize it; it snaps to the same steps as the - / + buttons, which still work.
+
 ## v0.24.326 - 2026-10-16
 
 - Run lines: a new Comparison colour option colours the comparison line by speed - green fast, amber, red slow - with a legend in the Runs tab.
