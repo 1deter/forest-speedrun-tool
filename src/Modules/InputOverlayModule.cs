@@ -301,9 +301,10 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             if (!_oldDefaultChecked) MoveOldDefault();
-            if (_on == null || !_on.Value) { _capturing = false; StopWatching(); return; }
+            if (_on == null || !_on.Value) { _capturing = false; Host.Hotkeys.CapturingKey = false; StopWatching(); return; }
             bool editing = Editing;
             if (!editing) _capturing = false;
+            Host.Hotkeys.CapturingKey = _capturing;
             if (GameInput) GameActions.Ensure(Ctx.Log);
             if (!_applied || GameInput != _appliedGame || (GameInput && GameActions.Ready != _appliedReady)) ApplySource();
             // The open window turns the game's maps off: Edit HUD lights from the keys.
@@ -433,6 +434,8 @@ namespace ForestOverlay.Modules
                 if (!Input.GetKeyDown(k)) continue;
                 if (k == KeyCode.Mouse0 || k == KeyCode.Mouse1) continue;   // the clicks that run this window
                 _capturing = false;
+                Host.Hotkeys.CapturingKey = false;
+                Host.Hotkeys.Swallow(k);   // the key only adds the tile; its own hotkey waits for the release
                 if (k == KeyCode.Escape) { SetStatus("Cancelled."); return; }
                 string name = k.ToString();
                 if (name.StartsWith("Joystick", StringComparison.Ordinal)) { SetStatus("Gamepad buttons are not shown."); return; }
@@ -897,6 +900,7 @@ namespace ForestOverlay.Modules
             if (UiKit.Toggle(keyR, _capturing, _capturing ? AddKeyWaiting : AddKeyText, GUI.skin.button) != _capturing)
             {
                 _capturing = !_capturing;
+                Host.Hotkeys.CapturingKey = _capturing;
                 SetStatus(_capturing ? "Press the key to add. Esc cancels." : "");
             }
             UiKit.Hint(keyR, AddKeyTip);
