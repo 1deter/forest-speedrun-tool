@@ -129,6 +129,24 @@ namespace ForestOverlay.Game
             _play = null;
         }
 
+        /// What the running replay holds for an action this frame, for the input
+        /// overlay (no allocation; a button channel, or an axis end by `sign`).
+        public static bool ReplayHeld(string name, int sign)
+        {
+            if (Current != Mode.Playing || _play == null) return false;
+            int f = Time.frameCount - _playStart;
+            if (sign > 0 && _play.Held(_play.FindButton(name), f)) return true;
+            float v = _play.Axis(_play.FindAxis(name), f);
+            return sign > 0 ? v > 0.1f : v < -0.1f;
+        }
+
+        /// The running replay's value for an axis action this frame (0 when none).
+        public static float ReplayAxis(string name)
+        {
+            if (Current != Mode.Playing || _play == null) return 0f;
+            return _play.Axis(_play.FindAxis(name), Time.frameCount - _playStart);
+        }
+
         // ------------------------------------------------------------------
         // From InputInject's postfixes. kind: 0 GetButton, 1 GetButtonDown, 2 GetButtonUp.
         internal static void Button(string name, int kind, ref bool result)

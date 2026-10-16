@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
+using ForestOverlay.Game;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -15,7 +16,9 @@ namespace ForestOverlay.Modules
     // - Fully modular: every tile (a key, the mouse box, the wheel) is placed
     //   on its own, shown or hidden, sized on its own (Data/InputLayout). The
     //   default is W A S D, Shift, Space, Ctrl, M1, M2 and the mouse box.
-    // - Physical keys (UnityEngine.Input.GetKey): what the fingers did,
+    // - Two sources (T-0361, @Inputs.Source): Game input (default) reads each
+    //   key's shipped-default game action through Game/GameActions; Raw input
+    //   is the physical keys (UnityEngine.Input.GetKey): what the fingers did,
     //   whatever the game's bindings. Unity gives digital keys, so there is
     //   no analogue fill - a press fills the tile in the accent colour with
     //   a short pop, as the reference does for a digital key.
@@ -48,12 +51,21 @@ namespace ForestOverlay.Modules
             public float LitUntil;
             public bool Active;      // held this frame: the only-pressed mode draws only these (key and button tiles)
             public GUIContent Label, Name;
+            public GUIContent RawLabel, RawName;   // the key's own words (raw input)
+            // Game input (T-0361): the key's shipped-default actions in pick order.
+            public int Count;                      // 0: none (dead when the actions are read) / raw
+            public readonly int[] Acts = new int[InputActionTable.MaxPerKey], Signs = new int[InputActionTable.MaxPerKey];
+            public readonly GUIContent[] ActLabels = new GUIContent[InputActionTable.MaxPerKey];
+            public bool Dead;                      // game input, the key has no game action
             public string SnapId;
             public Rect Rect;        // as last drawn (virtual pixels)
         }
 
         private ConfigEntry<bool> _on;
         private ConfigEntry<bool> _onlyPressed;
+        private ConfigEntry<string> _source;
+        private const string SourceGame = "Game", SourceRaw = "Raw";
+        private bool _appliedGame, _appliedReady, _applied;
         private ConfigEntry<string> _layoutCfg;
         private InputLayout _layout = new InputLayout();
         private readonly List<TileState> _states = new List<TileState>();
@@ -85,11 +97,14 @@ namespace ForestOverlay.Modules
             base.Initialise(ctx);
             _on = ctx.Config.Bind("Inputs", "On", false, "Show the input overlay: the keys and mouse buttons you press, on the game screen.");
             _onlyPressed = ctx.Config.Bind("Inputs", "OnlyPressed", false, "Show a tile only while its key is held (exact, no fade). Edit HUD still shows every tile.");
+            _source = ctx.Config.Bind("Inputs", "Source", SourceGame,
+                "What the tiles read: Game (the game's actions: Jump, Crouch, a replay's inputs) or Raw (the keys you press).");
             _layoutCfg = ctx.Config.Bind("Inputs", "Layout", DefaultLayout().Format(),
                 "The input overlay's tiles: key, x, y, size, shown (1/0), separated by ';'. Set up in Edit HUD.");
             HudWidgets widgets = Host.Hud.Widgets;
             widgets.RegisterProfileEntry(_on, null);
             widgets.RegisterProfileEntry(_onlyPressed, null);
+            widgets.RegisterProfileEntry(_source, null);
             widgets.RegisterProfileEntry(_layoutCfg, delegate (object v)
             {
                 _layoutCfg.BoxedValue = v;
@@ -118,8 +133,10 @@ namespace ForestOverlay.Modules
             s.Tile = t;
             s.SnapId = "input" + index + t.Key;
             string label = InputLayout.LabelFor(t.Key);
-            s.Label = new GUIContent(label);
-            s.Name = new GUIContent(t.Key == InputLayout.MouseKey ? "Mouse box" : t.Key == InputLayout.WheelKey ? "Mouse wheel" : label);
+            s.RawLabel = new GUIContent(label);
+            s.RawName = new GUIContent(t.Key == InputLayout.MouseKey ? "Mouse box" : t.Key == InputLayout.WheelKey ? "Mouse wheel" : label);
+            s.Label = s.RawLabel;
+            s.Name = s.RawName;
             if (t.Key == InputLayout.MouseKey || t.Key == InputLayout.WheelKey) { s.Valid = true; s.Special = true; return s; }
             try
             {
@@ -127,7 +144,46 @@ namespace ForestOverlay.Modules
                 s.Valid = true;
             }
             catch (Exception) { s.Valid = false; }   // a key a newer version knew: kept in the file, not drawn
+            SetUpSource(s);
             return s;
+        }
+
+        private bool GameInput { get { return _source.Value != SourceRaw; } }
+
+        // Game input: what a key stands for and how its tile reads. Rebuilt on a
+        // source change, when the game's actions become readable, and per new tile.
+        private void SetUpSource(TileState s)
+        {
+            s.Count = 0;
+            s.Dead = false;
+            s.Label = s.RawLabel;
+            s.Name = s.RawName;
+            if (s.Special || !s.Valid || !GameInput || !GameActions.Ready) return;
+            InputActionTable table = GameActions.Table;
+            s.Count = table.Resolve(s.Tile.Key, s.Acts, s.Signs);
+            if (s.Count == 0)
+            {
+                s.Dead = true;   // drawn dimmed; its row says why
+                s.Name = new GUIContent(s.RawName.text + " - no game action on this key");
+                return;
+            }
+            string all = "";
+            for (int k = 0; k < s.Count; k++)
+            {
+                string word = InputActionTable.Label(table.NameOf(s.Acts[k]), s.Signs[k]);
+                s.ActLabels[k] = new GUIContent(word);
+                all += (k > 0 ? " / " : "") + word;
+            }
+            s.Label = s.ActLabels[0];   // idle: the main function (the first in pick order)
+            s.Name = new GUIContent(s.RawName.text + " - " + all);
+        }
+
+        private void ApplySource()
+        {
+            _applied = true;
+            _appliedGame = GameInput;
+            _appliedReady = GameActions.Ready;
+            for (int i = 0; i < _states.Count; i++) SetUpSource(_states[i]);
         }
 
         private bool Editing { get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; } }
@@ -156,6 +212,10 @@ namespace ForestOverlay.Modules
             if (_on == null || !_on.Value) { _capturing = false; return; }
             bool editing = Editing;
             if (!editing) _capturing = false;
+            if (GameInput) GameActions.Ensure(Ctx.Log);
+            if (!_applied || GameInput != _appliedGame || (GameInput && GameActions.Ready != _appliedReady)) ApplySource();
+            // The open window turns the game's maps off: Edit HUD lights from the keys.
+            bool useActions = GameInput && GameActions.Ready && !editing;
             float now = Time.unscaledTime, dt = Time.unscaledDeltaTime;
             bool live = editing || !Cursor.visible;
             if (_capturing) CaptureKey();
@@ -168,7 +228,22 @@ namespace ForestOverlay.Modules
                 bool down = false;
                 if (live)
                 {
-                    if (!s.Special) down = Input.GetKey(s.Code);
+                    if (!s.Special)
+                    {
+                        if (!useActions)
+                        {
+                            down = Input.GetKey(s.Code);
+                            if (s.Count > 0) s.Label = s.ActLabels[0];
+                        }
+                        else if (s.Count > 0)
+                        {
+                            int hit = -1;
+                            for (int k = 0; k < s.Count && hit < 0; k++)
+                                if (GameActions.Held(s.Acts[k], s.Signs[k])) hit = k;
+                            down = hit >= 0;
+                            s.Label = s.ActLabels[hit >= 0 ? hit : 0];   // the function performed; else the main one
+                        }
+                    }
                     else if (s.Tile.Key == InputLayout.WheelKey) down = scroll != 0f;
                 }
                 s.Active = down;
@@ -178,7 +253,7 @@ namespace ForestOverlay.Modules
                 if (lit) s.Level = Mathf.Min(1f, s.Level + dt / RiseTime);
                 else s.Level = Mathf.Max(0f, s.Level - dt / FallTime);
             }
-            if (HasShownMouseBox()) SampleMouse(live, now);
+            if (HasShownMouseBox()) SampleMouse(live, now, useActions);
         }
 
         private bool HasShownMouseBox()
@@ -188,7 +263,7 @@ namespace ForestOverlay.Modules
             return false;
         }
 
-        private void SampleMouse(bool live, float now)
+        private void SampleMouse(bool live, float now, bool useActions)
         {
             if (!live || _axisBroken) return;
             float dx, dy;
@@ -196,6 +271,12 @@ namespace ForestOverlay.Modules
             {
                 dx = Input.GetAxisRaw("Mouse X");
                 dy = Input.GetAxisRaw("Mouse Y");
+                if (useActions)
+                {
+                    // The game's Mouse X / Y actions: the same numbers in play, and a replay's look shows.
+                    float gx = GameActions.Axis("Mouse X"), gy = GameActions.Axis("Mouse Y");
+                    if (!float.IsNaN(gx) && !float.IsNaN(gy)) { dx = gx; dy = gy; }
+                }
             }
             catch (Exception ex)
             {
@@ -391,7 +472,7 @@ namespace ForestOverlay.Modules
 
         private void DrawTile(TileState s, bool hidden, bool editing, float now, Color before)
         {
-            float a = hidden ? 0.35f : 1f;
+            float a = hidden ? 0.35f : s.Dead ? 0.5f : 1f;   // a key with no game action is dimmed
             float level = s.Level;
             float pop = _onlyPressed.Value && !editing && !s.Special ? 0f : PopAmount * level;
             Rect r = s.Rect;
@@ -660,6 +741,8 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(indent, y, w - indent, About, UiKit.HintStyle) + 2f;
             if (!_on.Value) return y + 8f;
 
+            y = DrawSourceChoice(y, w, indent);
+
             bool only = UiKit.Toggle(new Rect(0f, y, w, 22f), _onlyPressed.Value, OnlyPressedText);
             if (only != _onlyPressed.Value)
             {
@@ -708,6 +791,47 @@ namespace ForestOverlay.Modules
             y += 30f;
             if (_axisBroken) y += UiText.Draw(0f, y, w, BrokenText, UiKit.HintStyle) + 2f;
             return y + 8f;
+        }
+
+        private static readonly GUIContent SourceTitle = new GUIContent("Shows");
+        private static readonly GUIContent SourceGameText = new GUIContent("Game input");
+        private static readonly GUIContent SourceRawText = new GUIContent("Raw input");
+        private static readonly GUIContent SourceAbout = new GUIContent(
+            "Game input: each tile is its key's game action (Jump, Crouch, Forward...), lit whenever the game's action fires, " +
+            "so a rebind follows the action and a replay's or the test bridge's inputs show. Raw input: the keys you press, named as keys. " +
+            "The mouse wheel is raw in both. This window always lights tiles from the keys.");
+        private readonly GUIContent _sourceStatus = new GUIContent("");
+        private string _statusFor;
+
+        private float DrawSourceChoice(float y, float w, float indent)
+        {
+            const float labelW = 60f;
+            WinPx.Label(new Rect(0f, y, labelW, 22f), SourceTitle);
+            float bw = Mathf.Max(60f, (w - labelW - 4f) * 0.5f);
+            Rect gameR = new Rect(labelW, y, bw, 22f), rawR = new Rect(labelW + bw + 4f, y, bw, 22f);
+            bool game = GameInput;
+            if (UiKit.Toggle(gameR, game, SourceGameText, GUI.skin.button) && !game) SetSource(SourceGame);
+            if (UiKit.Toggle(rawR, !game, SourceRawText, GUI.skin.button) && game) SetSource(SourceRaw);
+            y += 26f;
+            y += UiText.Draw(indent, y, w - indent, SourceAbout, UiKit.HintStyle) + 2f;
+            if (GameInput && !GameActions.Ready)
+            {
+                if (!ReferenceEquals(_statusFor, GameActions.Status))
+                {
+                    _statusFor = GameActions.Status;
+                    _sourceStatus.text = "The game's actions are not readable (" + _statusFor + "): the tiles read the keys.";
+                }
+                y += UiText.Draw(indent, y, w - indent, _sourceStatus, UiKit.HintStyle) + 2f;
+            }
+            return y + 2f;
+        }
+
+        private void SetSource(string source)
+        {
+            if (_source.Value == source) return;
+            _source.Value = source;
+            ApplySource();
+            Ctx.Log.LogInfo("Inputs: source " + (source == SourceRaw ? "raw input" : "game input"));
         }
 
         private float AddButton(ref float x, float y, float w, GUIContent text, GUIContent tip, string key)

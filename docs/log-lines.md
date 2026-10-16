@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-242 prefixes from 797 log calls.
+243 prefixes from 800 log calls.
 
 ## `Aerial capture`
 
@@ -563,6 +563,14 @@ Written by GameProfiler.cs; info / warning.
 - info `Game profiler: hooked <_hooked.Count> method(s) in <..> s<..>; a report every <..> s.`
 - info `Game profiler: off, <_hooked.Count> method(s) unhooked in <..> s (until a restart, the methods it hooked still box their foreach loops - restart before measuring allocations).`
 
+## `GameActions`
+
+Meaning: The input overlay's game input: how many of the game's input actions and shipped default key / mouse bindings were read, or why they cannot be (a warning; the tiles then read the keys).
+Written by GameActions.cs; info / warning.
+
+- warning `GameActions: <Status>`
+- info `GameActions: <_ids.Length> actions, <keys> keyboard + <mouse> mouse bindings (default).`
+
 ## `GameEvents`
 
 Meaning: The named game events' hooks: installed, or an event that will never fire.
@@ -708,6 +716,7 @@ Written by InputOverlayModule.cs; info / warning.
 - info `Inputs: <..>.`
 - info `Inputs: layout reset to the default.`
 - info `Inputs: only-pressed mode <..>.`
+- info `Inputs: source <..>`
 - warning `Inputs: the mouse box cannot read the mouse (<ex.Message>) - it stays still.`
 - warning `Inputs: the mouse path cannot be drawn (Hidden/Internal-Colored not found) - the mouse box shows the dot only.`
 - info `Inputs: the old default layout moved to bottom centre (clear of the game's messages).`
