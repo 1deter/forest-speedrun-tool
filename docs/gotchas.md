@@ -1193,3 +1193,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     cutting the trail on those frames meant no path ever built. Anything
     driven by "the mouse moved this frame" needs a hold-off or a smoothed
     velocity, not the per-frame delta.
+
+120. **A screenshot that never appears can be a GPU driver fault, not the
+    test.** (2026-10-16, T-0382, Windows event log.) In T-0363's check
+    the monitor went blank and the game "froze" after windowed
+    `SetResolution` round trips. The System log shows `nvlddmkm` Event
+    153 at 22:59:17.243 UTC. That was 17 s and one good screenshot after
+    the last resize, and before the next `shot` ran. After it every
+    `CaptureScreenshot` failed, while the bridge still answered with
+    frames advancing. The same PC logs nvlddmkm faults and TDRs from July
+    on, before the plugin existed and with no game running. The 10-15
+    04:15 TDR was the 43 s "main thread stuck" in stall.log. Check the
+    System log before blaming the last bridge call, and stop driving the
+    game once it shows a fault (tasks/notes/T-0382.md).
