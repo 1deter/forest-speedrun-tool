@@ -65,6 +65,11 @@ namespace ForestOverlay.Core
         /// panel is open" setting: that is about windows, this is not.
         public virtual bool HoldsPlayer { get { return false; } }
 
+        /// The mouse is free for this module's on-screen controls with no
+        /// window open (the replay bar, T-0369). Only counts while the
+        /// module is live; the pointer is the window's, as with a panel.
+        public virtual bool WantsMouse { get { return false; } }
+
         public bool PanelOpen;
 
         /// Set by ModuleHost at registration so a module can open or close

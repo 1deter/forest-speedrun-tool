@@ -360,7 +360,7 @@ namespace ForestOverlay.Core
             // VirtualCursor.LateUpdate is guaranteed to observe it - Unity
             // runs all Updates before any LateUpdate, while the order
             // between two LateUpdates is undefined.
-            if (panel)
+            if (panel || (hold && AnyModuleWantsMouse()))
             {
                 _cursor.Acquire();
             }
@@ -385,6 +385,13 @@ namespace ForestOverlay.Core
         {
             for (int i = 0; i < _modules.Count; i++)
                 if (IsLive(_modules[i]) && _modules[i].HoldsPlayer) return true;
+            return false;
+        }
+
+        private bool AnyModuleWantsMouse()
+        {
+            for (int i = 0; i < _modules.Count; i++)
+                if (IsLive(_modules[i]) && _modules[i].WantsMouse) return true;
             return false;
         }
 

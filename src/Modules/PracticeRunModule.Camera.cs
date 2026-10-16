@@ -73,6 +73,9 @@ namespace ForestOverlay.Modules
 
         public override bool HoldsPlayer { get { return _camOn; } }
 
+        /// The replay bar's controls are clicked with the mouse (T-0369).
+        public override bool WantsMouse { get { return _camOn; } }
+
         private bool FigureLook { get { return _ghostLookCfg == null || _ghostLookCfg.Value != GhostMarker; } }
 
         /// The replay camera is on (the bridge reads this).
@@ -133,13 +136,14 @@ namespace ForestOverlay.Modules
             _ghostYaw = ReplayCamera.HeadingAt(_reference, 0f, 0f);
             _camSnap = true;
             _nextCameraText = 0f;
+            _splitsDirty = true;
             Ctx.Practice.Mark("replay camera");
             SetCamStatus("");
             Ctx.Log.LogInfo("Replay camera: on - '" + _segment.Id + "' comparison run of " + _clock.Duration.ToString("0.00") + " s, " +
                             _reference.Looks.Count + " look sample(s), " + _reference.Samples.Count + " position(s), view " +
                             ReplayCamera.Label(_camView) + ". " + _replayCam.LastReport + ".");
             if (Host == null || !Host.AnyPanelOpen())
-                Ctx.Notice.Show("Replay camera: Space play / pause, Left / Right seek, Up / Down speed, 1 2 3 views, Esc stops.", 7f);
+                Ctx.Notice.Show("Replay camera: click the bar at the bottom, or Space play / pause, Left / Right seek, Esc stops.", 7f);
             TickReplayCamera();
         }
 
@@ -147,10 +151,12 @@ namespace ForestOverlay.Modules
         {
             if (!_camOn) return;
             _camOn = false;
+            _barScrub = false;
             _replayCam.End();
             _camSource = null;
             if (_lines != null) _lines.PathCount = 0;
             _camHud = "";
+            _splitsDirty = true;   // the panel and the timer go back to the live run
             SetCamStatus("Replay camera off (" + why + ").");
             Ctx.Log.LogInfo("Replay camera: off - " + why + ", at " + _clock.T.ToString("0.00") + " s.");
         }
@@ -195,7 +201,7 @@ namespace ForestOverlay.Modules
             }
 
             float dt = Time.unscaledDeltaTime;
-            _clock.Advance(dt);
+            if (!_barScrub) _clock.Advance(dt);   // held still while the playhead is dragged
 
             GhostPose g;
             if (!ReplayCamera.PoseAt(_reference, _clock.T, _ghostYaw, out g)) return;
@@ -266,6 +272,7 @@ namespace ForestOverlay.Modules
                            (_clock.Paused ? (_clock.AtEnd ? "  (end - Space plays again)" : "  paused") : "");
             }
             _camHud = ReplayCamera.Label(_camView) + "  " + ClockText.Clock(_clock.T) + _camTail;
+            _barInfo.text = "Watching the comparison run:  " + _camHud;
             // The tab's line: only built while the tab shows it.
             if (!TabShowing) return;
             _camTimeText.text = "Watching: " + _camHud +

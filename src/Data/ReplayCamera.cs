@@ -532,4 +532,49 @@ namespace ForestOverlay.Data
             return plane == 0 ? W(feet, cy, sy, 0f, centre + up, h) : W(feet, cy, sy, h, centre + up, 0f);
         }
     }
+
+
+    // ------------------------------------------------------------------
+    // The on-screen replay bar's maths (T-0369): the timeline's pixel <->
+    // time, and the splits the watched run had reached at a replay time
+    // (the splits panel and the big timer follow the replay, author
+    // 2026-10-16). Pure.
+    // ------------------------------------------------------------------
+    public static class ReplayBar
+    {
+        /// Where x sits along a track from `left`, `width` wide: 0 to 1.
+        public static float Fraction(float x, float left, float width)
+        {
+            if (width <= 0f) return 0f;
+            return Math.Max(0f, Math.Min(1f, (x - left) / width));
+        }
+
+        /// The replay time under x on the timeline.
+        public static float TimeAt(float x, float left, float width, float duration)
+        {
+            return Fraction(x, left, width) * Math.Max(0f, duration);
+        }
+
+        /// The x of replay time t on the timeline (the ends clamp).
+        public static float PixelOf(float t, float duration, float left, float width)
+        {
+            if (duration <= 0f) return left;
+            return left + Math.Max(0f, Math.Min(1f, t / duration)) * width;
+        }
+
+        /// The watched run's split times as its clock stands: a checkpoint
+        /// not reached yet is NaN, the last row is its end. `into` is one
+        /// per row (rows = checkpoints + the end), written in place.
+        public static void WatchTimes(float[] splits, float duration, float t, float[] into)
+        {
+            int rows = into.Length;
+            for (int i = 0; i < rows; i++)
+            {
+                float v = float.NaN;
+                if (i == rows - 1) { if (duration > 0f && t >= duration) v = duration; }
+                else if (splits != null && i < splits.Length && !float.IsNaN(splits[i]) && splits[i] <= t) v = splits[i];
+                into[i] = v;
+            }
+        }
+    }
 }

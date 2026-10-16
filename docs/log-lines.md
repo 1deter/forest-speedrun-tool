@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-242 prefixes from 793 log calls.
+242 prefixes from 797 log calls.
 
 ## `Aerial capture`
 
@@ -1416,11 +1416,15 @@ Written by BuildWatch.cs; info.
 ## `Replay camera`
 
 Meaning: The replay camera: on (which run, how many samples), off and why, or a view change.
-Written by PracticeRunModule.Camera.cs; info.
+Written by PracticeRunModule.Camera.cs, PracticeRunModule.ReplayBar.cs; info.
 
 - info `Replay camera: off - <why>, at <..> s.`
 - info `Replay camera: on - '<_segment.Id>' comparison run of <..> s, <_reference.Looks.Count> look sample(s), <_reference.Samples.Count> position(s), view <..>. <_replayCam.LastReport>.`
 - info `Replay camera: view <..>.`
+- info `Replay camera: bar <..> at <..> s.`
+- info `Replay camera: bar seek to <..> s.`
+- info `Replay camera: bar speed x<..>.`
+- info `Replay camera: bar step <..> s, at <..> s.`
 
 ## `Restart`
 

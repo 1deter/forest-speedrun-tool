@@ -351,5 +351,36 @@ namespace ForestOverlay.Tests
             g.Eye = 40f;   // a cutscene camera far above: clamped
             Assert.Equal(2.2f, ReplayCamera.FigureHeight(g), 3);
         }
+
+        [Fact]
+        public void BarMapsPixelsAndTimes()
+        {
+            Assert.Equal(0f, ReplayBar.Fraction(-5f, 10f, 100f));
+            Assert.Equal(1f, ReplayBar.Fraction(500f, 10f, 100f));
+            Assert.Equal(0.5f, ReplayBar.Fraction(60f, 10f, 100f), 4);
+            Assert.Equal(0f, ReplayBar.Fraction(60f, 10f, 0f));
+            Assert.Equal(3f, ReplayBar.TimeAt(60f, 10f, 100f, 6f), 4);
+            Assert.Equal(60f, ReplayBar.PixelOf(3f, 6f, 10f, 100f), 4);
+            Assert.Equal(110f, ReplayBar.PixelOf(99f, 6f, 10f, 100f), 4);
+            Assert.Equal(10f, ReplayBar.PixelOf(1f, 0f, 10f, 100f), 4);
+        }
+
+        [Fact]
+        public void WatchTimesAreTheSplitsReachedSoFar()
+        {
+            float[] into = new float[4];
+            float[] splits = { 1.5f, 3f, float.NaN };
+            ReplayBar.WatchTimes(splits, 6f, 2f, into);
+            Assert.Equal(1.5f, into[0]);
+            Assert.True(float.IsNaN(into[1]) && float.IsNaN(into[2]) && float.IsNaN(into[3]));
+            ReplayBar.WatchTimes(splits, 6f, 3f, into);
+            Assert.Equal(3f, into[1]);
+            ReplayBar.WatchTimes(splits, 6f, 6f, into);
+            Assert.True(float.IsNaN(into[2]));   // an unknown split stays unknown
+            Assert.Equal(6f, into[3]);
+            ReplayBar.WatchTimes(null, 6f, 6f, into);
+            Assert.True(float.IsNaN(into[0]));
+            Assert.Equal(6f, into[3]);
+        }
     }
 }

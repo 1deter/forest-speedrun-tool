@@ -50,6 +50,7 @@ namespace ForestOverlay.Modules
 
         private SplitStats _stats;
         private float[] _times = new float[0];
+        private float[] _watchTimes = new float[0];   // the watched run's splits so far (replay bar)
         // The timer's load seconds when each row was reached (NaN = not
         // reached / unknown): the LRT column, the attempt's SplitLoads.
         private float[] _loadsAt = new float[0];
@@ -494,7 +495,10 @@ namespace ForestOverlay.Modules
             FlushSplitSettings();
             RefreshEditTexts();
             bool running = _recorder.State == RunRecorder.RunState.Running;
-            if (!_splitsDirty && !(running && Time.unscaledTime >= _nextSplitText)) return;
+            // Watching the comparison run, the panel shows ITS splits as its
+            // clock reaches them (author, 2026-10-16), as a live run would.
+            bool watching = _camOn && _reference != null;
+            if (!_splitsDirty && !((running || watching) && Time.unscaledTime >= _nextSplitText)) return;
             if (!_splitsDirty && !HudEditing && !PanelShowing) return;
             _splitsDirty = false;
             _nextSplitText = Time.unscaledTime + 0.1f;
@@ -509,7 +513,17 @@ namespace ForestOverlay.Modules
                 return;
             }
 
-            _summary = SplitTable.Fill(_stats, compare, _times, running, _recorder.Elapsed, _rowsData);
+            float[] shownTimes = _times;
+            float elapsed = _recorder.Elapsed;
+            if (watching)
+            {
+                if (_watchTimes.Length != rows) _watchTimes = new float[rows];
+                ReplayBar.WatchTimes(_reference.Splits, _reference.Duration, _clock.T, _watchTimes);
+                shownTimes = _watchTimes;
+                elapsed = _clock.T;
+            }
+            bool live = running || watching;
+            _summary = SplitTable.Fill(_stats, compare, shownTimes, live, elapsed, _rowsData);
             string compareName = ComparisonName();
             // A run resumed from a checkpoint says so here (it was appended
             // to the HUD's clock before T-0336).
@@ -546,11 +560,11 @@ namespace ForestOverlay.Modules
                 _cells[c0 + (int)Col.BestSegment].text = _cellText.Time(c0 + (int)Col.BestSegment, d.BestSegment, td);
                 _cells[c0 + (int)Col.TimeSave].text = _cellText.TimeOrEmpty(c0 + (int)Col.TimeSave, d.TimeSave, td);
                 // This run's split time with its loads taken out; blank until reached.
-                float lrt = reached && r < _loadsAt.Length ? LoadClock.Without(d.Time, _loadsAt[r]) : float.NaN;
+                float lrt = reached && !watching && r < _loadsAt.Length ? LoadClock.Without(d.Time, _loadsAt[r]) : float.NaN;
                 _cells[c0 + (int)Col.Lrt].text = _cellText.TimeOrEmpty(c0 + (int)Col.Lrt, lrt, td);
             }
             _shownRows = rows;
-            _timerColour = SplitTable.TimerColour(_rowsData, _times, running, _recorder.Elapsed);
+            _timerColour = SplitTable.TimerColour(_rowsData, shownTimes, live, elapsed);
 
             int tdl = _timeDecimals.Value, ddl = _deltaDecimals.Value;
             string previous = _lineText.Delta(0, _summary.PreviousSegment, ddl);
@@ -621,6 +635,7 @@ namespace ForestOverlay.Modules
         /// LiveSplit keeps it until a reset; else 0.
         private float TimerSeconds(bool running)
         {
+            if (_camOn) return _clock.T;   // watching a replay: its time (author, 2026-10-16)
             if (running) return _recorder.Elapsed;
             int n = _times.Length;
             return n > 0 && !float.IsNaN(_times[n - 1]) ? _times[n - 1] : 0f;
@@ -733,7 +748,7 @@ namespace ForestOverlay.Modules
             DrawReplayLabels();
             DrawLineMarkLabels();
             Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
-            try { DrawPanels(); }
+            try { DrawPanels(); DrawReplayBar(); }
             finally { GUI.matrix = outer; }
         }
 
