@@ -9,6 +9,24 @@ namespace ForestOverlay.Data
     {
         public const int Buckets = 16;
 
+        /// The colour range of a line: its LowShare / HighShare percentile of
+        /// the speeds, so one spike or a stretch at 0 (a restore, teleport,
+        /// load) does not flatten the ramp. Allocates (sorts a copy): call
+        /// when the line changes, not per frame. No points: 0, 0.
+        public const float LowShare = 0.05f, HighShare = 0.95f;
+
+        public static void Range(float[] speeds, int count, out float lo, out float hi)
+        {
+            lo = 0f; hi = 0f;
+            if (speeds == null || count <= 0) return;
+            if (count > speeds.Length) count = speeds.Length;
+            float[] c = new float[count];
+            System.Array.Copy(speeds, c, count);
+            System.Array.Sort(c);
+            lo = c[(int)((count - 1) * LowShare)];
+            hi = c[(int)System.Math.Ceiling((count - 1) * HighShare)];
+        }
+
         /// 0 (slowest) .. Buckets - 1 (fastest) for a speed within [min, max];
         /// a flat range (no spread) is the middle.
         public static int Bucket(float speed, float min, float max)
