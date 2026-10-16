@@ -78,5 +78,48 @@ namespace ForestOverlay.Tests
             Assert.Equal("Take\nBuild", ActionFunctions.Idle(new[] { "Take", "Build" }, 2));
             Assert.Equal("Attack", ActionFunctions.Idle(new[] { "Attack", "Equip" }, 1));
         }
+
+        [Fact]
+        public void Pick_ReaderBeatsFsmBeatsFallback()
+        {
+            int st;
+            Assert.Equal("Shoot", ActionFunctions.Pick("Shoot", "Attack", 2, null, 0, "Attack", out st));
+            Assert.Equal(100, st);
+            Assert.Equal("Attack", ActionFunctions.Pick(null, "Attack", 2, null, 0, null, out st));
+            Assert.Equal(2, st);
+            Assert.Equal("Take", ActionFunctions.Pick(null, null, 0, null, 0, "Take", out st));
+            Assert.Equal(0, st);
+        }
+
+        [Fact]
+        public void Pick_StrongestStateOfThePressStays()
+        {
+            int st;
+            // heavy, then the press ends in waitForCombo (Attack, weaker): still Heavy attack
+            string w = ActionFunctions.Pick(null, "Heavy attack", ActionFunctions.RankHeavy, null, 0, null, out st);
+            w = ActionFunctions.Pick(null, "Attack", ActionFunctions.RankAttack, w, st, null, out st);
+            Assert.Equal("Heavy attack", w);
+            Assert.Equal(ActionFunctions.RankHeavy, st);
+            // a reader's word is never replaced by the FSM
+            Assert.Equal("Crouch", ActionFunctions.Pick(null, "Block", ActionFunctions.RankHeavy, "Crouch", 100, null, out st));
+        }
+
+        [Fact]
+        public void Pick_NothingForAnActionOnlyTheFsmCanTell()
+        {
+            int st;
+            Assert.Null(ActionFunctions.Pick(null, null, 0, null, 0, null, out st));
+        }
+
+        [Fact]
+        public void Continuous_OnlyWhatTheControllerReadsEveryFrame()
+        {
+            foreach (string a in new[] { "Vertical", "Horizontal", "Jump", "Run", "Crouch", "Fire1", "AltFire" })
+                Assert.True(ActionFunctions.IsContinuous(a), a);
+            foreach (string a in new[] { "Take", "Save", "Craft", "Build", "Batch", "Equip", "Combine" })
+                Assert.False(ActionFunctions.IsContinuous(a), a);
+            Assert.True(ActionFunctions.UsesControlState("Fire1"));
+            Assert.False(ActionFunctions.UsesControlState("Take"));
+        }
     }
 }

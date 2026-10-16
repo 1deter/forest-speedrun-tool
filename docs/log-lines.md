@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-244 prefixes from 803 log calls.
+244 prefixes from 804 log calls.
 
 ## `ActionReaders`
 
@@ -723,6 +723,7 @@ Meaning: The input overlay (Edit HUD) was switched on or off, or a tile was adde
 Written by InputOverlayModule.cs; info / warning.
 
 - info `Inputs: <..>.`
+- info `Inputs: key <s.Tile.Key> has <total> game actions, the tile shows the first <s.Count>.`
 - info `Inputs: layout reset to the default.`
 - info `Inputs: only-pressed mode <..>.`
 - info `Inputs: source <..>`
