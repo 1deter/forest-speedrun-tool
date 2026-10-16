@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.318 - 2026-10-16
+
+- The collision view now follows the replay camera: watching a run shows the colliders along the route (including the Labskip jumping section's invisible platforms), not just the ones around where you stand.
+
 ## v0.24.317 - 2026-10-16
 
 - Watching a replay now shows a bar at the bottom of the screen: a timeline with checkpoint and interaction ticks you can click or drag to seek, plus play / pause, step, speed and view buttons.
