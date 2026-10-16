@@ -84,12 +84,15 @@ namespace ForestOverlay.Modules
         private InputLayout _layout = new InputLayout();
         private readonly List<TileState> _states = new List<TileState>();
 
-        // The mouse tile: where the mouse has "gone" (accumulated, not wrapped: the
-        // Box style wraps it at draw time, the Comet draws the path relative to the
-        // head) and its fading trail.
+        // The mouse box: where the mouse has "gone" (wrapping at the edges)
+        // and its fading trail.
         private float _mx, _my;
         private readonly float[] _trailX = new float[TrailMax], _trailY = new float[TrailMax], _trailT = new float[TrailMax];
         private int _trailHead, _trailCount;
+        // The Comet (T-0385): the accumulated path, not wrapped; drawn relative to the head.
+        private float _ux, _uy, _lastCx, _lastCy;
+        private readonly float[] _cometX = new float[TrailMax], _cometY = new float[TrailMax], _cometT = new float[TrailMax];
+        private int _cometHead, _cometCount;
         private bool Comet { get { return _mouseStyle.Value != StyleBox; } }
         private bool _mouseMoved;   // this frame's raw mouse delta was non-zero (Only while pressed hides a still mouse box)
         private float _lastTx, _lastTy;
@@ -380,7 +383,7 @@ namespace ForestOverlay.Modules
                 else s.Level = Mathf.Max(0f, s.Level - dt / FallTime);
             }
             if (HasShownMouseBox()) SampleMouse(live, now, useActions);
-            if (_onlyPressed.Value && !editing && !_mouseMoved && !Comet) _trailCount = 0;   // hidden while still: the old path never comes back
+            if (_onlyPressed.Value && !editing && !_mouseMoved) _trailCount = 0;   // hidden while still: the old path never comes back
         }
 
         private bool HasShownMouseBox()
@@ -417,15 +420,9 @@ namespace ForestOverlay.Modules
             }
             if (dx == 0f && dy == 0f) return;
             _mouseMoved = true;
-            if (_trailCount == 0 || now - _trailT[(_trailHead + TrailMax - 1) % TrailMax] >= TrailSeconds)
-            {
-                // Nothing live to line up with: keep the numbers small (a shift of whole boxes keeps the Box's wrap).
-                _trailCount = 0;
-                float sx = Mathf.Round(_mx * 0.5f) * 2f, sy = Mathf.Round(_my * 0.5f) * 2f;
-                _mx -= sx; _my -= sy; _lastTx -= sx; _lastTy -= sy;
-            }
-            _mx += dx * MouseGain;
-            _my -= dy * MouseGain;   // up on the mouse is up on the screen
+            if (Comet) { SampleComet(dx, dy, now); return; }
+            _mx = Wrap(_mx + dx * MouseGain);
+            _my = Wrap(_my - dy * MouseGain);   // up on the mouse is up on the screen
             // A point only once the mouse has gone a little way from the last one,
             // so a slow move leaves a trail instead of dots stacked under the head.
             float tx = _mx - _lastTx, ty = _my - _lastTy;
@@ -437,6 +434,26 @@ namespace ForestOverlay.Modules
             _trailT[_trailHead] = now;
             _trailHead = (_trailHead + 1) % TrailMax;
             if (_trailCount < TrailMax) _trailCount++;
+        }
+
+        private void SampleComet(float dx, float dy, float now)
+        {
+            if (_cometCount == 0 || now - _cometT[(_cometHead + TrailMax - 1) % TrailMax] >= CometSeconds)
+            {
+                _cometCount = 0;   // nothing alive: restart at the origin, so the numbers stay small
+                _ux = 0f; _uy = 0f; _lastCx = 0f; _lastCy = 0f;
+            }
+            _ux += dx * MouseGain;
+            _uy -= dy * MouseGain;   // up on the mouse is up on the screen
+            float tx = _ux - _lastCx, ty = _uy - _lastCy;
+            if (tx * tx + ty * ty < TrailSpacing * TrailSpacing) return;
+            _lastCx = _ux;
+            _lastCy = _uy;
+            _cometX[_cometHead] = _ux;
+            _cometY[_cometHead] = _uy;
+            _cometT[_cometHead] = now;
+            _cometHead = (_cometHead + 1) % TrailMax;
+            if (_cometCount < TrailMax) _cometCount++;
         }
 
         private static float Wrap(float v)
@@ -624,11 +641,11 @@ namespace ForestOverlay.Modules
             finally { GUI.matrix = outer; }
         }
 
-        // Only while pressed: the Box shows on frames the mouse moved; the Comet while its tail is alive.
+        // Only while pressed: the Box shows on frames the mouse moved; the Comet too, and while its tail is alive.
         private bool MouseLive(float now)
         {
-            if (!Comet) return _mouseMoved;
-            return _trailCount > 0 && now - _trailT[(_trailHead + TrailMax - 1) % TrailMax] < CometSeconds;
+            if (_mouseMoved || !Comet) return _mouseMoved;
+            return CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds) > 0;
         }
 
         private void DrawTile(TileState s, bool hidden, bool editing, float now, Color before)
@@ -775,15 +792,49 @@ namespace ForestOverlay.Modules
 
         private readonly float[] _pieces = new float[TrailClip.MaxPieces * TrailClip.PieceStride];
 
-        private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
+        // The Comet: the head fixed at the tile's centre, the tail drawn relative to it. A tail longer
+        // than the tile's room is scaled as a whole (CometPath.FitScale), so its direction and shape stay.
+        private void DrawComet(Rect r, float scale, float now, Color before, float a)
         {
             float half = r.width * 0.5f - 8f * scale;
             float cx = r.x + r.width * 0.5f, cy = r.y + r.height * 0.5f;
             float thick = Thick(LineThickness * scale);
+            GUI.color = Color.white;
+            int live = CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds);
+            if (live > 0 && Event.current.type == EventType.Repaint && EnsureLineMaterial())
+            {
+                float fit = half * CometPath.FitScale(CometPath.Extent(_cometX, _cometY, _cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds, _ux, _uy), 1f);
+                float px = cx, py = cy, pAge = 0f, ba = 0.8f * before.a * a;
+                GL.PushMatrix();
+                _lineMat.SetPass(0);
+                GL.LoadPixelMatrix();
+                GL.Begin(GL.QUADS);
+                for (int k = 0; k < live; k++)
+                {
+                    int idx = (_cometHead - 1 - k + TrailMax * 2) % TrailMax;
+                    float age = now - _cometT[idx];
+                    float tx = cx + (_cometX[idx] - _ux) * fit, ty = cy + (_cometY[idx] - _uy) * fit;
+                    float f0 = CometPath.Fade(pAge, CometSeconds), f1 = CometPath.Fade(age, CometSeconds);
+                    Quad(px, py, tx, ty, thick,
+                        new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f0),
+                        new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f1));
+                    px = tx; py = ty; pAge = age;
+                }
+                GL.End();
+                GL.PopMatrix();
+            }
+            float head = DotSize * scale;
+            Flat(new Rect(cx - head * 0.5f, cy - head * 0.5f, head, head), new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, before.a * a));
+        }
+
+        private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
+        {
+            if (Comet) { DrawComet(r, scale, now, before, a); return; }
+            float half = r.width * 0.5f - 8f * scale;
+            float cx = r.x + r.width * 0.5f, cy = r.y + r.height * 0.5f;
+            float thick = Thick(LineThickness * scale);
             GUI.color = Color.white;   // colours below carry their own alpha
-            bool comet = Comet;
-            float span = comet ? CometSeconds : TrailSeconds;
-            float hx = comet ? cx : cx + Wrap(_mx) * half, hy = comet ? cy : cy + Wrap(_my) * half;
+            float hx = cx + _mx * half, hy = cy + _my * half;
             float px = hx, py = hy, pAge = 0f;   // the line runs from the head back along the trail
             bool gl = _trailCount > 0 && Event.current.type == EventType.Repaint && EnsureLineMaterial();
             if (gl)
@@ -797,28 +848,13 @@ namespace ForestOverlay.Modules
             {
                 int idx = (_trailHead - 1 - k + TrailMax * 2) % TrailMax;
                 float age = now - _trailT[idx];
-                if (age >= span) break;   // older entries are older still
-                float tx, ty;
-                if (comet)
-                {
-                    // Relative to the head, held inside the tile.
-                    tx = cx + Mathf.Clamp((_trailX[idx] - _mx) * half, -half, half);
-                    ty = cy + Mathf.Clamp((_trailY[idx] - _my) * half, -half, half);
-                }
-                else { tx = cx + Wrap(_trailX[idx]) * half; ty = cy + Wrap(_trailY[idx]) * half; }
+                if (age >= TrailSeconds) break;   // older entries are older still
+                float tx = cx + _trailX[idx] * half, ty = cy + _trailY[idx] * half;
                 // A jump across the box (the mouse wrapped at an edge) is split at the edge by TrailClip.Split.
                 if (gl)
                 {
-                    float f0 = 1f - pAge / span, f1 = 1f - age / span;
+                    float f0 = 1f - pAge / TrailSeconds, f1 = 1f - age / TrailSeconds;
                     float ba = 0.8f * before.a * a;
-                    if (comet)
-                    {
-                        Quad(px, py, tx, ty, thick,
-                            new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f0),
-                            new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f1));
-                        px = tx; py = ty; pAge = age;
-                        continue;
-                    }
                     int pieces = TrailClip.Split(px, py, tx, ty, cx, cy, half, thick, _pieces);
                     for (int q = 0; q < pieces; q++)
                     {
@@ -929,7 +965,7 @@ namespace ForestOverlay.Modules
             "drag it to move it, drag its corner square to resize it, right-click it to hide or show it. Nothing shows while a cursor is on screen.");
         private static readonly GUIContent OnlyPressedText = new GUIContent("Only while pressed");
         private static readonly GUIContent OnlyPressedAbout = new GUIContent(
-            "A key or button tile is drawn only while it is held, exactly as pressed, and not at all otherwise. The Comet is drawn while its tail is still fading, the Box only on frames the mouse moves, and the wheel only on frames it scrolls. This window still shows every tile so you can place them.");
+            "A key or button tile is drawn only while it is held, exactly as pressed, and not at all otherwise. The mouse is drawn on frames it moves (the Comet also while its tail is still fading) and the wheel only on frames it scrolls. This window still shows every tile so you can place them.");
         private static readonly GUIContent AddKeyText = new GUIContent("+ Key");
         private static readonly GUIContent AddKeyWaiting = new GUIContent("Press a key...");
         private static readonly GUIContent AddKeyTip = new GUIContent(
@@ -1042,6 +1078,7 @@ namespace ForestOverlay.Modules
         {
             _mouseStyle.Value = style;
             _trailCount = 0;
+            _cometCount = 0;
             Ctx.Log.LogInfo("Inputs: mouse style " + (style == StyleBox ? "box" : "comet"));
         }
 
