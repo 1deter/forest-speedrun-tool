@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.330 - 2026-10-16
+
+- The replay bar shows the watched run's health, stamina and speed at the playhead; they update as you play, scrub or step.
+- A replay recorded without health and stamina says so on the bar instead of showing nothing.
+
 ## v0.24.329 - 2026-10-16
 
 - Input overlay Comet: a slow mouse move now builds its tail and no longer blinks in Only while pressed.
