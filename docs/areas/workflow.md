@@ -379,4 +379,4 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 115. **Keys in a test go through `scripts/sendinput.py`, never the author** - it foregrounds the game (AttachThreadInput + Alt tap); a plain SetForegroundWindow is refused. [judgement]
 117. **Push main before spawning a worktree agent that must see local commits** - its branch can be cut from origin/main. [judgement]
 118. **Prove a merge with `merge-base --is-ancestor` before built / bump** - a piped merge hid a refusal and v0.24.318 shipped without its fix. [judgement]
-120. **A screenshot that never appears: read the System log for a GPU driver fault before blaming the test** - this PC's NVIDIA driver faults with and without the game; stop driving once it has. [check: T-0382]
+120. **A screenshot that never appears: read the System log for a GPU driver fault before retrying** - hypothesis until confirmed live (T-0382: nvlddmkm 153 at the failed shot, trigger open); stop driving if it shows one. [check: T-0382]

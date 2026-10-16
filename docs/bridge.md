@@ -339,12 +339,12 @@ then restart.
 **Resolution checks and a failing screenshot** (T-0382, 2026-10-16):
 a windowed size is `call static:UnityEngine.Screen SetResolution <w> <h>
 false`, then `wait 2`. When a screenshot "never appeared complete" and
-unity.log says `Failed to capture screen shot`, the GPU driver has most
-likely faulted. It is not the resize: this PC's NVIDIA driver logs faults
-and TDRs with and without the game (gotcha 120). Look before retrying.
-Run `wevtutil qe System /q:"*[System[Provider[@Name='nvlddmkm']]]" /c:5
-/rd:true /f:text` (on a game-session time). If there is a fault, stop
-driving and report it: the monitor may be blank.
+unity.log says `Failed to capture screen shot`, a GPU driver fault is
+the leading hypothesis (gotcha 120, until confirmed live; the trigger is
+open). Look before retrying: run `wevtutil qe System
+/q:"*[System[Provider[@Name='nvlddmkm']]]" /c:5 /rd:true /f:text`. If it
+shows an event during the session, stop driving and report it; the
+monitor may be blank.
 
 **Habits**: `set` takes a vector as `x,y,z` (no brackets or spaces).
 Handles are per launch; target objects the game respawns **by path**
