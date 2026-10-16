@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.322 - 2026-10-16
+
+- Adding a key to the input overlay (Edit HUD, + Key) no longer also runs that key's overlay hotkey (R, F2, F6, F9, F12 and the rest).
+- Any key, including the overlay's own hotkeys, can now be added as an input tile.
+
 ## v0.24.321 - 2026-10-16
 
 - Input overlay: new Game input / Raw input switch in Edit HUD. Game input (the default) labels each tile with what the press did in the game - Attack, Heavy attack, Block, Crouch, Take, Save and so on - and also lights for rebound keys, TAS replays and test-bridge inputs.
