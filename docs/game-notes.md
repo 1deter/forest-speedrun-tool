@@ -1126,6 +1126,56 @@ after a cut it gives an immediate next swing (bridge, 3 of 3).
 `toResetPlayer` -> `resetAnimator` calls the game's animator reset first,
 then `toReset2`.
 
+## A copy of the player's body, posed from recorded state (T-0387, 2026-10-16)
+
+Bridge + a test build (`Game/ArmsReplica`). `LocalPlayer.Animator` sits on
+`player/player_BASE` (local (0, -2.35, 0) under `player`, the recorded
+position): controller `playerControllerOverride 1` (an
+AnimatorOverrideController - `AnimationLoadManager` swaps the endgame
+cutscene clips in and out of it), 186 parameters of which 35 floats,
+`AlwaysAnimate`, no root motion. The camera is in the same hierarchy
+(`player_BASE/LookObject/MainCamNew`); `camFollowHead.LateUpdate` puts
+`LookObject` on `headJnt` (`camFollowGo`), the camera 0.05 m behind it
+(`offsetZ`). The first-person body is the full headless body.
+
+- **Copying it.** `Object.Instantiate(player_BASE, <inactive holder>)`:
+  none of its scripts wake (no Awake / OnEnable), and destroying every
+  component but Transform / Animator / Renderer / MeshFilter /
+  ParticleSystem / Light (276) before the holder is switched on leaves a
+  posable copy - 13-17 ms once, 334 renderers (every clothing variant and
+  in-body held model, most inactive); `LocalPlayer`'s statics and the held
+  models stayed the live player's. `DestroyImmediate` refuses a component
+  another still needs and logs a Unity error per try ("Can't remove Camera
+  because GUILayer depends on it", WaterViz / WaterBlurEffect,
+  Interactable / InteractableHoverEvents): strip scripts first and skip one
+  a mate's `[RequireComponent]` (or a camera's GUILayer / FlareLayer)
+  still needs - 0 left, no errors. Never switch a copy on unstripped:
+  `rightHandHeld`'s `FakeParentCleanup._fakeParents` (serialized) points at
+  the LIVE held models, and its OnDestroy `Dispose`s (destroys) them.
+- **Posing it.** `speed = 0`; per layer `SetLayerWeight` + `Play(fullPathHash,
+  layer, normalizedTime)`, `SetFloat` for the 35 floats, `Update(0)`:
+  0.19 ms a frame. Mirrored from the live animator 0.3-1 s late it
+  repeated a plane-axe swing, a sprint and looking down / up; the copy's
+  head joint matched the recorded one within 0.002 m, and a camera on it
+  showed the arms and held items as the runner saw them. Reading the
+  live state (6 layers + 35 floats) costs 2.4 us a frame and allocates
+  nothing; layer states rarely change (2 in 1,551 frames running and
+  looking around, 8 in 1,006 with a swing), floats in ~30 % of frames.
+  Missing on the copy: `playerAnimatorControl.LateUpdate`'s bone tweaks
+  (neck pitch, the torch arm, flintlock aim) and the lit lighter's flame.
+- **Blood and dirt** are per-renderer property blocks
+  (`PlayerStats.MyBody`, `_Damage1-4`) a copy does not take: the copy's
+  arms came out bloody until each renderer's block was copied over (same
+  order in both hierarchies).
+- **Held models.** `PlayerInventory._equipmentSlotsIds` = the item id per
+  slot (0 right hand, 1 left; -1 empty); `InventoryItemView._held` = its
+  model. Only ~16 models live in `player_BASE`; the rest carry a
+  `FakeParent` and, while not held, sit **unparented at the scene root**
+  (where the save loaded: `FlareHeld`, `spearHeld`), `ReParent` putting
+  them under `target` (`rightHandHeld` / `leftHandHeld`) at
+  `RealLocalPosition` / `RealLocalRotation` when equipped. A stripped copy
+  placed the same way under the body copy's hand shows it (spear, flare).
+
 ## Savestates during an endgame cutscene (v0.24.3)
 
 The endgame cutscenes are coroutines on the player's action scripts

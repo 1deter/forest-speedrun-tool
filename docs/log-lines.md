@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-245 prefixes from 808 log calls.
+246 prefixes from 810 log calls.
 
 ## `ActionReaders`
 
@@ -59,6 +59,14 @@ Written by AreaKeeper.cs; warning.
 - warning `AreaKeeper: Area members not found - the active area is not kept.`
 - warning `AreaKeeper: capture failed: <ex.Message>`
 - warning `AreaKeeper: section check failed: <ex.Message>`
+
+## `Arms replica`
+
+Meaning: The first-person replay's copy of the player's body (T-0387): built (time, components stripped, renderers, held models mapped, the head joint found), or not built because a component could not be stripped (a script left on would wake as a second player).
+Written by ArmsReplica.cs; info / warning.
+
+- info `Arms replica: built in <..> ms, <r.Stripped> components stripped (<r.Left> left), <r.Renderers> renderers, <r.HeldCount> held models, head <..>.`
+- warning `Arms replica: not built, <why>.`
 
 ## `Attempts`
 
