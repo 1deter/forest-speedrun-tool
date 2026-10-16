@@ -10,7 +10,16 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-243 prefixes from 800 log calls.
+244 prefixes from 803 log calls.
+
+## `ActionReaders`
+
+Meaning: The input overlay's game input watching which game script reads an action, to name the function performed: watching N actions, why the hook failed, or a reader the word table does not know yet (add it to Data/ActionFunctions).
+Written by ActionReaders.cs; info / warning.
+
+- info `ActionReaders: <..>`
+- warning `ActionReaders: <ex>`
+- info `ActionReaders: unnamed reader <key>`
 
 ## `Aerial capture`
 

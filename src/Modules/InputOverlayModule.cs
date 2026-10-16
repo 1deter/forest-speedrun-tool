@@ -57,6 +57,16 @@ namespace ForestOverlay.Modules
             public readonly int[] Acts = new int[InputActionTable.MaxPerKey], Signs = new int[InputActionTable.MaxPerKey];
             public readonly GUIContent[] ActLabels = new GUIContent[InputActionTable.MaxPerKey];
             public bool Dead;                      // game input, the key has no game action
+            public readonly int[] Slots = new int[InputActionTable.MaxPerKey];   // ActionReaders' slot per action
+            public GUIContent Idle;                // the functions' names, one a line, in pick order
+            public bool UsesFsm;                   // an attack / block action: the player's control FSM tells which
+            public bool WasHeld;
+            public int PressFrame, Strength;
+            public string Performed;               // the function performed in this press (null: none yet)
+            public float LingerUntil;
+            public GUIContent FitFor;              // the label the fit below was computed for
+            public int FitSize;
+            public float FitScale;
             public string SnapId;
             public Rect Rect;        // as last drawn (virtual pixels)
         }
@@ -125,6 +135,7 @@ namespace ForestOverlay.Modules
             _states.Clear();
             for (int i = 0; i < _layout.Tiles.Count; i++) _states.Add(MakeState(_layout.Tiles[i], i));
             _drag = -1;
+            _applied = false;
         }
 
         private TileState MakeState(InputTile t, int index)
@@ -168,22 +179,91 @@ namespace ForestOverlay.Modules
                 return;
             }
             string all = "";
+            string[] words = new string[s.Count];
+            s.UsesFsm = false;
             for (int k = 0; k < s.Count; k++)
             {
-                string word = InputActionTable.Label(table.NameOf(s.Acts[k]), s.Signs[k]);
-                s.ActLabels[k] = new GUIContent(word);
-                all += (k > 0 ? " / " : "") + word;
+                string action = table.NameOf(s.Acts[k]);
+                words[k] = InputActionTable.Label(action, s.Signs[k]);
+                s.ActLabels[k] = LabelContent(words[k]);
+                all += (k > 0 ? " / " : "") + words[k];
+                if (action == "Fire1" || action == "AltFire") s.UsesFsm = true;
             }
-            s.Label = s.ActLabels[0];   // idle: the main function (the first in pick order)
+            // Idle: the key's functions' names in pick order, one a line, until one is performed.
+            s.Idle = new GUIContent(ActionFunctions.Idle(words, s.Count));
+            s.Label = s.Idle;
+            s.Performed = null;
+            s.WasHeld = false;
+            s.LingerUntil = 0f;
             s.Name = new GUIContent(s.RawName.text + " - " + all);
         }
 
+        // One GUIContent per word, made when first seen (a press), never per frame.
+        private readonly Dictionary<string, GUIContent> _words = new Dictionary<string, GUIContent>();
+
+        private GUIContent LabelContent(string word)
+        {
+            GUIContent c;
+            if (!_words.TryGetValue(word, out c)) { c = new GUIContent(word); _words[word] = c; }
+            return c;
+        }
+
+        private bool _watching;
+
+        // Which actions the shown tiles stand for: the readers watch exactly those, and only while
+        // the overlay is on in game input.
         private void ApplySource()
         {
             _applied = true;
             _appliedGame = GameInput;
             _appliedReady = GameActions.Ready;
             for (int i = 0; i < _states.Count; i++) SetUpSource(_states[i]);
+            List<string> names = new List<string>();
+            if (_on.Value && GameInput && GameActions.Ready)
+                for (int i = 0; i < _states.Count; i++)
+                    for (int k = 0; k < _states[i].Count; k++)
+                    {
+                        string n = GameActions.Table.NameOf(_states[i].Acts[k]);
+                        if (!names.Contains(n)) names.Add(n);
+                    }
+            ActionReaders.Watch(Ctx.Log, OverlayPlugin.PluginGuid, names.ToArray());
+            _watching = names.Count > 0;
+            for (int i = 0; i < _states.Count; i++)
+                for (int k = 0; k < _states[i].Count; k++)
+                    _states[i].Slots[k] = ActionReaders.SlotOf(GameActions.Table.NameOf(_states[i].Acts[k]));
+        }
+
+        private void StopWatching()
+        {
+            if (!_watching) return;
+            _watching = false;
+            _applied = false;
+            ActionReaders.Watch(Ctx.Log, OverlayPlugin.PluginGuid, null);
+        }
+
+        // The label while a tile's key is held (and a moment after): the function the game
+        // performed. A reader that named it wins; else the control FSM for attack / block;
+        // else the held action's own word.
+        private const float Linger = 0.75f;
+
+        private void Perform(TileState s, int hit)
+        {
+            string best = null;
+            int bestFrame = -2;
+            for (int k = 0; k < s.Count; k++)
+            {
+                int f;
+                string w = ActionReaders.LabelOf(s.Slots[k], out f);
+                if (w != null && f >= s.PressFrame - 1 && f > bestFrame) { best = w; bestFrame = f; }
+            }
+            if (best != null) { s.Performed = best; s.Strength = 100; return; }
+            if (s.UsesFsm && s.Strength < 100)
+            {
+                int rank;
+                string w = ActionFunctions.FsmLabel(ActionReaders.ControlState(), out rank);
+                if (w != null && rank > s.Strength) { s.Performed = w; s.Strength = rank; return; }
+            }
+            if (s.Performed == null) s.Performed = InputActionTable.Label(GameActions.Table.NameOf(s.Acts[hit]), s.Signs[hit]);
         }
 
         private bool Editing { get { return Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing; } }
@@ -209,7 +289,7 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             if (!_oldDefaultChecked) MoveOldDefault();
-            if (_on == null || !_on.Value) { _capturing = false; return; }
+            if (_on == null || !_on.Value) { _capturing = false; StopWatching(); return; }
             bool editing = Editing;
             if (!editing) _capturing = false;
             if (GameInput) GameActions.Ensure(Ctx.Log);
@@ -233,15 +313,23 @@ namespace ForestOverlay.Modules
                         if (!useActions)
                         {
                             down = Input.GetKey(s.Code);
-                            if (s.Count > 0) s.Label = s.ActLabels[0];
+                            if (s.Count > 0) s.Label = s.Idle;
                         }
                         else if (s.Count > 0)
                         {
                             int hit = -1;
-                            for (int k = 0; k < s.Count && hit < 0; k++)
-                                if (GameActions.Held(s.Acts[k], s.Signs[k])) hit = k;
+                            for (int k = 0; k < s.Count; k++)
+                            {
+                                bool held = GameActions.Held(s.Acts[k], s.Signs[k]);
+                                ActionReaders.Report(s.Slots[k], held);
+                                if (held && hit < 0) hit = k;
+                            }
                             down = hit >= 0;
-                            s.Label = s.ActLabels[hit >= 0 ? hit : 0];   // the function performed; else the main one
+                            if (down && !s.WasHeld) { s.PressFrame = Time.frameCount; s.Strength = 0; s.Performed = null; }
+                            if (down) Perform(s, hit);
+                            else if (s.WasHeld) s.LingerUntil = now + Linger;
+                            s.WasHeld = down;
+                            s.Label = s.Performed != null && (down || now < s.LingerUntil) ? LabelContent(s.Performed) : s.Idle;
                         }
                     }
                     else if (s.Tile.Key == InputLayout.WheelKey) down = scroll != 0f;
@@ -352,6 +440,7 @@ namespace ForestOverlay.Modules
             InputTile t = _layout.Add(key, nx, ny);
             if (t == null) { SetStatus("No room for another tile."); return; }
             _states.Add(MakeState(t, _states.Count));
+            _applied = false;   // the readers watch the new tile's actions too
             Commit();
             SetStatus("Added " + InputLayout.LabelFor(key) + " at the bottom right of the screen: drag it where you want it.");
             Ctx.Log.LogInfo("Inputs: tile " + key + " added.");
@@ -415,9 +504,24 @@ namespace ForestOverlay.Modules
         private const int LabelBase = 13;   // the label's size at scale 1
 
         // The label is one ratio to its tile at every size (T-0363).
-        private void SizeLabels(float scale)
+        private void SizeLabels(TileState s)
         {
+            float scale = s.Tile.Scale;
             int size = Mathf.Max(6, Mathf.RoundToInt(LabelBase * scale));
+            // A game-input label of several lines or long words shrinks to stay inside its tile.
+            if (s.Count > 0)
+            {
+                if (!ReferenceEquals(s.FitFor, s.Label) || s.FitScale != scale)
+                {
+                    s.FitFor = s.Label;
+                    s.FitScale = scale;
+                    _idle.fontSize = size;
+                    Vector2 sz = _idle.CalcSize(s.Label);
+                    float f = Mathf.Min(1f, Mathf.Min((s.Rect.width - 4f * scale) / Mathf.Max(1f, sz.x), (s.Rect.height - 4f * scale) / Mathf.Max(1f, sz.y)));
+                    s.FitSize = Mathf.Max(6, Mathf.FloorToInt(size * f));
+                }
+                size = s.FitSize;
+            }
             if (_idle.fontSize != size) { _idle.fontSize = size; _lit.fontSize = size; }
         }
 
@@ -491,7 +595,7 @@ namespace ForestOverlay.Modules
             if (s.Tile.Key == InputLayout.MouseKey) DrawMouseBox(r, s.Tile.Scale, now, before, a);
             else
             {
-                SizeLabels(s.Tile.Scale);
+                SizeLabels(s);
                 GUI.color = new Color(before.r, before.g, before.b, before.a * a * (1f - level));
                 // One ring for the cross-fading pair, at the tile's full alpha
                 // (two rings would darken mid-fade).

@@ -125,6 +125,8 @@ namespace ForestOverlay.Game
             if (maps == null) return 0;
             foreach (object map in maps)
             {
+                object cat = Get(map, "categoryId");
+                if (cat == null || Convert.ToInt32(cat) != 0) continue;   // the Default map category: what the player does in play
                 IEnumerable elements = Get(map, "actionElementMaps") as IEnumerable;
                 if (elements == null) continue;
                 foreach (object e in elements)
