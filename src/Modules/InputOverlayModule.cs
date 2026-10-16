@@ -738,17 +738,7 @@ namespace ForestOverlay.Modules
             GL.Vertex3(s.x, Screen.height - s.y, 0f);
         }
 
-        /// One piece of a wrapped segment: (x0,y0) newer to (x1,y1) older, clipped to the box so it reaches the edge and no further.
-        private static void WrapPiece(float x0, float y0, float x1, float y1, float cx, float cy, float half, float thick, float f0, float f1, float ba)
-        {
-            float t0, t1;
-            if (!TrailClip.Clip(x0, y0, x1, y1, cx - half, cy - half, cx + half, cy + half, out t0, out t1)) return;
-            float dx = x1 - x0, dy = y1 - y0;
-            float fa = f0 + (f1 - f0) * t0, fb = f0 + (f1 - f0) * t1;
-            Quad(x0 + dx * t0, y0 + dy * t0, x0 + dx * t1, y0 + dy * t1, thick,
-                new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * fa),
-                new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * fb));
-        }
+        private readonly float[] _pieces = new float[TrailClip.MaxPieces * TrailClip.PieceStride];
 
         private void DrawMouseBox(Rect r, float scale, float now, Color before, float a)
         {
@@ -772,30 +762,19 @@ namespace ForestOverlay.Modules
                 float age = now - _trailT[idx];
                 if (age >= TrailSeconds) break;   // older entries are older still
                 float tx = cx + _trailX[idx] * half, ty = cy + _trailY[idx] * half;
-                // A jump across the box (the mouse wrapped at an edge) is not a line.
-                float ox = 0f, oy = 0f;   // the wrap: the newer point as seen the short way, past the edge
-                if (tx - px > half) ox = 2f * half; else if (px - tx > half) ox = -2f * half;
-                if (ty - py > half) oy = 2f * half; else if (py - ty > half) oy = -2f * half;
+                // A jump across the box (the mouse wrapped at an edge) is split at the edge by TrailClip.Split.
                 if (gl)
                 {
                     float f0 = 1f - pAge / TrailSeconds, f1 = 1f - age / TrailSeconds;
                     float ba = 0.8f * before.a * a;
-                    if (ox == 0f && oy == 0f)
-                        Quad(px, py, tx, ty, thick,
-                            new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f0),
-                            new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * f1));
-                    else
+                    int pieces = TrailClip.Split(px, py, tx, ty, cx, cy, half, thick, _pieces);
+                    for (int q = 0; q < pieces; q++)
                     {
-                        // A wrapped segment is split at the edge: one piece from the older point out past the edge,
-                        // one from the opposite side to the newer point; each is clipped to the box.
-                        for (int sa = 0; sa < 2; sa++)
-                            for (int sb = 0; sb < 2; sb++)
-                            {
-                                if ((sa == 1 && ox == 0f) || (sb == 1 && oy == 0f)) continue;
-                                float ax = tx - (sa == 1 ? ox : 0f), ay = ty - (sb == 1 ? oy : 0f);   // the older end
-                                float bx = px + (sa == 1 ? 0f : ox), by = py + (sb == 1 ? 0f : oy);   // the newer end
-                                WrapPiece(bx, by, ax, ay, cx, cy, half, thick, f0, f1, ba);
-                            }
+                        int i = q * TrailClip.PieceStride;
+                        float fa = f0 + (f1 - f0) * _pieces[i + 4], fb = f0 + (f1 - f0) * _pieces[i + 5];
+                        Quad(_pieces[i], _pieces[i + 1], _pieces[i + 2], _pieces[i + 3], thick,
+                            new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * fa),
+                            new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, ba * fb));
                     }
                 }
                 px = tx; py = ty; pAge = age;
