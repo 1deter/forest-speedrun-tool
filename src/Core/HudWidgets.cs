@@ -448,7 +448,7 @@ namespace ForestOverlay.Core
             float cx = rect.x + CardPad;
             if (slots == 0)
             {
-                CrispText.LabelOutlined(new Rect(cx, cy, width, valueH), NotShowing, st.Label, 1f);
+                CrispText.LabelOutlined(new Rect(cx, cy, width, valueH), NotShowing, st.Label);
             }
             else
             {
@@ -464,10 +464,10 @@ namespace ForestOverlay.Core
                         // The colour only: the glyphs (and the font's texture) stay.
                         Color normal = st.Value.normal.textColor;
                         st.Value.normal.textColor = _settings.TrendColour((TrendState)trend);
-                        CrispText.LabelOutlined(vr, hud.ValueAt(j), st.Value, 1f / st.ValueScale);
+                        CrispText.LabelOutlined(vr, hud.ValueAt(j), st.Value);
                         st.Value.normal.textColor = normal;
                     }
-                    else CrispText.LabelOutlined(vr, hud.ValueAt(j), st.Value, 1f / st.ValueScale);
+                    else CrispText.LabelOutlined(vr, hud.ValueAt(j), st.Value);
                     GUI.matrix = m;
                     cy += valueH;
                 }
