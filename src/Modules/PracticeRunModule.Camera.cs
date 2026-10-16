@@ -53,6 +53,20 @@ namespace ForestOverlay.Modules
         private float _ghostYaw;
         private float _nextCameraText;
 
+        // First-person arms (T-0387): a copy of the player's body posed from the run's recorded animator state.
+        private AnimReader _animReader;
+        private ArmsReplica _arms;
+        private Attempt _armsFor;
+        private bool _armsFailed;
+        private int[] _armsHashes = new int[0];
+        private int[] _poseHash = new int[0];
+        private float[] _poseTime = new float[0], _poseWeight = new float[0], _poseFloats = new float[0];
+        private int _armsHeldIdx = -2;
+        private static readonly int[] NoHeld = new int[0];
+        private readonly GUIContent _armsFailText = new GUIContent("");
+        private static readonly GUIContent ArmsRecordedText = new GUIContent("First person: arms recorded - the replay shows the runner's own arms and held item.");
+        private static readonly GUIContent ArmsOlderText = new GUIContent("First person: arms not recorded (an older run) - the view shows where the runner looked, no arms.");
+
         private readonly GUIContent _camStatusText = new GUIContent("");
         private readonly GUIContent _camTimeText = new GUIContent("");
         private string _camHud = "";
@@ -69,7 +83,7 @@ namespace ForestOverlay.Modules
             "Plays the comparison run back and follows its ghost. Close this window to use the keys: Space play / pause, " +
             "Left / Right 1 s back / on (Shift 5 s), , and . one frame while paused, Up / Down faster / slower, " +
             "1 chase, 2 first person, 3 trajectory (V cycles), R from the start, Esc stops. " +
-            "First person shows where the runner looked for runs recorded from this version on; older runs face where they moved.");
+            "First person shows where the runner looked, with their arms and held item, for runs recorded from this version on; older runs face where they moved.");
 
         public override bool HoldsPlayer { get { return _camOn; } }
 
@@ -89,6 +103,15 @@ namespace ForestOverlay.Modules
             _replayCam.Owner = "the replay camera";
             _replayCam.InputEnabled = false;
             _recorder.LookSource = ReadLook;
+            _animReader = new AnimReader(ctx.Inventory);
+            _recorder.AnimSource = ReadAnim;
+        }
+
+        /// The arms' animator state sampled while a run records (the `a|` track).
+        private bool ReadAnim(AnimSnapshot snap)
+        {
+            if (!Ctx.Player.Found) return false;
+            return _animReader.Read(snap, Ctx.Player.Transform);
         }
 
         /// The look sampled with each position (the run's `l|` track): the
@@ -127,7 +150,15 @@ namespace ForestOverlay.Modules
             if (!Ctx.Player.Found) { SetCamStatus("No player yet."); return; }
             Camera cam = Camera.main;
             if (cam == null) { SetCamStatus("No main camera."); return; }
-            if (!_replayCam.Begin(cam)) { SetCamStatus("Replay camera: " + _replayCam.LastReport + " - switch it off first."); return; }
+            // The arms' copy is made before the camera is flown (its offset from the head is read off the live view camera).
+            _armsFailed = false;
+            if (_camView == ReplayView.FirstPerson) EnsureArms();
+            if (!_replayCam.Begin(cam))
+            {
+                DestroyArms();
+                SetCamStatus("Replay camera: " + _replayCam.LastReport + " - switch it off first.");
+                return;
+            }
             _replayCam.InputEnabled = false;
 
             _camOn = true;
@@ -153,6 +184,7 @@ namespace ForestOverlay.Modules
             _camOn = false;
             _barScrub = false;
             _replayCam.End();
+            DestroyArms();
             _camSource = null;
             if (_lines != null) _lines.PathCount = 0;
             _camHud = "";
@@ -217,6 +249,7 @@ namespace ForestOverlay.Modules
                 case ReplayView.FirstPerson:
                     target = ReplayCamera.FirstPerson(g);
                     rate = g.HasLook ? 0f : 8f;   // a recorded look as it was; a heading turns smoothly
+                    if (TickArms(g, ref target)) rate = 0f;
                     break;
                 case ReplayView.Trajectory:
                     target = ReplayCamera.Trajectory(_reference, _clock.T, ReplayCamera.TrajectoryBack, ReplayCamera.TrajectoryAhead,
@@ -229,6 +262,7 @@ namespace ForestOverlay.Modules
                     rate = ReplayCamera.ChaseRate;
                     break;
             }
+            if (_camView != ReplayView.FirstPerson && _arms != null) _arms.Show(false);
             _lines.PathCount = window;
 
             _camPose = _camSnap ? target : ReplayCamera.Smooth(_camPose, target, rate, dt);
@@ -238,6 +272,79 @@ namespace ForestOverlay.Modules
             UpdateLines();
             UpdateReplay();
             RefreshCameraText();
+        }
+
+        // --- the arms (T-0387) -----------------------------------------------------------
+
+        /// The replica is there and set up for the comparison run; false when
+        /// the run has no recorded arms or the copy could not be made (then the
+        /// view is the plain first person, and the Runs tab says why).
+        private bool EnsureArms()
+        {
+            if (_reference == null || _reference.Anim == null || _reference.Anim.Count == 0) return false;
+            if (_arms != null && !_arms.Alive) { _arms = null; _armsFailed = false; _armsFor = null; }   // a load took it
+            if (_arms == null)
+            {
+                if (_armsFailed) return false;
+                string why;
+                _arms = ArmsReplica.Build(Ctx.Log, out why);
+                if (_arms == null)
+                {
+                    _armsFailed = true;
+                    _armsFailText.text = "First person: the arms could not be shown (" + why + ") - the view shows where the runner looked, no arms.";
+                    Ctx.Log.LogWarning("Replay camera: arms not shown - " + why + ".");
+                    return false;
+                }
+                Ctx.Log.LogInfo("Replay camera: arms replica ready (" + _reference.Anim.Count + " pose samples, " +
+                                _reference.Anim.HeldChanges.Count + " held changes).");
+                _armsFor = null;
+            }
+            if (!ReferenceEquals(_armsFor, _reference))
+            {
+                AnimTrack an = _reference.Anim;
+                _armsHashes = new int[an.Floats.Length];
+                for (int i = 0; i < _armsHashes.Length; i++) _armsHashes[i] = Animator.StringToHash(an.Floats[i]);
+                _poseHash = new int[an.Layers];
+                _poseTime = new float[an.Layers];
+                _poseWeight = new float[an.Layers];
+                _poseFloats = new float[an.Floats.Length];
+                System.Collections.Generic.List<int> ids = new System.Collections.Generic.List<int>();
+                an.AllHeldIds(ids);
+                _arms.Prepare(ids);   // one hitch now, not mid-replay
+                _armsHeldIdx = -2;
+                _armsFor = _reference;
+            }
+            return true;
+        }
+
+        /// The copy posed at the clock's time; the camera goes to its head.
+        private bool TickArms(GhostPose g, ref CamPose target)
+        {
+            if (!EnsureArms()) return false;
+            AnimTrack an = _reference.Anim;
+            float yaw;
+            if (!an.PoseAt(_clock.T, _poseHash, _poseTime, _poseWeight, _poseFloats, out yaw)) return false;
+            _arms.Show(true);
+            _arms.Place(g.P, yaw);
+            for (int l = 0; l < _poseHash.Length; l++) _arms.Pose(l, _poseHash[l], _poseTime[l], _poseWeight[l]);
+            for (int k = 0; k < _armsHashes.Length; k++) _arms.SetFloat(_armsHashes[k], _poseFloats[k]);
+            int held = an.HeldIndexAt(_clock.T);
+            if (held != _armsHeldIdx)
+            {
+                _armsHeldIdx = held;
+                _arms.SetHeld(held < 0 ? NoHeld : an.HeldChanges[held].Ids);
+            }
+            _arms.Evaluate();
+            target.Position = _arms.EyeAt(Quaternion.Euler(target.Pitch, target.Yaw, 0f));
+            return true;
+        }
+
+        private void DestroyArms()
+        {
+            if (_arms != null) _arms.Destroy();
+            _arms = null;
+            _armsFor = null;
+            _armsFailed = false;
         }
 
         private void ReadCameraKeys()
@@ -333,6 +440,12 @@ namespace ForestOverlay.Modules
             if (UiKit.Toggle(new Rect(x, y, 100, 20), v == ReplayView.Trajectory, " trajectory")) v = ReplayView.Trajectory;
             if (v != _camView) SetView(v);
             y += 24f;
+
+            if (_reference != null && _reference.Samples.Count >= 2)
+            {
+                bool recorded = _reference.Anim != null && _reference.Anim.Count > 0;
+                y += UiText.Draw(0, y, w, !recorded ? ArmsOlderText : (_armsFailed ? _armsFailText : ArmsRecordedText));
+            }
 
             if (_camOn)
             {

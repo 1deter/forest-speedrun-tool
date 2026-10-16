@@ -42,6 +42,11 @@ namespace ForestOverlay.Data
     //   l|<t>|<yaw>|<pitch>|<eye>          where the runner looked, 30 Hz
     //                                       (the replay camera; eye = the
     //                                       camera's height above s's point)
+    //   anim|<layers>|<float name>|...      the arms (T-0387; Data/AnimTrack): header
+    //   a|<t>|<yaw>|<hash>:<time>:<weight>|...   10 Hz, a layer per entry; "-" =
+    //                                       weight 0; layer 0 has no weight
+    //   af|<t>|<index>=<value>|...          float parameters that changed
+    //   ah|<t>|<id>|<id>|...                the equipment slot ids when they changed
     //
     // Older readers skip lines they do not know, so e / b / l lines never
     // break an older plugin or the site.
@@ -167,6 +172,43 @@ namespace ForestOverlay.Data
                 LookSample l = attempt.Looks[i];
                 sb.Append("l|").Append(F(l.T)).Append('|').Append(F2(l.Yaw)).Append('|')
                   .Append(F2(l.Pitch)).Append('|').Append(F2(l.Eye)).Append(NL);
+            }
+
+            AnimTrack an = attempt.Anim;
+            if (an != null && an.Count > 0)
+            {
+                sb.Append("anim|").Append(an.Layers.ToString(CultureInfo.InvariantCulture));
+                for (int i = 0; i < an.Floats.Length; i++) sb.Append('|').Append(Clean(an.Floats[i]));
+                sb.Append(NL);
+                for (int i = 0; i < an.Count; i++)
+                {
+                    sb.Append("a|").Append(F(an.T[i])).Append('|').Append(F1(an.Yaw[i]));
+                    for (int l = 0; l < an.Layers; l++)
+                    {
+                        int at = i * an.Layers + l;
+                        sb.Append('|');
+                        if (l > 0 && an.Weight[at] <= 0f) { sb.Append('-'); continue; }
+                        sb.Append(an.Hash[at].ToString(CultureInfo.InvariantCulture)).Append(':').Append(F(an.Time[at]));
+                        if (l > 0) sb.Append(':').Append(F2(an.Weight[at]));
+                    }
+                    sb.Append(NL);
+                }
+                for (int i = 0; i < an.FloatChanges.Count; )
+                {
+                    float t = an.FloatChanges[i].T;
+                    sb.Append("af|").Append(F(t));
+                    for (; i < an.FloatChanges.Count && an.FloatChanges[i].T == t; i++)
+                        sb.Append('|').Append(an.FloatChanges[i].Index.ToString(CultureInfo.InvariantCulture))
+                          .Append('=').Append(F(an.FloatChanges[i].Value));
+                    sb.Append(NL);
+                }
+                for (int i = 0; i < an.HeldChanges.Count; i++)
+                {
+                    sb.Append("ah|").Append(F(an.HeldChanges[i].T));
+                    for (int j = 0; j < an.HeldChanges[i].Ids.Length; j++)
+                        sb.Append('|').Append(an.HeldChanges[i].Ids[j].ToString(CultureInfo.InvariantCulture));
+                    sb.Append(NL);
+                }
             }
 
             return sb.ToString();
@@ -297,6 +339,60 @@ namespace ForestOverlay.Data
                     l.Eye = P(p[4]);
                     a.Looks.Add(l);
                 }
+                else if (p[0] == "anim" && p.Length >= 2)
+                {
+                    int layers;
+                    if (int.TryParse(p[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out layers) && layers > 0 && layers < 64)
+                    {
+                        string[] names = new string[p.Length - 2];
+                        for (int c = 2; c < p.Length; c++) names[c - 2] = p[c];
+                        a.Anim = new AnimTrack(layers, names);
+                    }
+                }
+                else if (p[0] == "a" && p.Length >= 3 && a.Anim != null)
+                {
+                    AnimTrack an = a.Anim;
+                    if (p.Length >= 3 + an.Layers)
+                    {
+                        int[] hash = new int[an.Layers];
+                        float[] time = new float[an.Layers], weight = new float[an.Layers];
+                        for (int l = 0; l < an.Layers; l++)
+                        {
+                            string e = p[3 + l];
+                            if (e == "-") continue;
+                            string[] q = e.Split(':');
+                            int h;
+                            if (q.Length < 2 || !int.TryParse(q[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out h)) continue;
+                            hash[l] = h;
+                            time[l] = P(q[1]);
+                            weight[l] = l == 0 ? 1f : (q.Length > 2 ? P(q[2]) : 1f);
+                        }
+                        an.AddSampleRaw(P(p[1]), P(p[2]), hash, time, weight);
+                    }
+                }
+                else if (p[0] == "af" && p.Length >= 3 && a.Anim != null)
+                {
+                    float t = P(p[1]);
+                    for (int c = 2; c < p.Length; c++)
+                    {
+                        int eq = p[c].IndexOf('=');
+                        int idx;
+                        if (eq <= 0 || !int.TryParse(p[c].Substring(0, eq), NumberStyles.Integer, CultureInfo.InvariantCulture, out idx)) continue;
+                        if (idx < 0 || idx >= a.Anim.Floats.Length) continue;
+                        a.Anim.AddFloat(t, idx, P(p[c].Substring(eq + 1)));
+                    }
+                }
+                else if (p[0] == "ah" && p.Length >= 2 && a.Anim != null)
+                {
+                    int[] ids = new int[p.Length - 2];
+                    for (int c = 2; c < p.Length; c++)
+                    {
+                        int id;
+                        int.TryParse(p[c], NumberStyles.Integer, CultureInfo.InvariantCulture, out id);
+                        ids[c - 2] = id;
+                    }
+                    a.Anim.AddHeld(P(p[1]), ids);
+                }
                 else if (p[0] == "s" && p.Length >= 6)
                 {
                     RunSample s;
@@ -337,7 +433,9 @@ namespace ForestOverlay.Data
                 if (insert < 0 && (StartsAt(runText, s, "channels") || StartsAt(runText, s, "s|") ||
                                    StartsAt(runText, s, "v|") || StartsAt(runText, s, "i|") ||
                                    StartsAt(runText, s, "e|") || StartsAt(runText, s, "b|") ||
-                                   StartsAt(runText, s, "l|")))
+                                   StartsAt(runText, s, "l|") || StartsAt(runText, s, "anim") ||
+                                   StartsAt(runText, s, "a|") || StartsAt(runText, s, "af|") ||
+                                   StartsAt(runText, s, "ah|")))
                     insert = at;
                 at = next;
             }
@@ -369,6 +467,11 @@ namespace ForestOverlay.Data
         private static string F(float v)
         {
             return v.ToString("F3", CultureInfo.InvariantCulture);
+        }
+
+        private static string F1(float v)
+        {
+            return v.ToString("F1", CultureInfo.InvariantCulture);
         }
 
         private static string F2(float v)

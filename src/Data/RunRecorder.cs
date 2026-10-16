@@ -170,6 +170,10 @@ namespace ForestOverlay.Data
         /// for runs recorded before the look track.
         public readonly List<LookSample> Looks = new List<LookSample>();
 
+        /// The arms as animator state (T-0387; see AnimTrack). Null for runs
+        /// recorded before it.
+        public AnimTrack Anim;
+
         /// An item's count at time t: its last change at or before t, 0
         /// before its first.
         public int ItemCountAt(string name, float t)
@@ -454,6 +458,13 @@ namespace ForestOverlay.Data
         /// Asked with each position sample (see LookSample); null = no look track.
         public LookReader LookSource;
 
+        /// Asked on the anim cadence (AnimTrack.Interval): fill the snapshot
+        /// (buffers reused) and return true; false = none this time (no
+        /// animator). T-0387.
+        public Func<AnimSnapshot, bool> AnimSource;
+        private readonly AnimSnapshot _animSnap = new AnimSnapshot();
+        private float _nextAnimTime;
+
         /// A run keeps at most this many events / buildings: a long run
         /// cutting trees all the way must not grow the file without end.
         public const int MaxEvents = 2000;
@@ -514,7 +525,20 @@ namespace ForestOverlay.Data
             Current.Samples.Add(s);
 
             SampleLook();
+            SampleAnim();
             SampleState(state);
+        }
+
+        private void SampleAnim()
+        {
+            // Rides the 30 Hz position tick: 3 ticks make 0.1 s, so a hair of slack keeps it 10 Hz.
+            if (AnimSource == null || Elapsed + 0.004f < _nextAnimTime) return;
+            _nextAnimTime += AnimTrack.Interval;
+            if (_nextAnimTime < Elapsed) _nextAnimTime = Elapsed + AnimTrack.Interval;
+            if (!AnimSource(_animSnap) || _animSnap.Layers <= 0) return;
+            if (Current.Anim == null) Current.Anim = new AnimTrack(_animSnap.Layers, _animSnap.FloatNames);
+            else if (!Current.Anim.Fits(_animSnap)) return;   // a different animator (a load): skip
+            Current.Anim.Add(Elapsed, _animSnap);
         }
 
         private void SampleLook()
@@ -637,6 +661,7 @@ namespace ForestOverlay.Data
             Elapsed = elapsed;
             _nextSampleTime = elapsed;
             _nextStateTime = elapsed;
+            _nextAnimTime = elapsed;
             RunSample s = Current.Samples[0];
             s.T = elapsed;
             Current.Samples[0] = s;
@@ -649,6 +674,7 @@ namespace ForestOverlay.Data
             LoadClock.Reset();
             _nextSampleTime = 0f;
             _nextStateTime = 0f;
+            _nextAnimTime = 0f;
             _itemsLast.Clear();
             _itemsFirst = true;
 

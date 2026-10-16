@@ -133,7 +133,9 @@ namespace ForestOverlay.Game
         /// One layer's recorded state. Layer 0's weight is always 1.
         public void Pose(int layer, int fullPathHash, float normalizedTime, float weight)
         {
-            if (Anim == null) return;
+            if (Anim == null || layer >= Anim.layerCount) return;
+            // Hash 0 = the layer was off in the recording.
+            if (fullPathHash == 0) { if (layer > 0) Anim.SetLayerWeight(layer, 0f); return; }
             if (layer > 0) Anim.SetLayerWeight(layer, weight);
             Anim.Play(fullPathHash, layer, normalizedTime);
         }

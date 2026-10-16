@@ -467,6 +467,15 @@ namespace ForestOverlay.Game
             return true;
         }
 
+        /// The equipment slot ids now (the live array: copy it), null when
+        /// the inventory is not bound. T-0387: the held items of a run.
+        public int[] EquipmentIds()
+        {
+            if (_inventory == null || _equipmentSlotIdsField == null) return null;
+            try { return _equipmentSlotIdsField.GetValue(_inventory) as int[]; }
+            catch (Exception) { return null; }
+        }
+
         // Equipped ids explain the "x0" entries: an item that is currently
         // held reads amount 0 in _possessedItems, which looks like a ghost
         // until you can see it is in a slot.
