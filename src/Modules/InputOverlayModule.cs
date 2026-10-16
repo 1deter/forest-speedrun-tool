@@ -93,6 +93,7 @@ namespace ForestOverlay.Modules
         private float _ux, _uy, _lastCx, _lastCy;
         private readonly float[] _cometX = new float[TrailMax], _cometY = new float[TrailMax], _cometT = new float[TrailMax];
         private int _cometHead, _cometCount;
+        private float _cometLastMove = -100f, _cometFit = 1f, _cometFitAt;
         private bool Comet { get { return _mouseStyle.Value != StyleBox; } }
         private bool _mouseMoved;   // this frame's raw mouse delta was non-zero (Only while pressed hides a still mouse box)
         private float _lastTx, _lastTy;
@@ -438,11 +439,12 @@ namespace ForestOverlay.Modules
 
         private void SampleComet(float dx, float dy, float now)
         {
-            if (_cometCount == 0 || now - _cometT[(_cometHead + TrailMax - 1) % TrailMax] >= CometSeconds)
+            if (CometPath.ShouldRestart(CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds), now, _cometLastMove, CometSeconds))
             {
-                _cometCount = 0;   // nothing alive: restart at the origin, so the numbers stay small
+                _cometCount = 0;   // at rest, nothing alive: restart at the origin, so the numbers stay small
                 _ux = 0f; _uy = 0f; _lastCx = 0f; _lastCy = 0f;
             }
+            _cometLastMove = now;
             _ux += dx * MouseGain;
             _uy -= dy * MouseGain;   // up on the mouse is up on the screen
             float tx = _ux - _lastCx, ty = _uy - _lastCy;
@@ -801,9 +803,13 @@ namespace ForestOverlay.Modules
             float thick = Thick(LineThickness * scale);
             GUI.color = Color.white;
             int live = CometPath.Live(_cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds);
+            if (live == 0) { _cometFit = 1f; _cometFitAt = now; }
             if (live > 0 && Event.current.type == EventType.Repaint && EnsureLineMaterial())
             {
-                float fit = half * CometPath.FitScale(CometPath.Extent(_cometX, _cometY, _cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds, _ux, _uy), 1f);
+                float target = CometPath.FitScale(CometPath.Extent(_cometX, _cometY, _cometT, _cometHead, _cometCount, TrailMax, now, CometSeconds, _ux, _uy), 1f);
+                _cometFit = CometPath.Ease(_cometFit, target, now - _cometFitAt, 1.5f);
+                _cometFitAt = now;
+                float fit = half * _cometFit;
                 float px = cx, py = cy, pAge = 0f, ba = 0.8f * before.a * a;
                 GL.PushMatrix();
                 _lineMat.SetPass(0);
