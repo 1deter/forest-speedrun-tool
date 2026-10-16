@@ -35,6 +35,7 @@
   <ItemGroup>
     <Compile Include="../../src/Data/TextOutline.cs" Link="Linked/TextOutline.cs" />
     <Compile Include="../../src/Data/TrailClip.cs" Link="Linked/TrailClip.cs" />
+    <Compile Include="../../src/Data/CometPath.cs" Link="Linked/CometPath.cs" />
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/RibbonPath.cs" Link="Linked/RibbonPath.cs" />
     <Compile Include="../../src/Data/SpeedRamp.cs" Link="Linked/SpeedRamp.cs" />
