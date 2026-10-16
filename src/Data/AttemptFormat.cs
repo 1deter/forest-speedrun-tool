@@ -43,9 +43,12 @@ namespace ForestOverlay.Data
     //                                       (the replay camera; eye = the
     //                                       camera's height above s's point)
     //   anim|<layers>|<float name>|...      the arms (T-0387; Data/AnimTrack): header
-    //   a|<t>|<yaw>|<hash>:<time>:<weight>|...   10 Hz, a layer per entry; "-" =
-    //                                       weight 0; layer 0 has no weight
-    //   af|<t>|<index>=<value>|...          float parameters that changed
+    //   ak|<t>|<layer>|<hash>|<time>|<rate>|<weight>|<wrate>[|<next>|<ntime>|<nrate>|<p>|<prate>]
+    //                                       a layer's state from t on (changes only:
+    //                                       the playback advances it by the rates);
+    //                                       next.. = a crossfade; "ak|<t>|<layer>|-" = off
+    //   af|<t>|<index>=<value>:<rate>|...   float parameters from t on
+    //   ay|<t>|<yaw>|<rate>                 the body's yaw from t on
     //   ah|<t>|<id>|<id>|...                the equipment slot ids when they changed
     //
     // Older readers skip lines they do not know, so e / b / l lines never
@@ -175,33 +178,36 @@ namespace ForestOverlay.Data
             }
 
             AnimTrack an = attempt.Anim;
-            if (an != null && an.Count > 0)
+            if (an != null && an.HasPose)
             {
                 sb.Append("anim|").Append(an.Layers.ToString(CultureInfo.InvariantCulture));
                 for (int i = 0; i < an.Floats.Length; i++) sb.Append('|').Append(Clean(an.Floats[i]));
                 sb.Append(NL);
-                for (int i = 0; i < an.Count; i++)
+                for (int i = 0; i < an.LayerKeys.Count; i++)
                 {
-                    sb.Append("a|").Append(F(an.T[i])).Append('|').Append(F1(an.Yaw[i]));
-                    for (int l = 0; l < an.Layers; l++)
-                    {
-                        int at = i * an.Layers + l;
-                        sb.Append('|');
-                        if (l > 0 && an.Weight[at] <= 0f) { sb.Append('-'); continue; }
-                        sb.Append(an.Hash[at].ToString(CultureInfo.InvariantCulture)).Append(':').Append(F(an.Time[at]));
-                        if (l > 0) sb.Append(':').Append(F2(an.Weight[at]));
-                    }
+                    AnimLayerKey k = an.LayerKeys[i];
+                    AnimLayerState st = k.S;
+                    sb.Append("ak|").Append(F(k.T)).Append('|').Append(k.Layer.ToString(CultureInfo.InvariantCulture)).Append('|');
+                    if (st.Hash == 0) { sb.Append('-').Append(NL); continue; }
+                    sb.Append(st.Hash.ToString(CultureInfo.InvariantCulture)).Append('|').Append(F(st.Time)).Append('|')
+                      .Append(F4(st.Rate)).Append('|').Append(F(st.Weight)).Append('|').Append(F(st.WeightRate));
+                    if (st.Next != 0)
+                        sb.Append('|').Append(st.Next.ToString(CultureInfo.InvariantCulture)).Append('|').Append(F(st.NextTime))
+                          .Append('|').Append(F4(st.NextRate)).Append('|').Append(F(st.P)).Append('|').Append(F(st.PRate));
                     sb.Append(NL);
                 }
-                for (int i = 0; i < an.FloatChanges.Count; )
+                for (int i = 0; i < an.FloatKeys.Count; )
                 {
-                    float t = an.FloatChanges[i].T;
+                    float t = an.FloatKeys[i].T;
                     sb.Append("af|").Append(F(t));
-                    for (; i < an.FloatChanges.Count && an.FloatChanges[i].T == t; i++)
-                        sb.Append('|').Append(an.FloatChanges[i].Index.ToString(CultureInfo.InvariantCulture))
-                          .Append('=').Append(F(an.FloatChanges[i].Value));
+                    for (; i < an.FloatKeys.Count && an.FloatKeys[i].T == t; i++)
+                        sb.Append('|').Append(an.FloatKeys[i].Index.ToString(CultureInfo.InvariantCulture))
+                          .Append('=').Append(F(an.FloatKeys[i].Value)).Append(':').Append(F(an.FloatKeys[i].Rate));
                     sb.Append(NL);
                 }
+                for (int i = 0; i < an.YawKeys.Count; i++)
+                    sb.Append("ay|").Append(F(an.YawKeys[i].T)).Append('|').Append(F1(an.YawKeys[i].Yaw))
+                      .Append('|').Append(F1(an.YawKeys[i].Rate)).Append(NL);
                 for (int i = 0; i < an.HeldChanges.Count; i++)
                 {
                     sb.Append("ah|").Append(F(an.HeldChanges[i].T));
@@ -349,25 +355,27 @@ namespace ForestOverlay.Data
                         a.Anim = new AnimTrack(layers, names);
                     }
                 }
-                else if (p[0] == "a" && p.Length >= 3 && a.Anim != null)
+                else if (p[0] == "ak" && p.Length >= 4 && a.Anim != null)
                 {
-                    AnimTrack an = a.Anim;
-                    if (p.Length >= 3 + an.Layers)
+                    int layer;
+                    if (int.TryParse(p[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out layer) && layer >= 0 && layer < a.Anim.Layers)
                     {
-                        int[] hash = new int[an.Layers];
-                        float[] time = new float[an.Layers], weight = new float[an.Layers];
-                        for (int l = 0; l < an.Layers; l++)
+                        AnimLayerKey k = new AnimLayerKey();
+                        k.T = P(p[1]);
+                        k.Layer = layer;
+                        int h;
+                        if (p[3] != "-" && p.Length >= 8 && int.TryParse(p[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out h))
                         {
-                            string e = p[3 + l];
-                            if (e == "-") continue;
-                            string[] q = e.Split(':');
-                            int h;
-                            if (q.Length < 2 || !int.TryParse(q[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out h)) continue;
-                            hash[l] = h;
-                            time[l] = P(q[1]);
-                            weight[l] = l == 0 ? 1f : (q.Length > 2 ? P(q[2]) : 1f);
+                            k.S.Hash = h;
+                            k.S.Time = P(p[4]); k.S.Rate = P(p[5]); k.S.Weight = P(p[6]); k.S.WeightRate = P(p[7]);
+                            int nx;
+                            if (p.Length >= 13 && int.TryParse(p[8], NumberStyles.Integer, CultureInfo.InvariantCulture, out nx))
+                            {
+                                k.S.Next = nx;
+                                k.S.NextTime = P(p[9]); k.S.NextRate = P(p[10]); k.S.P = P(p[11]); k.S.PRate = P(p[12]);
+                            }
                         }
-                        an.AddSampleRaw(P(p[1]), P(p[2]), hash, time, weight);
+                        a.Anim.AddLayerKey(k);
                     }
                 }
                 else if (p[0] == "af" && p.Length >= 3 && a.Anim != null)
@@ -379,8 +387,20 @@ namespace ForestOverlay.Data
                         int idx;
                         if (eq <= 0 || !int.TryParse(p[c].Substring(0, eq), NumberStyles.Integer, CultureInfo.InvariantCulture, out idx)) continue;
                         if (idx < 0 || idx >= a.Anim.Floats.Length) continue;
-                        a.Anim.AddFloat(t, idx, P(p[c].Substring(eq + 1)));
+                        string v = p[c].Substring(eq + 1);
+                        int colon = v.IndexOf(':');
+                        AnimFloatKey fk;
+                        fk.T = t; fk.Index = idx;
+                        fk.Value = P(colon < 0 ? v : v.Substring(0, colon));
+                        fk.Rate = colon < 0 ? 0f : P(v.Substring(colon + 1));
+                        a.Anim.AddFloatKey(fk);
                     }
+                }
+                else if (p[0] == "ay" && p.Length >= 3 && a.Anim != null)
+                {
+                    AnimYawKey y;
+                    y.T = P(p[1]); y.Yaw = P(p[2]); y.Rate = p.Length > 3 ? P(p[3]) : 0f;
+                    a.Anim.AddYawKey(y);
                 }
                 else if (p[0] == "ah" && p.Length >= 2 && a.Anim != null)
                 {
@@ -434,8 +454,8 @@ namespace ForestOverlay.Data
                                    StartsAt(runText, s, "v|") || StartsAt(runText, s, "i|") ||
                                    StartsAt(runText, s, "e|") || StartsAt(runText, s, "b|") ||
                                    StartsAt(runText, s, "l|") || StartsAt(runText, s, "anim") ||
-                                   StartsAt(runText, s, "a|") || StartsAt(runText, s, "af|") ||
-                                   StartsAt(runText, s, "ah|")))
+                                   StartsAt(runText, s, "ak|") || StartsAt(runText, s, "af|") ||
+                                   StartsAt(runText, s, "ay|") || StartsAt(runText, s, "ah|")))
                     insert = at;
                 at = next;
             }
@@ -467,6 +487,11 @@ namespace ForestOverlay.Data
         private static string F(float v)
         {
             return v.ToString("F3", CultureInfo.InvariantCulture);
+        }
+
+        private static string F4(float v)
+        {
+            return v.ToString("F4", CultureInfo.InvariantCulture);
         }
 
         private static string F1(float v)

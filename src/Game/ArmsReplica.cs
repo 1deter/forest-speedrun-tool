@@ -21,9 +21,10 @@ namespace ForestOverlay.Game
     //
     // The copy's animator shares the live one's controller (the same
     // AnimatorOverrideController instance) and avatar, so a recorded
-    // state hash plays the same clip. Posing: Animator.Play(hash, layer,
-    // normalizedTime) per layer + SetLayerWeight + the blend-tree floats,
-    // with speed 0 so the animator never runs on by itself.
+    // state hash plays the same clip. Posing (PoseLayers): per layer
+    // SetLayerWeight + Play(hash, layer, normalizedTime) + the blend-tree
+    // floats, and a crossfade replayed as one (CrossFadeInFixedTime), with
+    // speed 0 between poses so the animator never runs on by itself.
     // ------------------------------------------------------------------
     public sealed class ArmsReplica
     {
@@ -42,7 +43,7 @@ namespace ForestOverlay.Game
 
         /// Where the first-person camera goes for a look `look`: the copy's
         /// head joint as the game's camera follows the live one. Call after
-        /// Evaluate so the head is this frame's.
+        /// PoseLayers so the head is this frame's.
         public Vector3 EyeAt(Quaternion look)
         {
             return Head != null ? Head.position + look * CamOffset : (Holder != null ? Holder.transform.position : Vector3.zero);
@@ -130,26 +131,47 @@ namespace ForestOverlay.Game
             Holder.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
         }
 
-        /// One layer's recorded state. Layer 0's weight is always 1.
-        public void Pose(int layer, int fullPathHash, float normalizedTime, float weight)
-        {
-            if (Anim == null || layer >= Anim.layerCount) return;
-            // Hash 0 = the layer was off in the recording.
-            if (fullPathHash == 0) { if (layer > 0) Anim.SetLayerWeight(layer, 0f); return; }
-            if (layer > 0) Anim.SetLayerWeight(layer, weight);
-            Anim.Play(fullPathHash, layer, normalizedTime);
-        }
+        /// How far each pose is played into: the layers start this long
+        /// before their recorded times and one Update of it lands them there.
+        public const float Step = 0.001f;
 
-        public void SetFloat(int nameHash, float v)
+        /// The recorded pose (AnimTrack.PoseAt) shown now. Each layer is
+        /// played from Step before its recorded time; a layer in a crossfade
+        /// plays its source state and gets CrossFadeInFixedTime to the next
+        /// one with a duration that makes Step land on the recorded progress;
+        /// then one Update(Step) at speed 1. WHY not Play + Update(0) alone:
+        /// a crossfade is two clips blended and Play shows one, so the arms
+        /// snapped halfway through it (measured against the live arms:
+        /// tasks/notes/T-0387.md).
+        public void PoseLayers(ForestOverlay.Data.AnimLayerState[] layers, int[] floatHashes, float[] floats)
         {
-            if (Anim != null) Anim.SetFloat(nameHash, v);
-        }
-
-        /// Evaluates the pose set this frame now (else it shows on the
-        /// animator's next update).
-        public void Evaluate()
-        {
-            if (Anim != null) Anim.Update(0f);
+            if (Anim == null) return;
+            int n = Math.Min(layers.Length, Anim.layerCount);
+            bool fade = false;
+            for (int l = 0; l < n; l++)
+            {
+                ForestOverlay.Data.AnimLayerState s = layers[l];
+                // Hash 0 = the layer was off in the recording.
+                if (s.Hash == 0) { if (l > 0) Anim.SetLayerWeight(l, 0f); continue; }
+                if (l > 0) Anim.SetLayerWeight(l, s.Weight);
+                Anim.Play(s.Hash, l, s.Time - Step * s.Rate);
+                if (s.Next != 0) fade = true;
+            }
+            int nf = Math.Min(floatHashes.Length, floats.Length);
+            for (int k = 0; k < nf; k++) Anim.SetFloat(floatHashes[k], floats[k]);
+            Anim.Update(0f);
+            if (fade)
+                for (int l = 0; l < n; l++)
+                {
+                    ForestOverlay.Data.AnimLayerState s = layers[l];
+                    if (s.Hash == 0 || s.Next == 0) continue;
+                    float p = Mathf.Clamp(s.P, 0.01f, 0.999f);
+                    float len = s.NextRate > 0f ? 1f / s.NextRate : 1f;
+                    Anim.CrossFadeInFixedTime(s.Next, Step / p, l, s.NextTime * len - Step);
+                }
+            Anim.speed = 1f;
+            Anim.Update(Step);
+            Anim.speed = 0f;
         }
 
         public void Destroy()

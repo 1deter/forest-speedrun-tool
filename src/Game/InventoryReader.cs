@@ -467,14 +467,50 @@ namespace ForestOverlay.Game
             return true;
         }
 
-        /// The equipment slot ids now (the live array: copy it), null when
-        /// the inventory is not bound. T-0387: the held items of a run.
-        public int[] EquipmentIds()
+        /// The item id in each equipment slot now (-1 empty) into `into`,
+        /// read from the live slots (`_equipmentSlots` views' `_itemId`):
+        /// `_equipmentSlotsIds` is only filled when the game saves
+        /// (PlayerInventory.OnSerializing, docs/game-notes.md). The slot
+        /// count, 0 when the inventory is not bound. No allocation (the
+        /// getters are compiled once). T-0387: the held items of a run.
+        public int EquipmentIds(int[] into)
         {
-            if (_inventory == null || _equipmentSlotIdsField == null) return null;
-            try { return _equipmentSlotIdsField.GetValue(_inventory) as int[]; }
-            catch (Exception) { return null; }
+            if (_inventory == null || into == null) return 0;
+            try
+            {
+                if (_slotsGet == null)
+                {
+                    if (_slotsTried) return 0;
+                    _slotsTried = true;
+                    BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                    FieldInfo slots = _inventoryType.GetField("_equipmentSlots", f);
+                    FieldInfo none = _inventoryType.GetField("_noEquipedItem", f);
+                    Type view = slots != null && slots.FieldType.IsArray ? slots.FieldType.GetElementType() : null;
+                    FieldInfo id = view != null ? view.GetField("_itemId", f) : null;
+                    if (slots == null || none == null || id == null) { _log.LogWarning("Inventory: equipment slots not found - replays record no held items."); return 0; }
+                    _noneGet = FastField.Instance<object>(none);
+                    _viewIdGet = FastField.Instance<int>(id);
+                    _slotsGet = FastField.Instance<object>(slots);
+                }
+                Array a = _slotsGet(_inventory) as Array;
+                if (a == null) return 0;
+                object noneView = _noneGet(_inventory);
+                int n = Math.Min(a.Length, into.Length);
+                for (int i = 0; i < n; i++)
+                {
+                    UnityEngine.Object v = a.GetValue(i) as UnityEngine.Object;
+                    if (v == null || ReferenceEquals(v, noneView)) { into[i] = -1; continue; }
+                    int id = _viewIdGet(v);
+                    into[i] = id > 0 ? id : -1;
+                }
+                return n;
+            }
+            catch (Exception) { return 0; }
         }
+
+        private Func<object, object> _slotsGet, _noneGet;
+        private Func<object, int> _viewIdGet;
+        private bool _slotsTried;
 
         // Equipped ids explain the "x0" entries: an item that is currently
         // held reads amount 0 in _possessedItems, which looks like a ghost

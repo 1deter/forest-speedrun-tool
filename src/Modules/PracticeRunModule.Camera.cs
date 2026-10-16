@@ -59,8 +59,8 @@ namespace ForestOverlay.Modules
         private Attempt _armsFor;
         private bool _armsFailed;
         private int[] _armsHashes = new int[0];
-        private int[] _poseHash = new int[0];
-        private float[] _poseTime = new float[0], _poseWeight = new float[0], _poseFloats = new float[0];
+        private AnimLayerState[] _poseLayers = new AnimLayerState[0];
+        private float[] _poseFloats = new float[0];
         private int _armsHeldIdx = -2;
         private static readonly int[] NoHeld = new int[0];
         private readonly GUIContent _armsFailText = new GUIContent("");
@@ -107,11 +107,13 @@ namespace ForestOverlay.Modules
             _recorder.AnimSource = ReadAnim;
         }
 
-        /// The arms' animator state sampled while a run records (the `a|` track).
-        private bool ReadAnim(AnimSnapshot snap)
+        /// The arms' animator state read while a run records (the `ak|` /
+        /// `af|` / `ay|` / `ah|` track): the layers every frame, the rest
+        /// with the position (`floats`).
+        private bool ReadAnim(AnimSnapshot snap, bool floats)
         {
             if (!Ctx.Player.Found) return false;
-            return _animReader.Read(snap, Ctx.Player.Transform);
+            return _animReader.Read(snap, Ctx.Player.Transform, floats);
         }
 
         /// The look sampled with each position (the run's `l|` track): the
@@ -281,7 +283,7 @@ namespace ForestOverlay.Modules
         /// view is the plain first person, and the Runs tab says why).
         private bool EnsureArms()
         {
-            if (_reference == null || _reference.Anim == null || _reference.Anim.Count == 0) return false;
+            if (_reference == null || _reference.Anim == null || !_reference.Anim.HasPose) return false;
             if (_arms != null && !_arms.Alive) { _arms = null; _armsFailed = false; _armsFor = null; }   // a load took it
             if (_arms == null)
             {
@@ -295,7 +297,7 @@ namespace ForestOverlay.Modules
                     Ctx.Log.LogWarning("Replay camera: arms not shown - " + why + ".");
                     return false;
                 }
-                Ctx.Log.LogInfo("Replay camera: arms replica ready (" + _reference.Anim.Count + " pose samples, " +
+                Ctx.Log.LogInfo("Replay camera: arms replica ready (" + _reference.Anim.LayerKeys.Count + " layer keys, " +
                                 _reference.Anim.HeldChanges.Count + " held changes).");
                 _armsFor = null;
             }
@@ -304,9 +306,7 @@ namespace ForestOverlay.Modules
                 AnimTrack an = _reference.Anim;
                 _armsHashes = new int[an.Floats.Length];
                 for (int i = 0; i < _armsHashes.Length; i++) _armsHashes[i] = Animator.StringToHash(an.Floats[i]);
-                _poseHash = new int[an.Layers];
-                _poseTime = new float[an.Layers];
-                _poseWeight = new float[an.Layers];
+                _poseLayers = new AnimLayerState[an.Layers];
                 _poseFloats = new float[an.Floats.Length];
                 System.Collections.Generic.List<int> ids = new System.Collections.Generic.List<int>();
                 an.AllHeldIds(ids);
@@ -320,21 +320,21 @@ namespace ForestOverlay.Modules
         /// The copy posed at the clock's time; the camera goes to its head.
         private bool TickArms(GhostPose g, ref CamPose target)
         {
-            if (!EnsureArms()) return false;
+            // A run without arms (another comparison run picked mid-replay) or a
+            // copy that could not be made: the replica must not stay up at its last pose.
+            if (!EnsureArms()) { if (_arms != null) _arms.Show(false); return false; }
             AnimTrack an = _reference.Anim;
             float yaw;
-            if (!an.PoseAt(_clock.T, _poseHash, _poseTime, _poseWeight, _poseFloats, out yaw)) return false;
+            if (!an.PoseAt(_clock.T, _poseLayers, _poseFloats, out yaw)) { _arms.Show(false); return false; }
             _arms.Show(true);
             _arms.Place(g.P, yaw);
-            for (int l = 0; l < _poseHash.Length; l++) _arms.Pose(l, _poseHash[l], _poseTime[l], _poseWeight[l]);
-            for (int k = 0; k < _armsHashes.Length; k++) _arms.SetFloat(_armsHashes[k], _poseFloats[k]);
+            _arms.PoseLayers(_poseLayers, _armsHashes, _poseFloats);
             int held = an.HeldIndexAt(_clock.T);
             if (held != _armsHeldIdx)
             {
                 _armsHeldIdx = held;
                 _arms.SetHeld(held < 0 ? NoHeld : an.HeldChanges[held].Ids);
             }
-            _arms.Evaluate();
             target.Position = _arms.EyeAt(Quaternion.Euler(target.Pitch, target.Yaw, 0f));
             return true;
         }
@@ -443,7 +443,7 @@ namespace ForestOverlay.Modules
 
             if (_reference != null && _reference.Samples.Count >= 2)
             {
-                bool recorded = _reference.Anim != null && _reference.Anim.Count > 0;
+                bool recorded = _reference.Anim != null && _reference.Anim.HasPose;
                 y += UiText.Draw(0, y, w, !recorded ? ArmsOlderText : (_armsFailed ? _armsFailText : ArmsRecordedText));
             }
 

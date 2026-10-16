@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-246 prefixes from 812 log calls.
+247 prefixes from 813 log calls.
 
 ## `ActionReaders`
 
@@ -753,6 +753,13 @@ Written by TypeExplorer.cs; info.
 
 - info `Inspected <_selectedHeader> (<fields.Length> fields)`
 
+## `Inventory`
+
+Meaning: The live equipment slots could not be read (a game update renamed them): replays record no held items.
+Written by InventoryReader.cs; warning.
+
+- warning `Inventory: equipment slots not found - replays record no held items.`
+
 ## `Inventory full`
 
 Meaning: The game said "can't carry any more" of an item, and which code path said it.
@@ -1448,7 +1455,7 @@ Meaning: The replay camera: on (which run, how many samples), off and why, or a 
 Written by PracticeRunModule.Camera.cs, PracticeRunModule.ReplayBar.cs; info / warning.
 
 - warning `Replay camera: arms not shown - <why>.`
-- info `Replay camera: arms replica ready (<_reference.Anim.Count> pose samples, <_reference.Anim.HeldChanges.Count> held changes).`
+- info `Replay camera: arms replica ready (<_reference.Anim.LayerKeys.Count> layer keys, <_reference.Anim.HeldChanges.Count> held changes).`
 - info `Replay camera: off - <why>, at <..> s.`
 - info `Replay camera: on - '<_segment.Id>' comparison run of <..> s, <_reference.Looks.Count> look sample(s), <_reference.Samples.Count> position(s), view <..>. <_replayCam.LastReport>.`
 - info `Replay camera: view <..>.`
