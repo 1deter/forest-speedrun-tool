@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.321 - 2026-10-16
+
+- Input overlay: new Game input / Raw input switch in Edit HUD. Game input (the default) labels each tile with what the press did in the game - Attack, Heavy attack, Block, Crouch, Take, Save and so on - and also lights for rebound keys, TAS replays and test-bridge inputs.
+- Raw input keeps the old key tiles. HUD profiles saved before this version start on Game input; pick Raw input in Edit HUD for the old behaviour.
+
 ## v0.24.320 - 2026-10-16
 
 - Overlay text (HUD column, placed values, big timer, splits, results, input overlay) now has the same thin dark outline as the game's own bottom-left messages, so it stays readable over bright sky and snow.
