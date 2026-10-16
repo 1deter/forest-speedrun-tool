@@ -33,10 +33,17 @@ namespace ForestOverlay.Modules
         private static readonly Color BarCheckpoint = new Color(1f, 0.85f, 0.3f, 1f);
         private static readonly Color BarEvent = new Color(1f, 1f, 1f, 0.5f);
 
+        /// The bar shows (and claims the mouse) while the replay camera plays
+        /// and no F2 window is open: the window owns the screen then.
+        private bool BarShowing
+        {
+            get { return _camOn && _reference != null && (Host == null || !Host.AnyPanelOpen()); }
+        }
+
         /// From DrawScreen, inside the scaled matrix.
         private void DrawReplayBar()
         {
-            if (!_camOn || _reference == null) return;
+            if (!BarShowing) { _barScrub = false; return; }
             Event e = Event.current;
             if (e == null) return;
             EnsureSplitStyles();
@@ -156,12 +163,13 @@ namespace ForestOverlay.Modules
             }
 
             // Checkpoints the watched run reached (its end is the timeline's end).
-            if (ReferenceEquals(_markSource, _reference))
+            float[] cps = _reference.Splits;
+            if (cps != null)
             {
                 GUI.color = BarCheckpoint;
-                for (int i = 0; i < _markCount - 1; i++)
+                for (int i = 0; i < cps.Length; i++)
                 {
-                    float t = _markT[i];
+                    float t = cps[i];
                     if (float.IsNaN(t) || t < 0f || t > duration) continue;
                     float col = Mathf.Round(ReplayBar.PixelOf(t, duration, r.x, r.width));
                     WinPx.DrawTexture(new Rect(col - 1f, r.y + 1f, 2f, r.height - 2f), white);

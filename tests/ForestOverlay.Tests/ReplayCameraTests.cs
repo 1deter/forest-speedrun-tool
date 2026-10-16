@@ -382,5 +382,23 @@ namespace ForestOverlay.Tests
             Assert.True(float.IsNaN(into[0]));
             Assert.Equal(6f, into[3]);
         }
+
+        [Fact]
+        public void WatchTimesTrustCheckpointsOnlyWhenOnePerCheckpoint()
+        {
+            float[] into = new float[4];   // 3 checkpoints + the end
+            ReplayBar.WatchTimes(new float[] { 1f, 2f }, 6f, 6f, into);   // a run with a different count
+            Assert.True(float.IsNaN(into[0]) && float.IsNaN(into[1]) && float.IsNaN(into[2]));
+            Assert.Equal(6f, into[3]);
+        }
+
+        [Fact]
+        public void FocusRowIsTheLastCurrentOrTimedRow()
+        {
+            bool[] current = { false, false, true, false };
+            Assert.Equal(2, ReplayBar.FocusRow(current, new float[] { 1f, float.NaN, float.NaN, float.NaN }, 4));
+            Assert.Equal(3, ReplayBar.FocusRow(current, new float[] { 1f, 2f, 3f, 4f }, 4));
+            Assert.Equal(0, ReplayBar.FocusRow(null, new float[] { float.NaN, float.NaN }, 2));
+        }
     }
 }

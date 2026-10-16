@@ -564,17 +564,31 @@ namespace ForestOverlay.Data
 
         /// The watched run's split times as its clock stands: a checkpoint
         /// not reached yet is NaN, the last row is its end. `into` is one
-        /// per row (rows = checkpoints + the end), written in place.
+        /// per row (rows = checkpoints + the end), written in place. As
+        /// SplitStats.SplitsOf: the checkpoints are trusted only when the
+        /// run kept one per checkpoint of this table (rows - 1), else only
+        /// its end is known.
         public static void WatchTimes(float[] splits, float duration, float t, float[] into)
         {
             int rows = into.Length;
+            bool trusted = splits != null && splits.Length == rows - 1;
             for (int i = 0; i < rows; i++)
             {
                 float v = float.NaN;
                 if (i == rows - 1) { if (duration > 0f && t >= duration) v = duration; }
-                else if (splits != null && i < splits.Length && !float.IsNaN(splits[i]) && splits[i] <= t) v = splits[i];
+                else if (trusted && !float.IsNaN(splits[i]) && splits[i] <= t) v = splits[i];
                 into[i] = v;
             }
+        }
+
+        /// The row the splits window centres on: the last one that is the
+        /// current row or has a time.
+        public static int FocusRow(bool[] current, float[] times, int rows)
+        {
+            int focus = 0;
+            for (int r = 0; r < rows && r < times.Length; r++)
+                if ((current != null && r < current.Length && current[r]) || !float.IsNaN(times[r])) focus = r;
+            return focus;
         }
     }
 }

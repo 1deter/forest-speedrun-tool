@@ -74,7 +74,7 @@ namespace ForestOverlay.Modules
         public override bool HoldsPlayer { get { return _camOn; } }
 
         /// The replay bar's controls are clicked with the mouse (T-0369).
-        public override bool WantsMouse { get { return _camOn; } }
+        public override bool WantsMouse { get { return BarShowing; } }
 
         private bool FigureLook { get { return _ghostLookCfg == null || _ghostLookCfg.Value != GhostMarker; } }
 
