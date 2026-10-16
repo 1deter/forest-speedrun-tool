@@ -343,8 +343,9 @@ unity.log says `Failed to capture screen shot`, a GPU driver fault is
 the leading hypothesis (gotcha 120, until confirmed live; the trigger is
 open). Look before retrying: run `wevtutil qe System
 /q:"*[System[Provider[@Name='nvlddmkm']]]" /c:5 /rd:true /f:text`. If it
-shows an event during the session, stop driving and report it; the
-monitor may be blank.
+shows an event during the session, stop driving, close the game (`game`
+close) and report it; the monitor may be blank (author, 2026-10-16;
+windowed resize round trips stay fine meanwhile).
 
 **Habits**: `set` takes a vector as `x,y,z` (no brackets or spaces).
 Handles are per launch; target objects the game respawns **by path**

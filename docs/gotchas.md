@@ -1205,5 +1205,5 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `mouse_event` circles had started 2.6 s earlier), a long-running GPU,
     or the resizes. The ranked list and a live repro plan are in
     tasks/notes/T-0382.md. Until it is settled, read the System log
-    before retrying a screenshot that never appears, and stop driving
-    the game if it shows a fault.
+    before retrying a screenshot that never appears; if it shows a fault,
+    stop driving and close the game (author, 2026-10-16).

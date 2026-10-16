@@ -165,8 +165,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   v0.24.329 T-0385 (Comet mouse style, default; v0.24.328 blinked on
   slow moves). Filed: T-0393 (current line off live), T-0395 (bridge
   names GPU faults), T-0396 (Perf GL line reads 0 for the input
-  overlay). Open for the author: T-0382's GPU check / after-a-fault
-  rule; T-0366, T-0390 kept. **Next:** a fresh session, `loop.py begin`.
+  overlay). After a GPU fault testers close the game; the author checks
+  the GPU driver. T-0366, T-0390 kept. **Next:** a fresh session, `loop.py begin`.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

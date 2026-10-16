@@ -127,6 +127,11 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## People and saves
 
+- **A GPU driver fault during a bridge test** (author, 2026-10-16,
+  T-0382): the tester stops driving and closes the game; windowed
+  resolution round trips stay allowed until the live repro (T-0394);
+  the author checks the GPU driver.
+
 - **Saves:** every slot is the author's own; Steam Cloud is off. maks's
   saves: Megan in `C:\Users\deter\Downloads\Slot4`, lab / invisible
   section / red elevator in `C:\Users\deter\Downloads\slot5` (starts
