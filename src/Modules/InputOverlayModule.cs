@@ -58,6 +58,7 @@ namespace ForestOverlay.Modules
             public readonly int[] Acts = new int[InputActionTable.MaxPerKey], Signs = new int[InputActionTable.MaxPerKey];
             public readonly GUIContent[] ActLabels = new GUIContent[InputActionTable.MaxPerKey];
             public bool Dead;                      // game input, the key has no game action
+            public int MenuAct = -1;               // the Esc action's index: its press shows the cursor (the pause menu) at once
             public readonly int[] Slots = new int[InputActionTable.MaxPerKey];   // ActionReaders' slot per action
             public GUIContent Idle;                // the functions' names, one a line, in pick order
             public bool UsesFsm;                   // an attack / block action: the player's control FSM tells which
@@ -186,6 +187,7 @@ namespace ForestOverlay.Modules
         {
             s.Count = 0;
             s.Dead = false;
+            s.MenuAct = -1;
             s.Label = s.RawLabel;
             s.Name = s.RawName;
             if (s.Special || !s.Valid || !GameInput || !GameActions.Ready) return;
@@ -208,6 +210,7 @@ namespace ForestOverlay.Modules
                 all += (k > 0 ? " / " : "") + words[k];
                 s.Cont[k] = ActionFunctions.IsContinuous(action);
                 s.FsmAct[k] = ActionFunctions.UsesControlState(action);
+                if (action == "Esc") s.MenuAct = k;
                 if (s.FsmAct[k]) s.UsesFsm = true;
             }
             int total = table.Total(s.Tile.Key);
@@ -337,7 +340,9 @@ namespace ForestOverlay.Modules
                 TileState s = _states[i];
                 if (!s.Valid || !s.Tile.Shown) { s.Level = 0f; s.Active = false; continue; }
                 bool down = false;
-                if (live)
+                // The Esc press opens the pause menu, whose cursor shows that very frame: its tile
+                // keeps sampling, or the press that opens the menu would never light (T-0391).
+                if (live || s.MenuAct >= 0)
                 {
                     if (!s.Special)
                     {
@@ -353,7 +358,7 @@ namespace ForestOverlay.Modules
                             bool anyHeld = false;
                             for (int k = 0; k < s.Count; k++)
                             {
-                                bool held = GameActions.Held(s.Acts[k], s.Signs[k]);
+                                bool held = GameActions.Held(s.Acts[k], s.Signs[k]) || (k == s.MenuAct && Input.GetKey(s.Code));
                                 s.HeldNow[k] = held;
                                 ActionReaders.Report(s.Slots[k], held);
                                 anyHeld |= held;

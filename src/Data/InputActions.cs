@@ -146,6 +146,7 @@ namespace ForestOverlay.Data
                 case "WalkyTalky": return "Walkie";
                 case "checkArms": return "Arms";
                 case "birdOnHand": return "Bird";
+                case "Esc": return "Menu";   // opens / closes the pause menu (author, 2026-10-16, T-0391)
             }
             return action ?? "";
         }

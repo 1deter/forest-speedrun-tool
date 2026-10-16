@@ -96,6 +96,7 @@ namespace ForestOverlay.Tests
             Assert.Equal("Right", InputActionTable.Label("Horizontal", 1));
             Assert.Equal("Attack", InputActionTable.Label("Fire1", 1));
             Assert.Equal("Crouch", InputActionTable.Label("Crouch", 1));
+            Assert.Equal("Menu", InputActionTable.Label("Esc", 1));
         }
 
         [Fact]
