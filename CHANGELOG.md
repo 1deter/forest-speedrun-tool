@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.334 - 2026-10-16
+
+- Runs > Run options > Checkpoints: the label picker is now a short list of stats (Health, Stamina, Energy, Fullness, Thirst, Body temp, Armor) instead of every recorded field.
+- Checkpoint labels can show item counts the comparison run held (Soda 3 ...), picked from an Items list.
+- New default label: time, delta, speed, Health, Stamina and Armor (Armor only when above 0); the old default moves to it once.
+
 ## v0.24.333 - 2026-10-16
 
 - You can now choose what the comparison line's checkpoint markers show: nothing, just the dots, or labels with the fields you pick (Runs > Run options > Checkpoints).
