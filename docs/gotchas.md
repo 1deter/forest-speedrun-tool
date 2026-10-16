@@ -1186,3 +1186,10 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     tagged with only a CHANGELOG line; v0.24.319 carried the fix. After a
     merge, prove it: `git merge-base --is-ancestor <sha> HEAD` before
     `tasks.py set --status built` or a bump.
+
+119. **A real mouse does not report every frame.** (2026-10-16, T-0383,
+    in game.) Hiding the mouse box on every frame with a zero raw delta
+    (v0.24.324) blinked it during slow and even fast SendInput moves, and
+    cutting the trail on those frames meant no path ever built. Anything
+    driven by "the mouse moved this frame" needs a hold-off or a smoothed
+    velocity, not the per-frame delta.

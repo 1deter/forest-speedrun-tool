@@ -157,15 +157,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (chain C-0001, run R-0014, unattended):** 5 rounds, 3
-  progressed. T-0392 confirmed (`chain next` re-dispatches a run no
-  `begin` followed within 15 min; `chain status` is the read-only look),
-  v0.24.322 T-0375 confirmed (+ Key capture holds plugin hotkeys off,
-  frame-stamped; F6 / F12 not pressed), v0.24.323 T-0380 confirmed
-  (mouse path split at the box edge, `Data/TrailClip`; seen at 1366x768,
-  corner wrap unit-tested only). Parked: T-0372 (speed ramp: which end
-  is fast, how the two lines differ), T-0381 (drag-resize handle).
-  **Next:** the chain's next run (`loop.py chain next`).
+- **2026-10-16 (chain C-0001, run R-0015, unattended):** 3 rounds, 0
+  progressed, stopped (no progress 3 in a row). v0.24.324 T-0383
+  released (Only while pressed hides the still mouse box, wheel
+  frame-true) but fails in game: the box blinks on slow moves and the
+  path never builds (gotcha 119). Parked: T-0382 (may a run repro the
+  resize that blanked the monitor?), T-0383 (frame-true vs hold-off),
+  T-0385 (minimal mouse box: options A/B/C in tasks/notes/T-0385.md).
+  **Next:** the author's answers; then the chain's next run
+  (`loop.py chain next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

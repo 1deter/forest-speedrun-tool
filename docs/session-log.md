@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-16 (chain C-0001 run R-0015 handoff)
+
+- **2026-10-16 (chain C-0001, run R-0014, unattended):** 5 rounds, 3
+  progressed. T-0392 confirmed (`chain next` re-dispatches a run no
+  `begin` followed within 15 min; `chain status` is the read-only look),
+  v0.24.322 T-0375 confirmed (+ Key capture holds plugin hotkeys off,
+  frame-stamped; F6 / F12 not pressed), v0.24.323 T-0380 confirmed
+  (mouse path split at the box edge, `Data/TrailClip`; seen at 1366x768,
+  corner wrap unit-tested only). Parked: T-0372 (speed ramp: which end
+  is fast, how the two lines differ), T-0381 (drag-resize handle).
+  **Next:** the chain's next run (`loop.py chain next`).
+
 ## Moved out 2026-10-16 (chain C-0001 run R-0013 handoff)
 
 - **2026-10-16 (chain C-0001, run R-0012; the author stepped in once):**
