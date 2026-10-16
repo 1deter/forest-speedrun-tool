@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.317 - 2026-10-16
+
+- Watching a replay now shows a bar at the bottom of the screen: a timeline with checkpoint and interaction ticks you can click or drag to seek, plus play / pause, step, speed and view buttons.
+- While you watch a replay, the big timer and the splits panel show the replay's time and splits instead of your live run.
+
 ## v0.24.316 - 2026-10-16
 
 - Run lines: the comparison line shows a dot with a dark ring at each checkpoint and at the end, labelled with that split's time.
