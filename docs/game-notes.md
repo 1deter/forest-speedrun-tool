@@ -1830,6 +1830,20 @@ ShowContainer` {`UIWidget`, `TweenAlpha`, `TweenPosition`} > `Name`
   `playerAnimatorControl.upsideDown` (IL; not checked live).
   `PlayerTuts` (hunger, thirst, low health, step tutorials) and
   `BuildMissionWidget` share the grid.
+- **How a line's text is drawn** (bridge + IL, 2026-10-16, T-0335): the
+  game's template label has `effectStyle` None (plain yellow, no
+  outline, shadow or backing plate - the container is a bare
+  `UIWidget`). The plugin's own lines set `Outline8`, `effectColor`
+  black alpha 1, `effectDistance` (1, 1) left at NGUI's default.
+  `UILabel.OnFill` (IL): any effect first copies the glyphs at (+d.x,
+  -d.y); Outline (2) and Outline8 (3) add (-d.x, +d.y), (+d.x, +d.y),
+  (-d.x, -d.y); Outline8 then (-d.x, 0), (+d.x, 0), (0, +d.y), (0,
+  -d.y) - 8 copies under the text. `ApplyShadow` colours them
+  `effectColor` with alpha x the label's `finalAlpha` (x the glyph's own
+  alpha). d is in NGUI units: the HUD's `UIRoot` (`HudGui/HUD_Ngui`) is
+  Constrained, `activeHeight` 720, so 1 unit = Screen.height / 720
+  pixels (1.07 px at 1366x768, `pixelSizeAdjustment` 0.9375). Font:
+  Montserrat-Regular 15 (dynamic, `trueTypeFont`), `fontStyle` Normal.
 
 ## Caves
 
