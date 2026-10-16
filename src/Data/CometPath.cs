@@ -45,6 +45,23 @@ namespace ForestOverlay.Data
             return e;
         }
 
+        /// A new tail starts from the origin only when no point is alive AND the mouse has not
+        /// moved within span: a slow move from rest (each frame under the point spacing) keeps
+        /// accumulating until a point is recorded, instead of being reset every frame.
+        public static bool ShouldRestart(int live, float now, float lastMove, float span)
+        {
+            return live == 0 && now - lastMove >= span;
+        }
+
+        /// The drawn scale follows the fit: down at once when the tail needs it (it never spills
+        /// out of the tile), up slowly (rate per second) when old points fade, so the tail does not breathe.
+        public static float Ease(float current, float target, float dt, float rate)
+        {
+            if (target <= current) return target;
+            float k = Math.Min(1f, Math.Max(0f, dt) * rate);
+            return current + (target - current) * k;
+        }
+
         /// The scale that fits a tail of this extent into room: 1 when it already fits, else room / extent (one scale for both axes).
         public static float FitScale(float extent, float room)
         {

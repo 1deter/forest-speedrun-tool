@@ -48,6 +48,44 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ManySmallMovesFromRestBuildATail()
+        {
+            // 0.01 of path per frame is under a 0.08 spacing: the origin must not reset each frame.
+            float[] t = new float[4];
+            float lastMove = -100f, now = 10f, ux = 0f, lastC = 0f;
+            int count = 0;
+            for (int f = 0; f < 20; f++)
+            {
+                now += 0.016f;
+                if (CometPath.ShouldRestart(CometPath.Live(t, 0, count, 4, now, 0.4f), now, lastMove, 0.4f)) { ux = 0f; lastC = 0f; }
+                lastMove = now;
+                ux += 0.01f;
+                if (ux - lastC >= 0.08f) { lastC = ux; count = 1; t[3] = now; }
+            }
+            Assert.True(ux > 0.19f);   // it kept accumulating
+            Assert.Equal(1, count);    // and recorded a point
+        }
+
+        [Fact]
+        public void RestartsAfterRestOnly()
+        {
+            Assert.False(CometPath.ShouldRestart(0, 5.2f, 5.0f, 0.4f));
+            Assert.True(CometPath.ShouldRestart(0, 5.5f, 5.0f, 0.4f));
+            Assert.False(CometPath.ShouldRestart(1, 9f, 0f, 0.4f));
+        }
+
+        [Fact]
+        public void ScaleDoesNotJumpWhenTheOldestPointFades()
+        {
+            // extent 4 (scale 0.25), then the far point fades and the fit says 1: it eases, no jump
+            float s = 0.25f;
+            s = CometPath.Ease(s, 1f, 0.016f, 1.5f);
+            Assert.True(s < 0.27f);
+            // growing the tail drops the scale at once
+            Assert.Equal(0.1f, CometPath.Ease(0.5f, 0.1f, 0.016f, 1.5f));
+        }
+
+        [Fact]
         public void ATailThatFitsIsNotScaled()
         {
             Assert.Equal(1f, CometPath.FitScale(1f, 2f));
