@@ -157,16 +157,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (run R-0016, author present):** 5 rounds, 5 confirmed.
-  v0.24.325 T-0370 (run lines Behind things, labels follow), v0.24.326
-  T-0372 (comparison line by speed, green fast), v0.24.327 T-0381 (input
-  tile corner resize), T-0382 research (leading hypothesis: NVIDIA
-  driver fault, gotcha 120; live repro T-0394 needs the author),
-  v0.24.329 T-0385 (Comet mouse style, default; v0.24.328 blinked on
-  slow moves). Filed: T-0393 (current line off live), T-0395 (bridge
-  names GPU faults), T-0396 (Perf GL line reads 0 for the input
-  overlay). After a GPU fault testers close the game; the author checks
-  the GPU driver. T-0366, T-0390 kept. **Next:** a fresh session, `loop.py begin`.
+- **2026-10-16 (run R-0017, author present):** 4 confirmed. v0.24.330
+  T-0386 (replay bar health / stamina / speed), v0.24.331 T-0397 (run
+  armed on the practice tick keeps stat names), v0.24.332 T-0387
+  (first-person replay arms, changes-only anim track ~50 KB/min, picked
+  from a live 30/10 Hz/changes comparison) + T-0399 (16 MB run uploads,
+  site 20 MB on /api/runs; released, waits for a real long upload),
+  v0.24.333 T-0388 (choose checkpoint marker fields). Parked by forest-ux
+  for the author: T-0400 (82 raw channel toggles), T-0401, T-0402.
+  Filed T-0398. T-0390 given back (built 9be94c08, reverted on main; needs
+  a bridge proof of GetIndexCount on collision meshes). Stopped early:
+  the author needed the computer. **Next:** a fresh session, `loop.py begin`.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
