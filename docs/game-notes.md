@@ -235,6 +235,23 @@ never set; held 1.2 s -> `initCharge` from 0.4 s
 0.4 s) -> `doCharge` on release, animator `doAttackHeavyBool` on,
 clip `stickHeavyAttack`. Held AltFire -> `doBlock`, back to
 `waitForInput` on release. Other attack states: docs/fsm/player-controlFSM.txt.
+**Members read by reflection for this (IL, `ilscan type --asm`, T-0361):**
+`Rewired.ReInput` public static properties `mapping` (`MappingHelper`:
+`Actions`, a list of `InputAction` with `id`, `name`, `type`,
+`categoryId` = the action category) and `UserData` (`Rewired.Data.UserData`:
+public **fields** `keyboardMaps` / `mouseMaps`, `List<>`; each map is a
+`ControllerMap_Editor` with fields `categoryId` and `actionElementMaps`,
+a `List<ActionElementMap>`; the property `ActionElementMaps` is the same
+list). `ActionElementMap` properties `actionId`, `keyCode`
+(`UnityEngine.KeyCode`), `elementIdentifierId`, `axisContribution`
+(enum `Pole`: `Positive` / `Negative`), `modifierKey1` (enum
+`ModifierKey`, `None` = no chord). The Default map category's id 0 comes
+from the live read above, not from IL. `Rewired.Player` has
+`GetButton(int)`, `GetNegativeButton(int)`, `GetAxisRaw(int)` (and the
+string forms). `PlayMakerFSM.ActiveStateName` is a public `string`
+property with a getter. HarmonyX 2.x (`BepInEx/core/0Harmony.dll`):
+`HarmonyMethod` has public fields `priority` (int) and `after`
+(`string[]`), and `Priority.Last` is a static int.
 
 ---
 
