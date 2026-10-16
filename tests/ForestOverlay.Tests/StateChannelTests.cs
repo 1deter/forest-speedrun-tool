@@ -156,5 +156,39 @@ namespace ForestOverlay.Tests
             Assert.Empty(done.States);
             Assert.NotNull(done.Channels);
         }
+
+        // T-0397: armed before the reader resolved - the names come from
+        // ChannelSource at the first state sample.
+        [Fact]
+        public void EmptyChannelsAtArmAreTakenAtTheFirstSample()
+        {
+            string[] names = new string[0];
+            RunRecorder r = new RunRecorder();
+            r.SampleInterval = 0f;
+            r.ChannelSource = () => names;
+            r.Arm(Vector3.zero, "test");
+            r.ForceStart(Vector3.zero);
+
+            names = new string[] { "Health", "Stamina" };
+            r.Tick(new Vector3(2f, 0f, 0f), 1f, 0.1f, new float[] { 1f, 2f });
+            Attempt done = r.Finish();
+
+            Assert.Equal(new string[] { "Health", "Stamina" }, done.Channels);
+            Assert.Single(done.States);
+        }
+
+        [Fact]
+        public void ChannelSourceOfTheWrongLengthIsIgnored()
+        {
+            RunRecorder r = new RunRecorder();
+            r.SampleInterval = 0f;
+            r.ChannelSource = () => new string[] { "Health" };
+            r.Arm(Vector3.zero, "test");
+            r.ForceStart(Vector3.zero);
+
+            r.Tick(new Vector3(2f, 0f, 0f), 1f, 0.1f, new float[] { 1f, 2f });
+
+            Assert.Empty(r.Current.Channels);
+        }
     }
 }
