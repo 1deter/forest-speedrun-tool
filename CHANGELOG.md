@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.316 - 2026-10-16
+
+- Run lines: the comparison line shows a dot with a dark ring at each checkpoint and at the end, labelled with that split's time.
+- Once your run is past a checkpoint, its label also shows your delta there, coloured like the splits panel.
+
 ## v0.24.315 - 2026-10-16
 
 - Views: mesh colliders (cliffs, cave walls, the plane hull) now show their real shape as wireframes instead of boxes. A mesh that cannot be drawn keeps its box, and the Views tab says how many and why.
