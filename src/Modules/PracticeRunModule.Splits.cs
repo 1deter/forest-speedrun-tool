@@ -140,6 +140,18 @@ namespace ForestOverlay.Modules
 
         private GUIStyle _cellStyle, _nameStyle, _titleStyle, _placeholderStyle;
         private GUIStyle[] _colourStyles;
+
+        /// The delta colours by SplitColour: the panel's, the results' and
+        /// the checkpoint markers' on the run line (T-0371) - one table.
+        private static readonly Color[] SplitPalette =
+        {
+            Color.white,
+            new Color(0.25f, 0.85f, 0.35f),   // ahead, gaining
+            new Color(0.6f, 0.95f, 0.6f),     // ahead, losing
+            new Color(0.95f, 0.6f, 0.6f),     // behind, gaining
+            new Color(0.9f, 0.25f, 0.25f),    // behind, losing
+            new Color(1f, 0.8f, 0.2f),        // gold
+        };
         private GUIStyle _panelStyle;
 
         private void InitSplits(ModuleContext ctx)
@@ -699,15 +711,7 @@ namespace ForestOverlay.Modules
             _placeholderStyle.wordWrap = true;
             _placeholderStyle.normal.textColor = UiKit.DimColour;
 
-            Color[] colours =
-            {
-                Color.white,
-                new Color(0.25f, 0.85f, 0.35f),   // ahead, gaining
-                new Color(0.6f, 0.95f, 0.6f),     // ahead, losing
-                new Color(0.95f, 0.6f, 0.6f),     // behind, gaining
-                new Color(0.9f, 0.25f, 0.25f),    // behind, losing
-                new Color(1f, 0.8f, 0.2f),        // gold
-            };
+            Color[] colours = SplitPalette;
             _colourStyles = new GUIStyle[colours.Length];
             for (int i = 0; i < colours.Length; i++)
             {
