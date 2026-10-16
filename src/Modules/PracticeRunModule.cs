@@ -441,7 +441,9 @@ namespace ForestOverlay.Modules
             _armedScene = SceneManager.GetActiveScene().buildIndex;
             _armedRoute = _segment.RouteFingerprint();
 
+            Ctx.PlayerState.Resolve();   // T-0397: names must exist before the copy
             _recorder.StateChannels = Ctx.PlayerState.Channels;
+            _recorder.ChannelSource = delegate { return Ctx.PlayerState.Channels; };
             _recorder.Route = _armedRoute;
             if (!_failedFromOtherSegment) KeepFailed();   // a Go / restart without a start state re-arms mid-run
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);

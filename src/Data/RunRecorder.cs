@@ -430,6 +430,10 @@ namespace ForestOverlay.Data
         /// Channel names for the run being recorded. Set before Arm.
         public string[] StateChannels = new string[0];
 
+        /// Asked at the first state sample when the channel names were empty at
+        /// Arm (the reader had not resolved yet, T-0397).
+        public Func<string[]> ChannelSource;
+
         /// Route fingerprint stamped onto the attempt. Set before Arm.
         public string Route = "";
 
@@ -529,6 +533,12 @@ namespace ForestOverlay.Data
             SampleItems();
             if (state == null && StateSource != null) state = StateSource();
             if (state == null || state.Length == 0) return;
+
+            if ((Current.Channels == null || Current.Channels.Length == 0) && ChannelSource != null)
+            {
+                string[] ch = ChannelSource();
+                if (ch != null && ch.Length == state.Length) Current.Channels = ch;
+            }
 
             StateSample ss;
             ss.T = Elapsed;

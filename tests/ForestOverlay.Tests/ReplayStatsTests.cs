@@ -43,6 +43,15 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void StatesWithoutHealthOrStaminaChannelSayNotRecorded()
+        {
+            Attempt a = new Attempt();
+            a.States.Add(new StateSample { T = 0f, Values = new[] { 1f } });
+            a.Samples.Add(new RunSample { T = 0f, Speed = 3f });
+            Assert.Equal(ReplayStats.NoState + "   Speed 3.0 m/s", ReplayStats.Line(a, 1f));
+        }
+
+        [Fact]
         public void BeforeTheFirstSnapshotOnlySpeedShows()
         {
             Attempt a = Run();

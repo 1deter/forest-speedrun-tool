@@ -38,6 +38,7 @@ namespace ForestOverlay.Data
             if (run.States.Count == 0) s = NoState;
             else
             {
+                if (run.ChannelIndex("Health") < 0 && run.ChannelIndex("Stamina") < 0) s = NoState;
                 if (run.TryStateAt(run.ChannelIndex("Health"), t, out v)) s += "Health " + Num(v, "0");
                 if (run.TryStateAt(run.ChannelIndex("Stamina"), t, out v)) s += (s.Length > 0 ? "   " : "") + "Stamina " + Num(v, "0");
             }
