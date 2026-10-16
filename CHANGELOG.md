@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.331 - 2026-10-16
+
+- A run started the moment practice mode turns on now records health and stamina, so its replay shows them.
+- An older run with no health or stamina data says so on the replay bar instead of showing speed alone.
+
 ## v0.24.330 - 2026-10-16
 
 - The replay bar shows the watched run's health, stamina and speed at the playhead; they update as you play, scrub or step.
