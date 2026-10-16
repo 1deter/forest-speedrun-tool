@@ -97,6 +97,8 @@ namespace ForestOverlay.Modules
         // Edit HUD state.
         private bool _capturing;
         private int _drag = -1;
+        private int _resize = -1;   // a tile whose corner handle is being dragged
+        private const float HandlePx = 12f;
         private Vector2 _dragOffset;
         private int _removeAt = -1;
         private bool _resetArmed;
@@ -569,8 +571,8 @@ namespace ForestOverlay.Modules
         {
             if (_on == null || !_on.Value || _states.Count == 0) return;
             bool editing = Editing;
-            if (!editing && Cursor.visible) { if (_drag >= 0) _drag = -1; return; }
-            if (!editing && _drag >= 0) _drag = -1;
+            if (!editing && Cursor.visible) { _drag = -1; _resize = -1; return; }
+            if (!editing) { _drag = -1; _resize = -1; }
 
             Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
             try
@@ -644,6 +646,7 @@ namespace ForestOverlay.Modules
             {
                 GUI.color = new Color(before.r, before.g, before.b, before.a);
                 WinPx.Box(s.Rect, GUIContent.none, UiKit.Outline);
+                Flat(HandleRect(s.Rect), UiKit.Accent);
             }
         }
 
@@ -794,6 +797,13 @@ namespace ForestOverlay.Modules
 
         // --- the mouse in Edit HUD: drag a tile, right-click to hide / show it ---------------------------
 
+        // The corner handle: drag it to resize the tile in the 0.25 steps the + / - buttons keep.
+        private static Rect HandleRect(Rect r)
+        {
+            float h = Mathf.Min(HandlePx, Mathf.Min(r.width, r.height) * 0.5f);
+            return new Rect(r.xMax - h, r.yMax - h, h, h);
+        }
+
         private void EditEvents(UiScale ui, Event e)
         {
             MainWindowModule main = Host.Find<MainWindowModule>();
@@ -801,11 +811,12 @@ namespace ForestOverlay.Modules
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (_drag >= 0 || blocked.Contains(e.mousePosition)) return;
+                    if (_drag >= 0 || _resize >= 0 || blocked.Contains(e.mousePosition)) return;
                     for (int i = _states.Count - 1; i >= 0; i--)
                     {
                         TileState s = _states[i];
                         if (!s.Valid || !s.Rect.Contains(e.mousePosition)) continue;
+                        if (e.button == 0 && HandleRect(s.Rect).Contains(e.mousePosition)) { _resize = i; e.Use(); return; }
                         if (e.button == 1) { SetShown(s, !s.Tile.Shown); e.Use(); return; }
                         if (e.button != 0) return;
                         _drag = i;
@@ -815,6 +826,20 @@ namespace ForestOverlay.Modules
                     }
                     break;
                 case EventType.MouseDrag:
+                    if (_resize >= 0 && _resize < _states.Count)
+                    {
+                        TileState rs = _states[_resize];
+                        string k = rs.Tile.Key;
+                        float w1 = InputLayout.TileW(k, 1f), h1 = InputLayout.TileH(k, 1f);
+                        float want = ((e.mousePosition.x - rs.Rect.x) / w1 + (e.mousePosition.y - rs.Rect.y) / h1) * 0.5f;
+                        float fit = Mathf.Min((ui.VW - rs.Rect.x) / w1, (ui.VH - rs.Rect.y) / h1);   // stay on screen
+                        float v = Mathf.Round(Mathf.Min(want, fit) * 4f) / 4f;
+                        while (v > InputLayout.MinScale && v > fit + 0.001f) v -= 0.25f;
+                        v = InputLayout.ClampScale(v);
+                        if (v != rs.Tile.Scale) rs.Tile.Scale = v;
+                        e.Use();
+                        return;
+                    }
                     if (_drag < 0 || _drag >= _states.Count) return;
                     TileState d = _states[_drag];
                     float x = Mathf.Clamp(e.mousePosition.x - _dragOffset.x, 0f, Mathf.Max(0f, ui.VW - d.Rect.width));
@@ -826,6 +851,15 @@ namespace ForestOverlay.Modules
                     e.Use();
                     break;
                 case EventType.MouseUp:
+                    if (_resize >= 0)
+                    {
+                        TileState z = _states[Mathf.Min(_resize, _states.Count - 1)];
+                        _resize = -1;
+                        Commit();   // once per gesture
+                        Ctx.Log.LogInfo("Inputs: tile " + z.Tile.Key + " resized by dragging to " + z.Tile.Scale.ToString("0.##") + ".");
+                        e.Use();
+                        return;
+                    }
                     if (_drag < 0) return;
                     TileState m = _states[Mathf.Min(_drag, _states.Count - 1)];
                     _drag = -1;
@@ -844,7 +878,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent InputsText = new GUIContent("Input overlay");
         private static readonly GUIContent About = new GUIContent(
             "Shows the keys and mouse buttons you press, on the game screen. Each tile is placed on its own: " +
-            "drag it to move it, right-click it to hide or show it. Nothing shows while a cursor is on screen.");
+            "drag it to move it, drag its corner square to resize it, right-click it to hide or show it. Nothing shows while a cursor is on screen.");
         private static readonly GUIContent OnlyPressedText = new GUIContent("Only while pressed");
         private static readonly GUIContent OnlyPressedAbout = new GUIContent(
             "A key or button tile is drawn only while it is held, exactly as pressed, and not at all otherwise. The mouse box is drawn only on frames the mouse moves and the wheel only on frames it scrolls. This window still shows every tile so you can place them.");
