@@ -8,9 +8,12 @@ namespace ForestOverlay.Tests
         private static Attempt Run()
         {
             Attempt a = new Attempt();
-            a.Channels = new[] { "Health", "Stamina" };
-            a.States.Add(new StateSample { T = 0f, Values = new[] { 100f, 90f } });
-            a.States.Add(new StateSample { T = 5f, Values = new[] { 60.5f, 40f } });
+            a.Channels = new[] { "Health", "Stamina", "Armor", "BodyTemp" };
+            a.States.Add(new StateSample { T = 0f, Values = new[] { 100f, 90f, 0f, 37f } });
+            a.States.Add(new StateSample { T = 5f, Values = new[] { 60.5f, 40f, 10f, 36.5f } });
+            a.Items.Add(new ItemChange { T = 0f, Name = "Lighter", Count = 1 });
+            a.Items.Add(new ItemChange { T = 1f, Name = "Soda", Count = 2 });
+            a.Items.Add(new ItemChange { T = 5f, Name = "Soda", Count = 3 });
             a.Samples.Add(new RunSample { T = 0f, Speed = 1f });
             a.Samples.Add(new RunSample { T = 4f, Speed = 5.5f });
             return a;
@@ -19,13 +22,51 @@ namespace ForestOverlay.Tests
         private static readonly float[] Times = { 2f, 6f, float.NaN };
 
         [Fact]
-        public void DefaultIsTheOldLook()
+        public void DefaultIsTimeDeltaSpeedHealthStaminaArmor()
         {
             MarkSpec s = MarkSpec.Parse(null);
             Assert.Equal(MarkSpec.Default, s.Serialize());
-            Assert.Equal(SplitTable.Time(2f, 3), MarkLabels.LabelText(s, Run(), Times, 0, 3));
+            Assert.Equal("time,delta,speed,ch:Health,ch:Stamina,ch:Armor", MarkSpec.Default);
+            Assert.Equal(MarkSpec.Default, MarkSpec.Parse(MarkSpec.Default).Serialize());
+            // Armor 0 is left out (author: "armor (if any)").
+            Assert.Equal(SplitTable.Time(2f, 3) + "  1.0 m/s  Health 100  Stamina 90", MarkLabels.LabelText(s, Run(), Times, 0, 3));
+            Assert.Equal(SplitTable.Time(6f, 3) + "  5.5 m/s  Health 60.5  Stamina 40  Armor 10", MarkLabels.LabelText(s, Run(), Times, 1, 3));
             Assert.Equal(SplitTable.Delta(0.5f, 2), MarkLabels.DeltaText(s, 0.5f, 2));
             Assert.Equal("", MarkLabels.DeltaText(s, float.NaN, 2));
+        }
+
+        [Fact]
+        public void OldDefaultStillParsesAsItsOwnChoice()
+        {
+            MarkSpec s = MarkSpec.Parse(MarkSpec.OldDefault);
+            Assert.True(s.Time); Assert.True(s.Delta); Assert.False(s.Speed);
+            Assert.Empty(s.Channels);
+            Assert.Equal("time,delta", s.Serialize());
+        }
+
+        [Fact]
+        public void StatsInRunnerWordsAndItemsCount()
+        {
+            Assert.Equal(7, MarkSpec.Stats.Length);
+            MarkSpec s = MarkSpec.Parse("ch:BodyTemp,item:Soda,item:Soda,item:Nope");
+            Assert.Equal(2, s.Items.Count);
+            Assert.Equal("ch:BodyTemp,item:Soda,item:Nope", s.Serialize());
+            Assert.Equal("Body temp 37  Soda 2  Nope 0", MarkLabels.LabelText(s, Run(), Times, 0, 1));
+            Assert.Equal("Body temp 36.5  Soda 3  Nope 0", MarkLabels.LabelText(s, Run(), Times, 1, 1));
+            s.SetItem("Soda", false);
+            Assert.False(s.HasItem("Soda"));
+            Assert.Equal(2, s.FieldCount);   // Body temp + Nope
+            Assert.Contains("Body temp", MarkLabels.Status(MarkSpec.Parse("ch:BodyTemp"), new Attempt(), 2, 1));
+        }
+
+        [Fact]
+        public void ItemNamesAreTheRunsInFirstOrder()
+        {
+            var names = new System.Collections.Generic.List<string> { "stale" };
+            MarkLabels.ItemNames(Run(), names);
+            Assert.Equal(new[] { "Lighter", "Soda" }, names.ToArray());
+            MarkLabels.ItemNames(null, names);
+            Assert.Empty(names);
         }
 
         [Fact]

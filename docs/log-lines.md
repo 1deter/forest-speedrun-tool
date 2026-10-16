@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-247 prefixes from 814 log calls.
+247 prefixes from 815 log calls.
 
 ## `ActionReaders`
 
@@ -1563,6 +1563,7 @@ Meaning: The runner chose how run lines meet plants, rocks and ground (Hidden, F
 Written by PracticeRunModule.Lines.cs; info.
 
 - info `Run lines: behind things set to <..>.`
+- info `Run lines: checkpoint labels moved from the old default to <MarkSpec.Default>.`
 - info `Run lines: checkpoint markers set to <text>.`
 - info `Run lines: comparison colour set to <..>.`
 

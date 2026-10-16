@@ -15,19 +15,42 @@ namespace ForestOverlay.Data
     // comparison, the choice or the decimals change (never per frame).
     //
     // Config text: "off", "dot", or comma-separated fields
-    // "time,delta,segment,speed,ch:Health". The default, "time,delta", is
-    // what v0.24.316 (T-0371) drew.
+    // "time,delta,segment,speed,ch:Health,item:Soda". The default (author
+    // 2026-10-16, T-0400) is time, delta, speed, Health, Stamina, Armor;
+    // OldDefault, "time,delta", is what v0.24.316 (T-0371) to v0.24.333
+    // drew, moved to the new default once by the module.
     // ------------------------------------------------------------------
     public sealed class MarkSpec
     {
-        public const string Default = "time,delta";
+        public const string Default = "time,delta,speed,ch:Health,ch:Stamina,ch:Armor";
+        public const string OldDefault = "time,delta";
         public const string ChannelPrefix = "ch:";
+        public const string ItemPrefix = "item:";
+
+        /// The stats the Runs tab offers (author 2026-10-16, T-0400: a
+        /// short list in runner words, out of the ~80 PlayerStats fields a
+        /// run records). Channel names, confirmed on PlayerStats.
+        public static readonly string[] Stats = { "Health", "Stamina", "Energy", "Fullness", "Thirst", "BodyTemp", "Armor" };
 
         public enum Kind { Off, Dots, Labels }
 
         public Kind Mode = Kind.Labels;
-        public bool Time = true, Delta = true, Segment, Speed;
-        public readonly List<string> Channels = new List<string>();
+        public bool Time = true, Delta = true, Segment, Speed = true;
+        public readonly List<string> Channels = new List<string> { "Health", "Stamina", "Armor" };
+        public readonly List<string> Items = new List<string>();
+
+        /// A channel in the runner's words ("BodyTemp" -> "Body temp").
+        public static string StatName(string channel)
+        {
+            if (string.Equals(channel, "BodyTemp", StringComparison.OrdinalIgnoreCase)) return "Body temp";
+            return channel;
+        }
+
+        /// Armor is left out of a label while it is 0 (author: "armor (if any)").
+        public static bool HiddenAtZero(string channel)
+        {
+            return string.Equals(channel, "Armor", StringComparison.OrdinalIgnoreCase);
+        }
 
         /// A value from the config; anything unreadable gives the default
         /// (a hand-edited file never breaks the lines).
@@ -41,7 +64,8 @@ namespace ForestOverlay.Data
             if (string.Equals(t, "dot", StringComparison.OrdinalIgnoreCase)) { s.Mode = Kind.Dots; return s; }
 
             MarkSpec f = new MarkSpec();
-            f.Time = f.Delta = false;
+            f.Time = f.Delta = f.Speed = false;
+            f.Channels.Clear();
             bool any = false;
             string[] parts = t.Split(',');
             for (int i = 0; i < parts.Length; i++)
@@ -58,6 +82,11 @@ namespace ForestOverlay.Data
                     string name = p.Substring(ChannelPrefix.Length).Trim();
                     if (name.Length > 0 && !f.HasChannel(name)) { f.Channels.Add(name); any = true; }
                 }
+                else if (lower.StartsWith(ItemPrefix) && p.Length > ItemPrefix.Length)
+                {
+                    string name = p.Substring(ItemPrefix.Length).Trim();
+                    if (name.Length > 0 && !f.HasItem(name)) { f.Items.Add(name); any = true; }
+                }
             }
             return any ? f : s;
         }
@@ -72,6 +101,7 @@ namespace ForestOverlay.Data
             if (Segment) sb.Append("segment,");
             if (Speed) sb.Append("speed,");
             for (int i = 0; i < Channels.Count; i++) sb.Append(ChannelPrefix).Append(Channels[i].Replace(",", "")).Append(',');
+            for (int i = 0; i < Items.Count; i++) sb.Append(ItemPrefix).Append(Items[i].Replace(",", "")).Append(',');
             if (sb.Length == 0) return Default;   // no field = never saved by the UI; read as the default
             sb.Length--;
             return sb.ToString();
@@ -95,15 +125,28 @@ namespace ForestOverlay.Data
             if (on) Channels.Add(name);
         }
 
+        /// Item names match exactly, as the run file and ItemCountAt do.
+        public bool HasItem(string name)
+        {
+            return Items.IndexOf(name) >= 0;
+        }
+
+        public void SetItem(string name, bool on)
+        {
+            int at = Items.IndexOf(name);
+            if (!on && at >= 0) Items.RemoveAt(at);
+            else if (on && at < 0) Items.Add(name);
+        }
+
         /// How many fields are chosen (labels mode); the UI keeps at least
         /// one, so "labels with nothing in them" cannot be saved.
         public int FieldCount
         {
-            get { return (Time ? 1 : 0) + (Delta ? 1 : 0) + (Segment ? 1 : 0) + (Speed ? 1 : 0) + Channels.Count; }
+            get { return (Time ? 1 : 0) + (Delta ? 1 : 0) + (Segment ? 1 : 0) + (Speed ? 1 : 0) + Channels.Count + Items.Count; }
         }
 
         /// True when this shows labels and any of them draws text of the
-        /// comparison run's own (time, segment, speed, channels).
+        /// comparison run's own (time, segment, speed, channels, items).
         public bool Labels { get { return Mode == Kind.Labels; } }
     }
 
@@ -154,10 +197,13 @@ namespace ForestOverlay.Data
                     int ch = run.ChannelIndex(spec.Channels[c]);
                     if (ch >= 0 && run.TryStateAt(ch, t, out v) && Real(v))
                     {
-                        s = run.Channels[ch] + " " + v.ToString("0.#", CultureInfo.InvariantCulture);
+                        if (v == 0f && MarkSpec.HiddenAtZero(run.Channels[ch])) continue;
+                        s = MarkSpec.StatName(run.Channels[ch]) + " " + v.ToString("0.#", CultureInfo.InvariantCulture);
                         Add(ref sb, s);
                     }
                 }
+                for (int c = 0; c < spec.Items.Count; c++)
+                    Add(ref sb, spec.Items[c] + " " + run.ItemCountAt(spec.Items[c], t).ToString(CultureInfo.InvariantCulture));
             }
             return sb == null ? "" : sb.ToString();
         }
@@ -183,9 +229,19 @@ namespace ForestOverlay.Data
             {
                 for (int c = 0; c < spec.Channels.Count; c++)
                     if (run.ChannelIndex(spec.Channels[c]) < 0 || run.States.Count == 0)
-                        return "Channel \"" + spec.Channels[c] + "\" is not recorded in this comparison run: left out of its labels.";
+                        return MarkSpec.StatName(spec.Channels[c]) + " is not recorded in this comparison run: left out of its labels.";
             }
             return "";
+        }
+
+        /// The items the comparison run ever held, in the order it first
+        /// got them (the Runs tab's Items list). `into` is cleared first.
+        public static void ItemNames(Attempt run, List<string> into)
+        {
+            into.Clear();
+            if (run == null) return;
+            for (int i = 0; i < run.Items.Count; i++)
+                if (run.Items[i].Count > 0 && into.IndexOf(run.Items[i].Name) < 0) into.Add(run.Items[i].Name);
         }
 
         private static void Add(ref StringBuilder sb, string part)

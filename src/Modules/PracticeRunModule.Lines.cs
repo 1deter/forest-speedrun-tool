@@ -94,7 +94,13 @@ namespace ForestOverlay.Modules
             _lineBySpeedCfg = ctx.Config.Bind("Runs", "RunLineBySpeed", false,
                 "Colour the comparison line along its length by the speed it was run at (green fast, amber, red slow) instead of one colour.");
             _markFieldsCfg = ctx.Config.Bind("Runs", "RunLineCheckpoints", MarkSpec.Default,
-                "What the comparison line's checkpoint markers show: off, dot (dots only), or comma-separated label fields: time, delta, segment, speed, ch:<channel> (e.g. ch:Health).");
+                "What the comparison line's checkpoint markers show: off, dot (dots only), or comma-separated label fields: time, delta, segment, speed, ch:<stat> (e.g. ch:Health), item:<item> (e.g. item:Soda).");
+            // v0.24.316-333's default moves to the new one once (T-0400).
+            if (_markFieldsCfg.Value == MarkSpec.OldDefault)
+            {
+                _markFieldsCfg.Value = MarkSpec.Default;
+                ctx.Log.LogInfo("Run lines: checkpoint labels moved from the old default to " + MarkSpec.Default + ".");
+            }
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
@@ -116,13 +122,19 @@ namespace ForestOverlay.Modules
         private readonly List<string> _markChanLabels = new List<string>();
         private Attempt _markChansFor;
         private int _markChansVer = -1;
+        private readonly List<string> _markItems = new List<string>();
+        private readonly List<string> _markItemLabels = new List<string>();
+        private bool _markItemsOpen;
+        private readonly GUIContent _markItemsFold = new GUIContent("");
         private static readonly GUIContent TipMarks = new GUIContent(
             "What the comparison line's checkpoint markers show: nothing, only the dots, or the dots with a label of the fields you pick.");
         private static readonly GUIContent TipMarkTime = new GUIContent("The comparison run's time at the checkpoint.");
         private static readonly GUIContent TipMarkDelta = new GUIContent("Your time against it, once your run is past the checkpoint (green ahead, red behind).");
         private static readonly GUIContent TipMarkSegment = new GUIContent("How long the comparison run took from the checkpoint before to this one.");
         private static readonly GUIContent TipMarkSpeed = new GUIContent("The comparison run's speed at the checkpoint.");
-        private static readonly GUIContent TipMarkChannel = new GUIContent("A value the comparison run recorded (health, stamina ...) at the checkpoint.");
+        private static readonly GUIContent TipMarkChannel = new GUIContent("The comparison run's value of this stat at the checkpoint.");
+        private static readonly GUIContent TipMarkItem = new GUIContent("How many of this item the comparison run held at the checkpoint.");
+        private static readonly GUIContent TipMarkItems = new GUIContent("Item counts for the label: every item the comparison run held.");
 
         private MarkSpec MarkSettings
         {
@@ -278,9 +290,10 @@ namespace ForestOverlay.Modules
             return y + 4f;
         }
 
-        /// Channels the labels can show: the comparison run's, then any
-        /// chosen one it lacks (so it can still be switched off). Rebuilt
-        /// when the run or the choice changes.
+        /// Stats the labels can show: the short list (MarkSpec.Stats), then
+        /// any chosen one outside it (so it can still be switched off);
+        /// items: the comparison run's, then any chosen one it lacks.
+        /// Rebuilt when the run or the choice changes.
         private void RefreshMarkChannels(MarkSpec sp)
         {
             if (ReferenceEquals(_markChansFor, _reference) && _markChansVer == _markSpecVer) return;
@@ -288,8 +301,7 @@ namespace ForestOverlay.Modules
             _markChansVer = _markSpecVer;
             _markChans.Clear();
             _markChanLabels.Clear();
-            if (_reference != null && _reference.States.Count > 0)
-                for (int i = 0; i < _reference.Channels.Length; i++) _markChans.Add(_reference.Channels[i]);
+            for (int i = 0; i < MarkSpec.Stats.Length; i++) _markChans.Add(MarkSpec.Stats[i]);
             for (int i = 0; i < sp.Channels.Count; i++)
             {
                 bool have = false;
@@ -297,7 +309,14 @@ namespace ForestOverlay.Modules
                     if (string.Equals(_markChans[j], sp.Channels[i], System.StringComparison.OrdinalIgnoreCase)) have = true;
                 if (!have) _markChans.Add(sp.Channels[i]);
             }
-            for (int i = 0; i < _markChans.Count; i++) _markChanLabels.Add(" " + _markChans[i]);
+            for (int i = 0; i < _markChans.Count; i++) _markChanLabels.Add(" " + MarkSpec.StatName(_markChans[i]));
+
+            MarkLabels.ItemNames(_reference, _markItems);
+            for (int i = 0; i < sp.Items.Count; i++)
+                if (_markItems.IndexOf(sp.Items[i]) < 0) _markItems.Add(sp.Items[i]);
+            _markItemLabels.Clear();
+            for (int i = 0; i < _markItems.Count; i++) _markItemLabels.Add(" " + _markItems[i]);
+            _markItemsFold.text = " Items (" + _markItems.Count + ")";
         }
 
         /// A toggle in the wrapping fields row: moves to the next line when
@@ -348,6 +367,27 @@ namespace ForestOverlay.Modules
                     if (v != on) { edit = MarkSpec.Parse(sp.Serialize()); edit.SetChannel(_markChans[c], v); }
                 }
                 y += 24f;
+
+                // Items: folded, a run can hold dozens.
+                if (_markItems.Count > 0)
+                {
+                    Rect fr = new Rect(x0, y, 160, 20);
+                    bool open = UiKit.Toggle(fr, _markItemsOpen, _markItemsFold);
+                    UiKit.Hint(fr, TipMarkItems);
+                    if (open != _markItemsOpen) _markItemsOpen = open;
+                    y += 22f;
+                    if (_markItemsOpen)
+                    {
+                        cx = x0;
+                        for (int c = 0; c < _markItems.Count; c++)
+                        {
+                            bool on = sp.HasItem(_markItems[c]);
+                            v = MarkFieldToggle(ref cx, ref y, x0, right, 34f + 8f * _markItems[c].Length, on, _markItemLabels[c], TipMarkItem);
+                            if (v != on) { edit = MarkSpec.Parse(sp.Serialize()); edit.SetItem(_markItems[c], v); }
+                        }
+                        y += 24f;
+                    }
+                }
                 if (edit != null)
                 {
                     // At least one field: an empty label is "dots only".
