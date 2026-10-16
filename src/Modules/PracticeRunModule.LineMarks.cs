@@ -30,6 +30,7 @@ namespace ForestOverlay.Modules
         private readonly float[] _markTW = new float[CheckpointMarks.Max];            // measured widths, < 0 = measure
         private readonly float[] _markDW = new float[CheckpointMarks.Max];
         private int _markDecimals = -1;
+        private int _markSpecSeen = -1;   // the choice's version the texts were built for
 
         // Per repaint, nearest first (no allocation).
         private readonly int[] _markOrder = new int[CheckpointMarks.Max];
@@ -79,6 +80,13 @@ namespace ForestOverlay.Modules
                 _lines.MarkerCount = _markCount;
             }
 
+            MarkSpec spec = MarkSettings;
+            if (_markSpecSeen != _markSpecVer)
+            {
+                _markSpecSeen = _markSpecVer;
+                _markDecimals = -1;   // the choice moved: every text is rebuilt below
+            }
+
             bool running = _recorder.State == RunRecorder.RunState.Running;
             bool windowed = !_camOn && _showLines && _lineAheadOn.Value;
             float from = running ? _recorder.Elapsed : 0f;
@@ -88,7 +96,9 @@ namespace ForestOverlay.Modules
 
             for (int i = 0; i < _markCount; i++)
             {
-                _lines.MarkerOn[i] = CheckpointMarks.Shown(_markT[i], windowed, from, from + LineAhead);
+                // Off: no dots either (and so no labels).
+                _lines.MarkerOn[i] = spec.Mode != MarkSpec.Kind.Off
+                    && CheckpointMarks.Shown(_markT[i], windowed, from, from + LineAhead);
 
                 // Your delta, once your run is past this split (not while
                 // the replay camera plays: nobody is running then).
@@ -105,11 +115,12 @@ namespace ForestOverlay.Modules
                 }
 
                 bool same = Same(delta, _markDelta[i]) && Same(seg, _markSeg[i]);
-                if (same && !decimalsMoved && _markText[i].text.Length > 0) continue;
+                if (same && !decimalsMoved) continue;
                 _markDelta[i] = delta;
                 _markSeg[i] = seg;
-                _markText[i].text = CheckpointMarks.Text(_markT[i], float.NaN, td, dd);
-                _markDText[i].text = float.IsNaN(delta) ? "" : SplitTable.Delta(delta, dd);
+                // The chosen fields (Data/MarkLabels); "" = that piece is not drawn.
+                _markText[i].text = MarkLabels.LabelText(spec, _reference, _markT, i, td);
+                _markDText[i].text = MarkLabels.DeltaText(spec, delta, dd);
                 // The panel's own rule for a delta's colour.
                 _markColour[i] = SplitTable.ColourOf(delta, seg, float.NaN, float.NaN);
                 _markTW[i] = -1f;
@@ -125,6 +136,7 @@ namespace ForestOverlay.Modules
         {
             _markSource = null;
             _markCount = 0;
+            _markSpecSeen = -1;
             if (_lines != null) _lines.MarkerCount = 0;
         }
 
@@ -133,6 +145,7 @@ namespace ForestOverlay.Modules
         private void DrawLineMarkLabels()
         {
             if (_markCount == 0 || _lines == null || !_lines.Show) return;
+            if (!MarkSettings.Labels) return;
             if (_lines.ReferenceCount - _lines.ReferenceStart < 2 || _lines.ReferenceOpacity <= 0.01f) return;
             Event e = Event.current;
             if (e == null || e.type != EventType.Repaint) return;
@@ -156,6 +169,8 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _markCount; i++)
             {
                 if (!_lines.MarkerOn[i]) { _markHiddenAt[i] = float.NegativeInfinity; continue; }
+                // Nothing chosen has data at this checkpoint: no label.
+                if (_markText[i].text.Length == 0 && _markDText[i].text.Length == 0) continue;
                 float dist = (_lines.MarkerPos[i] - eye).magnitude;
                 float fade = CheckpointMarks.Fade(dist, RunLineBehaviour.DrawDistance, RunLineBehaviour.FadeShare);
                 if (fade <= 0.02f) continue;
@@ -194,10 +209,10 @@ namespace ForestOverlay.Modules
                 _markTop[at] = Screen.height - sp.y - lift - ReplayLabels.LineHeight;
                 if (_markTW[i] < 0f)
                 {
-                    _markTW[i] = _markStyle.CalcSize(_markText[i]).x;
+                    _markTW[i] = _markText[i].text.Length > 0 ? _markStyle.CalcSize(_markText[i]).x : 0f;
                     _markDW[i] = _markDText[i].text.Length > 0 ? _markStyle.CalcSize(_markDText[i]).x : 0f;
                 }
-                _markW[at] = _markTW[i] + (_markDW[i] > 0f ? DeltaGap + _markDW[i] : 0f) + ReplayLabels.Padding;
+                _markW[at] = _markTW[i] + (_markTW[i] > 0f && _markDW[i] > 0f ? DeltaGap : 0f) + _markDW[i] + ReplayLabels.Padding;
                 _markShown[at] = true;
             }
             if (n == 0) return;
@@ -211,12 +226,13 @@ namespace ForestOverlay.Modules
                 // The time, then your delta right after it in the panel's colour;
                 // the pair centred on the dot, each piece wider than its text.
                 float tw = _markTW[m], dw = _markDW[m];
-                float x0 = _markX[s] - (tw + (dw > 0f ? DeltaGap + dw : 0f)) * 0.5f;
-                DrawMarkPiece(x0, _markTop[s], tw, _markH[s], _markText[m], Color.white, a);
+                float gap = tw > 0f && dw > 0f ? DeltaGap : 0f;
+                float x0 = _markX[s] - (tw + gap + dw) * 0.5f;
+                if (tw > 0f) DrawMarkPiece(x0, _markTop[s], tw, _markH[s], _markText[m], Color.white, a);
                 if (dw > 0f)
                 {
                     Color c = SplitPalette[(int)_markColour[m]];
-                    DrawMarkPiece(x0 + tw + DeltaGap, _markTop[s], dw, _markH[s], _markDText[m], c, a);
+                    DrawMarkPiece(x0 + tw + gap, _markTop[s], dw, _markH[s], _markDText[m], c, a);
                 }
             }
         }

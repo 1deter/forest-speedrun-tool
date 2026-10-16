@@ -1,5 +1,7 @@
 using BepInEx.Configuration;
+using System.Collections.Generic;
 using ForestOverlay.Core;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -26,6 +28,7 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _lineAheadOn, _keepFailedCfg, _ghostCfg;
         private ConfigEntry<string> _lineBehindCfg;
         private ConfigEntry<bool> _lineBySpeedCfg;
+        private ConfigEntry<string> _markFieldsCfg;   // what the checkpoint markers show (T-0388)
         private static readonly GUIContent TipLineColour = new GUIContent(
             "The comparison line's colour: one colour, or along its length by the speed it was run at (green fast, amber, red slow).");
         private readonly GUIContent _speedLegend = new GUIContent("");
@@ -90,8 +93,66 @@ namespace ForestOverlay.Modules
                 "Run lines behind plants, rocks and the ground: Hidden (depth-tested), Faint (the hidden parts at a third of the opacity) or Through (drawn fully through).");
             _lineBySpeedCfg = ctx.Config.Bind("Runs", "RunLineBySpeed", false,
                 "Colour the comparison line along its length by the speed it was run at (green fast, amber, red slow) instead of one colour.");
+            _markFieldsCfg = ctx.Config.Bind("Runs", "RunLineCheckpoints", MarkSpec.Default,
+                "What the comparison line's checkpoint markers show: off, dot (dots only), or comma-separated label fields: time, delta, segment, speed, ch:<channel> (e.g. ch:Health).");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
+        }
+
+        // --- the checkpoint markers' choice (T-0388; Data/MarkLabels) ---
+        // One choice for the comparison line; T-0374 (several lines) adds a
+        // per-line override on top of it. Parsed when the config text
+        // changes, so reads cost nothing per frame.
+        private MarkSpec _markSpec = new MarkSpec();
+        private string _markSpecRaw;
+        private int _markSpecVer;
+        private string _markKeepLabels = MarkSpec.Default;   // the fields to come back to from off / dots
+        private string _markNoteText = "";
+        private readonly GUIContent _markNote = new GUIContent("");
+        private readonly GUIContent _markStatus = new GUIContent("");
+        private Attempt _markStatusFor;
+        private int _markStatusVer = -1, _markStatusCount = -1;
+        private readonly List<string> _markChans = new List<string>();
+        private readonly List<string> _markChanLabels = new List<string>();
+        private Attempt _markChansFor;
+        private int _markChansVer = -1;
+        private static readonly GUIContent TipMarks = new GUIContent(
+            "What the comparison line's checkpoint markers show: nothing, only the dots, or the dots with a label of the fields you pick.");
+        private static readonly GUIContent TipMarkTime = new GUIContent("The comparison run's time at the checkpoint.");
+        private static readonly GUIContent TipMarkDelta = new GUIContent("Your time against it, once your run is past the checkpoint (green ahead, red behind).");
+        private static readonly GUIContent TipMarkSegment = new GUIContent("How long the comparison run took from the checkpoint before to this one.");
+        private static readonly GUIContent TipMarkSpeed = new GUIContent("The comparison run's speed at the checkpoint.");
+        private static readonly GUIContent TipMarkChannel = new GUIContent("A value the comparison run recorded (health, stamina ...) at the checkpoint.");
+
+        private MarkSpec MarkSettings
+        {
+            get
+            {
+                string v = _markFieldsCfg == null ? null : _markFieldsCfg.Value;
+                if (!string.Equals(v, _markSpecRaw))
+                {
+                    _markSpecRaw = v;
+                    _markSpec = MarkSpec.Parse(v);
+                    _markSpecVer++;
+                    _markNoteText = "";
+                }
+                return _markSpec;
+            }
+        }
+
+        private void SetMarkSpec(MarkSpec next)
+        {
+            MarkSpec was = MarkSettings;
+            if (was.Labels) _markKeepLabels = was.Serialize();
+            string text = next.Serialize();
+            _markFieldsCfg.Value = text;
+            Ctx.Log.LogInfo("Run lines: checkpoint markers set to " + text + ".");
+        }
+
+        private void SetMarkMode(MarkSpec.Kind mode)
+        {
+            string text = mode == MarkSpec.Kind.Labels ? _markKeepLabels : (mode == MarkSpec.Kind.Off ? "off" : "dot");
+            SetMarkSpec(MarkSpec.Parse(text));
         }
 
         private void SetLineBehind(int i)
@@ -213,7 +274,102 @@ namespace ForestOverlay.Modules
                 WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineAheadText);
                 y += 24f;
             }
+            y = DrawMarkOptions(x, y, w);
             return y + 4f;
+        }
+
+        /// Channels the labels can show: the comparison run's, then any
+        /// chosen one it lacks (so it can still be switched off). Rebuilt
+        /// when the run or the choice changes.
+        private void RefreshMarkChannels(MarkSpec sp)
+        {
+            if (ReferenceEquals(_markChansFor, _reference) && _markChansVer == _markSpecVer) return;
+            _markChansFor = _reference;
+            _markChansVer = _markSpecVer;
+            _markChans.Clear();
+            _markChanLabels.Clear();
+            if (_reference != null && _reference.States.Count > 0)
+                for (int i = 0; i < _reference.Channels.Length; i++) _markChans.Add(_reference.Channels[i]);
+            for (int i = 0; i < sp.Channels.Count; i++)
+            {
+                bool have = false;
+                for (int j = 0; j < _markChans.Count; j++)
+                    if (string.Equals(_markChans[j], sp.Channels[i], System.StringComparison.OrdinalIgnoreCase)) have = true;
+                if (!have) _markChans.Add(sp.Channels[i]);
+            }
+            for (int i = 0; i < _markChans.Count; i++) _markChanLabels.Add(" " + _markChans[i]);
+        }
+
+        /// A toggle in the wrapping fields row: moves to the next line when
+        /// it does not fit (cx / y are advanced); returns its new state.
+        private bool MarkFieldToggle(ref float cx, ref float y, float x0, float right, float wd, bool on, string text, GUIContent tip)
+        {
+            if (cx > x0 && cx + wd > right) { cx = x0; y += 22f; }
+            Rect r = new Rect(cx, y, wd, 20);
+            bool now = UiKit.Toggle(r, on, text);
+            UiKit.Hint(r, tip);
+            cx += wd + 4f;
+            return now;
+        }
+
+        /// Runs -> Run options -> Checkpoints: off / dots only / dots and
+        /// labels, then which fields the labels hold. Returns the new y.
+        private float DrawMarkOptions(float x, float y, float w)
+        {
+            MarkSpec sp = MarkSettings;
+            WinPx.Label(new Rect(x, y, 120, 20), "Checkpoints");
+            UiKit.Hint(new Rect(x, y, 120, 20), TipMarks);
+            MarkSpec.Kind mode = sp.Mode;
+            if (UiKit.Toggle(new Rect(x + 124f, y, 56, 20), mode == MarkSpec.Kind.Off, " off") && mode != MarkSpec.Kind.Off) SetMarkMode(MarkSpec.Kind.Off);
+            if (UiKit.Toggle(new Rect(x + 184f, y, 104, 20), mode == MarkSpec.Kind.Dots, " dots only") && mode != MarkSpec.Kind.Dots) SetMarkMode(MarkSpec.Kind.Dots);
+            if (UiKit.Toggle(new Rect(x + 292f, y, 150, 20), mode == MarkSpec.Kind.Labels, " dots and labels") && mode != MarkSpec.Kind.Labels) SetMarkMode(MarkSpec.Kind.Labels);
+            y += 24f;
+
+            sp = MarkSettings;
+            if (sp.Labels)
+            {
+                RefreshMarkChannels(sp);
+                WinPx.Label(new Rect(x, y, 120, 20), "Label shows");
+                float x0 = x + 124f, right = x + w, cx = x0;
+                MarkSpec edit = null;
+                bool v;
+                v = MarkFieldToggle(ref cx, ref y, x0, right, 76f, sp.Time, " time", TipMarkTime);
+                if (v != sp.Time) { edit = MarkSpec.Parse(sp.Serialize()); edit.Time = v; }
+                v = MarkFieldToggle(ref cx, ref y, x0, right, 80f, sp.Delta, " delta", TipMarkDelta);
+                if (v != sp.Delta) { edit = MarkSpec.Parse(sp.Serialize()); edit.Delta = v; }
+                v = MarkFieldToggle(ref cx, ref y, x0, right, 96f, sp.Segment, " segment", TipMarkSegment);
+                if (v != sp.Segment) { edit = MarkSpec.Parse(sp.Serialize()); edit.Segment = v; }
+                v = MarkFieldToggle(ref cx, ref y, x0, right, 84f, sp.Speed, " speed", TipMarkSpeed);
+                if (v != sp.Speed) { edit = MarkSpec.Parse(sp.Serialize()); edit.Speed = v; }
+                for (int c = 0; c < _markChans.Count; c++)
+                {
+                    bool on = sp.HasChannel(_markChans[c]);
+                    v = MarkFieldToggle(ref cx, ref y, x0, right, 34f + 8f * _markChans[c].Length, on, _markChanLabels[c], TipMarkChannel);
+                    if (v != on) { edit = MarkSpec.Parse(sp.Serialize()); edit.SetChannel(_markChans[c], v); }
+                }
+                y += 24f;
+                if (edit != null)
+                {
+                    // At least one field: an empty label is "dots only".
+                    if (edit.FieldCount == 0) _markNoteText = "Keep at least one field, or choose dots only.";
+                    else { _markNoteText = ""; SetMarkSpec(edit); }
+                }
+            }
+
+            // Why nothing (or less) shows, in words.
+            int splits = _reference != null && _reference.Splits != null ? _reference.Splits.Length : 0;
+            if (!ReferenceEquals(_markStatusFor, _reference) || _markStatusVer != _markSpecVer || _markStatusCount != _markCount)
+            {
+                _markStatusFor = _reference; _markStatusVer = _markSpecVer; _markStatusCount = _markCount;
+                _markStatus.text = MarkLabels.Status(sp, _reference, _markCount, splits);
+            }
+            if (_markStatus.text.Length > 0) y += UiText.Draw(x, y, w, _markStatus) + 2f;
+            if (_markNoteText.Length > 0)
+            {
+                if (_markNote.text != _markNoteText) _markNote.text = _markNoteText;
+                y += UiText.Draw(x, y, w, _markNote) + 2f;
+            }
+            return y;
         }
 
         /// Ghost and replay's look: the ghost's switch and shape, then the
