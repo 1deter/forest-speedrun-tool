@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.320 - 2026-10-16
+
+- Overlay text (HUD column, placed values, big timer, splits, results, input overlay) now has the same thin dark outline as the game's own bottom-left messages, so it stays readable over bright sky and snow.
+
 ## v0.24.319 - 2026-10-16
 
 - The collision view now really follows the replay camera (v0.24.318 listed this but shipped without it): watching a run shows the colliders along the route, including the Labskip jumping section's invisible platforms.
