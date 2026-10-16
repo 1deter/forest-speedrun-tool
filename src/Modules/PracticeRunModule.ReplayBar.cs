@@ -26,6 +26,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _barInfo = new GUIContent("");
         // The watched run's health / stamina / speed at the playhead (T-0386).
         private readonly GUIContent _barStats = new GUIContent("");
+        private readonly ReplayStats.Cache _statsCache = new ReplayStats.Cache();
         private static readonly GUIContent BarHint = new GUIContent(
             "Click or drag the timeline to seek. Keys: Space play / pause, Left / Right 1 s (Shift 5 s), " +
             "Up / Down speed, 1 2 3 or V view, R from the start, Esc stops.");
