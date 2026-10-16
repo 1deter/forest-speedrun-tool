@@ -2,6 +2,20 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-17 (T-0400 session handoff)
+
+- **2026-10-16 (run R-0017, author present):** 4 confirmed. v0.24.330
+  T-0386 (replay bar health / stamina / speed), v0.24.331 T-0397 (run
+  armed on the practice tick keeps stat names), v0.24.332 T-0387
+  (first-person replay arms, changes-only anim track ~50 KB/min, picked
+  from a live 30/10 Hz/changes comparison) + T-0399 (16 MB run uploads,
+  site 20 MB on /api/runs; released, waits for a real long upload),
+  v0.24.333 T-0388 (choose checkpoint marker fields). Parked by forest-ux
+  for the author: T-0400 (82 raw channel toggles), T-0401, T-0402.
+  Filed T-0398. T-0390 given back (built 9be94c08, reverted on main; needs
+  a bridge proof of GetIndexCount on collision meshes). Stopped early:
+  the author needed the computer.
+
 ## Moved out 2026-10-16 (run R-0016 handoff)
 
 - **2026-10-16 (chain C-0001, run R-0015, unattended):** 3 rounds, 0

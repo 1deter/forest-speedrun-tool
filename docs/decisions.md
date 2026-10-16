@@ -109,6 +109,10 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   Unattended work parks the task with the question written out
   (docs/harness.md *Ground rule*); new features are built with the
   author present, and questions are welcome (they can spark ideas).
+- **A full UI / UX overview comes once most features are shipped**
+  (author, 2026-10-17, T-0405): until then forest-ux findings on a new
+  feature get small fixes; layout rethinks (deeper levels, where a
+  control lives) wait for that overview.
 
 - **Subagent models, effort and turn caps** (author, 2026-10-07, T-0113):
   forest-checker runs Sonnet on high effort (the only independent

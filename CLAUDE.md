@@ -157,17 +157,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (run R-0017, author present):** 4 confirmed. v0.24.330
-  T-0386 (replay bar health / stamina / speed), v0.24.331 T-0397 (run
-  armed on the practice tick keeps stat names), v0.24.332 T-0387
-  (first-person replay arms, changes-only anim track ~50 KB/min, picked
-  from a live 30/10 Hz/changes comparison) + T-0399 (16 MB run uploads,
-  site 20 MB on /api/runs; released, waits for a real long upload),
-  v0.24.333 T-0388 (choose checkpoint marker fields). Parked by forest-ux
-  for the author: T-0400 (82 raw channel toggles), T-0401, T-0402.
-  Filed T-0398. T-0390 given back (built 9be94c08, reverted on main; needs
-  a bridge proof of GetIndexCount on collision meshes). Stopped early:
-  the author needed the computer. **Next:** a fresh session, `loop.py begin`.
+- **2026-10-17 (session, author present):** v0.24.334 T-0400 confirmed
+  (checkpoint labels: 7 stats in runner words + the run's items, new
+  default time / delta / speed / Health / Stamina / Armor, moved once;
+  smoke PASS). Answered: T-0400..T-0402, T-0405..T-0407 (T-0401 / T-0402
+  / T-0406 / T-0407 ready to build). Filed T-0403 (bridge spot select -
+  the line's labels were not seen in game), T-0404, T-0408 (forest-ux).
+  Earlier: R-0017 (v0.24.330-333), docs/session-log.md. **Next:** a
+  fresh session, `tasks.py next` (T-0391 Esc tile is answered).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
