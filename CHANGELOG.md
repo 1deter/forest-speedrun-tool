@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.315 - 2026-10-16
+
+- Views: mesh colliders (cliffs, cave walls, the plane hull) now show their real shape as wireframes instead of boxes. A mesh that cannot be drawn keeps its box, and the Views tab says how many and why.
+
 ## v0.24.314 - 2026-10-16
 
 - Map tab: each spot category gets its own colour, in legend order, so no two categories share one until there are more than 8. A category's colour can change when categories are added or removed.
