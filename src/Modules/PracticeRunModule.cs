@@ -1050,6 +1050,7 @@ namespace ForestOverlay.Modules
             _lines.CurrentCount = _currentLine.Count;
             _lines.FailedLine = _failedLine.Points;
             _lines.FailedCount = _showLines && _keepFailedCfg.Value ? _failedLine.Count : 0;
+            UpdateLineMarks();
 
             _lines.HasGhost = false;
             if (_reference != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
@@ -1071,6 +1072,7 @@ namespace ForestOverlay.Modules
             _lines.CurrentCount = 0;
             _lines.FailedCount = 0;
             _lines.HasGhost = false;
+            ClearLineMarks();
             _lineSource = null;
             _referenceLine.Clear();
             _currentLine.Clear();
