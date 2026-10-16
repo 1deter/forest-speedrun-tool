@@ -37,7 +37,7 @@ namespace ForestOverlay.Modules
         /// and no F2 window is open: the window owns the screen then.
         private bool BarShowing
         {
-            get { return _camOn && _reference != null && (Host == null || !Host.AnyPanelOpen()); }
+            get { return _camOn && _reference != null && Host != null && Host.UiVisible && !Host.AnyPanelOpen(); }
         }
 
         /// From DrawScreen, inside the scaled matrix.
@@ -163,7 +163,7 @@ namespace ForestOverlay.Modules
             }
 
             // Checkpoints the watched run reached (its end is the timeline's end).
-            float[] cps = _reference.Splits;
+            float[] cps = ReplayBar.TickTimes(_reference.Splits, SplitRows);
             if (cps != null)
             {
                 GUI.color = BarCheckpoint;

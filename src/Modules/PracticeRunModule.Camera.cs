@@ -201,6 +201,7 @@ namespace ForestOverlay.Modules
             }
 
             float dt = Time.unscaledDeltaTime;
+            if (!BarShowing) _barScrub = false;   // hidden mid-drag: never leave the clock held
             if (!_barScrub) _clock.Advance(dt);   // held still while the playhead is dragged
 
             GhostPose g;

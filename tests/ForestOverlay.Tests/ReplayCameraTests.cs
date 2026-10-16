@@ -400,5 +400,14 @@ namespace ForestOverlay.Tests
             Assert.Equal(3, ReplayBar.FocusRow(current, new float[] { 1f, 2f, 3f, 4f }, 4));
             Assert.Equal(0, ReplayBar.FocusRow(null, new float[] { float.NaN, float.NaN }, 2));
         }
+
+        [Fact]
+        public void TicksOnlyForOneSplitPerCheckpoint()
+        {
+            float[] s = { 1f, 2f };
+            Assert.Same(s, ReplayBar.TickTimes(s, 3));
+            Assert.Null(ReplayBar.TickTimes(s, 4));
+            Assert.Null(ReplayBar.TickTimes(null, 3));
+        }
     }
 }
