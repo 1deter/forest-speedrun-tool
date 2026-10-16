@@ -87,6 +87,7 @@ namespace ForestOverlay.Modules
         private float _mx, _my;
         private readonly float[] _trailX = new float[TrailMax], _trailY = new float[TrailMax], _trailT = new float[TrailMax];
         private int _trailHead, _trailCount;
+        private bool _mouseMoved;   // this frame's raw mouse delta was non-zero (Only while pressed hides a still mouse box)
         private float _lastTx, _lastTy;
         private bool _axisBroken;
         private bool _axisTold;
@@ -313,6 +314,7 @@ namespace ForestOverlay.Modules
             bool live = editing || !Cursor.visible;
             if (_capturing) CaptureKey();
 
+            _mouseMoved = false;
             float scroll = live ? Input.mouseScrollDelta.y : 0f;
             for (int i = 0; i < _states.Count; i++)
             {
@@ -360,13 +362,14 @@ namespace ForestOverlay.Modules
                     else if (s.Tile.Key == InputLayout.WheelKey) down = scroll != 0f;
                 }
                 s.Active = down;
-                if (_onlyPressed.Value && !editing && !s.Special) { s.LitUntil = 0f; s.Level = down ? 1f : 0f; continue; }   // frame-true: no latch, no animation
+                if (_onlyPressed.Value && !editing && (!s.Special || s.Tile.Key == InputLayout.WheelKey)) { s.LitUntil = 0f; s.Level = down ? 1f : 0f; continue; }   // frame-true: no latch, no animation
                 if (down) s.LitUntil = now + MinLit;
                 bool lit = down || now < s.LitUntil;
                 if (lit) s.Level = Mathf.Min(1f, s.Level + dt / RiseTime);
                 else s.Level = Mathf.Max(0f, s.Level - dt / FallTime);
             }
             if (HasShownMouseBox()) SampleMouse(live, now, useActions);
+            if (_onlyPressed.Value && !editing && !_mouseMoved) _trailCount = 0;   // hidden while still: the old path never comes back
         }
 
         private bool HasShownMouseBox()
@@ -402,6 +405,7 @@ namespace ForestOverlay.Modules
                 return;
             }
             if (dx == 0f && dy == 0f) return;
+            _mouseMoved = true;
             _mx = Wrap(_mx + dx * MouseGain);
             _my = Wrap(_my - dy * MouseGain);   // up on the mouse is up on the screen
             // A point only once the mouse has gone a little way from the last one,
@@ -592,7 +596,7 @@ namespace ForestOverlay.Modules
                     if (!s.Valid) continue;
                     bool hidden = !s.Tile.Shown;
                     if (hidden && !editing) continue;
-                    if (!editing && _onlyPressed.Value && !s.Special && !s.Active) continue;   // vanish: nothing on screen while not pressed
+                    if (!editing && _onlyPressed.Value && (!s.Special || s.Tile.Key == InputLayout.WheelKey ? !s.Active : s.Tile.Key == InputLayout.MouseKey && !_mouseMoved)) continue;   // vanish: nothing on screen while not pressed
                     DrawTile(s, hidden, editing, now, before);
                     if (editing) Host.Hud.Widgets.ReportPiece(s.SnapId, s.Rect);
                 }
@@ -605,7 +609,7 @@ namespace ForestOverlay.Modules
         {
             float a = hidden ? 0.35f : s.Dead ? 0.5f : 1f;   // a key with no game action is dimmed
             float level = s.Level;
-            float pop = _onlyPressed.Value && !editing && !s.Special ? 0f : PopAmount * level;
+            float pop = _onlyPressed.Value && !editing && (!s.Special || s.Tile.Key == InputLayout.WheelKey) ? 0f : PopAmount * level;
             Rect r = s.Rect;
             r = new Rect(r.x - r.width * pop * 0.5f, r.y - r.height * pop * 0.5f, r.width * (1f + pop), r.height * (1f + pop));
 
@@ -843,7 +847,7 @@ namespace ForestOverlay.Modules
             "drag it to move it, right-click it to hide or show it. Nothing shows while a cursor is on screen.");
         private static readonly GUIContent OnlyPressedText = new GUIContent("Only while pressed");
         private static readonly GUIContent OnlyPressedAbout = new GUIContent(
-            "A key or button tile is drawn only while it is held, exactly as pressed, and not at all otherwise. The mouse box and the wheel are not changed. This window still shows every tile so you can place them.");
+            "A key or button tile is drawn only while it is held, exactly as pressed, and not at all otherwise. The mouse box is drawn only on frames the mouse moves and the wheel only on frames it scrolls. This window still shows every tile so you can place them.");
         private static readonly GUIContent AddKeyText = new GUIContent("+ Key");
         private static readonly GUIContent AddKeyWaiting = new GUIContent("Press a key...");
         private static readonly GUIContent AddKeyTip = new GUIContent(
