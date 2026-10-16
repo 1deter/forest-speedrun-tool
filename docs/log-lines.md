@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-245 prefixes from 807 log calls.
+245 prefixes from 808 log calls.
 
 ## `ActionReaders`
 
@@ -725,6 +725,7 @@ Written by InputOverlayModule.cs; info / warning.
 - info `Inputs: <..>.`
 - info `Inputs: key <s.Tile.Key> has <total> game actions, the tile shows the first <s.Count>.`
 - info `Inputs: layout reset to the default.`
+- info `Inputs: mouse style <..>`
 - info `Inputs: only-pressed mode <..>.`
 - info `Inputs: source <..>`
 - warning `Inputs: the mouse box cannot read the mouse (<ex.Message>) - it stays still.`
