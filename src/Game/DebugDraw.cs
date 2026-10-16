@@ -146,22 +146,49 @@ namespace ForestOverlay.Game
         // GL.wireframe + Graphics.DrawMeshNow, after the GL lines. A convex
         // collider collides as the hull of this mesh. MeshVertexBudget caps
         // the vertices drawn in one frame; past it a mesh shows its bounds.
+        // A mesh with no vertices or no GPU buffer shows its bounds too:
+        // checked once per mesh on the refresh throttle (CheckMesh), as
+        // GetNativeVertexBufferPtr waits for the render thread; a mesh not
+        // checked yet is a box until it is (counted in neither reason).
         private const int MeshVertexBudget = 600000;
+        private const int ChecksPerRefresh = 16;
+        private const int MaxChecked = 20000;
+        private static readonly Dictionary<int, bool> _drawable = new Dictionary<int, bool>();
+        private int _checksLeft;
         private Material _meshMaterial;
         private readonly List<MeshCollider> _meshDraws = new List<MeshCollider>();
         private int _meshVerts;
         private static int _lines;
 
-        /// Mesh colliders drawn as their bounds box in the last draw (over
-        /// the frame's vertex budget).
+        /// Mesh colliders drawn as their bounds box in the last draw: over
+        /// the frame's vertex budget, and with no mesh / vertices / GPU buffer.
         public int MeshBoxesLarge { get; private set; }
+        public int MeshBoxesUndrawable { get; private set; }
+
+        // Refresh throttle: is this mesh drawable from its GPU copy?
+        private void CheckMesh(MeshCollider mc)
+        {
+            Mesh mesh = mc.sharedMesh;
+            if (mesh == null) return;
+            int id = mesh.GetInstanceID();
+            if (_drawable.ContainsKey(id) || _checksLeft <= 0) return;
+            _checksLeft--;
+            if (_drawable.Count >= MaxChecked) _drawable.Clear();
+            bool ok;
+            try { ok = mesh.vertexCount > 0 && mesh.GetNativeVertexBufferPtr(0) != IntPtr.Zero; }
+            catch (Exception) { ok = false; }
+            _drawable[id] = ok;
+        }
 
         // Draw, GL pass: queue the mesh for the wireframe pass. False = draw
         // the bounds instead.
         private bool QueueMesh(MeshCollider mc)
         {
             Mesh mesh = mc.sharedMesh;
-            if (mesh == null) return false;
+            if (mesh == null) { MeshBoxesUndrawable++; return false; }
+            bool ok;
+            if (!_drawable.TryGetValue(mesh.GetInstanceID(), out ok)) return false;   // not checked yet
+            if (!ok) { MeshBoxesUndrawable++; return false; }
             int n = mesh.vertexCount;
             if (_meshVerts + n > MeshVertexBudget) { MeshBoxesLarge++; return false; }
             _meshVerts += n;
@@ -196,7 +223,11 @@ namespace ForestOverlay.Game
                         _meshMaterial.SetColor("_Color", want == 1 ? TriggerColour : SolidColour);
                         _meshMaterial.SetPass(0);
                     }
-                    Graphics.DrawMeshNow(mesh, pull * mc.transform.localToWorldMatrix);
+                    // Every submesh: the collider uses them all, the
+                    // two-argument DrawMeshNow only the first.
+                    Matrix4x4 m = pull * mc.transform.localToWorldMatrix;
+                    int subs = mesh.subMeshCount;
+                    for (int s = 0; s < subs; s++) Graphics.DrawMeshNow(mesh, m, s);
                 }
             }
             finally { GL.wireframe = was; }
@@ -251,6 +282,13 @@ namespace ForestOverlay.Game
 
                 _found.Add(c);
                 if (ranks) Largest.Add(name, largest);
+            }
+
+            _checksLeft = ChecksPerRefresh;
+            for (int i = 0; i < _found.Count; i++)
+            {
+                MeshCollider mc = _found[i] as MeshCollider;
+                if (mc != null) CheckMesh(mc);
             }
         }
 
@@ -310,6 +348,7 @@ namespace ForestOverlay.Game
             _meshVerts = 0;
             _meshDraws.Clear();
             MeshBoxesLarge = 0;
+            MeshBoxesUndrawable = 0;
 
             Matrix4x4 pull = Matrix4x4.identity;
             if (Occlude)

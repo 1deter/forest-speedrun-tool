@@ -85,7 +85,7 @@ namespace ForestOverlay.Modules
         private string _sizeLabel = "";
         private string _hiddenLabel = "";
         private string _meshBoxLabel = "";
-        private int _builtMeshLarge = -1;
+        private int _builtMeshLarge = -1, _builtMeshUndrawable = -1;
         private readonly string[] _largestLabels = new string[5];
         private readonly string[] _largestNames = new string[5];
         private int _largestCount;
@@ -460,12 +460,13 @@ namespace ForestOverlay.Modules
             _hiddenLabel = "Hidden: " + _draw.HiddenBySize + " by size, " +
                            _draw.HiddenByName + " by name";
 
-            int ml = _draw.MeshBoxesLarge;
-            if (ml != _builtMeshLarge)
+            int ml = _draw.MeshBoxesLarge, mu = _draw.MeshBoxesUndrawable;
+            if (ml != _builtMeshLarge || mu != _builtMeshUndrawable)
             {
                 _builtMeshLarge = ml;
-                _meshBoxLabel = ml == 0 ? "" :
-                    ml + " mesh colliders shown as boxes (too much mesh to draw in one frame)";
+                _builtMeshUndrawable = mu;
+                _meshBoxLabel = ml + mu == 0 ? "" :
+                    (ml + mu) + " mesh colliders shown as boxes (" + mu + " mesh not drawable, " + ml + " too much mesh this frame)";
             }
 
             LargestList l = _draw.Largest;
@@ -602,7 +603,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
             y += UiText.Draw(12, y, w - 24, "The body is held still while it is on.");
-            y += UiText.Draw(12, y, w - 24, "Boxes, spheres, capsules and meshes show their real shape (a convex mesh collides as its hull); past the draw budget a mesh shows its bounds.") + 4f;
+            y += UiText.Draw(12, y, w - 24, "Boxes, spheres, capsules and meshes show their real shape (a convex mesh collides as its hull); a mesh that cannot be drawn, or past the draw budget, shows its bounds.") + 4f;
 
             _contentHeight = y;
             WinPx.EndScrollView();
