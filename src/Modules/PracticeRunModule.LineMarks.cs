@@ -42,6 +42,12 @@ namespace ForestOverlay.Modules
         private readonly bool[] _markShown = new bool[CheckpointMarks.Max];
         private GUIStyle _markStyle, _markShadow;
 
+        // Is the dot hidden from the camera by scenery (T-0370): cached per
+        // label, rechecked a few times a second so it does not flicker.
+        private readonly bool[] _markHidden = new bool[CheckpointMarks.Max];
+        private readonly float[] _markHiddenAt = new float[CheckpointMarks.Max];
+        private const float HiddenEvery = 0.25f;
+
         /// From UpdateLines: the markers' places (when the comparison
         /// changes), which show, and their texts (when a delta, the
         /// decimals or the ahead-only stretch changes).
@@ -149,12 +155,30 @@ namespace ForestOverlay.Modules
             int n = 0;
             for (int i = 0; i < _markCount; i++)
             {
-                if (!_lines.MarkerOn[i]) continue;
+                if (!_lines.MarkerOn[i]) { _markHiddenAt[i] = float.NegativeInfinity; continue; }
                 float dist = (_lines.MarkerPos[i] - eye).magnitude;
                 float fade = CheckpointMarks.Fade(dist, RunLineBehaviour.DrawDistance, RunLineBehaviour.FadeShare);
                 if (fade <= 0.02f) continue;
                 Vector3 sp = cam.WorldToScreenPoint(_lines.MarkerPos[i]);
                 if (sp.z <= 0f || sp.x < -100f || sp.x > Screen.width + 100f || sp.y < -50f || sp.y > Screen.height + 50f) continue;
+
+                // Behind things: Hidden drops a label whose dot is behind
+                // scenery, Faint dims it, Drawn through shows it as ever.
+                float shade = 1f;
+                if (_lines.Behind != RunLineBehaviour.BehindThrough)
+                {
+                    float now = Time.unscaledTime;
+                    if (now - _markHiddenAt[i] >= HiddenEvery || now < _markHiddenAt[i])
+                    {
+                        _markHiddenAt[i] = now;
+                        _markHidden[i] = SightCheck.Blocked(eye, _lines.MarkerPos[i]);
+                    }
+                    if (_markHidden[i])
+                    {
+                        if (_lines.Behind == RunLineBehaviour.BehindHidden) continue;
+                        shade = RunLineBehaviour.FaintShare;
+                    }
+                }
 
                 int at = n++;
                 while (at > 0 && _markDist[at - 1] > dist)
@@ -164,7 +188,7 @@ namespace ForestOverlay.Modules
                 }
                 _markOrder[at] = i;
                 _markDist[at] = dist;
-                _markFade[at] = fade;
+                _markFade[at] = fade * shade;
                 _markX[at] = sp.x;
                 _markH[at] = ReplayLabels.LineHeight;
                 _markTop[at] = Screen.height - sp.y - lift - ReplayLabels.LineHeight;

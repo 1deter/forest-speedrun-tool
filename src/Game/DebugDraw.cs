@@ -1161,4 +1161,24 @@ namespace ForestOverlay.Game
             catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDestroy", ex); }
         }
     }
+
+    /// Is the straight line from the camera to a point blocked by
+    /// scenery (T-0370: the run lines' checkpoint labels follow "Behind
+    /// things"). One non-allocating line check; solid colliders only
+    /// (triggers ignored). The end stops a little short of the point and
+    /// the point is lifted, so the ground a dot sits on does not count.
+    public static class SightCheck
+    {
+        private const float Lift = 0.3f, Short = 0.3f;
+
+        public static bool Blocked(Vector3 eye, Vector3 point)
+        {
+            Vector3 to = point + Vector3.up * Lift;
+            Vector3 d = to - eye;
+            float len = d.magnitude;
+            if (len <= Short + 0.01f) return false;
+            Vector3 end = eye + d * ((len - Short) / len);
+            return Physics.Linecast(eye, end, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        }
+    }
 }
