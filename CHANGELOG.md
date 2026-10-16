@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.323 - 2026-10-16
+
+- The input overlay's mouse path now runs right up to the box edge when the mouse wraps, and continues from the opposite edge instead of leaving a gap.
+
 ## v0.24.322 - 2026-10-16
 
 - Adding a key to the input overlay (Edit HUD, + Key) no longer also runs that key's overlay hotkey (R, F2, F6, F9, F12 and the rest).
