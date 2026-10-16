@@ -157,19 +157,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-16 (chain C-0001, run R-0013, unattended):** 5 rounds, 4
-  progressed. v0.24.317 T-0369 (replay bar; timer / splits follow the
-  replay; ticks + mouse seek unchecked), v0.24.319 T-0389 confirmed (not
-  a T-0367 regression: the collision view centred on the player held by
-  the replay camera, gotcha 116; v0.24.318 shipped without the merge,
-  gotcha 118), v0.24.320 T-0335 (8-way dark outline on all overlay text,
-  like the game's NGUI Outline8; popped-out panel / big timer shots
-  due), v0.24.321 T-0361 (input overlay Game input / Raw input, labels
-  the function performed; worktree built a stale plan first, gotcha
-  117). Parked: T-0370 (built on `pending/T-0370`, reverted on main:
-  checkpoint labels follow Behind things?), T-0390 (mesh-draws-nothing
-  fallback, keep?), T-0391 (Esc tile in game input). **Next:** the
-  chain's next run (`loop.py chain next`).
+- **2026-10-16 (chain C-0001, run R-0014, unattended):** 5 rounds, 3
+  progressed. T-0392 confirmed (`chain next` re-dispatches a run no
+  `begin` followed within 15 min; `chain status` is the read-only look),
+  v0.24.322 T-0375 confirmed (+ Key capture holds plugin hotkeys off,
+  frame-stamped; F6 / F12 not pressed), v0.24.323 T-0380 confirmed
+  (mouse path split at the box edge, `Data/TrailClip`; seen at 1366x768,
+  corner wrap unit-tested only). Parked: T-0372 (speed ramp: which end
+  is fast, how the two lines differ), T-0381 (drag-resize handle).
+  **Next:** the chain's next run (`loop.py chain next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

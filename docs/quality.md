@@ -45,7 +45,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | B | A | A | A | B | T-0207, T-0209 | 2026-10-08 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-14 |
-| Harness | B | A | B | A | B | T-0016, T-0311 | 2026-10-15 |
+| Harness | B | A | B | A | B | T-0016, T-0311 | 2026-10-16 |
 
 Lowest first: Savestates, Practice, Site maps and 3D world, Knowledge (C).
 
