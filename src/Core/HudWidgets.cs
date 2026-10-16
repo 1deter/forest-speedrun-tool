@@ -441,13 +441,14 @@ namespace ForestOverlay.Core
             _rects[i] = rect;
 
             // No card (author, 2026-10-05: transparent, like Momentum Mod) and no
-            // text shadow (author, 2026-10-11, T-0022: plain text for now).
+            // text shadow (author, 2026-10-11, T-0022); the text gets the game's own
+            // dark outline instead (T-0335, CrispText.LabelOutlined).
             if (Editing) WinPx.Box(rect, GUIContent.none, UiKit.WidgetCard);
             float cy = rect.y + CardPad - 1f;
             float cx = rect.x + CardPad;
             if (slots == 0)
             {
-                WinPx.Label(new Rect(cx, cy, width, valueH), NotShowing, st.Label);
+                CrispText.LabelOutlined(new Rect(cx, cy, width, valueH), NotShowing, st.Label, 1f);
             }
             else
             {
@@ -463,10 +464,10 @@ namespace ForestOverlay.Core
                         // The colour only: the glyphs (and the font's texture) stay.
                         Color normal = st.Value.normal.textColor;
                         st.Value.normal.textColor = _settings.TrendColour((TrendState)trend);
-                        WinPx.Label(vr, hud.ValueAt(j), st.Value);
+                        CrispText.LabelOutlined(vr, hud.ValueAt(j), st.Value, 1f / st.ValueScale);
                         st.Value.normal.textColor = normal;
                     }
-                    else WinPx.Label(vr, hud.ValueAt(j), st.Value);
+                    else CrispText.LabelOutlined(vr, hud.ValueAt(j), st.Value, 1f / st.ValueScale);
                     GUI.matrix = m;
                     cy += valueH;
                 }
