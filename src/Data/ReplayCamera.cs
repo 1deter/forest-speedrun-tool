@@ -581,6 +581,14 @@ namespace ForestOverlay.Data
             }
         }
 
+        /// The watched run's checkpoint times for the timeline's ticks: its
+        /// splits when it kept one per checkpoint of a table of `rows`
+        /// (rows - 1), else none (the same trust rule as WatchTimes).
+        public static float[] TickTimes(float[] splits, int rows)
+        {
+            return splits != null && splits.Length == rows - 1 ? splits : null;
+        }
+
         /// The row the splits window centres on: the last one that is the
         /// current row or has a time.
         public static int FocusRow(bool[] current, float[] times, int rows)
