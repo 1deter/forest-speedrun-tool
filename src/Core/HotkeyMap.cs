@@ -48,9 +48,14 @@ namespace ForestOverlay.Core
         /// fire the action it is being bound to.
         public Binding AwaitingRebind;
 
-        /// Set while another panel (the input overlay's + Key) waits for a key press:
-        /// no hotkey runs, like a rebind. The key it takes is passed to Swallow.
-        public bool CapturingKey;
+        // Another panel (the input overlay's + Key) waiting for a key press holds the
+        // hotkeys off like a rebind, by re-asserting HoldCapture every frame. It is a
+        // frame stamp, not a flag: if that module is disabled the hold lapses in two
+        // frames instead of killing every hotkey until restart.
+        private int _captureFrame = -10;
+
+        public void HoldCapture() { _captureFrame = Time.frameCount; }
+        public void ReleaseCapture() { _captureFrame = -10; }
 
         // The key a rebind just consumed. IMGUI delivers the KeyDown event
         // during OnGUI, which runs AFTER Update - so without this, the very
@@ -93,7 +98,7 @@ namespace ForestOverlay.Core
             if (_swallowed != KeyCode.None && !Input.GetKey(_swallowed))
                 _swallowed = KeyCode.None;
 
-            if (AwaitingRebind != null || CapturingKey) return;
+            if (AwaitingRebind != null || Time.frameCount - _captureFrame <= 1) return;
 
             for (int i = 0; i < _bindings.Count; i++)
             {
