@@ -51,19 +51,24 @@ namespace ForestOverlay.Tests
         public void ManySmallMovesFromRestBuildATail()
         {
             // 0.01 of path per frame is under a 0.08 spacing: the origin must not reset each frame.
-            float[] t = new float[4];
-            float lastMove = -100f, now = 10f, ux = 0f, lastC = 0f;
-            int count = 0;
-            for (int f = 0; f < 20; f++)
+            // 0.004 of path per moved frame (a slow move): every frame records a point, the comet never goes dark.
+            float[] x = new float[128], y = new float[128], t = new float[128];
+            float lastMove = -100f, now = 10f, ux = 0f;
+            int head = 0, count = 0;
+            for (int f = 0; f < 60; f++)
             {
-                now += 0.016f;
-                if (CometPath.ShouldRestart(CometPath.Live(t, 0, count, 4, now, 0.4f), now, lastMove, 0.4f)) { ux = 0f; lastC = 0f; }
+                now += 0.03f;
+                if (CometPath.ShouldRestart(CometPath.Live(t, head, count, 128, now, 0.4f), now, lastMove, 0.4f)) { ux = 0f; count = 0; }
                 lastMove = now;
-                ux += 0.01f;
-                if (ux - lastC >= 0.08f) { lastC = ux; count = 1; t[3] = now; }
+                if (!CometPath.IsNewPoint(0.004f, 0f)) continue;
+                ux += 0.004f;
+                x[head] = ux; t[head] = now; head = (head + 1) % 128;
+                if (count < 128) count++;
+                Assert.True(CometPath.Live(t, head, count, 128, now, 0.4f) > 0);   // live on every frame
             }
-            Assert.True(ux > 0.19f);   // it kept accumulating
-            Assert.Equal(1, count);    // and recorded a point
+            Assert.True(ux > 0.2f);
+            Assert.True(CometPath.Live(t, head, count, 128, now, 0.4f) >= 13);   // 0.4 s at 30 ms a frame
+            Assert.False(CometPath.IsNewPoint(0f, 0f));
         }
 
         [Fact]
