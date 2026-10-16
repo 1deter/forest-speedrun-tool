@@ -130,6 +130,9 @@ namespace ForestOverlay.Modules
         private readonly List<string> _markItems = new List<string>();
         private readonly List<string> _markItemLabels = new List<string>();
         private bool _markItemsOpen;
+        private Vector2 _markItemsScroll;
+        private float _markItemsH = 22f;            // the open list's height, last frame
+        private const float MarkItemsMaxH = 3 * 22f; // at most three rows, then it scrolls
         private readonly GUIContent _markItemsFold = new GUIContent("");
         private static readonly GUIContent TipMarks = new GUIContent(
             "What the comparison line's checkpoint markers show: nothing, only the dots, or the dots with a label of the fields you pick.");
@@ -321,7 +324,7 @@ namespace ForestOverlay.Modules
                 if (_markItems.IndexOf(sp.Items[i]) < 0) _markItems.Add(sp.Items[i]);
             _markItemLabels.Clear();
             for (int i = 0; i < _markItems.Count; i++) _markItemLabels.Add(" " + _markItems[i]);
-            _markItemsFold.text = " Items (" + sp.Items.Count + " of " + _markItems.Count + " shown)";
+            _markItemsFold.text = " Items (" + sp.Items.Count + " of " + _markItems.Count + " on the label)";
         }
 
         /// A toggle in the wrapping fields row: moves to the next line when
@@ -383,14 +386,21 @@ namespace ForestOverlay.Modules
                     y += 22f;
                     if (_markItemsOpen)
                     {
-                        cx = x0;
+                        // Three rows at most so the rows below stay on screen.
+                        float viewH = Mathf.Min(_markItemsH, MarkItemsMaxH);
+                        Rect area = new Rect(x0, y, right - x0, viewH);
+                        Rect content = new Rect(0, 0, right - x0 - 18f, _markItemsH);
+                        _markItemsScroll = WinPx.BeginScrollView(area, _markItemsScroll, content);
+                        float iy = 0f, icx = 0f;
                         for (int c = 0; c < _markItems.Count; c++)
                         {
                             bool on = sp.HasItem(_markItems[c]);
-                            v = MarkFieldToggle(ref cx, ref y, x0, right, 34f + 8f * _markItems[c].Length, on, _markItemLabels[c], TipMarkItem);
+                            v = MarkFieldToggle(ref icx, ref iy, 0f, content.width, 34f + 8f * _markItems[c].Length, on, _markItemLabels[c], TipMarkItem);
                             if (v != on) { edit = MarkSpec.Parse(sp.Serialize()); edit.SetItem(_markItems[c], v); }
                         }
-                        y += 24f;
+                        WinPx.EndScrollView();
+                        _markItemsH = iy + 22f;
+                        y += viewH + 4f;
                     }
                 }
                 if (edit != null)
