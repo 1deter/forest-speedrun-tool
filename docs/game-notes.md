@@ -3567,7 +3567,21 @@ Threads, the plugin's texture paths and the live checks:
   (our freecam, the aerial capture) shows them.
 - **Meshes are not readable** (`Mesh.isReadable` false, collision meshes
   too): geometry is read offline from the game's files
-  (`scripts/world-extract.py`, UnityPy). Scene order = BuildSettings:
+  (`scripts/world-extract.py`, UnityPy). **Their GPU copy is there**
+  (T-0367, bridge 2026-10-16): `Mesh.GetNativeVertexBufferPtr(0)` /
+  `GetNativeIndexBufferPtr()` are non-zero on collision-only meshes
+  (cliff caps' `Collision`, convex, 327 verts; `Caves/Cave_10_Collision
+  /Collision`, non-convex, 2,661 verts), and `GL.wireframe` +
+  `Graphics.DrawMeshNow` draws them in the late pass (the Views tab's
+  mesh colliders since T-0367; Hidden/Internal-Colored's `_Color`
+  shows, so a mesh with no vertex colours reads as white).
+  `vertexCount` / `bounds` / `subMeshCount` read fine. Collision objects
+  carry a `MeshFilter` beside the `MeshCollider` (no renderer); 9,333
+  MeshColliders in the main scene, most of them cave collision. The
+  bridge's `find` / `type` radius is the transform's distance, while
+  `Physics.OverlapSphere` goes by bounds: a 70 m `collision_hull`
+  whose pivot is 45 m away is in a 30 m overlap but not in `type
+  MeshCollider 40`. Scene order = BuildSettings:
   level2 ForestMain_v08, 7 endgame_streaming, 10 MainSceneGreebles
   (empty), 11 MainSceneWorldStorySpots, 15-30 the cave prop scenes.
   Meshes live in `sharedassets*.assets`.

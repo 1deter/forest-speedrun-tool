@@ -85,7 +85,7 @@ namespace ForestOverlay.Modules
         private string _sizeLabel = "";
         private string _hiddenLabel = "";
         private string _meshBoxLabel = "";
-        private int _builtMeshLarge = -1, _builtMeshUnread = -1;
+        private int _builtMeshLarge = -1;
         private readonly string[] _largestLabels = new string[5];
         private readonly string[] _largestNames = new string[5];
         private int _largestCount;
@@ -460,13 +460,12 @@ namespace ForestOverlay.Modules
             _hiddenLabel = "Hidden: " + _draw.HiddenBySize + " by size, " +
                            _draw.HiddenByName + " by name";
 
-            int ml = _draw.MeshBoxesLarge, mu = _draw.MeshBoxesUnreadable;
-            if (ml != _builtMeshLarge || mu != _builtMeshUnread)
+            int ml = _draw.MeshBoxesLarge;
+            if (ml != _builtMeshLarge)
             {
                 _builtMeshLarge = ml;
-                _builtMeshUnread = mu;
-                _meshBoxLabel = ml + mu == 0 ? "" :
-                    (ml + mu) + " mesh colliders shown as boxes (" + ml + " too large, " + mu + " not readable)";
+                _meshBoxLabel = ml == 0 ? "" :
+                    ml + " mesh colliders shown as boxes (too much mesh to draw in one frame)";
             }
 
             LargestList l = _draw.Largest;
@@ -603,7 +602,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
             y += UiText.Draw(12, y, w - 24, "The body is held still while it is on.");
-            y += UiText.Draw(12, y, w - 24, "Boxes, spheres, capsules and simple meshes show their real shape; very large or unreadable meshes show their bounds.") + 4f;
+            y += UiText.Draw(12, y, w - 24, "Boxes, spheres, capsules and meshes show their real shape (a convex mesh collides as its hull); past the draw budget a mesh shows its bounds.") + 4f;
 
             _contentHeight = y;
             WinPx.EndScrollView();
