@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.332 - 2026-10-16
+
+- First-person replays show the runner's own arms and held item, including the blend into and out of a swing (runs recorded from this version on).
+- Runs record the arms as changes only, about 50-65 KB per minute; older runs replay as before and the Runs tab says the arms were not recorded.
+- Long runs (about an hour) now upload in full: run files up to 16 MB are accepted, and the upload waits longer on slow connections.
+
 ## v0.24.331 - 2026-10-16
 
 - A run started the moment practice mode turns on now records health and stamina, so its replay shows them.
