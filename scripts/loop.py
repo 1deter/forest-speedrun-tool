@@ -25,8 +25,8 @@ and starts one fresh session per action - a due job (the weekly cleanup) or one 
 (`begin --unattended --chain C-n`: nothing asked, the target only) - and is woken when it ends.
 
     python scripts/loop.py chain begin [--target T-1,T-2 | --area A] [--bridge]
-    python scripts/loop.py chain next [--again]   # the driver's next action: due job, run, wait or STOP
-    python scripts/loop.py chain status           # progress to the target, the days to each due item
+    python scripts/loop.py chain next [--again]   # the driver's next action: due job, run, wait or STOP (records a dispatch)
+    python scripts/loop.py chain status           # read-only: progress to the target, the days to each due item
     python scripts/loop.py chain stop --reason "..."
 
 Stop conditions (author, 2026-10-07): max rounds done (5), nothing left in the
@@ -788,6 +788,15 @@ def cmd_chain_begin(events, tasks, ids=None, area=None, bridge=False, by="main")
     return [e], "\n".join(lines), 0
 
 
+DISPATCH_STALE_MIN = 15  # a run dispatch no `begin` followed by then never started (T-0392: a look stalled the chain)
+
+
+def dispatch_stale(at, current=None):
+    t = datetime.datetime.strptime(at, "%Y-%m-%dT%H:%M:%S")
+    c = datetime.datetime.strptime(current or now(), "%Y-%m-%dT%H:%M:%S")
+    return (c - t).total_seconds() > DISPATCH_STALE_MIN * 60
+
+
 def cmd_chain_next(events, tasks, again=False):
     ch = open_chain(events)
     if not ch:
@@ -803,9 +812,11 @@ def cmd_chain_next(events, tasks, again=False):
                     "`loop.py chain next`" % run["id"]), 0
     rs = chain_runs(events, cid)
     started = [d for d in ch["dispatches"] if d["kind"] == "run"]
-    if started and not again and not any(r["begin"]["at"] >= started[-1]["at"] for r in rs):
+    if (started and not again and not any(r["begin"]["at"] >= started[-1]["at"] for r in rs)
+            and not dispatch_stale(started[-1]["at"])):
         return [], ("wait: a run session was started at %s and has not begun its run. If that session failed to "
-                    "start or ended without `begin`: `loop.py chain next --again`" % started[-1]["at"]), 0
+                    "start or ended without `begin`: `loop.py chain next --again` (after %d min it is stale by "
+                    "itself)" % (started[-1]["at"], DISPATCH_STALE_MIN)), 0
     why = chain_stop_reason(events, tasks, ch)
     if not why:
         done = {d["kind"] for d in ch["dispatches"]}

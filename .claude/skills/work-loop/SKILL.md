@@ -66,7 +66,9 @@ named one; `--bridge` with the game up), then `loop.py chain next` and do
 what it says - a fresh session for a due job or a run (it names the
 start_session settings and the brief), `wait`, or `STOP` - ending the
 turn after each start; when a session's note wakes you, `chain next`
-again. Answer nothing for a run session; at STOP tell the author in one
+again. `chain next` records a dispatch - to only look, `chain status`; a
+run dispatch no `begin` follows within 15 min is stale by itself (T-0392).
+Answer nothing for a run session; at STOP tell the author in one
 line (the summary file is on the Desktop).
 
 **A run of the chain** - the brief says `begin --unattended --chain

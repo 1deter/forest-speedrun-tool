@@ -483,6 +483,13 @@ class Chain(unittest.TestCase):
         self.assertEqual(len(ev), n)
         text, _ = run(ev, L.cmd_chain_next, ts, True)  # --again: that session never began
         self.assertIn("run 1 of chain C-0001", text)
+        ev[-1]["at"] = "2000-01-01T00:00:00"  # a dispatch nobody acted on for 15 min is stale by itself (T-0392)
+        n = len(ev)
+        text, _ = run(ev, L.cmd_chain_next, ts)
+        self.assertIn("run 1 of chain C-0001", text)
+        self.assertEqual((len(ev), ev[-1]["event"]), (n + 1, "chain-dispatch"))
+        self.assertFalse(L.dispatch_stale("2026-10-16T10:00:00", "2026-10-16T10:15:00"))
+        self.assertTrue(L.dispatch_stale("2026-10-16T10:00:00", "2026-10-16T10:15:01"))
         run(ev, L.cmd_begin, ts, 5, False, "main", L.MAX_CONTEXT, True, "C-0001")
         text, _ = run(ev, L.cmd_chain_next, ts)
         self.assertTrue(text.startswith("wait: run R-0001 is open"))
