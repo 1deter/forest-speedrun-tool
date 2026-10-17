@@ -379,11 +379,8 @@ namespace ForestOverlay.Modules
                 // Items: folded, a run can hold dozens.
                 if (_markItems.Count > 0)
                 {
-                    Rect fr = new Rect(x0, y, 240, 20);
-                    bool open = UiKit.Toggle(fr, _markItemsOpen, _markItemsFold);
-                    UiKit.Hint(fr, TipMarkItems);
-                    if (open != _markItemsOpen) _markItemsOpen = open;
-                    y += 22f;
+                    // A chevron header like every other fold, not a tick box (T-0404).
+                    _markItemsOpen = UiKit.Section(x0, ref y, right - x0, "run.markItems", _markItemsFold, null, TipMarkItems, false);
                     if (_markItemsOpen)
                     {
                         // Three rows at most so the rows below stay on screen.
