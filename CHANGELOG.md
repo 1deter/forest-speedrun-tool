@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.336 - 2026-10-17
+
+- Run options > Checkpoints: the Items fold is a chevron header like the other folds, not a tick box (T-0404)
+- Run options > Checkpoints: each stat's tip says what the label prints and when it is left off (Armor at 0); a comparison run with no items says so (T-0408)
+
 ## v0.24.335 - 2026-10-17
 
 - Input overlay (game input): the Esc tile now reads Menu and lights when you press Esc, including the press that opens the pause menu - it shows over the menu while held.
