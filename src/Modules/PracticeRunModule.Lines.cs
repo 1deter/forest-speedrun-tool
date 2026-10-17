@@ -134,13 +134,25 @@ namespace ForestOverlay.Modules
         private float _markItemsH = 22f;            // the open list's height, last frame
         private const float MarkItemsMaxH = 3 * 22f; // at most three rows, then it scrolls
         private readonly GUIContent _markItemsFold = new GUIContent("");
+        /// A stat toggle's tip: what the label prints and the rule behind it (T-0408).
+        private static string MarkChannelTip(string channel)
+        {
+            string name = MarkSpec.StatName(channel);
+            string tip = "Adds \"" + name + " N\" to the label: the comparison run's " + name.ToLowerInvariant()
+                       + " as recorded at the checkpoint, to one decimal. Left off a checkpoint the run recorded no value for.";
+            if (string.Equals(channel, "Armor", System.StringComparison.OrdinalIgnoreCase))
+                tip += " Also left off while it is 0, so a run with no armor shows none.";
+            return tip;
+        }
+
         private static readonly GUIContent TipMarks = new GUIContent(
             "What the comparison line's checkpoint markers show: nothing, only the dots, or the dots with a label of the fields you pick.");
         private static readonly GUIContent TipMarkTime = new GUIContent("The comparison run's time at the checkpoint.");
         private static readonly GUIContent TipMarkDelta = new GUIContent("Your time against it, once your run is past the checkpoint (green ahead, red behind).");
         private static readonly GUIContent TipMarkSegment = new GUIContent("How long the comparison run took from the checkpoint before to this one.");
         private static readonly GUIContent TipMarkSpeed = new GUIContent("The comparison run's speed at the checkpoint.");
-        private static readonly GUIContent TipMarkChannel = new GUIContent("The comparison run's value of this stat at the checkpoint.");
+        private readonly List<GUIContent> _markChanTips = new List<GUIContent>();
+        private static readonly GUIContent TipMarkItemsNone = new GUIContent("No Items fold: the comparison run held no items.");
         private static readonly GUIContent TipMarkItem = new GUIContent("How many of this item the comparison run held at the checkpoint.");
         private static readonly GUIContent TipMarkItems = new GUIContent("Item counts for the label: every item the comparison run held.");
 
@@ -317,7 +329,12 @@ namespace ForestOverlay.Modules
                     if (string.Equals(_markChans[j], sp.Channels[i], System.StringComparison.OrdinalIgnoreCase)) have = true;
                 if (!have) _markChans.Add(sp.Channels[i]);
             }
-            for (int i = 0; i < _markChans.Count; i++) _markChanLabels.Add(" " + MarkSpec.StatName(_markChans[i]));
+            _markChanTips.Clear();
+            for (int i = 0; i < _markChans.Count; i++)
+            {
+                _markChanLabels.Add(" " + MarkSpec.StatName(_markChans[i]));
+                _markChanTips.Add(new GUIContent(MarkChannelTip(_markChans[i])));
+            }
 
             MarkLabels.ItemNames(_reference, _markItems);
             for (int i = 0; i < sp.Items.Count; i++)
@@ -371,13 +388,14 @@ namespace ForestOverlay.Modules
                 for (int c = 0; c < _markChans.Count; c++)
                 {
                     bool on = sp.HasChannel(_markChans[c]);
-                    v = MarkFieldToggle(ref cx, ref y, x0, right, 34f + 8f * _markChans[c].Length, on, _markChanLabels[c], TipMarkChannel);
+                    v = MarkFieldToggle(ref cx, ref y, x0, right, 34f + 8f * _markChans[c].Length, on, _markChanLabels[c], _markChanTips[c]);
                     if (v != on) { edit = MarkSpec.Parse(sp.Serialize()); edit.SetChannel(_markChans[c], v); }
                 }
                 y += 24f;
 
-                // Items: folded, a run can hold dozens.
-                if (_markItems.Count > 0)
+                // Items: folded, a run can hold dozens; none held says so (T-0408).
+                if (_markItems.Count == 0) y += UiText.DrawDim(x0, y, right - x0, TipMarkItemsNone) + 2f;
+                else
                 {
                     // A chevron header like every other fold, not a tick box (T-0404).
                     _markItemsOpen = UiKit.Section(x0, ref y, right - x0, "run.markItems", _markItemsFold, null, TipMarkItems, false);
