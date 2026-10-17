@@ -157,6 +157,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-17 (session 3, low usage):** v0.24.336 T-0404 (Items fold is a
+  chevron header) + T-0408 (stat tips explain the label rules), checker
+  accept both - need in-game confirm. **Next:** confirm T-0391 / T-0404 /
+  T-0408 in game, then `tasks.py next`.
+
 - **2026-10-17 (session 2):** v0.24.335 T-0391 released (Esc tile reads
   'Menu' and lights on the press that opens the pause menu, drawn alone over
   the menu while lit; checker accept, live SendInput proof by main - needs
