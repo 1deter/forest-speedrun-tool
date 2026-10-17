@@ -341,7 +341,7 @@ namespace ForestOverlay.Modules
                 if (_markItems.IndexOf(sp.Items[i]) < 0) _markItems.Add(sp.Items[i]);
             _markItemLabels.Clear();
             for (int i = 0; i < _markItems.Count; i++) _markItemLabels.Add(" " + _markItems[i]);
-            _markItemsFold.text = " Items (" + sp.Items.Count + " of " + _markItems.Count + " on the label)";
+            _markItemsFold.text = "Items (" + sp.Items.Count + " of " + _markItems.Count + " on the label)";
         }
 
         /// A toggle in the wrapping fields row: moves to the next line when
