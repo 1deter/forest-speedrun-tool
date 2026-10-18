@@ -2408,6 +2408,34 @@ next drop -4936214. The bridge's `#handle` is the instance id. In a
 fresh world (after a Full load) the only runtime-made pickups at a scene
 root were those drops; the wreck's (`Hull(Clone)/...`) are children.
 
+**A dropped copy's despawn timer, and making one again (bridge,
+2026-10-18, T-0418).** `destroyAfter` (decompiled): with a positive
+`destroyDistance`, `Start` runs `InvokeRepeating("destroyMe", destroyTime, 10)`, and
+`destroyMe` destroys the root only while the player is over
+`destroyDistance` away. `Stick_Dynamic` / `Rock_Dynamic` have 60 / 20,
+`useUnscaledTime` false. **`OnDisable` cancels the invoke and `Start`
+never runs again**, so a copy that was hidden (taken, kept by
+`PickupKeeper`) and shown again never despawns: live, `IsInvoking
+destroyMe` True before a `PickUp.Collect`, False after it, and still False
+once a Quick load had put the rock back. Live despawn: two copies dropped
+at (428, 78, -4), the player 28 m off; still there 34-46 s after the
+drop, gone within the next 25 s. **`PlayerInventory.FakeDrop(id, null)`** is
+`Object.Instantiate(Item._pickupPrefab ?? view._worldPrefab, held position
++ forward * 1.2, identity)` plus `PlayItemCustomSfx` at the player. The
+inventory drop (`InventoryItemView`, `OnItemDropped`) and `VendingMachine`
+instantiate the same `_pickupPrefab`. **`Object.Instantiate(ItemDatabase.
+ItemById(57)._pickupPrefab)`** (`Items[35]`, a `Transform` named
+`Stick_Dynamic`; Rock `Items[32]`, `Rock_Dynamic`) makes a copy just like a
+drop: the same 8 / 7 components, children, scale, tag and layer, and
+`PickUp` fields (`_itemId` 57, `_amount` 1, `_destroyTarget` the new root).
+Its `destroyAfter` is invoking (a fresh 60 s). `PickUp.Collect` took it
+(stick count 0 -> 1). Made at the prefab's own origin it falls (-38 m/s)
+and keeps that velocity when only `Transform.position` is set (it went
+through the ground). Position plus zeroed `velocity` / `angularVelocity`
+put it to rest within 0.02 m of the captured pose. A Quick load of the
+capture then removed both re-made copies (`removed 2 item(s) made since
+the capture (Stick x1, Rock x1)`): their ids are below the capture's mark.
+
 **Live animals sit at the scene root too (bridge, 2026-10-18, T-0415).**
 `AnimalSpawnController` spawns from `PoolManager.Pools["creatures"]`
 (`Pooling/Pool_Creatures`, `dontReparent` true), so `rabbitGo(Clone)00n`
