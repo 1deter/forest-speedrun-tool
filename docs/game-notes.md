@@ -293,6 +293,33 @@ off: the `DebugConsole` root carries only a Transform), so its
 `_timescale` / `_speedyrun` come with that cheat; a mod or explorer
 setting `Time.timeScale` does not.
 
+All 22 writers (`tools/ILScan refs set_timeScale`, bodies read 2026-10-18):
+
+| Writer | Value | Runs in game? |
+|---|---|---|
+| `PlayMaker.Actions.ScaleTime.DoTimeScale` | the action's FsmFloat | n (in no loaded FSM) |
+| `SlowMoButton.Update` | lerp to `targetTime` (x2 per s) | n (no instance) |
+| `ClearStaticVars.Awake` | 1 | y (scene start) |
+| `HudGui.TogglePauseMenu` | 0 on open (not in multiplayer), 1 on close | y |
+| `UpgradeCleaner.CheckDisassemble` | 1 | y (inside the open inventory) |
+| `UpgradeCleaner.ResetTimeScale` | 0 (not in VR) | y (inside the open inventory) |
+| `InventoryItemView.Update` | 1 (equip from the open inventory) | y |
+| `PlayerInventory.PauseTimeInInventory` | 0 (not in VR) | y |
+| `PlayerInventory.Close` | 1 | y |
+| `MenuMain.OnLoad` | 1 | y (title screen) |
+| `MenuMain.OnExitMenu` | 1 | y (title screen) |
+| `LoadSave.Awake` | 1 | y |
+| `LoadSave.LevelSerializer_Progress` | 0.1 on "Done" | y (a save loading) |
+| `LoadSave.Activation` (iterator) | 1 (step 5) | y |
+| `DebugConsole._timescale` | any float typed | only with `Cheats.DebugConsole` |
+| `DebugConsole._profile` | 1 (off) | only with the console |
+| `DebugConsole.ProfileSetup` (iterator) | 0 | only with the console |
+| `JSONLevelLoader.Load` (iterator) | the value found, 1, `timeScaleAfterLoading` | n (not used) |
+| `LevelLoader.Load` (iterator) | the value found, 1, `timeScaleAfterLoading` | n (not used) |
+| `SteamVR_Render.OnInputFocus` | saved value back / 0 | n (no instance) |
+| `clscameratarget.Awake` | 0 if `vargamtimezero` | n (no instance) |
+| `clscameratarget.metwatchscenario` | 1 | n (no instance) |
+
 **`_speedyrun` does not touch `timeScale`** (IL): `on` starts the
 coroutine `setFastRun`, which sets `LocalPlayer.FpCharacter.runSpeed = 60`
 and `swimmingSpeed = 20` every frame; `off` stops it and writes 9 / 3 (not

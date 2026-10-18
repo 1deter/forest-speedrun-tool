@@ -42,7 +42,7 @@ namespace ForestOverlay.Modules
         private BridgeModule _bridge;
         private DeathModule _death;
         private SavestateModule _savestates;
-        private bool _timeScaleFlagged;     // this attempt's speed flag is raised (once per attempt)
+        private readonly TimeScaleWatch _timeScale = new TimeScaleWatch();   // the time scale episodes of this attempt
         private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
         private bool _loaded;               // last frame: in a loaded game
         private bool _attemptOpen;          // an attempt is running (not reset yet)
@@ -114,11 +114,13 @@ namespace ForestOverlay.Modules
             // short cheat would slip between the once-a-second checks. Not
             // while the plugin drives timeScale itself (savestate action,
             // cutscene fast-forward).
-            if (Ctx.Run.Active && _attemptOpen && loaded && !_timeScaleFlagged &&
-                !(_savestates != null && (_savestates.Busy || _savestates.FastForwarding)))
+            if (Ctx.Run.Active && _attemptOpen)
             {
-                string speed = SpeedCheck.TimeScaleFlag(Time.timeScale);
-                if (speed != null) { _timeScaleFlagged = true; Ctx.Run.Flag(speed); }
+                bool excused = !loaded || (_savestates != null && (_savestates.Busy || _savestates.FastForwarding));
+                string speedEnd;
+                string speed = _timeScale.Frame(Time.timeScale, excused, Time.unscaledDeltaTime, out speedEnd);
+                if (speed != null) Ctx.Run.Flag(speed);
+                if (speedEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedEnd);
             }
             if (_reportDirty) { _reportDirty = false; WriteReport(); }
             TickChain();
@@ -211,7 +213,7 @@ namespace ForestOverlay.Modules
             Ctx.Run.Begin(started, label, cat);
             ResetMoves();
             ResetAudit();
-            _timeScaleFlagged = false;
+            _timeScale.Reset();
             _attemptOpen = true;
 
             _report = new RunReport();
@@ -246,6 +248,8 @@ namespace ForestOverlay.Modules
         {
             FlushMoves();   // a boost still being measured goes into this attempt's log
             FlushAudit();   // items / bursts still being merged, likewise
+            string speedLeft = _timeScale.End();   // a speed change still running when the attempt ends
+            if (speedLeft != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedLeft);
             _attemptOpen = false;
             Ctx.Run.Reset();
             CheckCategoriesSoon();   // a new version is ready for the next attempt

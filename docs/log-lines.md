@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 833 log calls.
+249 prefixes from 835 log calls.
 
 ## `ActionReaders`
 
@@ -1617,6 +1617,8 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: load <_loadsLogged> of <_attemptId>: <span.LengthMs> ms real time, <timed> ms of it on the timer (load-removed time).`
 - info `Run mode: '<s.Name>' (<s.RunCategory>) - starting a run.`
 - warning `Run mode: another mod patched the game during the attempt: <..>.`
+- info `Run mode: attempt <Ctx.Run.Attempt> - <speedEnd>`
+- info `Run mode: attempt <Ctx.Run.Attempt> - <speedLeft>`
 - info `Run mode: attempt <Ctx.Run.Attempt> goes on after Reload save on death.`
 - info `Run mode: attempt <_report.Attempt> ended - <why>; <..>.`
 - info `Run mode: attempt <_report.Attempt> started (<_report.Started>) - practice locked; <..>.`
