@@ -65,7 +65,7 @@ namespace ForestOverlay.Tests
         private static readonly string[] LeanOff =
         {
             "ShowUpdate", "ShowTotalSpeed", "ShowVelocity", "ShowPosition", "ShowItems",
-            "ShowPracticeStatus", "ShowRunDelta", "ShowLoadRemoved", "ShowNextSplit", "ShowLastTime",
+            "ShowPracticeStatus", "ShowRunDelta", "ShowLoadRemoved", "ShowNextSplit", "ShowLastTime", "ShowCave",
         };
 
         [Fact]
