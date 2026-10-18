@@ -238,24 +238,27 @@ def locked(path=TASKS, timeout=None, stale=None):
             pass
 
 
-def atomic_write(path, text, retries=50):
+def atomic_write(path, text, timeout=5.0):
     """Write `text` to a temp file next to `path` and os.replace() it in: a reader sees the
     old file or the new one, never half of it, and a crash leaves the old one. On Windows
-    os.replace raises PermissionError while another process has the file open; retry ~1 s."""
+    os.replace raises PermissionError while another process has the file open; retry for
+    `timeout` seconds, often: a busy reader leaves only short gaps (T-0430: 50 tries 20 ms
+    apart missed them all under load)."""
     tmp = "%s.tmp.%d.%s" % (path, os.getpid(), os.urandom(4).hex())
     try:
         with open(tmp, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
-        for i in range(retries):
+        deadline = time.time() + timeout
+        while True:
             try:
                 os.replace(tmp, path)
                 return
             except PermissionError:
-                if i == retries - 1:
+                if time.time() > deadline:
                     raise
-                time.sleep(0.02)
+                time.sleep(0.002)
     finally:
         if os.path.exists(tmp):
             try:

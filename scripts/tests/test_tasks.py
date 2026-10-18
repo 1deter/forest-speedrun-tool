@@ -703,6 +703,7 @@ n = 0
 while time.time() < end:
     T.load(path)  # parse() raises on a half-written line
     n += 1
+    time.sleep(0.001)  # a gap for os.replace, as any real reader leaves (T-0430)
 print(n)
 """
 
