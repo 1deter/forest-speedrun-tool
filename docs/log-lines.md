@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-251 prefixes from 857 log calls.
+251 prefixes from 858 log calls.
 
 ## `ActionReaders`
 
@@ -54,8 +54,9 @@ Written by DebugViewModule.cs; info.
 ## `AnimalKeeper`
 
 Meaning: A kept animal's health, hurt skin and poison after a Quick load (T-0425): a warning means the animals are left as they are.
-Written by AnimalKeeper.cs; warning.
+Written by AnimalKeeper.cs; info / warning.
 
+- info `AnimalKeeper: a <p.Prefab> with no zone (killed since) is not brought back.`
 - warning `AnimalKeeper: animalHealth.Health not found; animals are left as they are.`
 - warning `AnimalKeeper: bring back failed: <ex.Message>`
 - warning `AnimalKeeper: capture failed: <ex.Message>`

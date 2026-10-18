@@ -191,6 +191,15 @@ namespace ForestOverlay.Data
 
         // ---- the planner ----
 
+        /// The id a live root counts as: its own when the capture holds it,
+        /// else the captured id it stands in for (if any).
+        public static int Resolve(int id, ICollection<int> captured, IDictionary<int, int> standIn)
+        {
+            int mapped;
+            if (captured != null && captured.Contains(id)) return id;
+            return standIn != null && standIn.TryGetValue(id, out mapped) ? mapped : id;
+        }
+
         /// `liveIds`: the instance ids of the live zone animals now. `standIn`
         /// maps an id made since (a new root the pool gave) to the captured id
         /// it stands for; may be null.
@@ -204,9 +213,7 @@ namespace ForestOverlay.Data
             {
                 foreach (int live in liveIds)
                 {
-                    int id = live;
-                    int mapped;
-                    if (!cap.Contains(id) && standIn != null && standIn.TryGetValue(live, out mapped)) id = mapped;
+                    int id = Resolve(live, cap, standIn);
                     if (cap.Contains(id) && seen.Add(id)) plan.Move.Add(id);
                     else plan.Despawn.Add(live);
                 }

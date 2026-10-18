@@ -340,10 +340,25 @@ namespace ForestOverlay.Game
             }
         }
 
+        // The ids the file being restored holds; a root with one of them
+        // counts as itself, whatever an older restore's stand-in map says.
+        private static readonly HashSet<int> CapIds = new HashSet<int>();
+
         private static int Mapped(int id)
         {
-            int m;
-            return StandIn.TryGetValue(id, out m) ? m : id;
+            return AnimalSpawns.Resolve(id, CapIds, StandIn);
+        }
+
+        private static void ReadCapIds(string line, string posesLine, string zonesLine)
+        {
+            CapIds.Clear();
+            List<AnimalStates.Entry> es = AnimalStates.Parse(line);
+            for (int i = 0; i < es.Count; i++) CapIds.Add(es[i].Id);
+            List<AnimalSpawns.Pose> ps = AnimalSpawns.ParsePoses(posesLine);
+            for (int i = 0; i < ps.Count; i++) CapIds.Add(ps[i].Id);
+            List<AnimalSpawns.ZoneState> zs = AnimalSpawns.ParseZones(zonesLine);
+            for (int i = 0; i < zs.Count; i++)
+                for (int k = 0; k < zs[i].Ids.Count; k++) CapIds.Add(zs[i].Ids[k]);
         }
 
         private static void PruneStandIns()
@@ -383,7 +398,12 @@ namespace ForestOverlay.Game
         /// Brings one captured animal back; true when it stands again.
         private bool BringBack(List<object> pools, AnimalSpawns.Pose p, Array zoneArr)
         {
-            if (p.Zone < 0 || zoneArr == null || p.Zone >= zoneArr.Length) return false;
+            if (p.Zone < 0)
+            {
+                _log.LogInfo("AnimalKeeper: a " + p.Prefab + " with no zone (killed since) is not brought back.");
+                return false;
+            }
+            if (zoneArr == null || p.Zone >= zoneArr.Length) return false;
             Component zone = zoneArr.GetValue(p.Zone) as Component;
             if (zone == null) return false;
             for (int i = 0; i < pools.Count; i++)
@@ -430,16 +450,14 @@ namespace ForestOverlay.Game
             return _ctrlCache;
         }
 
-        private void Despawn(Component ah)
+        // Zone animals only (they have an AnimalDespawner); a zone-less one
+        // is left alone.
+        private bool Despawn(Component ah)
         {
-            GameObject go = ah.gameObject;
-            Component d = go.GetComponent(_despType);
-            if (d != null) { _updateSpawnState.Invoke(d, new object[] { false }); return; }
-            if (_despawnFn != null)
-            {
-                Component f = go.GetComponent(_funcType);
-                if (f != null) _despawnFn.Invoke(f, null);
-            }
+            Component d = ah.gameObject.GetComponent(_despType);
+            if (d == null) return false;
+            _updateSpawnState.Invoke(d, new object[] { false });
+            return true;
         }
 
         private int ResetZones(string zonesLine, Array zoneArr)
@@ -537,6 +555,7 @@ namespace ForestOverlay.Game
             try
             {
                 int brought = 0, removed = 0, moved = 0, zonesReset = 0;
+                ReadCapIds(line, posesLine, zonesLine);
                 bool spawns = !string.IsNullOrEmpty(zonesLine) && ResolveSpawn();
                 if (spawns)
                 {
@@ -575,7 +594,7 @@ namespace ForestOverlay.Game
             for (int i = 0; i < raw.Count; i++)
             {
                 if (!plan.Despawn.Contains(raw[i].gameObject.GetInstanceID())) continue;
-                try { Despawn(raw[i]); removed++; }
+                try { if (Despawn(raw[i])) removed++; }
                 catch (Exception ex) { _log.LogWarning("AnimalKeeper: despawn failed: " + ex.Message); }
             }
 

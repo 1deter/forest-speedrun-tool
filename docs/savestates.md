@@ -566,5 +566,6 @@ the `sceneTracker` counters. The restore line gains `brought back`, `removed
 (spawned since)`, `moved back`, `zone(s) reset`. Gaps left: poison running at
 the capture; a deer's longer flee distance after a hit; an animal's AI / FSM
 state (a fleeing rabbit keeps fleeing from where it stood); zone-less animals
-(trap rabbits, fish, turtles, birds); the game's kill events of a kill since
+(trap rabbits, fish, turtles, birds): never despawned, moved or put back,
+and one killed since is not brought back (logged); the game's kill events of a kill since
 were published.
