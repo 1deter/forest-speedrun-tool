@@ -58,6 +58,5 @@ separately). It can also import a LiveSplit `.lss` and compare against it.
 
 Each routine and where it sets the flag read from the code; confirmed
 against the author's two endgame runs (2026-09-22) and the ASL's source.
-`end-shutdown`, the Timmy goodbye and the raft out of the world have not been
-seen in a real run's log; the plugin's hooks for them were driven by hand
-(2026-10-18) and each fired its event on the flag's rising edge.
+`end-shutdown`, the Timmy goodbye and the raft out of the world have never
+been seen in a real log.
