@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 841 log calls.
+249 prefixes from 844 log calls.
 
 ## `ActionReaders`
 
@@ -1316,7 +1316,10 @@ Written by PickupKeeper.cs; info / warning.
 
 - warning `PickupKeeper: <Status>` (x2)
 - info `PickupKeeper: <Status>.`
+- warning `PickupKeeper: ItemDatabase.ItemById not found; a restore cannot make a dropped copy gone since the capture again.`
+- warning `PickupKeeper: could not make item <p.Item> again: <ex.Message>`
 - warning `PickupKeeper: could not restore <t.Key>: <ex.Message>`
+- warning `PickupKeeper: destroyAfter.Start / its fields not found; a restore leaves dropped copies' despawn timers as they are.`
 - warning `PickupKeeper: game type '<..>' not found; things thrown since a capture of that kind stay after a restore.`
 - warning `PickupKeeper: spawn pools unreadable (<ex.Message>); things thrown since a capture are left alone.`
 

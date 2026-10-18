@@ -970,6 +970,9 @@ namespace ForestOverlay.Modules
                     try { pickups = _keeper.Restore(presentPickups); }
                     catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup restore failed: " + ex.Message); }
                 }
+                // T-0418: after the pickups step (put-back copies shown again),
+                // each recorded copy's despawn timer as it stood at the capture.
+                int timers = PickupKeeper.ResumeTimers(r.Ok);
                 RestoreGarbage.Mark("pickups");
 
                 // The serializer restores the IsInCaves flag but not what
@@ -1141,6 +1144,7 @@ namespace ForestOverlay.Modules
                 string line = "restore " + what + " in place: " + r.Message +
                               ", pickups put back " + pickups +
                               (presentPickups == null ? " (all kept)" : "") +
+                              (timers > 0 ? ", despawn timers set as at the capture " + timers : "") +
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
                               (fall.Length == 0 ? "" : " | " + fall) +
                               (placeNote.Length == 0 ? "" : " | " + placeNote) +

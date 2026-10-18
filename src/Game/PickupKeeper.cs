@@ -72,6 +72,44 @@ namespace ForestOverlay.Game
         /// Item id -> name for log lines (set by the owner; may be null).
         public static Func<int, string> NameOf;
 
+        // T-0418: the game's despawn timer on a dropped copy (destroyAfter:
+        // game-notes *A dropped copy's despawn timer*). Unity cannot read the
+        // time left, so the start of each root copy's timer is recorded here
+        // (Time.time, by the component's instance id).
+        private struct TimerStart
+        {
+            public MonoBehaviour Comp;
+            public float At;
+        }
+        private static readonly Dictionary<int, TimerStart> TimerStarts = new Dictionary<int, TimerStart>();
+        private static readonly List<int> DeadTimerKeys = new List<int>();
+        private static int _timerPruneAt = 256;
+        private static Type _destroyAfterType;
+        private static FieldInfo _destroyTime, _destroyDistance, _useUnscaled;
+        private const string DestroyMe = "destroyMe";
+
+        // T-0418: copies a restore made again, by their own instance id ->
+        // the captured id they stand for, so the next restore of that
+        // capture keeps them (their new id is below its mark).
+        private sealed class Remade
+        {
+            public GameObject Copy;
+            public int CapturedId;
+        }
+        private static readonly Dictionary<int, Remade> RemadeFrom = new Dictionary<int, Remade>();
+
+        // T-0418: the recorded copies of the last MirrorRoots, for
+        // ResumeTimers once the load is done.
+        private static readonly List<GameObject> TimerCopies = new List<GameObject>();
+        private static readonly List<DroppedPoses.Pose> TimerPoses = new List<DroppedPoses.Pose>();
+        private static readonly HashSet<int> TimerSeen = new HashSet<int>();
+
+        // T-0418: the item's own drop prefab (Item._pickupPrefab, a Transform).
+        private static bool _prefabLookupLoaded;
+        private static MethodInfo _itemById;
+        private static FieldInfo _pickupPrefab;
+        private static readonly Dictionary<int, Transform> Prefabs = new Dictionary<int, Transform>();
+
         private Harmony _harmony;
 
         public string Status { get; private set; }
@@ -131,6 +169,25 @@ namespace ForestOverlay.Game
                         new HarmonyMethod(typeof(PickupKeeper).GetMethod("CollectPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
                     Status += ", collect watched";
                 }
+
+                // T-0418: when each dropped copy's despawn timer started -
+                // from plugin start, so a copy dropped before the first
+                // capture has an age too.
+                _destroyAfterType = GameBridge.FindGameType("destroyAfter");
+                MethodInfo daStart = _destroyAfterType != null ? _destroyAfterType.GetMethod("Start", inst, null, Type.EmptyTypes, null) : null;
+                if (_destroyAfterType != null)
+                {
+                    _destroyTime = _destroyAfterType.GetField("destroyTime", inst);
+                    _destroyDistance = _destroyAfterType.GetField("destroyDistance", inst);
+                    _useUnscaled = _destroyAfterType.GetField("useUnscaledTime", inst);
+                }
+                if (daStart != null && _destroyTime != null && _destroyDistance != null && _useUnscaled != null)
+                {
+                    _harmony.Patch(daStart, null,
+                        new HarmonyMethod(typeof(PickupKeeper).GetMethod("DestroyAfterStartPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+                    Status += ", despawn timers watched";
+                }
+                else _log.LogWarning("PickupKeeper: destroyAfter.Start / its fields not found; a restore leaves dropped copies' despawn timers as they are.");
             }
             catch (Exception ex)
             {
@@ -144,6 +201,11 @@ namespace ForestOverlay.Game
             try { if (_harmony != null) _harmony.UnpatchSelf(); }
             catch (Exception) { }
             TakenList.Clear();
+            TimerStarts.Clear();
+            RemadeFrom.Clear();
+            TimerCopies.Clear();
+            TimerPoses.Clear();
+            TimerSeen.Clear();
         }
 
         // A fake drop (Collect with the inventory full, T-0053): the game
@@ -478,6 +540,175 @@ namespace ForestOverlay.Game
             return true;
         }
 
+        // ---- T-0418: despawn timers and copies made again ----------------
+
+        // Never throws into the game. Root copies only (effects are children
+        // or short-lived), scaled time only (Invoke counts Time.time).
+        private static void DestroyAfterStartPostfix(object __instance)
+        {
+            try
+            {
+                MonoBehaviour mb = __instance as MonoBehaviour;
+                if (mb == null || mb.transform.parent != null) return;
+                if ((bool)_useUnscaled.GetValue(mb)) return;
+                TimerStart s;
+                s.Comp = mb;
+                s.At = Time.time;
+                TimerStarts[mb.GetInstanceID()] = s;
+                if (TimerStarts.Count >= _timerPruneAt) PruneTimerStarts();
+            }
+            catch (Exception) { }
+        }
+
+        private static void PruneTimerStarts()
+        {
+            DeadTimerKeys.Clear();
+            foreach (KeyValuePair<int, TimerStart> kv in TimerStarts)
+                if (kv.Value.Comp == null) DeadTimerKeys.Add(kv.Key);
+            for (int i = 0; i < DeadTimerKeys.Count; i++) TimerStarts.Remove(DeadTimerKeys[i]);
+            DeadTimerKeys.Clear();
+            _timerPruneAt = Math.Max(256, TimerStarts.Count * 2);
+        }
+
+        /// The root's despawn timer as the capture records it: running with
+        /// its age, stopped, or Unknown (no scaled-time timer, or no start
+        /// recorded).
+        private static void ReadTimer(GameObject r, ref DroppedPoses.Pose p)
+        {
+            p.Timer = DroppedPoses.TimerKind.Unknown;
+            if (_destroyAfterType == null || _useUnscaled == null) return;
+            MonoBehaviour mb = r.GetComponent(_destroyAfterType) as MonoBehaviour;
+            if (mb == null || (bool)_useUnscaled.GetValue(mb)) return;
+            if (!mb.IsInvoking(DestroyMe)) { p.Timer = DroppedPoses.TimerKind.Stopped; return; }
+            TimerStart s;
+            if (!TimerStarts.TryGetValue(mb.GetInstanceID(), out s)) return;
+            p.Timer = DroppedPoses.TimerKind.Running;
+            p.Age = Math.Max(0f, Time.time - s.At);
+        }
+
+        /// The item's own drop prefab (ItemDatabase.ItemById(item).
+        /// _pickupPrefab); null when it has none or cannot be read.
+        private static Transform ItemPrefab(int item)
+        {
+            if (item <= 0) return null;
+            Transform t;
+            if (Prefabs.TryGetValue(item, out t) && t != null) return t;
+            if (!_prefabLookupLoaded)
+            {
+                _prefabLookupLoaded = true;
+                Type db = GameBridge.FindGameType("TheForest.Items.ItemDatabase");
+                // Static (game-notes: bound as an instance method it is never found).
+                if (db != null) _itemById = db.GetMethod("ItemById", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(int) }, null);
+                if (_itemById == null) _log.LogWarning("PickupKeeper: ItemDatabase.ItemById not found; a restore cannot make a dropped copy gone since the capture again.");
+            }
+            if (_itemById == null) return null;
+            object it;
+            try { it = _itemById.Invoke(null, new object[] { item }); }
+            catch (Exception) { return null; }                                  // throws on an unknown id
+            if (it == null) return null;
+            if (_pickupPrefab == null) _pickupPrefab = it.GetType().GetField("_pickupPrefab", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (_pickupPrefab == null) return null;
+            t = _pickupPrefab.GetValue(it) as Transform;
+            if (t != null) Prefabs[item] = t;
+            return t;
+        }
+
+        /// The captured id `g` stands for: its own, or the one it was made
+        /// again for.
+        private static int CapturedId(GameObject g)
+        {
+            int id = g.GetInstanceID();
+            Remade rm;
+            return RemadeFrom.TryGetValue(id, out rm) ? rm.CapturedId : id;
+        }
+
+        /// `g`'s captured pose: by its own id, else by the id it was made
+        /// again for.
+        private static bool PoseOf(Dictionary<int, DroppedPoses.Pose> poses, GameObject g, out DroppedPoses.Pose p, out int capturedId)
+        {
+            capturedId = g.GetInstanceID();
+            if (poses.TryGetValue(capturedId, out p)) return true;
+            int via = CapturedId(g);
+            if (via == capturedId) return false;
+            capturedId = via;
+            return poses.TryGetValue(via, out p);
+        }
+
+        private static void NoteTimer(GameObject g, DroppedPoses.Pose p)
+        {
+            if (g == null || !TimerSeen.Add(g.GetInstanceID())) return;
+            TimerCopies.Add(g);
+            TimerPoses.Add(p);
+        }
+
+        /// The copy made again at its captured pose, at rest (made there:
+        /// one made elsewhere and moved keeps its fall speed - game-notes).
+        private static GameObject RemakeCopy(DroppedPoses.Pose p)
+        {
+            Transform prefab = ItemPrefab(p.Item);
+            if (prefab == null) return null;
+            GameObject go = UnityEngine.Object.Instantiate(prefab.gameObject, new Vector3(p.X, p.Y, p.Z),
+                                                           new Quaternion(p.Qx, p.Qy, p.Qz, p.Qw)) as GameObject;
+            if (go == null) return null;
+            Rigidbody rb = go.GetComponent<Rigidbody>();
+            if (rb != null && !rb.isKinematic)
+            {
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.Sleep();
+            }
+            return go;
+        }
+
+        /// After a Quick load (the pickups step done, so put-back copies are
+        /// shown and re-made ones have run Start): every copy the last
+        /// MirrorRoots matched to the capture gets its despawn timer as it
+        /// stood then - resumed from its captured age, or none if none ran.
+        /// A pose with no timer tag (a file from before T-0418) is left as
+        /// the game has it. `apply` false (the load failed) only forgets
+        /// them. Returns how many were set.
+        public static int ResumeTimers(bool apply)
+        {
+            int n = 0;
+            try
+            {
+                if (!apply || _destroyAfterType == null || _destroyTime == null || _destroyDistance == null || _useUnscaled == null) return 0;
+                for (int i = 0; i < TimerCopies.Count; i++)
+                {
+                    GameObject go = TimerCopies[i];
+                    DroppedPoses.Pose p = TimerPoses[i];
+                    if (p.Timer == DroppedPoses.TimerKind.Unknown || go == null || !go.activeInHierarchy) continue;
+                    try
+                    {
+                        MonoBehaviour mb = go.GetComponent(_destroyAfterType) as MonoBehaviour;
+                        if (mb == null || (bool)_useUnscaled.GetValue(mb)) continue;
+                        mb.CancelInvoke(DestroyMe);
+                        if (p.Timer == DroppedPoses.TimerKind.Running)
+                        {
+                            float time = (float)_destroyTime.GetValue(mb);
+                            bool repeating = (float)_destroyDistance.GetValue(mb) > 0f;
+                            float next = DespawnTimer.NextCheck(p.Age, time, repeating);
+                            if (repeating) mb.InvokeRepeating(DestroyMe, next, DespawnTimer.Interval);
+                            else mb.Invoke(DestroyMe, next);
+                            TimerStart s;
+                            s.Comp = mb;
+                            s.At = Time.time - p.Age;
+                            TimerStarts[mb.GetInstanceID()] = s;
+                        }
+                        n++;
+                    }
+                    catch (Exception) { }
+                }
+            }
+            finally
+            {
+                TimerCopies.Clear();
+                TimerPoses.Clear();
+                TimerSeen.Clear();
+            }
+            return n;
+        }
+
         /// T-0416, at a capture: the pose of every loose world item at a
         /// scene root (what MirrorRoots matches), as a `dropped` line (Data/
         /// DroppedPoses), so a restore can move a copy that rolled back.
@@ -491,6 +722,7 @@ namespace ForestOverlay.Game
                 FieldInfo despawn = pickUp.GetField("_poolManagerDespawnCreature", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 LoadRootTypes();
                 bool pools = LoadPools();
+                PruneTimerStarts();
                 List<KeyValuePair<int, DroppedPoses.Pose>> list = new List<KeyValuePair<int, DroppedPoses.Pose>>();
                 for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
                 {
@@ -504,14 +736,23 @@ namespace ForestOverlay.Game
                         Component hit = RootPickup(r, pickUp, despawn);
                         if (hit == null) continue;
                         if (pools && IsPooled(r.transform)) continue;
-                        DroppedPoses.Pose p;
-                        p.Item = 0;
+                        DroppedPoses.Pose p = new DroppedPoses.Pose();
                         try { p.Item = (int)_itemId.GetValue(hit); } catch (Exception) { }
                         Vector3 pos = r.transform.position;
                         Quaternion q = r.transform.rotation;
                         p.X = pos.x; p.Y = pos.y; p.Z = pos.z;
                         p.Qx = q.x; p.Qy = q.y; p.Qz = q.z; p.Qw = q.w;
-                        list.Add(new KeyValuePair<int, DroppedPoses.Pose>(r.GetInstanceID(), p));
+                        // T-0418: made at runtime from the item's own drop
+                        // prefab (FakeDrop, an inventory drop): a restore can
+                        // make it again if it is gone by then.
+                        int rid = r.GetInstanceID();
+                        if (rid < 0)
+                        {
+                            Transform prefab = ItemPrefab(p.Item);
+                            p.Remake = prefab != null && r.name == prefab.name + "(Clone)";
+                        }
+                        try { ReadTimer(r, ref p); } catch (Exception) { p.Timer = DroppedPoses.TimerKind.Unknown; }
+                        list.Add(new KeyValuePair<int, DroppedPoses.Pose>(rid, p));
                     }
                 }
                 return DroppedPoses.Format(list);
@@ -547,8 +788,10 @@ namespace ForestOverlay.Game
             public int Items;                                   // made since the capture, removed (T-0411)
             public int Thrown;                                  // bombs, flares, molotovs ... removed
             public int Moved;                                   // copies put back where they lay
+            public int Remade;                                  // copies gone since, made again (T-0418)
             public Dictionary<int, int> ItemCounts = new Dictionary<int, int>();
             public Dictionary<string, int> ThrownCounts = new Dictionary<string, int>();
+            public Dictionary<int, int> RemadeCounts = new Dictionary<int, int>();
         }
 
         /// One walk over the scene roots at a restore, before the load.
@@ -567,9 +810,17 @@ namespace ForestOverlay.Game
         /// copies that moved since back at their captured pose - the ones
         /// taken since too (their kept key is recomputed so the restore
         /// matches the capture's).
+        /// T-0418: a copy of the item's own drop prefab that the capture had
+        /// and that is gone (the game's despawn timer, or an older restore
+        /// removed it) is made again at its pose; it then stands for the
+        /// captured id in later restores. Every matched copy is noted for
+        /// ResumeTimers after the load.
         public static MirrorResult MirrorRoots(int threshold, Transform player, string dropped)
         {
             MirrorResult res = new MirrorResult();
+            TimerCopies.Clear();
+            TimerPoses.Clear();
+            TimerSeen.Clear();
             if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return res;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
             if (pickUp == null) return res;
@@ -579,11 +830,21 @@ namespace ForestOverlay.Game
             if (threshold < 0 && threshold != SpawnMark.Unknown && !string.IsNullOrEmpty(dropped)) poses = DroppedPoses.Parse(dropped);
             if (poses != null && poses.Count == 0) poses = null;
 
-            // Copies taken again after the capture are kept hidden: forget them.
+            // Copies made again that are gone since (a Full load, a despawn).
+            if (RemadeFrom.Count > 0)
+            {
+                List<int> gone = new List<int>();
+                foreach (KeyValuePair<int, Remade> kv in RemadeFrom) if (kv.Value.Copy == null) gone.Add(kv.Key);
+                for (int i = 0; i < gone.Count; i++) RemadeFrom.Remove(gone[i]);
+            }
+
+            // Copies taken again after the capture are kept hidden: forget
+            // them - but not one made again for a captured copy.
             for (int t = TakenList.Count - 1; t >= 0; t--)
             {
                 GameObject tg = TakenList[t].Target;
-                if (tg != null && tg.transform.parent == null && SpawnMark.IsAfter(tg.GetInstanceID(), threshold)) TakenList.RemoveAt(t);
+                if (tg != null && tg.transform.parent == null && SpawnMark.IsAfter(tg.GetInstanceID(), threshold) &&
+                    !(poses != null && poses.ContainsKey(CapturedId(tg)))) TakenList.RemoveAt(t);
             }
             // A copy that rolled and was then taken: put back where it lay and
             // re-keyed, so Restore(present) finds the capture's key.
@@ -594,7 +855,8 @@ namespace ForestOverlay.Game
                     Taken tk = TakenList[t];
                     if (tk.Target == null || tk.Pickup == null || tk.Target.transform.parent != null) continue;
                     DroppedPoses.Pose p;
-                    if (!poses.TryGetValue(tk.Target.GetInstanceID(), out p)) continue;
+                    int cid;
+                    if (!PoseOf(poses, tk.Target, out p, out cid)) continue;
                     try
                     {
                         if (PutBack(tk.Target.transform, p)) res.Moved++;
@@ -604,6 +866,8 @@ namespace ForestOverlay.Game
                 }
             }
 
+            // The captured ids still in the world (hidden ones too).
+            HashSet<int> present = poses != null ? new HashSet<int>() : null;
             bool poolsRead = false, poolsOk = false;
             for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
             {
@@ -615,8 +879,11 @@ namespace ForestOverlay.Game
                     GameObject r = roots[i];
                     if (r == null) continue;
                     DroppedPoses.Pose pose;
-                    if (poses != null && poses.TryGetValue(r.GetInstanceID(), out pose))
+                    int capturedId;
+                    if (poses != null && PoseOf(poses, r, out pose, out capturedId))
                     {
+                        present.Add(capturedId);
+                        NoteTimer(r, pose);
                         if (r.activeInHierarchy && PutBack(r.transform, pose)) res.Moved++;
                         continue;
                     }
@@ -654,6 +921,29 @@ namespace ForestOverlay.Game
                     res.ThrownCounts.TryGetValue(kind, out n);
                     res.ThrownCounts[kind] = n + 1;
                     res.Thrown++;
+                }
+            }
+
+            // T-0418: captured copies gone since, made again where they lay.
+            if (poses != null)
+            {
+                List<int> remake = DroppedPoses.ToRemake(poses, present);
+                for (int i = 0; i < remake.Count; i++)
+                {
+                    DroppedPoses.Pose p = poses[remake[i]];
+                    GameObject copy = null;
+                    try { copy = RemakeCopy(p); }
+                    catch (Exception ex) { _log.LogWarning("PickupKeeper: could not make item " + p.Item + " again: " + ex.Message); }
+                    if (copy == null) continue;
+                    Remade rm = new Remade();
+                    rm.Copy = copy;
+                    rm.CapturedId = remake[i];
+                    RemadeFrom[copy.GetInstanceID()] = rm;
+                    NoteTimer(copy, p);
+                    int had;
+                    res.RemadeCounts.TryGetValue(p.Item, out had);
+                    res.RemadeCounts[p.Item] = had + 1;
+                    res.Remade++;
                 }
             }
             return res;

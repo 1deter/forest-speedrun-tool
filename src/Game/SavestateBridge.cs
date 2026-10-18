@@ -800,7 +800,7 @@ namespace ForestOverlay.Game
                 catch (Exception ex) { _log.LogWarning("Savestate restore: removing items made since the capture failed: " + ex.Message); }
             }
             Dictionary<int, int> spawnedCounts = mirror.ItemCounts;
-            if (deleted + rebuilt + spawned + mirror.Thrown + mirror.Moved > 0) yield return null;   // let Destroy land before the loader looks
+            if (deleted + rebuilt + spawned + mirror.Thrown + mirror.Moved + mirror.Remade > 0) yield return null;   // let Destroy land before the loader looks
             RestoreGarbage.Mark("delete step");
 
             _loadDone = false;
@@ -906,6 +906,17 @@ namespace ForestOverlay.Game
                             if (!first) sb.Append(")");
                         }
                         if (mirror.Moved > 0) sb.Append(", moved ").Append(mirror.Moved).Append(" copy(ies) back to where they lay at the capture");
+                        if (mirror.Remade > 0)
+                        {
+                            sb.Append(", re-made ").Append(mirror.Remade).Append(" copy(ies) gone since the capture");
+                            first = true;
+                            foreach (KeyValuePair<int, int> kv in mirror.RemadeCounts)
+                            {
+                                sb.Append(first ? " (" : ", ").Append(PickupKeeper.NameOf != null ? PickupKeeper.NameOf(kv.Key) : "item " + kv.Key).Append(" x").Append(kv.Value);
+                                first = false;
+                            }
+                            if (!first) sb.Append(")");
+                        }
                     }
                 }
                 sb.Append(", 'not found' ").Append(_logNotFound);
