@@ -42,7 +42,7 @@ inactive too, `max=N`, nearest first), `roots`, `types`, `members`
 (live `ilscan type`), `inspect`, `fields`, `get`, `set` / `call` /
 `destroy` (mark practice; an `IEnumerator` method is started as a
 coroutine), and the overlay's own actions: `savestates`, `capture`,
-`restore <name> [load]` (wait until done), `spots`, `go`, `restart`
+`restore <name> [load]` (wait until done), `spots`, `go`, `select`, `restart`
 (waits until idle), `tp`, `dump`, plus `wait` / `waitidle`; since
 v0.24.27-0.24.31 also `mark` (a magenta beacon through walls), `shot`
 (a screenshot into the bridge folder), `anim` / `anim watch N`
@@ -254,9 +254,11 @@ delete the test spot there after (`DELETE /api/admin/spots/<id>`, header
 `X-Admin-Token` = the User variable) - the 2026-10-01 import test had to be.
 **Every run mode attempt uploads too** (start, checkpoints, log): delete a
 test one with `DELETE /api/admin/attempts/<id>` (`_modules[17]._attemptId`;
-the log line `Run mode: attempt n is a-...`). `restart` = F7 (`restart <id>`), `go <id>`. The
-bridge cannot pass a `Segment` as a `call` argument, so **selecting an
-existing entry, Export and the Import buttons need the author's click**
+the log line `Run mode: attempt n is a-...`). `restart` = F7 (`restart <id>`), `go <id>`; `select <id>` selects
+an entry as a row click does (T-0403: `restart` / `go` set the current
+spot only, never the selection, so the comparison line and its
+checkpoint labels need a select). The bridge cannot pass a `Segment` as
+a `call` argument, so **Export and the Import buttons need the author's click**
 (`ToggleImport` opens the list). **Removing test spots**: delete their
 `[segment]` blocks from `segments/my-segments.txt` (a Python split on
 `\n[segment]`, BOM and line endings kept), then `call
