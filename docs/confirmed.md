@@ -141,7 +141,7 @@ back on in the frame you leave, no hitch at the entry (bridge).
 
 Logs in the inventory (v0.24.134-135, bridge, released builds): arm logs
 move to the store on switching on, a real `PickUp.Collect` stores one, the
-cap refuses with a notice, the axe equips with a full store,
+cap refuses with a notice, the axe equips with a full store (only with the axe already in hand or `Equip` compiled after the switch-on; fixed by T-0431),
 `RemoveItem(78)` takes from the store, off puts 2 back in the arms and
 drops the rest, Quick and Full load give back the captured count.
 

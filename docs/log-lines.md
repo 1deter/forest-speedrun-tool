@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-251 prefixes from 863 log calls.
+251 prefixes from 864 log calls.
 
 ## `ActionReaders`
 
@@ -1005,9 +1005,10 @@ Meaning: Logs in the inventory (practice mod): stored / held counts after a load
 Written by LogStore.cs; info / warning.
 
 - info `Logs in the inventory: <held> held log model(s) put away after a load; <..> stored.`
-- warning `Logs in the inventory: not found, stored logs not usable there: <..>`
+- warning `Logs in the inventory: not found or nothing to rewrite, stored logs not handled there: <..>`
 - info `Logs in the inventory: off - <lifted> log(s) back in the arms, <dropped> dropped.`
-- info `Logs in the inventory: on, cap <Cap> - <held> log(s) moved from the arms, <..> stored; <_holderCalls> holder / repair reads redirected.`
+- info `Logs in the inventory: on, cap <Cap> - <held> log(s) moved from the arms, <..> stored; <_holderCalls> holder / repair reads redirected, <_armsCalls> arm reads emptied; patched in <_patchMs> ms.`
+- warning `Logs in the inventory: patch <label>: <ex.Message>`
 - info `Logs in the inventory: stored <what> (<sb>).`
 - warning `Logs in the inventory: unpatch: <ex.Message>`
 

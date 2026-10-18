@@ -36,7 +36,11 @@ namespace ForestOverlay.Game
     //     weapons stay usable - and carrying costs no energy;
     //   - AmountOfNF / OwnsNF(78) answer the store (building, fires);
     //   - the holder / repair methods read the store instead (transpiled
-    //     calls, so they alone see it).
+    //     calls, so they alone see it);
+    //   - the getter patch alone is not enough: the JIT inlines the 10-byte
+    //     getters into callers compiled before it, so those callers (Equip,
+    //     HideAllEquiped...) are transpiled to "arms empty" too (T-0431,
+    //     LogStoreTables.Arms).
     // Not covered: putting a log on a zipline (needs a log in the arms).
     // Turning it off moves up to 2 back into the arms and drops the rest.
     // A save made with more than 2 stored and loaded with this off keeps 2
@@ -64,20 +68,7 @@ namespace ForestOverlay.Game
         private static MethodInfo _lift, _putDown, _removeLog, _getAmount, _getHasLogs;
         private static PropertyInfo _logsProp;
 
-        // The methods whose log reads are redirected to the store.
-        private static readonly string[][] HolderMethods =
-        {
-            new[] { "LogHolder", "Update" },
-            new[] { "TheForest.Buildings.World.MultiHolder", "LogContentUpdate" },
-            new[] { "TheForest.Buildings.World.MultiHolder", "GrabEnter" },
-            new[] { "TheForest.Buildings.World.RepairTool", "Update" },
-            new[] { "TheForest.Buildings.World.RepairTool", "ValidateCollider" },
-            new[] { "TheForest.Buildings.World.RepairTool", "OnGrabberEnter" },
-            new[] { "TheForest.Buildings.World.RepairTool", "OnGrabberExit" },
-            new[] { "TheForest.Buildings.World.RepairTool", "GrabExit" },
-            new[] { "TheForest.Buildings.World.BuildingRepair", "Update" },
-            new[] { "TheForest.Buildings.World.BuildingRepair", "OnTriggerEnter" },
-        };
+        private static int _armsCalls, _patchMs;
 
         public static void Init(ManualLogSource log, string harmonyId)
         {
@@ -142,12 +133,14 @@ namespace ForestOverlay.Game
             if (want && !_patched)
             {
                 if (ctrl == null) { Status = "waiting for a game"; return; }
+                int t0 = Environment.TickCount;
                 string err = Patch();
+                _patchMs = Environment.TickCount - t0;
                 if (err != null) { Status = "failed: " + err; Unpatch(); return; }
                 int held = PutHeldAway(ctrl);
                 Status = "on";
                 _log.LogInfo("Logs in the inventory: on, cap " + Cap + " - " + held + " log(s) moved from the arms, " +
-                             Logs(ctrl) + " stored; " + _holderCalls + " holder / repair reads redirected.");
+                             Logs(ctrl) + " stored; " + _holderCalls + " holder / repair reads redirected, " + _armsCalls + " arm reads emptied; patched in " + _patchMs + " ms.");
             }
             else if (!want && _patched)
             {
@@ -211,23 +204,39 @@ namespace ForestOverlay.Game
             _harmony.Patch(owns, postfix: new HarmonyMethod(me.GetMethod("OwnsPostfix", st)));
 
             _holderCalls = 0;
-            HarmonyMethod tr = new HarmonyMethod(me.GetMethod("HolderTranspiler", st));
-            List<string> missing = null;
-            for (int i = 0; i < HolderMethods.Length; i++)
-            {
-                Type t = GameBridge.FindGameType(HolderMethods[i][0]);
-                MethodInfo m = t != null ? t.GetMethod(HolderMethods[i][1], inst) : null;
-                if (m == null)
-                {
-                    if (missing == null) missing = new List<string>();
-                    missing.Add(HolderMethods[i][0] + "." + HolderMethods[i][1]);
-                    continue;
-                }
-                _harmony.Patch(m, transpiler: tr);
-            }
-            if (missing != null)
-                _log.LogWarning("Logs in the inventory: not found, stored logs not usable there: " + string.Join(", ", missing.ToArray()));
+            _armsCalls = 0;
+            List<string> missing = new List<string>();
+            PatchTable(LogStoreTables.Holder, me.GetMethod("HolderTranspiler", st), missing);
+            PatchTable(LogStoreTables.Arms, me.GetMethod("ArmsTranspiler", st), missing);
+            if (missing.Count > 0)
+                _log.LogWarning("Logs in the inventory: not found or nothing to rewrite, stored logs not handled there: " + string.Join(", ", missing.ToArray()));
             return null;
+        }
+
+        /// Transpiles every declared method (all overloads) of each table row.
+        private static void PatchTable(string[][] table, MethodInfo transpiler, List<string> missing)
+        {
+            HarmonyMethod tr = new HarmonyMethod(transpiler);
+            BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public |
+                               BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            bool arms = table == LogStoreTables.Arms;
+            for (int i = 0; i < table.Length; i++)
+            {
+                string label = table[i][0] + "." + table[i][1];
+                Type t = GameBridge.FindGameType(table[i][0]);
+                if (t == null) { missing.Add(label); continue; }
+                MethodInfo[] ms = t.GetMethods(all);
+                bool any = false;
+                for (int k = 0; k < ms.Length; k++)
+                {
+                    if (ms[k].Name != table[i][1] || ms[k].IsAbstract) continue;
+                    int before = arms ? _armsCalls : _holderCalls;
+                    try { _harmony.Patch(ms[k], transpiler: tr); }
+                    catch (Exception ex) { _log.LogWarning("Logs in the inventory: patch " + label + ": " + ex.Message); continue; }
+                    if ((arms ? _armsCalls : _holderCalls) > before) any = true;
+                }
+                if (!any) missing.Add(label);
+            }
         }
 
         private static void Unpatch()
@@ -351,6 +360,28 @@ namespace ForestOverlay.Game
                 yield return ci;
             }
         }
+
+        // The same rewrite to "arms empty": the readers the getter prefix
+        // misses because the JIT inlined the getter into them (T-0431).
+        private static IEnumerable<CodeInstruction> ArmsTranspiler(IEnumerable<CodeInstruction> instructions)
+        {
+            MethodInfo amount = typeof(LogStore).GetMethod("ArmsAmount");
+            MethodInfo has = typeof(LogStore).GetMethod("ArmsHasLogs");
+            foreach (CodeInstruction ci in instructions)
+            {
+                if ((ci.opcode == OpCodes.Callvirt || ci.opcode == OpCodes.Call) && ci.operand is MethodInfo)
+                {
+                    MethodInfo target = (MethodInfo)ci.operand;
+                    bool ours = target.DeclaringType == _ctrlType;
+                    if (ours && target.Name == "get_Amount") { ci.opcode = OpCodes.Call; ci.operand = amount; _armsCalls++; }
+                    else if (ours && target.Name == "get_HasLogs") { ci.opcode = OpCodes.Call; ci.operand = has; _armsCalls++; }
+                }
+                yield return ci;
+            }
+        }
+
+        public static int ArmsAmount(object ctrl) { return 0; }
+        public static bool ArmsHasLogs(object ctrl) { return false; }
 
         /// Holders compare the count with 2 (take while under 2, add while
         /// over 0): answered as 2 when the store is full, 1 when it has
