@@ -89,7 +89,8 @@ Performance, Loads and savestates; its key list and HUD values sit under
 short headings (`Data/KeyGroups`, `HudLines.HeadingAt`, T-0263). **One setting, one feature** (T-0253): Settings > HUD
 puts the HUD-wide options (compact, text size, position) above the values
 (T-0018: no info box - a column of values, placed values, orange flags); Runs keeps the run lines' options under *Run lines* (shown
-only while on) and the ghost's switch + an opacity for the ghost and replay
+only while on; your own line is hidden while a run is going unless
+`[Runs] RunLineOwnLive` is on, T-0393) and the ghost's switch + an opacity for the ghost and replay
 under *Ghost and replay*; the results panel has its own load-time choice. The QA tab goes at the public release. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
 
