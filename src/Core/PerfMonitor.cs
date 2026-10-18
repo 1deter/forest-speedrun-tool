@@ -6,13 +6,14 @@ using UnityEngine;
 namespace ForestOverlay.Core
 {
     // ------------------------------------------------------------------
-    // Counters fed by the GL renderers (run lines, zones, debug volumes).
+    // Counters fed by the GL renderers (run lines, zones, debug volumes) and
+    // the input overlay's OnGUI GL quads (the mouse path).
     // Static because renderers are MonoBehaviours with no context to hand;
     // plain int/long increments, nothing allocated.
     // ------------------------------------------------------------------
     public static class PerfCounters
     {
-        /// OnRenderObject passes that drew something.
+        /// OnRenderObject passes (and the input overlay's OnGUI GL batches) that drew something.
         public static int DrawPasses;
         /// Passes skipped because they were for another camera
         /// (reflections, UI) - see Game/DrawTarget.
