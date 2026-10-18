@@ -2435,6 +2435,15 @@ through the ground). Position plus zeroed `velocity` / `angularVelocity`
 put it to rest within 0.02 m of the captured pose. A Quick load of the
 capture then removed both re-made copies (`removed 2 item(s) made since
 the capture (Stick x1, Rock x1)`): their ids are below the capture's mark.
+**Re-arming the timer works.** No game field keeps the timer's start or
+time left (ILScan: every `destroyTime` write is on other objects), and
+Unity's invoke API cannot read the time left. Live, with the player 30 m
+off, `CancelInvoke destroyMe` + `InvokeRepeating destroyMe 5 10` on a
+5 s old copy, and on a put-back copy with no timer, made each go 3-7 s
+later; the untouched control stayed. Invoke counts scaled time:
+re-armed at 4 s under `timeScale` 0.25, a rock was still there 9 s
+(real) later and gone by 21 s. A copy made by `Instantiate` was already
+invoking when it was next listed (its `Start` had run).
 
 **Live animals sit at the scene root too (bridge, 2026-10-18, T-0415).**
 `AnimalSpawnController` spawns from `PoolManager.Pools["creatures"]`
