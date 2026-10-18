@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (run R-0022 handoff)
+
+- **2026-10-18 (run R-0019, chain C-0002, unattended):** 4 of 5 progressed,
+  3 confirmed in game. v0.24.342-343 T-0034 (the old world after a Full
+  load: the A* path pool + our drawings view freed; heap flat over 4
+  loads - read the heap twice, gotcha 49), v0.24.344 T-0053 (busy-area
+  restores fine; a full-inventory pickup is put back), T-0055 (the three
+  unseen endgame events fire; docs only), T-0405 wontfix (author's keep).
+  Parked for the author: T-0409 (split multi-action input tiles: layout,
+  Raw, migration), T-0411 (remove dropped copies on restore?), plus T-0410,
+  T-0366. **Next:** answer the parked questions; the chain's next run.
+
 ## Moved out 2026-10-18 (run R-0021 handoff)
 
 - **2026-10-18 (run R-0018, author away overnight):** 5 of 5 confirmed in

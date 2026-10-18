@@ -157,6 +157,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0022, chain C-0002, unattended):** 5 of 5
+  confirmed in game. T-0116 (hold-interact start), T-0117 (rope-grab /
+  rope-leave splits), T-0118 (fast building's hold) checked live, no
+  code; v0.24.350 T-0411 (a Quick load removes items dropped since the
+  capture, by an instance-id mark), v0.24.351 T-0415 (live animals kept).
+  Parked for the author: T-0416 (move rolled copies back? remove flares /
+  fire / bombs?), plus T-0111, T-0413, T-0066, T-0409, T-0410, T-0366.
+  **Next:** answer the parked questions; the chain's next run.
+
 - **2026-10-18 (run R-0021, chain C-0002, unattended):** 4 of 5
   progressed, 3 confirmed in game. v0.24.348 T-0109 (run mode flags a
   changed timeScale per episode with its duration; a 0 outside menus
@@ -178,16 +187,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   plan ready; 2 choices on story-spot pickups / old files), plus T-0409,
   T-0411, T-0410, T-0366. **Next:** answer the parked questions; the
   chain's next run.
-
-- **2026-10-18 (run R-0019, chain C-0002, unattended):** 4 of 5 progressed,
-  3 confirmed in game. v0.24.342-343 T-0034 (the old world after a Full
-  load: the A* path pool + our drawings view freed; heap flat over 4
-  loads - read the heap twice, gotcha 49), v0.24.344 T-0053 (busy-area
-  restores fine; a full-inventory pickup is put back), T-0055 (the three
-  unseen endgame events fire; docs only), T-0405 wontfix (author's keep).
-  Parked for the author: T-0409 (split multi-action input tiles: layout,
-  Raw, migration), T-0411 (remove dropped copies on restore?), plus T-0410,
-  T-0366. **Next:** answer the parked questions; the chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
