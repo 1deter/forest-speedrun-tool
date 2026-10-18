@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.347 - 2026-10-18
+
+- A Quick or Full load no longer regrows a tree you had half-chopped when you saved: it stays half-chopped and chops on normally.
+- A Full load puts a cut sapling's two sticks back, and a Quick load no longer leaves a new sapling stick lying next to a loose stick.
+
 ## v0.24.346 - 2026-10-18
 
 - A savestate taken on a rope (cave ropes and built Climbing Ropes) now restores at the captured height instead of near the top or stuck in the ground.
