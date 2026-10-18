@@ -1211,3 +1211,10 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     tasks/notes/T-0382.md. Until it is settled, read the System log
     before retrying a screenshot that never appears; if it shows a fault,
     stop driving and close the game (author, 2026-10-16).
+
+121. **`tasks.py set --notes` replaces the notes, it does not append.**
+    (2026-10-18, R-0019, T-0405.) Closing T-0405 with a one-line `--notes`
+    wiped the UX finding, its options and the author's answer; they came
+    back from `git show HEAD:tasks/tasks.jsonl`. To add a line, pass the
+    old notes plus the new line, or use `tasks.py note T-n` (the running
+    note file).

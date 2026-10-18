@@ -380,3 +380,4 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 117. **Push main before spawning a worktree agent that must see local commits** - its branch can be cut from origin/main. [judgement]
 118. **Prove a merge with `merge-base --is-ancestor` before built / bump** - a piped merge hid a refusal and v0.24.318 shipped without its fix. [judgement]
 120. **A screenshot that never appears: read the System log for a GPU driver fault before retrying** - hypothesis until confirmed live (T-0382: nvlddmkm 153 at the failed shot, trigger open); stop driving and close the game if it shows one; `status` and a timed-out `screenshot` print a `GPU DRIVER FAULT` line for it. [check: GpuFaultTests]
+121. **`tasks.py set --notes` replaces the notes** - pass the old text plus the new line, or `tasks.py note T-n`. [judgement]

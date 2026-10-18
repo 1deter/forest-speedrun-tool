@@ -157,6 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0019, chain C-0002, unattended):** 4 of 5 progressed,
+  3 confirmed in game. v0.24.342-343 T-0034 (the old world after a Full
+  load: the A* path pool + our drawings view freed; heap flat over 4
+  loads - read the heap twice, gotcha 49), v0.24.344 T-0053 (busy-area
+  restores fine; a full-inventory pickup is put back), T-0055 (the three
+  unseen endgame events fire; docs only), T-0405 wontfix (author's keep).
+  Parked for the author: T-0409 (split multi-action input tiles: layout,
+  Raw, migration), T-0411 (remove dropped copies on restore?), plus T-0410,
+  T-0366. **Next:** answer the parked questions; the chain's next run.
+
 - **2026-10-18 (run R-0018, author away overnight):** 5 of 5 confirmed in
   game. v0.24.338 T-0390 (collision view boxes a mesh with no triangles),
   v0.24.339 T-0393 (own run line off while running, [Runs] RunLineOwnLive
@@ -172,11 +182,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   is not timed: no checkpoints to show.'), checker accept both - need
   in-game confirm. **Next:** the overnight loop; confirm T-0391 / T-0398 /
   T-0401 / T-0404 / T-0408 in game.
-
-- **2026-10-17 (session 3, low usage):** v0.24.336 T-0404 (Items fold is a
-  chevron header) + T-0408 (stat tips explain the label rules), checker
-  accept both - need in-game confirm. **Next:** confirm T-0391 / T-0404 /
-  T-0408 in game, then `tasks.py next`.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
