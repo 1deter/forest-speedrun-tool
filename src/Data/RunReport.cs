@@ -71,6 +71,14 @@ namespace ForestOverlay.Data
         /// SHA-256 of Assembly-CSharp.dll; "" while not read, "error: ..." when unreadable.
         public string GameHash = "";
 
+        /// The game's file on disk, written only when it differs from GameHash
+        /// (the loaded code): the file was changed, or changed and put back (T-0111).
+        public string GameFileHash = "";
+
+        /// Only when the loaded code could not be read and GameHash is the
+        /// file's: why ("32-bit game", ...). "" when GameHash is the loaded image.
+        public string GameFrom = "";
+
         public readonly List<string> OtherPlugins = new List<string>();   // "Name 1.0 (file.dll)"
         public readonly List<string> OtherPatchers = new List<string>();  // file names
         public readonly List<string> OtherCode = new List<string>();      // assemblies loaded from elsewhere
@@ -85,6 +93,25 @@ namespace ForestOverlay.Data
         /// so the site can name what changed (phase 3). Not a finding here.
         public readonly List<string> TypeHashes = new List<string>();
         public string PracticeBefore = "";                                // a practice action earlier this session
+
+        /// True when a loaded image's header looks like a PE file: "MZ" first,
+        /// "PE\0\0" at e_lfanew (PeOffset of head), 1 MB to 256 MB long
+        /// (T-0111). head is the first 64+ bytes, peSig the 4 bytes at e_lfanew.
+        public static bool PlausibleImage(byte[] head, long length, byte[] peSig)
+        {
+            if (head == null || head.Length < 64 || length < 1024 * 1024 || length > 256L * 1024 * 1024) return false;
+            if (head[0] != (byte)'M' || head[1] != (byte)'Z') return false;
+            long lfanew = PeOffset(head);
+            if (lfanew <= 0 || lfanew + 4 > length) return false;
+            return peSig != null && peSig.Length >= 4 && peSig[0] == (byte)'P' && peSig[1] == (byte)'E' && peSig[2] == 0 && peSig[3] == 0;
+        }
+
+        /// e_lfanew of a PE header (0 when head is too short).
+        public static long PeOffset(byte[] head)
+        {
+            if (head == null || head.Length < 64) return 0;
+            return head[60] | (head[61] << 8) | (head[62] << 16) | ((long)head[63] << 24);
+        }
 
         public static bool IsKnownGame(string hash)
         {
@@ -115,6 +142,10 @@ namespace ForestOverlay.Data
             else if (GameHash.StartsWith("error")) lines.Add("NOT OK  The game's code could not be checked (" + GameHash + ").");
             else if (IsKnownGame(GameHash)) lines.Add("OK  The game's code is the unmodified Steam game.");
             else lines.Add("NOT OK  The game's code is not the Steam game's - it was changed or is another version (" + Short(GameHash) + ").");
+            if (GameFileHash.Length > 0)
+                lines.Add("Note  The game's file on disk is not the code that was loaded (" + Short(GameFileHash) + ").");
+            if (GameFrom.Length > 0)
+                lines.Add("Note  The game's code was checked from its file, not from memory (" + GameFrom + ").");
 
             if (OtherPlugins.Count == 0 && OtherPatchers.Count == 0 && OtherCode.Count == 0)
                 lines.Add("OK  No other mods loaded.");
@@ -165,6 +196,8 @@ namespace ForestOverlay.Data
                 sb.Append("multiplayer = ").Append(Multiplayer ? "yes" : "no").Append('\n');
             }
             sb.Append("game = ").Append(GameHash).Append('\n');
+            if (GameFileHash.Length > 0 && GameFileHash != GameHash) sb.Append("gamefile = ").Append(GameFileHash).Append('\n');
+            if (GameFrom.Length > 0) sb.Append("gamefrom = ").Append(GameFrom).Append('\n');
             sb.Append("verdict = ").Append(Clean ? "clean" : "not valid").Append('\n');
             sb.Append("ownpatches = ").Append(OwnPatchedMethods).Append('\n');
             List(sb, "otherplugin", OtherPlugins);
@@ -217,6 +250,8 @@ namespace ForestOverlay.Data
                     case "multiplayer": r.Multiplayer = value == "yes"; break;
                     case "used": r.Used.Add(value); break;
                     case "game": r.GameHash = value; break;
+                    case "gamefile": r.GameFileHash = value; break;
+                    case "gamefrom": r.GameFrom = value; break;
                     case "ownpatches": int.TryParse(value, out r.OwnPatchedMethods); break;
                     case "otherplugin": r.OtherPlugins.Add(value); break;
                     case "otherpatcher": r.OtherPatchers.Add(value); break;

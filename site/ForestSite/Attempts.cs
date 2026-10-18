@@ -666,6 +666,10 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         else if (r.GameHash.StartsWith("error")) f.Add(new("bad", "The game's code could not be checked (" + r.GameHash + ")."));
         else if (RunReport.IsKnownGame(r.GameHash)) f.Add(new("ok", "The game's code is the unmodified Steam game."));
         else f.Add(ChangedGame(r, code ?? GameCode.Steam));
+        if (r.GameFileHash.Length > 0)
+            f.Add(new("note", "The game's file on disk is not the code that was loaded (" + r.GameFileHash[..Math.Min(12, r.GameFileHash.Length)] + ")."));
+        if (r.GameFrom.Length > 0)
+            f.Add(new("note", "The game's code was checked from its file, not from memory (" + r.GameFrom + ")."));
 
         if (r.OtherPlugins.Count + r.OtherPatchers.Count + r.OtherCode.Count == 0) f.Add(new("ok", "No other mods were loaded."));
         foreach (string s in r.OtherPlugins)
