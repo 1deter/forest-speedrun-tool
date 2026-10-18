@@ -2406,6 +2406,28 @@ next drop -4936214. The bridge's `#handle` is the instance id. In a
 fresh world (after a Full load) the only runtime-made pickups at a scene
 root were those drops; the wreck's (`Hull(Clone)/...`) are children.
 
+**Live animals sit at the scene root too (bridge, 2026-10-18, T-0415).**
+`AnimalSpawnController` spawns from `PoolManager.Pools["creatures"]`
+(`Pooling/Pool_Creatures`, `dontReparent` true), so `rabbitGo(Clone)00n`
+and `lizardGo(Clone)00n` are roots with negative instance ids and no
+`UniqueIdentifier` (`animalAI`, `animalHealth`, `CoopAnimal`, an
+`AnimalDespawner` added by `SetupAnimal`). `rabbitGo` carries
+`rabbit_ANIM_base/Trigger` (inactive while the rabbit runs; `rabbitEvents`
+turns it on when trapped, in multiplayer): a `PickUp` of item 77 `Rabbit
+Alive`, `_destroyTarget` the root, `_poolManagerDespawnCreature` false. A
+trap's rabbit comes from the same pool (`trapTrigger.SpawnTrappedAnimal`).
+`AnimalSpawnZone.SpawnedAnimals` loses an entry only through
+`AnimalDespawner.UpdateSpawnState` (or the zone's `OnDisable`), and the
+pool counts its instances in `_spawned`: an `Object.Destroy` from outside
+leaves a dead entry in both (zone 6 with one `null`, pool `Count` 6 after
+the v0.24.350 restore destroyed a rabbit). Birds (`lb_*(Clone)`,
+`Object.Instantiate`) and lizards carry `CoopAnimal` as well; a goose root
+(`gooseGo(Clone)n`) has `newGooseAi`. Test recipe: `call
+Pooling/Pool_Creatures SpawnPool.Spawn <rabbitGo prefab: a zone's
+Spawns[0].Prefab>`, set its `Transform.position`, then `call
+CoopAnimalSpawner AnimalSpawnController.OnSpawnedFromAssetBundle <h>
+<zone>` (`SpawnOneAnimalForZone` found no spawn spot at (428, 78, -4)).
+
 **Streaming comes back by itself.** `ForcedUnload(bool)` on
 `GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
 `SceneUnloadInCave.Awake` registers `CheckInCave` with

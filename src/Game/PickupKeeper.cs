@@ -46,6 +46,7 @@ namespace ForestOverlay.Game
 
         private static ManualLogSource _log;
         private static Type _uniqueIdType;
+        private static Type _coopAnimalType;
         private static FieldInfo _itemId;
         private static FieldInfo _destroyTarget;
         private static FieldInfo _disable;
@@ -86,6 +87,7 @@ namespace ForestOverlay.Game
         {
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
             _uniqueIdType = GameBridge.FindGameType("UniqueIdentifier");
+            _coopAnimalType = GameBridge.FindGameType("CoopAnimal");
             if (pickUp == null || _uniqueIdType == null) { Status = "PickUp type not found"; _log.LogWarning("PickupKeeper: " + Status); return; }
 
             BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -372,7 +374,11 @@ namespace ForestOverlay.Game
         /// (a full-inventory take's Stick_Dynamic copy and kin): the root
         /// has no identifier, a lower instance id than `threshold`, and a
         /// PickUp below it whose destroy target is the root. Walks the root
-        /// objects only. Counts by item id. Returns how many.
+        /// objects only. Counts by item id. Returns how many. A live animal
+        /// is never one (T-0415): a rabbit (rabbitGo, from the creatures
+        /// pool, which leaves it at the root) carries an inactive 'Rabbit
+        /// Alive' PickUp aimed at itself; destroying it left dead entries in
+        /// its spawn zone and the pool.
         public static int RemoveSpawnedSince(int threshold, Transform player, Dictionary<int, int> counts)
         {
             if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return 0;
@@ -398,6 +404,7 @@ namespace ForestOverlay.Game
                     if (r == null || !SpawnMark.IsAfter(r.GetInstanceID(), threshold)) continue;
                     if (!r.activeInHierarchy || (player != null && r.transform == player.root)) continue;
                     if (r.GetComponent(_uniqueIdType) != null) continue;
+                    if (_coopAnimalType != null && r.GetComponent(_coopAnimalType) != null) continue;
                     Component[] pickups = r.GetComponentsInChildren(pickUp, true);
                     Component hit = null;
                     for (int k = 0; k < pickups.Length && hit == null; k++)
