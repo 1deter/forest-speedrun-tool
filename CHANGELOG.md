@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.345 - 2026-10-18
+
+- A Full load no longer keeps the previous world in memory after a teleport into or out of a cave.
+
 ## v0.24.344 - 2026-10-18
 
 - A Quick load now puts back a stick or other pickup you tried to take with a full inventory (the game drops it instead).
