@@ -1,10 +1,14 @@
 #!/bin/sh
-# A v* tag about to be pushed must match its commit's csproj <Version>,
-# Plugin.PluginVersion and a CHANGELOG section - CI publishes the release
-# from it (router rule 3, gotcha 65). Stdin: <local ref> <sha> <remote ref> <sha>.
+# 1. A v* tag about to be pushed must match its commit's csproj <Version>,
+#    Plugin.PluginVersion and a CHANGELOG section - CI publishes the release
+#    from it (router rule 3, gotcha 65).
+# 2. A push to main runs the CI steps its paths trigger on the pushed commit
+#    (scripts/prepush.py) - CI failing on main mails the author (2026-10-18).
+# Stdin: <local ref> <sha> <remote ref> <sha>, one line per ref.
 PY=$(command -v python || command -v python3)
 zero=0000000000000000000000000000000000000000
 status=0
+refs=$(cat)
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$local_ref" in
     refs/tags/v*)
@@ -12,5 +16,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       "$PY" scripts/lint.py --tag "${local_ref#refs/tags/}" --rev "$local_sha^{commit}" || status=1
       ;;
   esac
-done
-exit $status
+done <<EOF
+$refs
+EOF
+[ $status -eq 0 ] || exit $status
+printf '%s\n' "$refs" | "$PY" scripts/prepush.py

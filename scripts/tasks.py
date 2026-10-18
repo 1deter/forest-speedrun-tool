@@ -843,6 +843,37 @@ def git_out(args):
     return r.stdout
 
 
+def check_staged(git=None):
+    """Pre-commit (author 2026-10-18: CI failing on main mails the author): a commit that carries
+    tasks/tasks.jsonl carries the docs/tasks.md rendered from that same staged file. The view is
+    rendered from the index and written into the index (the working copy is shared with other
+    sessions and may already hold newer task writes), so CI's `check` always passes on it."""
+    def run_git(args, stdin=None):
+        r = subprocess.run(["git"] + args, cwd=ROOT, capture_output=True, input=stdin, timeout=30)
+        return r.returncode, r.stdout.decode("utf-8", "replace")
+    git = git or run_git
+    rel_tasks, rel_view = "tasks/tasks.jsonl", "docs/tasks.md"
+    code, names = git(["diff", "--cached", "--name-only"])
+    if code != 0 or not ({rel_tasks, rel_view} & set(names.split())):
+        return "tasks: nothing staged"
+    code, text = git(["show", ":" + rel_tasks])
+    if code != 0:
+        return "tasks: no staged task file"
+    tasks = parse(text.replace("\r\n", "\n"))
+    validate(tasks)
+    want = render(tasks)
+    code, have = git(["show", ":" + rel_view])
+    if code == 0 and have.replace("\r\n", "\n") == want:
+        return "tasks: %d ok (staged)" % len(tasks)
+    code, blob = git(["hash-object", "-w", "--stdin"], stdin=want.encode("utf-8"))
+    info = "100644,%s,%s" % (blob.strip(), rel_view)
+    if code != 0 or git(["update-index", "--add", "--cacheinfo", info])[0] != 0:
+        raise TaskError("docs/tasks.md does not match the staged tasks.jsonl and could not be staged",
+                        "CI renders the view from the committed task file and fails main when they differ",
+                        "`python scripts/tasks.py render`, then `git add tasks/tasks.jsonl docs/tasks.md`")
+    return "tasks: re-rendered docs/tasks.md from the staged task file and staged it"
+
+
 def brief(ts, show=git_out, limit=BRIEF_LIMIT):
     """What a fresh-context checker reads: the contract, the maker's evidence, earlier reviews,
     the task's diff (bookkeeping files left out, cut at limit) and the suites to re-run.
@@ -1124,7 +1155,9 @@ def main(argv=None):
     sp = sub.add_parser("stats")
     sp.add_argument("--since")
     sp.add_argument("--until")
-    sub.add_parser("check")
+    c = sub.add_parser("check")
+    c.add_argument("--staged", action="store_true",
+                   help="the index, not the files: re-render the staged docs/tasks.md (pre-commit)")
     sub.add_parser("render")
     sub.add_parser("qa-todo")
     a = p.parse_args(argv)
@@ -1167,6 +1200,8 @@ def run(a):
                 if d and not re.match(r"^\d{4}-\d{2}-\d{2}$", d):
                     raise TaskError("bad date %r" % d, "the window is whole days", "--since / --until YYYY-MM-DD")
             print(stats(tasks, a.since, a.until))
+        elif a.cmd == "check" and a.staged:
+            print(check_staged())
         elif a.cmd == "check":
             validate(tasks)
             with open(VIEW, encoding="utf-8") as f:

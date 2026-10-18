@@ -33,7 +33,14 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   only new ones fail; `--update-baseline` accepts a false positive or drops
   fixed ones). Runs in CI, before every commit (`.githooks/pre-commit`) and
   before a `v*` tag is pushed (`.githooks/pre-push`: the tag's commit
-  carries that version). Every gotcha has one index line in an area doc,
+  carries that version). **CI failures stay off main** (author 2026-10-18:
+  failing main runs mail the author): pre-commit stages the `docs/tasks.md`
+  rendered from the staged task file (`tasks.py check --staged`), and a
+  push to main runs the workflow steps its paths trigger on the pushed
+  commit in a throwaway worktree (`scripts/prepush.py`; `--plan <paths>`
+  lists them; 5-40 s). Not covered: the site's browser smoke, outages; the
+  bot and site restore from nuget.org only (`bot/nuget.config`,
+  `site/nuget.config`). Every gotcha has one index line in an area doc,
   ending with `[check: <name>]`, `[check: T-n]` (an open task) or
   `[judgement]` (5d, T-0009). `session-start.py` turns the git hooks on
   (`core.hooksPath .githooks`). The community index: `CommunityPacksTests`.

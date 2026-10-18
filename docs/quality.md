@@ -274,7 +274,7 @@ Paths: `src/Core/{UpdateChecker,UpdaterInstaller,WebRequest}.cs` `src/Game/ModAp
 
 ### Site app
 
-Paths: `site/CLAUDE.md` `site/ForestSite/*` `site/ForestSite/GameCode/` `site/ForestSite/wwwroot/{admin.js,app.js,attempt.js,compare.js,index.html,items.json,style.css}` `site/deploy/` `.github/workflows/site.yml` `scripts/site-smoke.py` `docs/website.md` `docs/areas/site.md`
+Paths: `site/CLAUDE.md` `site/nuget.config` `site/ForestSite/*` `site/ForestSite/GameCode/` `site/ForestSite/wwwroot/{admin.js,app.js,attempt.js,compare.js,index.html,items.json,style.css}` `site/deploy/` `.github/workflows/site.yml` `scripts/site-smoke.py` `docs/website.md` `docs/areas/site.md`
 
 Spots, runs, attempts, categories, admin, the API, the PB webhook.
 - Verification **A**: 99 tests (Api, Attempt, Category); the browser smoke
@@ -344,7 +344,7 @@ exports the bot reads.
 
 ### Harness
 
-Paths: `scripts/{agent-cost,audit,cleanup,lint,log-catalogue,loop,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/audit-ignore.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
+Paths: `scripts/{agent-cost,audit,cleanup,lint,log-catalogue,loop,merge-keepboth,prepush,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/audit-ignore.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
 
 The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
 - Verification **A**: tasks, loop, lint, hooks, session and log
