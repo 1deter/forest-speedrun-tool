@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.353 - 2026-10-18
+
+- Your just-finished run's line now stays drawn after the run ends, until the next one starts, so you can look at it.
+- New toggle in Runs > Run lines: "Keep the finished run's line" (on by default).
+
 ## v0.24.352 - 2026-10-18
 
 - New HUD values "Passengers found" and "Loads": the same numbers the LiveSplit autosplitter's variable viewer shows. Both are off by default (Settings > HUD) and can be docked into the splits panel like any other value.
