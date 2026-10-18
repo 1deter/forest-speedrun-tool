@@ -2430,6 +2430,37 @@ Spawns[0].Prefab>`, set its `Transform.position`, then `call
 CoopAnimalSpawner AnimalSpawnController.OnSpawnedFromAssetBundle <h>
 <zone>` (`SpawnOneAnimalForZone` found no spawn spot at (428, 78, -4)).
 
+**Thrown things are scene roots too (bridge, 2026-10-18, T-0416).**
+`PlayerInventory.ThrowProjectile` (private; lit = `UseAltWorldPrefab`
+false) instantiates the held view's world prefab, and `FireRangedWeapon`
+instantiates the ammo prefab. Both come out at a root in `ForestMain_v08`,
+with a negative instance id and no `UniqueIdentifier`:
+- a lit flare: `FlareSpawn(Clone)`, layer PickUp but no `PickUp`, with
+  `destroyAfter` 60 s;
+- a flare-gun flare: `Flare(Clone)`, with `FlareWeapon` (destroys itself
+  after `Amount` s);
+- a molotov: `Molotov(Clone)`, with `Molotov`. Its `SmirBroken`
+  `MasterFireSpread` spawns the fire as `Pooling/Pool_Particles/Fire(Clone)`
+  and despawns it in `OnDestroy`. The break adds `destroyAfter` 4 s;
+- a timed bomb or dynamite: `Bomb_Timed(Clone)`, with `Bomb` (`WaitTime`
+  3). `Bomb.Explode` unparents its `Explosion` (`Explode`: blast at +0.1 s,
+  `CleanUp` at 7 s) and `explodeReactTrigger` (`effigyRangeDetect`) to the
+  root. A rabbit it kills leaves `rabbitExploded(Clone)` gibs
+  (`destroyAfter`).
+
+A Quick load leaves them all: a bomb thrown 0.2 s before `restore` blew up
+3 s after it. `Object.Destroy` on the bomb root before its fuse runs out
+cancels the blast (no `Explosion` 4 s later). Other roots appear on their
+own in play and are not thrown things: `QuickSelectViewPool` (a UI pool,
+made lazily at the first equip), pooled animals with a `currentWaypoint`
+root each, and unequipped held items (`MolotovHeld`, ... carry
+`HeldItemIdentifier` + `FakeParent`, inactive, at the root; equipped, they
+sit under `rightHandHeld`). Pool membership:
+`PathologicalGames.SpawnPool.IsSpawned(Transform)` (`PoolManager.Pools`,
+11 pools). A root `Rock_Dynamic(Clone)` keeps its instance id through a
+Quick load, which leaves it where it rolled. Setting its `Transform.position`
+back and zeroing the `Rigidbody` velocities holds it there.
+
 **Streaming comes back by itself.** `ForcedUnload(bool)` on
 `GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
 `SceneUnloadInCave.Awake` registers `CheckInCave` with
