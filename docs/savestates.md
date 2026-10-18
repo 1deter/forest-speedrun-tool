@@ -547,8 +547,24 @@ Quick load of the same world and launch (the `spawned` mark) sets back a
 differing `Health`, rewrites the skin floats, and cancels `HitPoison` /
 `disablePoison` on an animal not poisoned at the capture. The restore line
 gains `| animals: N put back (health xN, skin xN, poison stopped xN)`.
-Gaps left: an animal killed since stays dead, one spawned since stays,
-none is moved back; poison running at the capture keeps its current state;
-a deer's longer flee distance after a hit is not put back; a pooled animal
-killed since and respawned on the same root gets the captured health and
-skin (matched by root instance id; not seen live).
+T-0428 (game-notes *An animal's death, spawn and pool*) adds the header lines
+`animalposes` (id, pool prefab name, zone index or -1, position, the
+`animalAI.animatorTr` rotation), `animalzones` (per zone `MaxAnimalsTotal`,
+`SpawnedAnimals` ids, `AddSpawnBackTimes` as seconds left) and `animalcounts`
+(the `sceneTracker` curr / max animal ints); older files lack them and then
+none of this runs. Same world and launch only, in this order: (1) a zone
+animal live now and not captured is despawned (`AnimalDespawner.
+UpdateSpawnState(false)`); (2) one captured and not live is brought back: its
+root pulled to the head of the pool's `_despawned`, `SpawnPool.Spawn(prefab,
+pos, rot)`, removed from the zone's list, `OnSpawnedFromAssetBundle`; if the
+pool culled it and made a new root, a static stand-in map (new id -> captured
+id, this launch) lets every later match read it as the captured animal;
+(3) the kept ones off their spot by more than 0.25 m are moved back (root
+position, `animatorTr` rotation); (4) the health / skin / poison step above;
+(5) per zone the cap, the respawn timers and the `SpawnedAnimals` list, then
+the `sceneTracker` counters. The restore line gains `brought back`, `removed
+(spawned since)`, `moved back`, `zone(s) reset`. Gaps left: poison running at
+the capture; a deer's longer flee distance after a hit; an animal's AI / FSM
+state (a fleeing rabbit keeps fleeing from where it stood); zone-less animals
+(trap rabbits, fish, turtles, birds); the game's kill events of a kill since
+were published.

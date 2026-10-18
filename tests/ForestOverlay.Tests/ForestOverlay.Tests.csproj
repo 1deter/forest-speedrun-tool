@@ -73,6 +73,7 @@
     <Compile Include="../../src/Data/DroppedPoses.cs" Link="Linked/DroppedPoses.cs" />
     <Compile Include="../../src/Data/LitFires.cs" Link="Linked/LitFires.cs" />
     <Compile Include="../../src/Data/AnimalStates.cs" Link="Linked/AnimalStates.cs" />
+    <Compile Include="../../src/Data/AnimalSpawns.cs" Link="Linked/AnimalSpawns.cs" />
     <Compile Include="../../src/Data/KeptBush.cs" Link="Linked/KeptBush.cs" />
     <Compile Include="../../src/Data/DespawnTimer.cs" Link="Linked/DespawnTimer.cs" />
     <Compile Include="../../src/Data/ChoppedTree.cs" Link="Linked/ChoppedTree.cs" />

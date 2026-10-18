@@ -454,6 +454,7 @@ namespace ForestOverlay.Modules
             // Null until its step ran: no line rather than "none lit".
             public string Fires;
             public string Animals = "";
+            public string AnimalPoses = "", AnimalZones = "", AnimalCounts = "";
             public List<string> CutBushes, Chopped, Greebles, Broken;
             public string Areas = "", EnemyNote = "";
             public List<string> Enemies = new List<string>();
@@ -564,6 +565,7 @@ namespace ForestOverlay.Modules
                     p.Chopped = _nature.CaptureChopped();
                     p.Fires = _fire.Capture();
                     p.Animals = _animals.Capture();
+                    _animals.CaptureSpawns(out p.AnimalPoses, out p.AnimalZones, out p.AnimalCounts);
                     break;
                 case 8: p.Greebles = _greebles.Capture(); break;
                 case 9: p.Broken = _breakables.Capture(); break;
@@ -682,6 +684,7 @@ namespace ForestOverlay.Modules
                 f.CutBushes = cutBushes;
                 f.Fires = p.Fires;
                 f.Animals = p.Animals;
+                f.AnimalPoses = p.AnimalPoses; f.AnimalZones = p.AnimalZones; f.AnimalCounts = p.AnimalCounts;
                 f.Chopped = chopped;
                 f.Greebles = greebles;
                 f.Broken = broken;
@@ -1093,7 +1096,7 @@ namespace ForestOverlay.Modules
                 if (r.Ok && file != null)
                 {
                     bool sameWorld = SpawnMark.IsSameWorld(SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()));
-                    animalNote = _animals.Restore(file.Animals, sameWorld);
+                    animalNote = _animals.Restore(file.Animals, file.AnimalPoses, file.AnimalZones, file.AnimalCounts, sameWorld);
                 }
                 RestoreGarbage.Mark("animals");
                 // Trees chopped and bushes cut since are outside what an
