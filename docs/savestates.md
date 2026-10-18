@@ -441,4 +441,8 @@ capture (T-0411): the file's `spawned` line holds the instance id at the
 capture, and scene-root items with a lower id are destroyed (game-notes
 *Dropped copies and instance ids*). A file without the line, or an
 unreadable one, removes nothing; a file of another world removes every
-runtime-made root item. A Full load clears them with the scene.
+runtime-made root item. A Full load clears them with the scene. A root
+with `CoopAnimal` (a live rabbit, lizard or bird) is never removed
+(T-0415): the creatures pool leaves animals at the root, and a rabbit's
+inactive `Rabbit Alive` pickup aims at it (game-notes *Live animals sit
+at the scene root too*).
