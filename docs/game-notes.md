@@ -2454,7 +2454,8 @@ cancels the blast (no `Explosion` 4 s later). Other roots appear on their
 own in play and are not thrown things: `QuickSelectViewPool` (a UI pool,
 made lazily at the first equip), pooled animals with a `currentWaypoint`
 root each, and unequipped held items (`MolotovHeld`, ... carry
-`HeldItemIdentifier` + `FakeParent`, inactive, at the root; equipped, they
+`HeldItemIdentifier` (`TheForest.Items.Inventory.HeldItemIdentifier`,
+ILScan) + `FakeParent`, inactive, at the root; equipped, they
 sit under `rightHandHeld`). Pool membership:
 `PathologicalGames.SpawnPool.IsSpawned(Transform)` (`PoolManager.Pools`,
 11 pools). A root `Rock_Dynamic(Clone)` keeps its instance id through a

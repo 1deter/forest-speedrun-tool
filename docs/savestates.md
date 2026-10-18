@@ -446,3 +446,19 @@ with `CoopAnimal` (a live rabbit, lizard or bird) is never removed
 (T-0415): the creatures pool leaves animals at the root, and a rabbit's
 inactive `Rabbit Alive` pickup aims at it (game-notes *Live animals sit
 at the scene root too*).
+
+A Quick load also mirrors the other scene roots (T-0416, `PickupKeeper.
+MirrorRoots`, one walk before the load). The capture's `dropped` header line
+(`id:item@x,y,z@qx,qy,qz,qw;...`, Data/DroppedPoses) holds the pose of every
+loose root item, by GameObject instance id. For a file of the same world
+(a real `spawned` mark) a copy that rolled since is put back at that pose
+(velocities zeroed, put to sleep), and so is one taken since: its kept
+pickup is moved and re-keyed so the pickups step matches the capture's key
+and brings it back. Things thrown since (a lit flare, a flare-gun flare, a
+molotov, a timed bomb and its blast) are roots with no pickup, not from a
+spawn pool, whose own component (`destroyAfter`, `Molotov`, `Bomb`,
+`Explode`, `FlareWeapon`, `effigyRangeDetect`) is one the game destroys them
+with on a timer; they are destroyed (which also cancels a bomb's pending
+blast). If the pools cannot be read, none are removed. The done line gains
+`, removed N thing(s) thrown since the capture (bomb x1, flare x2)` and
+`, moved N copy(ies) back to where they lay at the capture`.
