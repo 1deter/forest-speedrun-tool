@@ -123,6 +123,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _markStatus = new GUIContent("");
         private Attempt _markStatusFor;
         private int _markStatusVer = -1, _markStatusCount = -1;
+        private bool _markStatusUntimed;
         private readonly List<string> _markChans = new List<string>();
         private readonly List<string> _markChanLabels = new List<string>();
         private Attempt _markChansFor;
@@ -428,10 +429,13 @@ namespace ForestOverlay.Modules
 
             // Why nothing (or less) shows, in words.
             int splits = _reference != null && _reference.Splits != null ? _reference.Splits.Length : 0;
-            if (!ReferenceEquals(_markStatusFor, _reference) || _markStatusVer != _markSpecVer || _markStatusCount != _markCount)
+            Segment cur = _practice.CurrentSegment;
+            bool untimed = cur != null && !cur.IsTimed;
+            if (!ReferenceEquals(_markStatusFor, _reference) || _markStatusVer != _markSpecVer || _markStatusCount != _markCount ||
+                _markStatusUntimed != untimed)
             {
-                _markStatusFor = _reference; _markStatusVer = _markSpecVer; _markStatusCount = _markCount;
-                _markStatus.text = MarkLabels.Status(sp, _reference, _markCount, splits);
+                _markStatusFor = _reference; _markStatusVer = _markSpecVer; _markStatusCount = _markCount; _markStatusUntimed = untimed;
+                _markStatus.text = MarkLabels.Status(sp, _reference, _markCount, splits, untimed);
             }
             if (_markStatus.text.Length > 0) y += UiText.Draw(x, y, w, _markStatus) + 2f;
             if (_markNoteText.Length > 0)

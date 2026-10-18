@@ -141,6 +141,10 @@ namespace ForestOverlay.Tests
             Assert.Contains("No comparison", MarkLabels.Status(def, null, 0, 0));
             Assert.Contains("no splits", MarkLabels.Status(def, Run(), 1, 0));
             Assert.Equal("", MarkLabels.Status(def, Run(), 2, 1));
+            // T-0401: a plain spot names itself, not the comparison left from the last spot.
+            Assert.Equal("This spot is not timed: no checkpoints to show.", MarkLabels.Status(def, Run(), 2, 1, true));
+            Assert.Equal("This spot is not timed: no checkpoints to show.", MarkLabels.Status(def, null, 0, 0, true));
+            Assert.Contains("off", MarkLabels.Status(MarkSpec.Parse("off"), Run(), 2, 1, true));
             Assert.Contains("Nope", MarkLabels.Status(MarkSpec.Parse("time,ch:Nope"), Run(), 2, 1));
         }
     }

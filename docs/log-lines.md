@@ -1328,7 +1328,7 @@ Written by GameDumper.cs; warning.
 Meaning: The player inventory's members found by reflection (startup).
 Written by InventoryReader.cs; info.
 
-- info `PlayerInventory bound. items:<..> count:<..> db:<..> equipIds:<..>`
+- info `PlayerInventory bound. items:<..> count:<..> db:<..>`
 
 ## `PlayerStats bound`
 

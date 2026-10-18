@@ -31,7 +31,8 @@ namespace ForestOverlay.Game
     //     ._possessedItems      List<InventoryItem>
     //     ._possessedItemsCount int
     //     ._itemDatabase        ItemDatabase
-    //     ._equipmentSlotsIds   int[]   - ids currently equipped
+    //     ._equipmentSlots      InventoryItemView[] - the held views (EquipmentIds;
+    //                           ._equipmentSlotsIds only lags them until a save)
     //
     //   TheForest.Items.Inventory.InventoryItem
     //     ._itemId int / ._amount int / ._maxAmount int
@@ -80,7 +81,6 @@ namespace ForestOverlay.Game
         private FieldInfo _possessedCountField;
         private FieldInfo _possessedItemsField;
         private FieldInfo _itemDatabaseField;
-        private FieldInfo _equipmentSlotIdsField;
 
         private FieldInfo _itemIdField;
         private FieldInfo _amountField;
@@ -395,7 +395,6 @@ namespace ForestOverlay.Game
             _possessedCountField = _inventoryType.GetField("_possessedItemsCount", flags);
             _possessedItemsField = _inventoryType.GetField("_possessedItems", flags);
             _itemDatabaseField = _inventoryType.GetField("_itemDatabase", flags);
-            _equipmentSlotIdsField = _inventoryType.GetField("_equipmentSlotsIds", flags);
 
             // The database hangs off this inventory instance, so it has to
             // be re-resolved whenever the inventory is rebound.
@@ -404,8 +403,7 @@ namespace ForestOverlay.Game
 
             _log.LogInfo("PlayerInventory bound. items:" + (_possessedItemsField != null) +
                          " count:" + (_possessedCountField != null) +
-                         " db:" + (_itemDatabaseField != null) +
-                         " equipIds:" + (_equipmentSlotIdsField != null));
+                         " db:" + (_itemDatabaseField != null));
         }
 
         // ------------------------------------------------------------------
@@ -514,22 +512,18 @@ namespace ForestOverlay.Game
 
         // Equipped ids explain the "x0" entries: an item that is currently
         // held reads amount 0 in _possessedItems, which looks like a ghost
-        // until you can see it is in a slot.
+        // until you can see it is in a slot. Read from the live slots
+        // (EquipmentIds): `_equipmentSlotsIds` lags until the next save
+        // (T-0398).
         private void RefreshEquipped()
         {
             _equipped.Clear();
-            if (_equipmentSlotIdsField == null) return;
-
-            try
-            {
-                int[] ids = _equipmentSlotIdsField.GetValue(_inventory) as int[];
-                if (ids == null) return;
-
-                for (int i = 0; i < ids.Length; i++)
-                    if (ids[i] > 0 && !_equipped.Contains(ids[i])) _equipped.Add(ids[i]);
-            }
-            catch (Exception) { }
+            int n = EquipmentIds(_equipBuf);
+            for (int i = 0; i < n; i++)
+                if (_equipBuf[i] > 0 && !_equipped.Contains(_equipBuf[i])) _equipped.Add(_equipBuf[i]);
         }
+
+        private readonly int[] _equipBuf = new int[16];
 
         private static int CompareStacks(ItemStack a, ItemStack b)
         {
