@@ -195,5 +195,75 @@ namespace ForestOverlay.Tests
             Assert.False(l.Find("Q").Shown);
             Assert.Equal(100f, l.Find("Q").Y);
         }
+
+        private static InputActionTable Table()
+        {
+            InputActionTable t = new InputActionTable();
+            int crouch = t.AddAction("Crouch", 6), batch = t.AddAction("Batch", 4);
+            int fire = t.AddAction("Fire1", 2), equip = t.AddAction("Equip", 4);
+            int jump = t.AddAction("Jump", 6);
+            t.AddBinding("C", batch, 1);
+            t.AddBinding("C", crouch, 1);
+            t.AddBinding("Mouse0", equip, 1);
+            t.AddBinding("Mouse0", fire, 1);
+            t.AddBinding("Space", jump, 1);
+            return t;
+        }
+
+        [Fact]
+        public void ActionTiles_RoundTripAndOldStringsParse()
+        {
+            InputLayout l = InputLayout.Parse("W,88,780,1,1;C,300,800,1.5,1;C,360,800,1,0,Batch");
+            Assert.Equal(3, l.Tiles.Count);
+            Assert.Equal("", l.Find("C").Act);
+            Assert.Equal(0, l.Find("C", "Batch").Shown ? 1 : 0);
+            Assert.False(l.Split);
+            Assert.Equal("W,88,780,1,1;C,300,800,1.5,1;C,360,800,1,0,Batch", l.Format());
+            l.Split = true;
+            InputLayout back = InputLayout.Parse(l.Format());
+            Assert.True(back.Split);
+            Assert.Equal(3, back.Tiles.Count);
+        }
+
+        [Fact]
+        public void SplitAll_AddsMissingActionTilesBesideTheKeyOnce()
+        {
+            InputLayout l = InputLayout.Parse("C,500,500,1,1;Space,100,100,1,1;Mouse0,700,500,1,1");
+            int n = l.SplitAll(Table(), 1920, 1080);
+            Assert.Equal(2, n);   // C: Batch, Mouse0: Equip; Space has one action
+            Assert.True(l.Split);
+            InputTile b = l.Find("C", "Batch");
+            Assert.NotNull(b);
+            Assert.True(Math.Abs(b.X - 500) <= 100 || Math.Abs(b.Y - 500) <= 100);
+            Assert.NotNull(l.Find("Mouse0", "Equip"));
+            Assert.Null(l.Find("Space", "Jump"));
+            for (int i = 0; i < l.Tiles.Count; i++)
+                for (int j = i + 1; j < l.Tiles.Count; j++)
+                {
+                    InputTile p = l.Tiles[i], q = l.Tiles[j];
+                    bool overlap = p.X < q.X + InputLayout.TileW(q.Key, q.Scale) && q.X < p.X + InputLayout.TileW(p.Key, p.Scale)
+                        && p.Y < q.Y + InputLayout.TileH(q.Key, q.Scale) && q.Y < p.Y + InputLayout.TileH(p.Key, p.Scale);
+                    Assert.False(overlap);
+                }
+            // A hidden or removed action tile is not added again by another split of the same key.
+            l.Find("C", "Batch").Shown = false;
+            l.Remove("Mouse0", "Equip");
+            Assert.Equal(1, l.SplitKey(l.Find("Mouse0"), Table(), 1920, 1080));   // SplitKey adds a missing one (the add-a-tile path)
+            Assert.Equal(0, l.SplitKey(l.Find("C"), Table(), 1920, 1080));
+            Assert.False(l.Find("C", "Batch").Shown);
+            InputLayout again = InputLayout.Parse(l.Format());
+            Assert.True(again.Split);
+        }
+
+        [Fact]
+        public void Remove_KeyTakesItsActionTiles_ActionTileGoesAlone()
+        {
+            InputLayout l = InputLayout.Parse("C,500,500,1,1;C,560,500,1,1,Batch;Mouse0,700,500,1,1");
+            Assert.True(l.Remove("C", "Batch"));
+            Assert.NotNull(l.Find("C"));
+            l.Add("C", "Batch", 560, 500);
+            Assert.True(l.Remove("C", ""));
+            Assert.Single(l.Tiles);
+        }
     }
 }

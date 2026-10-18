@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 840 log calls.
+249 prefixes from 841 log calls.
 
 ## `ActionReaders`
 
@@ -741,7 +741,8 @@ Meaning: The input overlay (Edit HUD) was switched on or off, or a tile was adde
 Written by InputOverlayModule.cs; info / warning.
 
 - info `Inputs: <..>.`
-- info `Inputs: key <s.Tile.Key> has <total> game actions, the tile shows the first <s.Count>.`
+- info `Inputs: <n> per-action tiles added beside keys with several game actions.`
+- info `Inputs: key <s.Tile.Key> has <all> game actions, tiles are made for the first <InputActionTable.MaxPerKey>.`
 - info `Inputs: layout reset to the default.`
 - info `Inputs: mouse style <..>`
 - info `Inputs: only-pressed mode <..>.`
@@ -750,7 +751,7 @@ Written by InputOverlayModule.cs; info / warning.
 - warning `Inputs: the mouse path cannot be drawn (Hidden/Internal-Colored not found) - the mouse box shows the dot only.`
 - info `Inputs: the old default layout moved to bottom centre (clear of the game's messages).`
 - info `Inputs: tile <key> added.`
-- info `Inputs: tile <key> removed.`
+- info `Inputs: tile <key><..> removed.`
 - info `Inputs: tile <m.Tile.Key> moved to (<..>, <..>).`
 - info `Inputs: tile <s.Tile.Key> scaled to <..>.`
 - info `Inputs: tile <s.Tile.Key><..>`

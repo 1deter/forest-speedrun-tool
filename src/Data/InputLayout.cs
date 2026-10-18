@@ -10,6 +10,9 @@ namespace ForestOverlay.Data
     public sealed class InputTile
     {
         public string Key = "";
+        /// "" for the key's own (first) tile; else the name of the game action this
+        /// tile is for (T-0409: a key that serves several actions has one tile per action).
+        public string Act = "";
         /// Top-left in reference pixels (like the HUD's placed values).
         public float X, Y;
         public float Scale = 1f;
@@ -21,33 +24,52 @@ namespace ForestOverlay.Data
     // its own anywhere (author, 2026-10-11: "every tile placeable on its own,
     // not a fixed grid"). Kept as one line in a HUD-profile config entry:
     //   W,88,780,1,1;LeftShift,40,876,1,0;Mouse,360,828,1,1
-    //   key, x, y, scale, shown(1/0)
+    //   key, x, y, scale, shown(1/0), [action]
+    // A tile for one more action of the same key has the action's name as a sixth
+    // field (C,300,800,1,1,Batch). The last segment "!split" says the extra tiles
+    // were added once; a layout without it gets them when the game's actions are known.
     // Forgiving like HudLayout: a bad tile is skipped, numbers clamped, a
     // second tile for the same key dropped. Pure; linked into the tests.
     // ------------------------------------------------------------------
     public sealed class InputLayout
     {
+        public const string SplitMarker = "!split";
         public const string MouseKey = "Mouse", WheelKey = "Wheel";
         public const float MinScale = 0.5f, MaxScale = 3f;
         /// A 1x1 tile's side and the pitch of the default layout, in reference pixels.
         public const float Unit = 44f, Pitch = 48f;
-        public const int MaxTiles = 40, MaxKeyLength = 24;
+        public const int MaxTiles = 64, MaxKeyLength = 24;
 
         public readonly List<InputTile> Tiles = new List<InputTile>();
 
+        /// True once the per-action tiles were added (or chosen against); saved with the layout.
+        public bool Split;
+
         public InputTile Find(string key)
         {
+            return Find(key, "");
+        }
+
+        public InputTile Find(string key, string act)
+        {
             for (int i = 0; i < Tiles.Count; i++)
-                if (string.Equals(Tiles[i].Key, key, StringComparison.Ordinal)) return Tiles[i];
+                if (string.Equals(Tiles[i].Key, key, StringComparison.Ordinal) && string.Equals(Tiles[i].Act, act, StringComparison.Ordinal)) return Tiles[i];
             return null;
         }
 
         /// Adds a tile at (x, y); null when the key is bad, already there or the list is full.
         public InputTile Add(string key, float x, float y)
         {
-            if (!ValidKey(key) || Tiles.Count >= MaxTiles || Find(key) != null) return null;
+            return Add(key, "", x, y);
+        }
+
+        public InputTile Add(string key, string act, float x, float y)
+        {
+            if (act == null) act = "";
+            if (!ValidKey(key) || (act.Length > 0 && !ValidKey(act)) || Tiles.Count >= MaxTiles || Find(key, act) != null) return null;
             InputTile t = new InputTile();
             t.Key = key;
+            t.Act = act;
             t.X = x;
             t.Y = y;
             Tiles.Add(t);
@@ -89,15 +111,92 @@ namespace ForestOverlay.Data
             return true;
         }
 
+        /// Removes the key's own tile and its per-action tiles.
         public bool Remove(string key)
         {
-            for (int i = 0; i < Tiles.Count; i++)
+            bool any = false;
+            for (int i = Tiles.Count - 1; i >= 0; i--)
             {
                 if (!string.Equals(Tiles[i].Key, key, StringComparison.Ordinal)) continue;
+                Tiles.RemoveAt(i);
+                any = true;
+            }
+            return any;
+        }
+
+        /// Removes one tile: a per-action tile alone, or (act "") the whole key.
+        public bool Remove(string key, string act)
+        {
+            if (string.IsNullOrEmpty(act)) return Remove(key);
+            for (int i = 0; i < Tiles.Count; i++)
+            {
+                if (!string.Equals(Tiles[i].Key, key, StringComparison.Ordinal) || !string.Equals(Tiles[i].Act, act, StringComparison.Ordinal)) continue;
                 Tiles.RemoveAt(i);
                 return true;
             }
             return false;
+        }
+
+        // --- one tile per action (T-0409) ------------------------------------------
+
+        /// Gives every key tile its per-action tiles (the key's 2nd, 3rd... action in
+        /// pick order) next to it, those not already there, then marks the layout done.
+        /// Returns how many were added.
+        public int SplitAll(InputActionTable table, int refW, int refH)
+        {
+            int n = Tiles.Count, added = 0;
+            for (int i = 0; i < n; i++)
+            {
+                InputTile t = Tiles[i];
+                if (t.Act.Length == 0) added += SplitKey(t, table, refW, refH);
+            }
+            Split = true;
+            return added;
+        }
+
+        /// The per-action tiles of one key tile, next to it; how many were added.
+        public int SplitKey(InputTile baseTile, InputActionTable table, int refW, int refH)
+        {
+            if (baseTile.Key == MouseKey || baseTile.Key == WheelKey) return 0;
+            int[] acts = new int[InputActionTable.MaxPerKey], signs = new int[InputActionTable.MaxPerKey];
+            int count = table.Resolve(baseTile.Key, acts, signs);
+            int added = 0;
+            for (int k = 1; k < count; k++)
+            {
+                string name = table.NameOf(acts[k]);
+                if (!ValidKey(name) || Find(baseTile.Key, name) != null || Tiles.Count >= MaxTiles) continue;
+                float x, y;
+                NearSlot(baseTile, refW, refH, out x, out y);
+                InputTile t = Add(baseTile.Key, name, x, y);
+                if (t == null) continue;
+                t.Scale = baseTile.Scale;
+                added++;
+            }
+            return added;
+        }
+
+        /// The first free place beside a tile (right, left, below, above; then one step
+        /// further out), on screen; the bottom-right free slot if none is near.
+        public void NearSlot(InputTile around, int refW, int refH, out float x, out float y)
+        {
+            float w = TileW(around.Key, around.Scale), h = TileH(around.Key, around.Scale);
+            float step = Pitch * around.Scale;
+            float gap = (Pitch - Unit) * around.Scale;
+            for (int r = 0; r < 6; r++)
+            {
+                float d = r * step;
+                for (int dir = 0; dir < 4; dir++)
+                {
+                    float cx = around.X, cy = around.Y;
+                    if (dir == 0) cx = around.X + w + gap + d;
+                    else if (dir == 1) cx = around.X - w - gap - d;
+                    else if (dir == 2) cy = around.Y + h + gap + d;
+                    else cy = around.Y - h - gap - d;
+                    if (cx < 0f || cy < 0f || cx + w > refW || cy + h > refH) continue;
+                    if (IsFree(cx, cy, w, h)) { x = cx; y = cy; return; }
+                }
+            }
+            FreeSlot(around.Key, refW, refH, out x, out y);
         }
 
         public static bool ValidKey(string key)
@@ -287,11 +386,13 @@ namespace ForestOverlay.Data
             string[] tiles = text.Split(';');
             for (int i = 0; i < tiles.Length; i++)
             {
+                if (tiles[i].Trim() == SplitMarker) { l.Split = true; continue; }
                 string[] f = tiles[i].Trim().Split(',');
                 if (f.Length < 3 || !ValidKey(f[0].Trim())) continue;
                 float x, y;
                 if (!Num(f[1], out x) || !Num(f[2], out y)) continue;
-                InputTile t = l.Add(f[0].Trim(), Clamp(x), Clamp(y));
+                string act = f.Length > 5 ? f[5].Trim() : "";
+                InputTile t = l.Add(f[0].Trim(), act, Clamp(x), Clamp(y));
                 if (t == null) continue;
                 float s;
                 if (f.Length > 3 && Num(f[3], out s)) t.Scale = ClampScale(s);
@@ -322,7 +423,9 @@ namespace ForestOverlay.Data
                   .Append(Math.Round(t.Y).ToString("0", CultureInfo.InvariantCulture)).Append(',')
                   .Append(Math.Round(t.Scale, 2).ToString("0.##", CultureInfo.InvariantCulture)).Append(',')
                   .Append(t.Shown ? '1' : '0');
+                if (t.Act.Length > 0) sb.Append(',').Append(t.Act);
             }
+            if (Split) sb.Append(Tiles.Count > 0 ? ";" : "").Append(SplitMarker);
             return sb.ToString();
         }
     }

@@ -46,7 +46,9 @@ namespace ForestOverlay.Modules
         {
             public InputTile Tile;
             public KeyCode Code;
-            public bool Valid;
+            public bool Valid;       // drawn and sampled: the key is known and, for a per-action tile, the game input shows it
+            public bool KeyOk;       // the key name parsed
+            public bool Skip;        // a per-action tile not shown now (raw input, actions unknown, or the key lost that action)
             public bool Special;     // the mouse box or the wheel
             public float Level;      // 0 idle .. 1 pressed (the animation)
             public float LitUntil;
@@ -162,16 +164,17 @@ namespace ForestOverlay.Modules
         {
             TileState s = new TileState();
             s.Tile = t;
-            s.SnapId = "input" + index + t.Key;
+            s.SnapId = "input" + index + t.Key + t.Act;
             string label = InputLayout.LabelFor(t.Key);
             s.RawLabel = new GUIContent(label);
             s.RawName = new GUIContent(t.Key == InputLayout.MouseKey ? "Mouse box" : t.Key == InputLayout.WheelKey ? "Mouse wheel" : label);
             s.Label = s.RawLabel;
             s.Name = s.RawName;
-            if (t.Key == InputLayout.MouseKey || t.Key == InputLayout.WheelKey) { s.Valid = true; s.Special = true; return s; }
+            if (t.Key == InputLayout.MouseKey || t.Key == InputLayout.WheelKey) { s.Valid = true; s.KeyOk = true; s.Special = true; return s; }
             try
             {
                 s.Code = (KeyCode)Enum.Parse(typeof(KeyCode), t.Key);
+                s.KeyOk = true;
                 s.Valid = true;
             }
             catch (Exception) { s.Valid = false; }   // a key a newer version knew: kept in the file, not drawn
@@ -190,42 +193,52 @@ namespace ForestOverlay.Modules
             s.MenuAct = -1;
             s.Label = s.RawLabel;
             s.Name = s.RawName;
+            // A per-action tile (T-0409) exists only in game input, with the actions known.
+            bool actTile = s.Tile.Act.Length > 0;
+            s.Skip = actTile && (!GameInput || !GameActions.Ready);
+            s.Valid = s.KeyOk && !s.Skip;
             if (s.Special || !s.Valid || !GameInput || !GameActions.Ready) return;
             InputActionTable table = GameActions.Table;
-            s.Count = table.Resolve(s.Tile.Key, s.Acts, s.Signs);
-            if (s.Count == 0)
+            int total = table.Resolve(s.Tile.Key, _pickActs, _pickSigns);
+            int pick = total > 0 ? 0 : -1;   // a key's own tile stands for its first action
+            if (actTile)
+            {
+                pick = -1;
+                for (int k = 0; k < total; k++)
+                    if (string.Equals(table.NameOf(_pickActs[k]), s.Tile.Act, StringComparison.Ordinal)) { pick = k; break; }
+                if (pick < 0) { s.Skip = true; s.Valid = false; return; }   // the key no longer has this action: kept in the file, not drawn
+            }
+            if (pick < 0)
             {
                 s.Dead = true;   // drawn dimmed; its row says why
                 s.Name = new GUIContent(s.RawName.text + " - no game action on this key");
                 return;
             }
-            string all = "";
-            string[] words = new string[s.Count];
-            s.UsesFsm = false;
-            for (int k = 0; k < s.Count; k++)
-            {
-                string action = table.NameOf(s.Acts[k]);
-                words[k] = InputActionTable.Label(action, s.Signs[k]);
-                s.ActLabels[k] = LabelContent(words[k]);
-                all += (k > 0 ? " / " : "") + words[k];
-                s.Cont[k] = ActionFunctions.IsContinuous(action);
-                s.FsmAct[k] = ActionFunctions.UsesControlState(action);
-                if (action == "Esc") s.MenuAct = k;
-                if (s.FsmAct[k]) s.UsesFsm = true;
-            }
-            int total = table.Total(s.Tile.Key);
-            if (total > s.Count && _overflowTold.Add(s.Tile.Key))
-                Ctx.Log.LogInfo("Inputs: key " + s.Tile.Key + " has " + total + " game actions, the tile shows the first " + s.Count + ".");
-            // Idle: the key's functions' names in pick order, one a line, until one is performed.
-            s.Idle = new GUIContent(ActionFunctions.Idle(words, s.Count));
+            s.Count = 1;
+            s.Acts[0] = _pickActs[pick];
+            s.Signs[0] = _pickSigns[pick];
+            string action = table.NameOf(s.Acts[0]);
+            string word = InputActionTable.Label(action, s.Signs[0]);
+            s.ActLabels[0] = LabelContent(word);
+            s.Cont[0] = ActionFunctions.IsContinuous(action);
+            s.FsmAct[0] = ActionFunctions.UsesControlState(action);
+            s.UsesFsm = s.FsmAct[0];
+            if (action == "Esc") s.MenuAct = 0;
+            int all = table.Total(s.Tile.Key);
+            if (!actTile && all > InputActionTable.MaxPerKey && _overflowTold.Add(s.Tile.Key))
+                Ctx.Log.LogInfo("Inputs: key " + s.Tile.Key + " has " + all + " game actions, tiles are made for the first " + InputActionTable.MaxPerKey + ".");
+            // Idle: the action's name until it is performed.
+            s.Idle = new GUIContent(ActionFunctions.Idle(new string[] { word }, 1));
             s.Label = s.Idle;
             s.Performed = null;
             s.WasHeld = false;
             s.WasLit = false;
             s.ReadAct = -1;
             s.LingerUntil = 0f;
-            s.Name = new GUIContent(s.RawName.text + " - " + all);
+            s.Name = new GUIContent(s.RawName.text + " - " + word);
         }
+
+        private readonly int[] _pickActs = new int[InputActionTable.MaxPerKey], _pickSigns = new int[InputActionTable.MaxPerKey];
 
         // One GUIContent per word, made when first seen (a press), never per frame.
         private readonly Dictionary<string, GUIContent> _words = new Dictionary<string, GUIContent>();
@@ -244,6 +257,16 @@ namespace ForestOverlay.Modules
         // the overlay is on in game input.
         private void ApplySource()
         {
+            // T-0409: once the game's actions are known, a key with several actions gets a tile
+            // per action beside its own (a layout never split; Reset profile starts again).
+            if (GameInput && GameActions.Ready && !_layout.Split)
+            {
+                UiScale ui = Host.Hud.Settings.Scale();
+                int n = _layout.SplitAll(GameActions.Table, ui.HasReference ? ui.RefW : 1920, ui.HasReference ? ui.RefH : 1080);
+                Commit();
+                Reload();
+                Ctx.Log.LogInfo("Inputs: " + n + " per-action tiles added beside keys with several game actions.");
+            }
             _applied = true;
             _appliedGame = GameInput;
             _appliedReady = GameActions.Ready;
@@ -512,18 +535,21 @@ namespace ForestOverlay.Modules
             if (t == null) { SetStatus("No room for another tile."); return; }
             _states.Add(MakeState(t, _states.Count));
             _applied = false;   // the readers watch the new tile's actions too
-            Commit();
+            int extra = 0;
+            if (GameInput && GameActions.Ready) extra = _layout.SplitKey(t, GameActions.Table, ui.RefW, ui.RefH);
+            if (extra > 0) { Commit(); Reload(); }
+            else Commit();
             SetStatus("Added " + InputLayout.LabelFor(key) + " at the bottom right of the screen: drag it where you want it.");
             Ctx.Log.LogInfo("Inputs: tile " + key + " added.");
         }
 
         private void RemoveTile(int i)
         {
-            string key = _states[i].Tile.Key;
-            _layout.Remove(key);
+            string key = _states[i].Tile.Key, act = _states[i].Tile.Act;
+            _layout.Remove(key, act);
             Commit();
             Reload();
-            Ctx.Log.LogInfo("Inputs: tile " + key + " removed.");
+            Ctx.Log.LogInfo("Inputs: tile " + key + (act.Length > 0 ? " (" + act + ")" : "") + " removed.");
         }
 
         private void SetShown(TileState s, bool shown)
@@ -1171,6 +1197,7 @@ namespace ForestOverlay.Modules
         private float DrawTileRow(int i, float y, float w)
         {
             TileState s = _states[i];
+            if (s.Skip) return y;   // a per-action tile not shown now (raw input)
             const float step = 26f, scaleW = 40f, gap = 4f;
             float h = 22f;
             float x = w - step;
