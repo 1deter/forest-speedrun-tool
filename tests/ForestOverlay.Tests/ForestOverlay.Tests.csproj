@@ -67,6 +67,7 @@
     <Compile Include="../../src/Data/VolumeFilter.cs" Link="Linked/VolumeFilter.cs" />
     <Compile Include="../../src/Data/LineBuffer.cs" Link="Linked/LineBuffer.cs" />
     <Compile Include="../../src/Data/PickupMatch.cs" Link="Linked/PickupMatch.cs" />
+    <Compile Include="../../src/Data/ChoppedTree.cs" Link="Linked/ChoppedTree.cs" />
     <Compile Include="../../src/Data/CapturedAreas.cs" Link="Linked/CapturedAreas.cs" />
     <Compile Include="../../src/Data/LookupCache.cs" Link="Linked/LookupCache.cs" />
     <Compile Include="../../src/Data/StartedSet.cs" Link="Linked/StartedSet.cs" />

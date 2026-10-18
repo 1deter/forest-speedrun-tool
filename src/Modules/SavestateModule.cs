@@ -237,6 +237,7 @@ namespace ForestOverlay.Modules
             WatchLoads();
             PathfindingWatch.Tick();
             DrainWrites();
+            if (_nature != null) _nature.Tick();
 
             // A reset that closed the book: free a pitch lock it left
             // (Game/BookClose), once no restore is running.
@@ -443,7 +444,7 @@ namespace ForestOverlay.Modules
             public string Blueprint = "", Stance = "", Rope = "";
             public int Logs;
             public string Bushes = "";
-            public List<string> CutBushes, Greebles, Broken;
+            public List<string> CutBushes, Chopped, Greebles, Broken;
             public string Areas = "", EnemyNote = "";
             public List<string> Enemies = new List<string>();
             public List<string> Families = new List<string>();
@@ -548,6 +549,7 @@ namespace ForestOverlay.Modules
                 case 7:
                     p.Bushes = _nature.CaptureMark();
                     p.CutBushes = _nature.CaptureCuts();
+                    p.Chopped = _nature.CaptureChopped();
                     break;
                 case 8: p.Greebles = _greebles.Capture(); break;
                 case 9: p.Broken = _breakables.Capture(); break;
@@ -619,7 +621,7 @@ namespace ForestOverlay.Modules
             string areas = p.Areas, enemyNote = p.EnemyNote ?? "", bushes = p.Bushes, stance = p.Stance, rope = p.Rope, ride = p.Ride;
             string blueprints = p.Blueprints, weather = p.Weather;
             float cutsceneAt = p.CutsceneAt;
-            List<string> enemies = p.Enemies, families = p.Families, cutBushes = p.CutBushes, greebles = p.Greebles, broken = p.Broken;
+            List<string> enemies = p.Enemies, families = p.Families, cutBushes = p.CutBushes, chopped = p.Chopped, greebles = p.Greebles, broken = p.Broken;
             int logs = p.Logs;
             CaptureOptions opts = p.Opts;
             _busy = false;
@@ -662,6 +664,7 @@ namespace ForestOverlay.Modules
                 f.Weather = weather;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
+                f.Chopped = chopped;
                 f.Greebles = greebles;
                 f.Broken = broken;
                 f.Areas = areas;
@@ -1059,7 +1062,7 @@ namespace ForestOverlay.Modules
                 RestoreGarbage.Mark("area");
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
-                string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null) : "";
+                string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null, file != null ? file.Chopped : null) : "";
                 RestoreGarbage.Mark("nature");
                 // The nature guide's ticks: the save's list is back, the
                 // entries are not (NatureGuideKeeper).
@@ -1160,6 +1163,11 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Runner.StartCoroutine(SyncSun("restore " + what));
                 if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value, familiesBefore, file));
                 if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
+                // Saplings cut again from another world drop their sticks again
+                // (NatureKeeper.ApplyCuts): the ones taken before the capture go
+                // once the new ones have settled.
+                if (r.Ok && presentPickups != null && _nature.TakeDropped() > 0)
+                    Ctx.Runner.StartCoroutine(StickPassLater(presentPickups, "restore " + what));
                 SetStatus(line);
 
                 if (after != null)
@@ -1562,6 +1570,19 @@ namespace ForestOverlay.Modules
                             ") - moved, or new since the capture.");
         }
 
+        // The sticks a re-cut sapling dropped fall 3.3 m first; once they lie,
+        // the ones taken before the capture are removed (T-0067). `prefix`:
+        // "restore <what>" or "after the load" (log: Savestate restore, Savestate after the load).
+        private IEnumerator StickPassLater(HashSet<string> present, string prefix)
+        {
+            yield return new WaitForSecondsRealtime(3.5f);
+            int sticks = 0;
+            try { sticks = _keeper.RemoveExtra(present, IsStickItem, NatureKeeper.UnderACut, false); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing sapling sticks failed: " + ex.Message); }
+            Ctx.Log.LogInfo("Savestate " + prefix + ": removed " + sticks +
+                            " sapling stick(s) taken before the capture (saplings cut again).");
+        }
+
         private bool IsSpearItem(int id)
         {
             string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
@@ -1784,6 +1805,15 @@ namespace ForestOverlay.Modules
             // A load regrows every bush; the ones cut at capture go again.
             string again = f != null ? _nature.ApplyCuts(f.CutBushes) : "";
             if (again.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + again + ".");
+            if (f != null && f.Pickups != null && _nature.TakeDropped() > 0)
+                Ctx.Runner.StartCoroutine(StickPassLater(new HashSet<string>(f.Pickups), "after the load"));
+            // Trees half-chopped at capture are chopped again once their view is up.
+            try
+            {
+                string chopped = _nature.ChopAgain(f != null ? f.Chopped : null);
+                if (chopped.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + chopped + ".");
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate after the load: chopping trees again failed: " + ex.Message); }
             // Zones that spawned during the load took their records in
             // GreebleKeeper's prefix; the live pass says how many.
             if (f.Greebles != null)

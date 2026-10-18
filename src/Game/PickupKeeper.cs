@@ -399,6 +399,7 @@ namespace ForestOverlay.Game
             List<Component> pickups = new List<Component>();
             List<GameObject> targets = new List<GameObject>();
             List<PickupMatch.Entry> live = new List<PickupMatch.Entry>();
+            List<bool> removable = new List<bool>();
             HashSet<string> seen = new HashSet<string>();
             UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(pickUp);
             for (int i = 0; i < all.Length; i++)
@@ -414,19 +415,23 @@ namespace ForestOverlay.Game
                 try { target = _destroyTarget.GetValue(c) as GameObject; }
                 catch (Exception) { }
                 if (target == null) target = c.gameObject;
-                if (!target.activeInHierarchy || HasIdentifier(target) || !where(target)) continue;
+                if (!target.activeInHierarchy || HasIdentifier(target)) continue;
                 e.Position = target.transform.position;
                 if (!seen.Add(SavestateFile.PickupKey(e.Id, e.Position.x, e.Position.y, e.Position.z))) continue;
                 pickups.Add(c);
                 targets.Add(target);
                 live.Add(e);
+                // Every one is matched; only those `where` accepts may go
+                // (a greeble stick's captured entry must not account for a
+                // new sapling stick beside it).
+                removable.Add(where(target));
             }
-            bool[] matched = PickupMatch.Match(captured, live, MatchNear, farToo);
+            bool[] remove = PickupMatch.Removable(captured, live, removable, MatchNear, farToo);
 
             int n = 0;
             for (int i = 0; i < live.Count; i++)
             {
-                if (matched[i]) continue;
+                if (!remove[i]) continue;
                 if (targets[i].transform.root.name == "Pooling" && _clearOut != null)
                 {
                     // Not kept for a restore: this one is meant to go.

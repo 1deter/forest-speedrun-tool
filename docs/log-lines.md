@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 826 log calls.
+249 prefixes from 832 log calls.
 
 ## `ActionReaders`
 
@@ -1123,8 +1123,10 @@ Written by NatureGuideKeeper.cs; warning.
 Meaning: Trees, bushes and saplings after a Quick load: kept, or why not.
 Written by NatureKeeper.cs; info / warning.
 
+- info `NatureKeeper: <..> tree(s) chopped again as captured (<Pending.Count> still waiting).`
 - warning `NatureKeeper: <Status>`
 - info `NatureKeeper: <Status><..>.`
+- warning `NatureKeeper: chopping trees again failed: <ex.Message>`
 - warning `NatureKeeper: keeping a bush failed: <ex.Message>`
 
 ## `Network`
@@ -1639,6 +1641,7 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate <_loadWhat>: <why>.`
 - info `Savestate <line>` (x3)
 - warning `Savestate <line>`
+- info `Savestate <prefix>: removed <sticks> sapling stick(s) taken before the capture (saplings cut again).`
 - warning `Savestate <what> failed: <error>`
 - info `Savestate <what>: <note>.`
 - info `Savestate <what>: captured <..> s into <of> - <note>.`
@@ -1658,7 +1661,7 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate: pickup restore failed: <ex.Message>`
 - warning `Savestate: removing limbs failed: <ex.Message>`
 - warning `Savestate: removing new logs failed: <ex.Message>`
-- warning `Savestate: removing sapling sticks failed: <ex.Message>`
+- warning `Savestate: removing sapling sticks failed: <ex.Message>` (x2)
 - warning `Savestate: removing thrown spears failed: <ex.Message>`
 - warning `Savestate: removing wreck pickups failed: <ex.Message>`
 - info `Savestate: start state of '<s.Id>' deleted.`
@@ -1685,10 +1688,12 @@ Written by LogStore.cs, SavestateModule.cs; info / warning.
 - info `Savestate after the load: <..> (<late> broken as they spawned in the load).`
 - info `Savestate after the load: <..>.`
 - info `Savestate after the load: <again>.`
+- info `Savestate after the load: <chopped>.`
 - info `Savestate after the load: <greebles> (<late> set as they spawned in the load).`
 - info `Savestate after the load: <note>.` (x2)
 - info `Savestate after the load: <placed>.`
 - info `Savestate after the load: <weatherNote>.`
+- warning `Savestate after the load: chopping trees again failed: <ex.Message>`
 - info `Savestate after the load: enemies (cave) <..> s after in game | <note>.`
 - info `Savestate after the load: enemies - <..>; the captured ones placed <..> s after in game | <rebuilt>.`
 - info `Savestate after the load: enemies - the game made no families within 30 s; captured ones not rebuilt.`
