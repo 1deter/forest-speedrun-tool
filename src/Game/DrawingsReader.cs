@@ -61,6 +61,17 @@ namespace ForestOverlay.Game
             catch (Exception) { return new int[0]; }
         }
 
+        /// After a load (T-0034): the search can run during the load and
+        /// keep the old world's view; once destroyed, its C# fields (the old
+        /// PlayerInventory -> the player -> sceneTracker -> the navmesh)
+        /// held the whole previous world (~120 MB) until the next search,
+        /// up to 10 s later (measured live: 433 -> 314 MB at the re-search).
+        public static void ForgetView()
+        {
+            _view = null;
+            _nextSearch = 0f;
+        }
+
         private static void Add(System.Collections.Generic.List<int> found, IList list)
         {
             if (list == null) return;

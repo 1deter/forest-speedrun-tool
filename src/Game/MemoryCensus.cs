@@ -414,6 +414,7 @@ namespace ForestOverlay.Game
             List<object> deadHits = new List<object>();
             Dictionary<string, int> deadGroups = new Dictionary<string, int>();
             List<object> typeHits = new List<object>();
+            Dictionary<string, int> typeGroups = new Dictionary<string, int>();
             int deadTotal = 0, typeTotal = 0, walked = 0;
             const int Budget = 8000000;
             bool timedOut = false;
@@ -446,7 +447,10 @@ namespace ForestOverlay.Game
                 if (typeName.Length > 0 && t.Name == typeName)
                 {
                     typeTotal++;
-                    if (typeHits.Count < max) typeHits.Add(o);
+                    string group = Normalised(PathOf(o, parent));
+                    int n;
+                    if (!typeGroups.TryGetValue(group, out n)) typeHits.Add(o);
+                    typeGroups[group] = n + 1;
                 }
 
                 if (o is UnityEngine.Object)
@@ -536,8 +540,13 @@ namespace ForestOverlay.Game
                         _log.LogInfo("  e.g. " + PathOf(deadHits[k], parent));   // log: Census paths
                         break;
                     }
-            for (int i = 0; i < typeHits.Count; i++)
-                _log.LogInfo("  " + typeName + ": " + PathOf(typeHits[i], parent));   // log: Census paths
+            // The type's hits the same way: one line per path shape, with
+            // the first example's full path.
+            for (int i = 0; i < typeHits.Count && i < max; i++)
+            {
+                string p = PathOf(typeHits[i], parent);
+                _log.LogInfo("  " + typeName + " x" + typeGroups[Normalised(p)] + ": " + p);   // log: Census paths
+            }
             return summary;
         }
 
