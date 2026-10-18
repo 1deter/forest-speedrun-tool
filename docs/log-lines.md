@@ -750,12 +750,12 @@ Written by InputOverlayModule.cs; info / warning.
 - warning `Inputs: the mouse box cannot read the mouse (<ex.Message>) - it stays still.`
 - warning `Inputs: the mouse path cannot be drawn (Hidden/Internal-Colored not found) - the mouse box shows the dot only.`
 - info `Inputs: the old default layout moved to bottom centre (clear of the game's messages).`
+- info `Inputs: tile <..>`
+- info `Inputs: tile <..> moved to (<..>, <..>).`
+- info `Inputs: tile <..> resized by dragging to <..>.`
+- info `Inputs: tile <..> scaled to <..>.`
 - info `Inputs: tile <key> added.`
 - info `Inputs: tile <key><..> removed.`
-- info `Inputs: tile <m.Tile.Key> moved to (<..>, <..>).`
-- info `Inputs: tile <s.Tile.Key> scaled to <..>.`
-- info `Inputs: tile <s.Tile.Key><..>`
-- info `Inputs: tile <z.Tile.Key> resized by dragging to <..>.`
 
 ## `Inspected`
 

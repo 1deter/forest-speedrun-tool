@@ -131,7 +131,7 @@ namespace ForestOverlay.Modules
             _mouseStyle = ctx.Config.Bind("Inputs", "MouseStyle", StyleComet,
                 "How the mouse tile shows movement: Comet (a fading tail, no frame) or Box (a framed box with a trail that wraps at the edges).");
             _layoutCfg = ctx.Config.Bind("Inputs", "Layout", DefaultLayout().Format(),
-                "The input overlay's tiles: key, x, y, size, shown (1/0), separated by ';'. Set up in Edit HUD.");
+                "The input overlay's tiles: key, x, y, size, shown (1/0) and, for a key's further game actions, the action name, separated by ';'; a trailing !split says those tiles were added. Set up in Edit HUD.");
             HudWidgets widgets = Host.Hud.Widgets;
             widgets.RegisterProfileEntry(_on, null);
             widgets.RegisterProfileEntry(_onlyPressed, null);
@@ -557,7 +557,7 @@ namespace ForestOverlay.Modules
             if (s.Tile.Shown == shown) return;
             s.Tile.Shown = shown;
             Commit();
-            Ctx.Log.LogInfo("Inputs: tile " + s.Tile.Key + (shown ? " shown." : " hidden."));
+            Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(s.Tile) + (shown ? " shown." : " hidden."));
         }
 
         private void SetScale(TileState s, float scale)
@@ -566,7 +566,7 @@ namespace ForestOverlay.Modules
             if (v == s.Tile.Scale) return;
             s.Tile.Scale = v;
             Commit();
-            Ctx.Log.LogInfo("Inputs: tile " + s.Tile.Key + " scaled to " + v.ToString("0.##") + ".");
+            Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(s.Tile) + " scaled to " + v.ToString("0.##") + ".");
         }
 
         private void ResetLayout()
@@ -954,7 +954,7 @@ namespace ForestOverlay.Modules
             TileState z = _states[Mathf.Min(_resize, _states.Count - 1)];
             _resize = -1;
             Commit();   // once per gesture
-            Ctx.Log.LogInfo("Inputs: tile " + z.Tile.Key + " resized by dragging to " + z.Tile.Scale.ToString("0.##") + ".");
+            Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(z.Tile) + " resized by dragging to " + z.Tile.Scale.ToString("0.##") + ".");
         }
 
         private void EditEvents(UiScale ui, Event e)
@@ -1007,7 +1007,7 @@ namespace ForestOverlay.Modules
                     m.Tile.X = Mathf.Round(m.Tile.X);
                     m.Tile.Y = Mathf.Round(m.Tile.Y);
                     Commit();   // once per gesture
-                    Ctx.Log.LogInfo("Inputs: tile " + m.Tile.Key + " moved to (" + Mathf.RoundToInt(m.Tile.X) + ", " + Mathf.RoundToInt(m.Tile.Y) + ").");
+                    Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(m.Tile) + " moved to (" + Mathf.RoundToInt(m.Tile.X) + ", " + Mathf.RoundToInt(m.Tile.Y) + ").");
                     e.Use();
                     break;
             }
