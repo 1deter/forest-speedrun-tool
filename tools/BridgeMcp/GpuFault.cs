@@ -66,7 +66,7 @@ namespace ForestOverlay.BridgeMcp
         {
             if (faults == null || faults.Count == 0) return null;
             Fault last = faults[0];
-            string count = faults.Count >= Cap ? Cap + "+" : faults.Count.ToString(CultureInfo.InvariantCulture);
+            string count = faults.Count > Cap ? Cap + "+" : faults.Count.ToString(CultureInfo.InvariantCulture);
             return "GPU DRIVER FAULT: " + count + " nvlddmkm event(s) in the System log since the game launched (newest: event " +
                    last.EventId + " at " + last.Utc.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
                    (string.IsNullOrEmpty(last.Text) ? "" : ", " + last.Text) +
@@ -74,27 +74,48 @@ namespace ForestOverlay.BridgeMcp
         }
 
         /// Asks the System log for nvlddmkm events since `sinceUtc`; null
-        /// when none, or when the log cannot be read.
+        /// when none, a short note when the log cannot be read.
         public static string Check(DateTime sinceUtc)
+        {
+            return Check(sinceUtc, RunWevtutil);
+        }
+
+        /// `run` takes the wevtutil arguments and returns its XML; it throws
+        /// (TimeoutException, ...) when it cannot.
+        public static string Check(DateTime sinceUtc, Func<string, string> run)
         {
             try
             {
                 string stamp = sinceUtc.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.000'Z'", CultureInfo.InvariantCulture);
-                ProcessStartInfo psi = new ProcessStartInfo("wevtutil",
-                    "qe System \"/q:*[System[Provider[@Name='nvlddmkm'] and TimeCreated[@SystemTime>='" + stamp + "']]]\" /f:xml /rd:true /c:" + Cap)
-                {
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true,
-                };
-                using (Process p = ChildProcess.Start(psi))
-                {
-                    if (p == null) return null;
-                    System.Threading.Tasks.Task<string> read = p.StandardOutput.ReadToEndAsync();
-                    if (!read.Wait(4000)) { try { p.Kill(); } catch (Exception) { } return null; }
-                    return Line(Parse(read.Result));
-                }
+                string xml = run("qe System \"/q:*[System[Provider[@Name='nvlddmkm'] and TimeCreated[@SystemTime>='" + stamp +
+                                 "']]]\" /f:xml /rd:true /c:" + (Cap + 1));
+                return Line(Parse(xml));
             }
-            catch (Exception) { return null; }
+            catch (Exception ex)
+            {
+                return "GPU fault check: could not read the System log (" +
+                       (ex is TimeoutException ? "timed out" : ex.Message) + ").";
+            }
+        }
+
+        private static string RunWevtutil(string args)
+        {
+            ProcessStartInfo psi = new ProcessStartInfo("wevtutil", args)
+            {
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+            };
+            using (Process p = ChildProcess.Start(psi))
+            {
+                if (p == null) throw new InvalidOperationException("wevtutil did not start");
+                System.Threading.Tasks.Task<string> read = p.StandardOutput.ReadToEndAsync();
+                if (!read.Wait(4000))
+                {
+                    try { p.Kill(); } catch (Exception) { }
+                    throw new TimeoutException();
+                }
+                return read.Result;
+            }
         }
     }
 }

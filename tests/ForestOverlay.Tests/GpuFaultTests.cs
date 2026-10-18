@@ -40,6 +40,8 @@ namespace ForestOverlay.Tests
             string newest = Real.Replace("153", "117").Replace("2026-10-16T08:26:33", "2026-10-16T09:00:00");
             string xml = newest;
             for (int i = 0; i < 25; i++) xml += Real;
+            Assert.Contains("20+", GpuFault.Line(GpuFault.Parse(Rep(21))));
+            Assert.DoesNotContain("+", GpuFault.Line(GpuFault.Parse(Rep(20))));
             var faults = GpuFault.Parse(xml);
             Assert.Equal(26, faults.Count);
             string line = GpuFault.Line(faults);
@@ -53,6 +55,28 @@ namespace ForestOverlay.Tests
         {
             Assert.Null(GpuFault.Line(GpuFault.Parse("")));
             Assert.Null(GpuFault.Line(GpuFault.Parse(Real.Replace("nvlddmkm", "Disk"))));
+        }
+
+        private static string Rep(int n)
+        {
+            string x = "";
+            for (int i = 0; i < n; i++) x += Real;
+            return x;
+        }
+
+        [Fact]
+        public void Check_reads_21_and_notes_a_read_failure()
+        {
+            string asked = null;
+            string line = GpuFault.Check(System.DateTime.UtcNow, a => { asked = a; return Rep(1); });
+            Assert.Contains("/c:21", asked);
+            Assert.Contains("/rd:true", asked);
+            Assert.Contains("event 153", line);
+            Assert.Null(GpuFault.Check(System.DateTime.UtcNow, a => ""));
+            string t = GpuFault.Check(System.DateTime.UtcNow, a => throw new System.TimeoutException());
+            Assert.Contains("could not read the System log (timed out)", t);
+            string e = GpuFault.Check(System.DateTime.UtcNow, a => throw new System.InvalidOperationException("no wevtutil"));
+            Assert.Contains("no wevtutil", e);
         }
     }
 }
