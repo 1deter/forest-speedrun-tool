@@ -54,10 +54,12 @@ namespace ForestOverlay.Game
         private static MethodInfo _clearOut;
 
         // The phantom stick (fix list 2, author, once after Quick loads): a
-        // stick picked up, gone, nothing in the inventory. Never reproduced
-        // through the bridge; a PickUp.Collect that clears the pickup while
-        // the item's count does not rise logs one line (the plane axe a
-        // Quick load re-created did exactly that at its max of 1).
+        // stick picked up, gone, nothing in the inventory. A PickUp.Collect
+        // that clears the pickup while the item's count does not rise logs
+        // one line (the plane axe a Quick load re-created did exactly that
+        // at its max of 1). Explained in T-0053: at the max the game fake-
+        // drops it (game-notes *A pickup taken with the inventory full*);
+        // those are kept for a restore now, and not counted as gone.
         private static FieldInfo _localInventory;
         private static MethodInfo _amountOf;
         private static MethodInfo _maxAmountOf;
@@ -106,6 +108,8 @@ namespace ForestOverlay.Game
             {
                 _harmony = new Harmony(harmonyId + ".pickups");
                 _harmony.Patch(clearOut, new HarmonyMethod(typeof(PickupKeeper).GetMethod("ClearOutPrefix",
+                    BindingFlags.Static | BindingFlags.NonPublic)),
+                    new HarmonyMethod(typeof(PickupKeeper).GetMethod("ClearOutPostfix",
                     BindingFlags.Static | BindingFlags.NonPublic)));
                 Status = "hooked";
 
@@ -140,11 +144,21 @@ namespace ForestOverlay.Game
             TakenList.Clear();
         }
 
+        // A fake drop (Collect with the inventory full, T-0053): the game
+        // spawns a dynamic copy (Stick_Dynamic) and, when DoFakeDrop says
+        // false, clears the pickup like a taken one - so it is kept too. When
+        // DoFakeDrop says true the pickup itself is the dropped item and stays
+        // active: the postfix undoes what the prefix did.
+        private static Component _fakePickup;
+        private static GameObject _fakeTarget;
+        private static string _fakeKey;
+
         // Never throws into the game; never skips the original.
         private static void ClearOutPrefix(object __instance, bool fakeDrop)
         {
-            if (_inCollect) _clearedInCollect = true;
-            if (!Armed || fakeDrop) return;
+            if (_inCollect && !fakeDrop) _clearedInCollect = true;
+            _fakePickup = null;
+            if (!Armed) return;
             try
             {
                 if ((bool)_disable.GetValue(__instance)) return;              // the game already hides it
@@ -157,10 +171,43 @@ namespace ForestOverlay.Game
 
                 _disable.SetValue(__instance, true);
 
+                if (fakeDrop)
+                {
+                    _fakePickup = pickup;
+                    _fakeTarget = target;
+                    _fakeKey = KeyFor(pickup, target);
+                    return;
+                }
+
                 Taken t = new Taken();
                 t.Pickup = pickup;
                 t.Target = target;
                 t.Key = KeyFor(pickup, target);
+                TakenList.Add(t);
+            }
+            catch (Exception) { }
+        }
+
+        private static void ClearOutPostfix(object __instance, bool fakeDrop)
+        {
+            if (!fakeDrop || _fakePickup == null || !ReferenceEquals(_fakePickup, __instance)) return;
+            Component pickup = _fakePickup;
+            GameObject target = _fakeTarget;
+            string key = _fakeKey;
+            _fakePickup = null;
+            _fakeTarget = null;
+            _fakeKey = null;
+            try
+            {
+                if (target != null && target.activeSelf)
+                {
+                    _disable.SetValue(pickup, false);                         // DoFakeDrop kept it: not taken
+                    return;
+                }
+                Taken t = new Taken();
+                t.Pickup = pickup;
+                t.Target = target;
+                t.Key = key;
                 TakenList.Add(t);
             }
             catch (Exception) { }

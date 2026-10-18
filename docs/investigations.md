@@ -236,9 +236,16 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   (`pickupGirlRoutine`), Timmy's goodbye, the raft out of the world, a
   rope-down into a cave (`playerEnterCaveAction.doCave`), the intro hang.
   The position fix covers them.
-- **Phantom stick** (once): waits for a `Pickup gone, inventory
-  unchanged: ...` line; candidate cause in game-notes *Greebles*.
-  Unanswered: was the stick count at its max (10)?
+- **Phantom stick** (T-0053, 2026-10-18): explained - a pickup taken with
+  the inventory full (sticks max 10) is the game's *fake drop*: the stick
+  vanishes from its spot, nothing is gained, a physics `Stick_Dynamic`
+  lands beside you (game-notes *Full inventory*). The keeper skipped fake
+  drops, so a Quick load did not put the stick back; fixed. Still open:
+  the dropped `Stick_Dynamic` stays after a restore ("not at capture
+  (Stick x2)") - a decision (any stick not at capture is also a greeble
+  that moved). The first stick going to the inventory, not the hand: the
+  game's own rule (a held weapon stays held; with the right hand empty the
+  stick is equipped, before and after a restore - 3 of 3 here).
 - `Small Rock x1` "not at capture" after restores (an `LOD_PickUps` rock
   probably not spawned 8 s after a teleport); `phantom-a` after a title
   load listed 19 (bones, skulls, a booze). Not looked into.
