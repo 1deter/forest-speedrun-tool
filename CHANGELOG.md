@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.348 - 2026-10-18
+
+- Run mode flags an attempt when the game's speed is changed mid-run (any time scale other than the game's own; a freeze outside the pause menu or inventory counts too), and logs how long it lasted.
+- Pausing, menus, loading a save and savestate cutscene skips never raise that flag.
+
 ## v0.24.347 - 2026-10-18
 
 - A Quick or Full load no longer regrows a tree you had half-chopped when you saved: it stays half-chopped and chops on normally.
