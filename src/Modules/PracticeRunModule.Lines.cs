@@ -68,6 +68,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipReplayOpacity = new GUIContent(
             "The ghost, the replay's buildings and markers, and the comparison line while you watch it.");
         private static readonly GUIContent TipLineOpacity = new GUIContent("Your run's line, the comparison's and the red one.");
+        private static readonly GUIContent TipKeepDone = new GUIContent("On: the line of the run you just finished stays drawn until the next run starts.");
         private static readonly GUIContent TipOwnLive = new GUIContent("Off: your own run's line is hidden while a run is going. The comparison line is unchanged.");
         private static readonly GUIContent TipLineWidth = new GUIContent("How thick the run lines and the ghost are drawn, in pixels on a 1080p screen.");
 
@@ -303,6 +304,7 @@ namespace ForestOverlay.Modules
             y += 22f;
 
             bool done = UiKit.Toggle(new Rect(x, y, w, 20), _keepDoneCfg.Value, " Keep the finished run's line");
+            UiKit.Hint(new Rect(x, y, w, 20), TipKeepDone);
             if (done != _keepDoneCfg.Value)
             {
                 _keepDoneCfg.Value = done;

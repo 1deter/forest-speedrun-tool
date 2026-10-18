@@ -1018,6 +1018,7 @@ namespace ForestOverlay.Modules
             // comparison line and ghost the replay's (always shown there).
             bool running = _recorder.State == RunRecorder.RunState.Running;
             bool ghostOn = _camOn || (_ghostCfg.Value && running);
+            if (running && _doneLine.Count > 0) _doneLine.Clear();   // before the Show return: a run started with lines hidden
             _lines.Show = (_showLines || ghostOn) && Enabled &&
                           (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
             if (!_lines.Show) return;
@@ -1062,7 +1063,6 @@ namespace ForestOverlay.Modules
 
             // Your own line is hidden while a run is going unless the setting is on (T-0393);
             // once the run ends its line stays until the next start, if kept (T-0410).
-            if (running && _doneLine.Count > 0) _doneLine.Clear();
             Attempt current = ForestOverlay.Data.RunLineRules.ShowOwn(_showLines, _ownLineLiveCfg.Value, _camOn, running) ? _recorder.Current : null;
             if (current == null) _currentLine.Clear();
             else _currentLine.Sync(current.Samples);
