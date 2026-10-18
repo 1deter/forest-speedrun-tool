@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.349 - 2026-10-18
+
+- Run mode now flags another mod's patch on the game's .NET code too (for example on file reading); only BepInEx's own startup fixes are left out.
+
 ## v0.24.348 - 2026-10-18
 
 - Run mode flags an attempt when the game's speed is changed mid-run (any time scale other than the game's own; a freeze outside the pause menu or inventory counts too), and logs how long it lasted.
