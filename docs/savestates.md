@@ -536,4 +536,5 @@ capture)`. Gaps left: a cannibal or animal burning at the capture is put out
 too (T-0424: its fire timer is not recorded); a fire burning at the capture
 keeps its current fuel, not the captured one; a built fire burnt out before
 the capture and lit again since gets the unlit model, not the burnt one; a
-kept animal's health and a cannibal's burnt skin are not put back.
+kept animal's health, hurt skin and poison (T-0425; game-notes *An animal's
+health, hurt skin and poison*) and a cannibal's burnt skin are not put back.

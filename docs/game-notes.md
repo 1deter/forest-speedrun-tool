@@ -2467,6 +2467,30 @@ Spawns[0].Prefab>`, set its `Transform.position`, then `call
 CoopAnimalSpawner AnimalSpawnController.OnSpawnedFromAssetBundle <h>
 <zone>` (`SpawnOneAnimalForZone` found no spawn spot at (428, 78, -4)).
 
+**An animal's health, hurt skin and poison (bridge, 2026-10-18, T-0425,
+v0.24.358).** `animalHealth` sits on the animal's root (`rabbitGo(Clone)00n`).
+Its state is not in the save, and a Quick load leaves all of it as it is:
+- `Health` (public int; a rabbit's `startHealth` is 4). It is written only by
+  `Hit`, `HitFire` and `resetHealth` (ILScan). A rabbit set to 1 and 2 after a
+  capture still had 1 and 2 after `restore`, with the same handles.
+  A `set` back holds: `Health` 4, `Hit 3`, then `Alive` with 1 left.
+- Skin damage: `ApplyAnimalSkinDamage(dir)` (sent by `weaponInfo` and
+  `ArrowDamage`) adds 0.5 (clamped to 1) to `_Damage1`-`_Damage4` (dir 0-3)
+  in `mySkin`'s `MaterialPropertyBlock` (rabbit: `char2_rabbitOld`). The
+  live values are read by `mySkin.GetPropertyBlock` into a block. Damage
+  1 / 0.5 on `_Damage1` / `_Damage3`, made after a capture, was still there
+  after `restore`. `ResetSkinDamage()` (private) zeroes all four.
+- Poison: `Poison()` hits for 2, then `InvokeRepeating("HitPoison", 0.5,
+  5-6 s)` (2-3 damage each) and `Invoke("disablePoison", 40-60 s)`. The
+  durations are random and not stored. A rabbit poisoned after a capture
+  was still `IsInvoking HitPoison` after `restore` and lost 3 more health
+  in 7 s. `CancelInvoke("HitPoison")` + `("disablePoison")` stopped it,
+  with no loss over the next 7 s.
+- A death (`Hit` to below 1): `Die()` -> `ai.goRagdoll()` + `resetHealth()`.
+  The root goes inactive at once (despawned to the pool) with `Health` back
+  at `startHealth` and the skin cleared. A Quick load does not bring it back
+  (still inactive after `restore`).
+
 **Thrown things are scene roots too (bridge, 2026-10-18, T-0416).**
 `PlayerInventory.ThrowProjectile` (private; lit = `UseAltWorldPrefab`
 false) instantiates the held view's world prefab, and `FireRangedWeapon`
