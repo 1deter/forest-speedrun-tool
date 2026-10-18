@@ -33,7 +33,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0066, T-0411 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | T-0365, T-0366 | 2026-10-16 |
 | Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
-| Run mode | B | A | A | A | B | T-0111, T-0112, T-0243, T-0413 | 2026-10-18 |
+| Run mode | B | A | A | A | B | T-0111, T-0243, T-0413 | 2026-10-18 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
 | Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-16 |
 | Performance and loads | B | B | B | A | B | T-0048 | 2026-10-18 |
