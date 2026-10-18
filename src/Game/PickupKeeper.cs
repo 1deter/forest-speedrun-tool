@@ -1043,9 +1043,10 @@ namespace ForestOverlay.Game
         /// covers only those). `counts` gets item id -> how many.
         /// `skipped` (optional, 3 long): kept because they have an
         /// identifier, are clones outside the rule below, or lie in a scene
-        /// not loaded at capture.
+        /// not loaded at capture. `placedOnly`: pooled clones are never
+        /// touched (greeble rocks and zone sticks re-roll, T-0066).
         public int RemoveTakenAfterLoad(HashSet<string> present, ICollection<string> scenesAtCapture, Dictionary<int, int> counts,
-                                        int[] skipped, Vector3 capturedAt)
+                                        int[] skipped, Vector3 capturedAt, bool placedOnly = false)
         {
             if (_destroyTarget == null || _itemId == null) return 0;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
@@ -1108,6 +1109,7 @@ namespace ForestOverlay.Game
                 // the captured spot, where its zone was surely loaded then.
                 bool clone = target.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0 ||
                              c.gameObject.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0;
+                if (clone && placedOnly) { if (skipped != null) skipped[1]++; continue; }
                 if (clone)
                 {
                     bool near = (live[i].Position - capturedAt).sqrMagnitude <= CloneRadius * CloneRadius;

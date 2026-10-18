@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-251 prefixes from 858 log calls.
+251 prefixes from 860 log calls.
 
 ## `ActionReaders`
 
@@ -1676,6 +1676,7 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate <_loadWhat>: <why>.`
 - info `Savestate <line>` (x3)
 - warning `Savestate <line>`
+- info `Savestate <prefix>: removed <n> story-spot pickup(s) the scene reload brought back (taken before the capture: <sb>).`
 - info `Savestate <prefix>: removed <sticks> sapling stick(s) taken before the capture (saplings cut again).`
 - warning `Savestate <what> failed: <error>`
 - info `Savestate <what>: <note>.`
@@ -1697,6 +1698,7 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate: removing limbs failed: <ex.Message>`
 - warning `Savestate: removing new logs failed: <ex.Message>`
 - warning `Savestate: removing sapling sticks failed: <ex.Message>` (x2)
+- warning `Savestate: removing story-spot pickups failed: <ex.Message>`
 - warning `Savestate: removing thrown spears failed: <ex.Message>`
 - warning `Savestate: removing wreck pickups failed: <ex.Message>`
 - info `Savestate: start state of '<s.Id>' deleted.`
@@ -1718,6 +1720,7 @@ Meaning: What a restore with a load put back after the scene loaded (enemies, lo
 Written by LogStore.cs, SavestateModule.cs; info / warning.
 
 - info `<context>: logs in the inventory <was> -> <..> (as captured).` *(declared)*
+- info `<head><n><..><sb>).<..>` *(declared)*
 - info `<prefix>: <..>.` *(declared)*
 - info `<prefix>: <note>.` *(declared)* (x2)
 - info `Savestate after the load: <..> (<late> broken as they spawned in the load).`
@@ -1735,7 +1738,6 @@ Written by LogStore.cs, SavestateModule.cs; info / warning.
 - info `Savestate after the load: enemies - the game's setup was skipped <..> after in game, <..> of them after the rebuild.`
 - info `Savestate after the load: held the player at the captured spot for <..> s<..>.`
 - info `Savestate after the load: pickups - none back that were taken before the capture.<kept>`
-- info `Savestate after the load: pickups - removed <n><..> the load brought back (taken before the capture: <sb>).<..>`
 - info `Savestate after the load: player <..> s after in game - <..>.`
 - warning `Savestate after the load: removing taken pickups failed: <ex.Message>`
 
@@ -1794,6 +1796,7 @@ Written by LogStore.cs, SavestateBridge.cs, SavestateModule.cs; info / warning.
 - info `Savestate restore (load): difficulty <was> -> <diff> for the load (the capture's<..>).`
 - info `Savestate restore (load): game mode <..> for the load (the capture's mode).`
 - warning `Savestate restore: removing items made since the capture failed: <ex.Message>`
+- info `<head><n><..><sb>).<..>` *(declared)*
 - info `<prefix>: <..>.` *(declared)*
 - info `<prefix>: <note>.` *(declared)* (x2)
 - info `Savestate restore <what> in place: <note> - <..> after <..> s.`
