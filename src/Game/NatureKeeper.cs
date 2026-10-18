@@ -77,6 +77,23 @@ namespace ForestOverlay.Game
         private static readonly Dictionary<Type, FieldInfo> LodFields = new Dictionary<Type, FieldInfo>();
         private static readonly Dictionary<Type, FieldInfo> CutFields = new Dictionary<Type, FieldInfo>();
 
+        // Bushes lit by a fire and not yet deleted by the game (T-0419): a
+        // bush counts as gone at a capture only once it is (Data/KeptBush).
+        private sealed class Lit
+        {
+            public GameObject Lod;
+            public int Id;
+            public string Key;
+            public string World;
+            public Kept Copy;     // null when not armed at the light
+        }
+        private static readonly List<Lit> LitList = new List<Lit>();
+        private static readonly HashSet<int> LitIds = new HashSet<int>();
+
+        /// Whether a bush LOD's fire is still on (set by Game/FireKeeper);
+        /// null = assume so.
+        public static Func<GameObject, bool> IsBurningLod;
+
         // Every cut this scene (world `_cutsWorld`): key "path@x,y,z", Seq.
         private static readonly List<KeyValuePair<string, int>> Cuts = new List<KeyValuePair<string, int>>();
         private static string _cutsWorld = "";
@@ -208,6 +225,8 @@ namespace ForestOverlay.Game
             KeptList.Clear();
             KeptIds.Clear();
             Trunks.Clear();
+            LitList.Clear();
+            LitIds.Clear();
         }
 
         /// The sticks a kept cut dropped lie under an object of one of these
@@ -229,7 +248,7 @@ namespace ForestOverlay.Game
                 Type t = view.GetType();
                 Component lod = Field(LodFields, t, "LodBase").GetValue(__instance) as Component;
                 if (lod == null) return;
-                KeepLod(lod, Field(CutFields, t, "MyCut").GetValue(__instance) as UnityEngine.Object);
+                KeepLod(lod, Field(CutFields, t, "MyCut").GetValue(__instance) as UnityEngine.Object, true);
             }
             catch (Exception ex)
             {
@@ -242,25 +261,46 @@ namespace ForestOverlay.Game
         /// numbers each fire lit with it, T-0419).
         public static int NextSeq() { return ++_seq; }
 
-        /// A bush / sapling LOD about to lose its scene object (a cut, or a
-        /// fire: Game/FireKeeper, T-0419): recorded as cut, and while armed a
-        /// copy kept for a Quick load. Trees (not destroyed), greeble bushes
-        /// (the greeble system's) and LODs already kept are skipped.
-        /// `myCut` is what the game leaves where it stood (MyCut / MyBurnt):
-        /// sticks under it are the cut's. Never throws.
-        public static void KeepLod(Component lod, UnityEngine.Object myCut)
+        /// A bush / sapling LOD about to lose its scene object, and while
+        /// armed a copy kept for a Quick load. `gone`: a cut, which deletes
+        /// it now - numbered and recorded as cut at once. Otherwise a fire
+        /// (Game/FireKeeper, T-0419): the bush stands, burning, until the
+        /// game deletes it, so it is numbered and recorded only at the first
+        /// capture after that (Resolve; Data/KeptBush). Trees (not
+        /// destroyed), greeble bushes (the greeble system's) and LODs
+        /// already kept are skipped. `myCut` is what the game leaves where
+        /// it stood (MyCut / MyBurnt): sticks under it are the cut's. Never
+        /// throws.
+        public static void KeepLod(Component lod, UnityEngine.Object myCut, bool gone)
         {
             try
             {
                 if (lod == null) return;
                 GameObject go = lod.gameObject;
-                if (KeptIds.Contains(go.GetInstanceID())) return;
+                int id = go.GetInstanceID();
+                if (KeptIds.Contains(id)) return;
+                if (!gone && LitIds.Contains(id)) return;
                 // A greeble's bush is the greeble system's (a pooled clone).
                 if (go.transform.root.name == "Pooling") return;
                 if (_destroyInstead == null || !(bool)_destroyInstead.GetValue(lod, null)) return;
 
-                int seq = ++_seq;
-                Record(go, seq);
+                int seq = KeptBush.Standing;
+                Lit lit = null;
+                if (gone)
+                {
+                    seq = ++_seq;
+                    Record(go, seq);
+                }
+                else
+                {
+                    lit = new Lit();
+                    lit.Lod = go;
+                    lit.Id = id;
+                    lit.Key = KeyOf(go);
+                    lit.World = World();
+                    LitList.Add(lit);
+                    LitIds.Add(id);
+                }
                 if (!PickupKeeper.Armed) return;
 
                 if (_holder == null)
@@ -295,7 +335,8 @@ namespace ForestOverlay.Game
                 k.LocalScale = tr.localScale;
                 k.Seq = seq;
                 KeptList.Add(k);
-                KeptIds.Add(go.GetInstanceID());
+                KeptIds.Add(id);
+                if (lit != null) lit.Copy = k;
 
                 if (myCut != null) CutNames.Add(myCut.name + "(Clone)");
             }
@@ -331,10 +372,59 @@ namespace ForestOverlay.Game
                 if (Cuts[i].Key == key) { Cuts.RemoveAt(i); return; }
         }
 
+        /// Before a capture reads the mark or the cuts: each fire-lit bush
+        /// the game has deleted since is numbered now and recorded as cut;
+        /// one standing and no longer burning is forgotten (Data/KeptBush).
+        public static void Resolve()
+        {
+            string world = World();
+            for (int i = LitList.Count - 1; i >= 0; i--)
+            {
+                Lit l = LitList[i];
+                if (l.World != world) { RemoveLit(i); continue; }   // another world's
+                bool gone = l.Lod == null;
+                bool burning = !gone && Burning(l.Lod);
+                KeptBush.Fate f = KeptBush.AtCapture(gone, burning);
+                if (f == KeptBush.Fate.Wait) continue;
+                if (f == KeptBush.Fate.Cut)
+                {
+                    int seq = ++_seq;
+                    Record(l.Key, seq);
+                    if (l.Copy != null) l.Copy.Seq = seq;
+                }
+                else DropCopy(l.Copy);
+                RemoveLit(i);
+            }
+        }
+
+        private static bool Burning(GameObject lod)
+        {
+            Func<GameObject, bool> f = IsBurningLod;
+            if (f == null) return true;
+            try { return f(lod); }
+            catch (Exception) { return true; }
+        }
+
+        private static void RemoveLit(int i)
+        {
+            Lit l = LitList[i];
+            LitList.RemoveAt(i);
+            LitIds.Remove(l.Id);
+        }
+
+        private static void DropCopy(Kept k)
+        {
+            if (k == null) return;
+            KeptList.Remove(k);
+            if (k.Original != null) KeptIds.Remove(k.Original.GetInstanceID());
+            if (k.Spare != null) UnityEngine.Object.Destroy(k.Spare);
+        }
+
         /// The bushes / saplings cut this scene and still cut, for the
         /// file's `cutbushes` line.
         public List<string> CaptureCuts()
         {
+            Resolve();
             List<string> keys = new List<string>();
             if (World() != _cutsWorld) return keys;
             for (int i = 0; i < Cuts.Count; i++) keys.Add(Cuts[i].Key);
@@ -487,6 +577,7 @@ namespace ForestOverlay.Game
         /// `bushes` line. "" outside a game.
         public string CaptureMark()
         {
+            Resolve();
             string w = World();
             return w.Length == 0 ? "" : w + ":" + _seq.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
@@ -779,6 +870,8 @@ namespace ForestOverlay.Game
         {
             _lodsFor = null;
             _lods = null;
+            LitList.Clear();
+            LitIds.Clear();
         }
 
         private Behaviour[] TreeLods(UnityEngine.Object[] all)
@@ -795,7 +888,9 @@ namespace ForestOverlay.Game
             return lods;
         }
 
-        /// Puts back the copies of cuts after number `since` (-1: all).
+        /// Puts back the copies of cuts after number `since` (-1: all), and
+        /// of fire-lit bushes the game deleted after the capture (T-0419,
+        /// Data/KeptBush).
         private static string PutBushesBack(int since)
         {
             int back = 0, gone = 0, stay = 0;
@@ -804,15 +899,22 @@ namespace ForestOverlay.Game
             {
                 Kept k = KeptList[i];
                 if (k.Spare == null) continue;                      // a load destroyed the holder
-                if (k.Original != null || k.Parent == null)
+                if (k.Parent == null) { UnityEngine.Object.Destroy(k.Spare); gone++; continue; }
+                bool isGone = k.Original == null;
+                bool burning = !isGone && k.Seq == KeptBush.Standing && Burning(k.Original);
+                KeptBush.Fate f = KeptBush.AtRestore(k.Seq, since, isGone, burning);
+                if (f == KeptBush.Fate.Wait) { left.Add(k); continue; }   // lit before the capture, still burning
+                if (f == KeptBush.Fate.Drop)
                 {
-                    // Still standing (a bush put out mid-burn, T-0419): not cut.
-                    if (k.Original != null) Unrecord(KeyOf(k.Original));
+                    // Still standing (a bush put out mid-burn): not cut.
+                    Unrecord(KeyOf(k.Original));
+                    ForgetLit(k);
                     UnityEngine.Object.Destroy(k.Spare);
                     gone++;
                     continue;
                 }
-                if (k.Seq <= since) { left.Add(k); stay++; continue; }   // cut before the capture
+                if (f == KeptBush.Fate.Stay) { left.Add(k); stay++; continue; }   // gone before the capture
+                ForgetLit(k);
                 Transform t = k.Spare.transform;
                 t.SetParent(k.Parent, false);
                 t.localPosition = k.LocalPosition;
@@ -824,11 +926,22 @@ namespace ForestOverlay.Game
             }
             KeptList.Clear();
             KeptIds.Clear();
-            KeptList.AddRange(left);   // their originals are gone: no id to guard
+            KeptList.AddRange(left);
+            // A standing one still guards its LOD; the others' originals are gone.
+            for (int i = 0; i < left.Count; i++)
+                if (left[i].Original != null) KeptIds.Add(left[i].Original.GetInstanceID());
             if (back == 0 && gone == 0 && stay == 0) return "";
             return "bushes: " + back + " back" + (since >= 0 ? " (cut since the capture)" : " (every cut this scene - no mark from this world)") +
                    (stay > 0 ? ", " + stay + " cut before the capture left cut" : "") +
                    (gone > 0 ? ", " + gone + " spare(s) dropped" : "");
+        }
+
+        // A copy back in place or dropped: its fire-lit entry goes too, so a
+        // later capture does not record it as cut.
+        private static void ForgetLit(Kept k)
+        {
+            for (int i = LitList.Count - 1; i >= 0; i--)
+                if (LitList[i].Copy == k) { RemoveLit(i); return; }
         }
     }
 }

@@ -50,6 +50,7 @@ namespace ForestOverlay.Game
         {
             public Component View;
             public int Seq;
+            public GameObject Lod;   // its bush LOD (Burn takes it off the view)
         }
 
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -64,6 +65,9 @@ namespace ForestOverlay.Game
 
         private static ManualLogSource _log;
         private Harmony _harmony;
+        // Burn's LOD, for the Ignite it calls next (Burn nulls LodBase first).
+        private static int _burnView;
+        private static GameObject _burnLod;
 
         // FireDamage (bush / tree views) and FireDamageTree.
         private static Type _fdType, _fdTree;
@@ -161,6 +165,7 @@ namespace ForestOverlay.Game
                 }
                 if (_ahFire != null && _ahCancel != null) hooks += Patch(animal, "Burn", Type.EmptyTypes, "AnimalPostfix", false);
                 Status = "hooked (" + hooks + "/7)";
+                if (views) NatureKeeper.IsBurningLod = BurningLod;
             }
             catch (Exception ex)
             {
@@ -183,6 +188,7 @@ namespace ForestOverlay.Game
         {
             try { if (_harmony != null) _harmony.UnpatchSelf(); }
             catch (Exception) { }
+            NatureKeeper.IsBurningLod = null;
             Views.Clear();
             Fires.Clear();
             Effigies.Clear();
@@ -200,7 +206,11 @@ namespace ForestOverlay.Game
             try
             {
                 Component lod = _fdLodBase.GetValue(__instance) as Component;
-                if (lod != null) NatureKeeper.KeepLod(lod, _fdMyBurnt != null ? _fdMyBurnt.GetValue(__instance) as UnityEngine.Object : null);
+                if (lod == null) return;
+                Component view = __instance as Component;
+                _burnView = view != null ? view.GetInstanceID() : 0;
+                _burnLod = lod.gameObject;
+                NatureKeeper.KeepLod(lod, _fdMyBurnt != null ? _fdMyBurnt.GetValue(__instance) as UnityEngine.Object : null, false);
             }
             catch (Exception) { }
         }
@@ -211,17 +221,26 @@ namespace ForestOverlay.Game
             try
             {
                 Component view = __instance as Component;
-                if (view == null || IsBurning(view)) return;   // Ignite returns early then
+                if (view == null) return;
+                GameObject burnLod = _burnView == view.GetInstanceID() ? _burnLod : null;
+                _burnView = 0;
+                _burnLod = null;
+                if (IsBurning(view)) return;   // Ignite returns early then
                 LitView e = new LitView();
                 e.View = view;
                 e.Seq = NatureKeeper.NextSeq();
+                e.Lod = burnLod;
                 Views[view.GetInstanceID()] = e;
                 // The spread lights a bush with its LOD still on: when it
                 // burns out, the view is destroyed and the LOD with it.
                 if (!IsTree(view))
                 {
                     Component lod = _fdLodBase.GetValue(view) as Component;
-                    if (lod != null) NatureKeeper.KeepLod(lod, _fdMyBurnt != null ? _fdMyBurnt.GetValue(view) as UnityEngine.Object : null);
+                    if (lod != null)
+                    {
+                        e.Lod = lod.gameObject;
+                        NatureKeeper.KeepLod(lod, _fdMyBurnt != null ? _fdMyBurnt.GetValue(view) as UnityEngine.Object : null, false);
+                    }
                 }
                 if (Views.Count > PruneAt) PruneViews();
             }
@@ -485,6 +504,19 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------- helpers
+        /// A bush LOD whose view (or orphan view) is still burning.
+        private static bool BurningLod(GameObject lod)
+        {
+            if (lod == null) return false;
+            foreach (KeyValuePair<int, LitView> kv in Views)
+            {
+                LitView e = kv.Value;
+                if (!ReferenceEquals(e.Lod, lod) || e.View == null) continue;
+                if (IsBurning(e.View)) return true;
+            }
+            return false;
+        }
+
         private static bool IsBurning(Component view)
         {
             return (bool)_fdBurning.GetValue(view, null);

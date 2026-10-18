@@ -500,9 +500,12 @@ plugin start list what burns. `FireDamage.Ignite` numbers each new fire on
 a tree or bush view with NatureKeeper's sequence, so the `bushes` mark
 tells fires lit before the capture from fires lit after. `FireDamage.Burn`
 (a bush's; it destroys the bush's scene object) and the spread's `Ignite`
-keep a copy of the bush's LOD as a cut does (`NatureKeeper.KeepLod`), so
-the Quick load puts the bush back, and a Full load removes it again when
-it was gone at the capture (`cutbushes`). `Fire2.On`, `enableEffigy.lightEffigyReal`,
+keep a copy of the bush's LOD as a cut does (`NatureKeeper.KeepLod`). Unlike
+a cut, a burning bush still stands: it counts as gone at a capture only
+once the game has deleted it (Data/KeptBush; numbered and listed in
+`cutbushes` by the first capture after that). So a bush burning at the
+capture and burnt out since comes back on a Quick load and a Full load
+leaves it; one already gone at the capture stays gone after either. `Fire2.On`, `enableEffigy.lightEffigyReal`,
 `EnemyHealth.Burn` / `singeBurn` and `animalHealth.Burn` list the built /
 cave fires, effigies, cannibals and animals they lit. The capture writes a
 `fires` header line (Data/LitFires): the listed `Fire2`s lit then, each
