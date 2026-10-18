@@ -337,7 +337,11 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   does where the save is silent (author, 2026-09-25: "if a bush is cut
   and it was saved that way, then the savestate should respect that";
   gotcha 35). Greebles likewise, restore-only - normal play untouched
-  (author, 2026-09-25). In Creative with "Allow enemies" off (or
+  (author, 2026-09-25). **Mirror essentially everything** (author,
+  2026-10-18, T-0411 / T-0066): a restore removes anything made after
+  the capture and keeps gone what was taken before it; Full load (which
+  can still replace pickups) is the fallback, Quick load the gold
+  standard once its gaps are ironed out. In Creative with "Allow enemies" off (or
   Peaceful), respect the game's state - no enemies spawned (2026-09-24).
   Runners never see segment ids (2026-09-26, *Conventions*). Community
   entries show under one "Community" category for now - sub-categories
