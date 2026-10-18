@@ -96,7 +96,7 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _autoRestart;
         // Kept across launches (runner maks, twice: practice mode and run
         // lines came back off; v0.24.191).
-        private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg;
+        private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg, _ownLineLiveCfg;
         private ConfigEntry<string> _compareCfg;
         private float _autoRestartAt;
 
@@ -1056,7 +1056,9 @@ namespace ForestOverlay.Modules
                 _lines.ReferenceCount = e;
             }
 
-            Attempt current = _showLines ? _recorder.Current : null;
+            // Your own line only shows live when the setting is on (T-0393);
+            // watching a replay or looking at a finished run always shows it.
+            Attempt current = ForestOverlay.Data.RunLineRules.ShowOwn(_showLines, _ownLineLiveCfg.Value, _camOn, running) ?_recorder.Current : null;
             if (current == null) _currentLine.Clear();
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;
