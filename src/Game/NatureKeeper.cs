@@ -492,6 +492,14 @@ namespace ForestOverlay.Game
         private UnityEngine.Object[] _lodsFor;
         private Behaviour[] _lods;
 
+        /// Drops the tree-LOD cache when a world goes (it would hold the old
+        /// world's destroyed trees until the next restore; T-0034).
+        public void ForgetWorld()
+        {
+            _lodsFor = null;
+            _lods = null;
+        }
+
         private Behaviour[] TreeLods(UnityEngine.Object[] all)
         {
             if (ReferenceEquals(all, _lodsFor) && _lods != null) return _lods;
