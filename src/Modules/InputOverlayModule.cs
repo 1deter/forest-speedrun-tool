@@ -525,8 +525,19 @@ namespace ForestOverlay.Modules
 
         private void AddTile(string key)
         {
-            if (_layout.Find(key) != null) { SetStatus(InputLayout.LabelFor(key) + " is already there."); return; }
             UiScale ui = Host.Hud.Settings.Scale();
+            InputTile have = _layout.Find(key);
+            if (have != null)
+            {
+                // A key whose action tile was removed: Add puts the missing ones back beside its tile (T-0421).
+                int back;
+                string msg = _layout.AddAgain(key, GameInput && GameActions.Ready ? GameActions.Table : null, ui.RefW, ui.RefH, out back);
+                if (back == 0) { SetStatus(msg); return; }
+                Commit(); Reload();
+                SetStatus(msg);
+                Ctx.Log.LogInfo("Inputs: tile " + key + " got " + back + " action tile(s) back.");
+                return;
+            }
             // Bottom right, clear of the Edit HUD window, in the first free slot so new tiles do not stack
             // (author, 2026-10-15, T-0355).
             float nx, ny;
@@ -546,9 +557,11 @@ namespace ForestOverlay.Modules
         private void RemoveTile(int i)
         {
             string key = _states[i].Tile.Key, act = _states[i].Tile.Act;
+            int others = act.Length == 0 ? _layout.CountActionTiles(key) : 0;
             _layout.Remove(key, act);
             Commit();
             Reload();
+            SetStatus(InputLayout.RemovedText(key, others));
             Ctx.Log.LogInfo("Inputs: tile " + key + (act.Length > 0 ? " (" + act + ")" : "") + " removed.");
         }
 

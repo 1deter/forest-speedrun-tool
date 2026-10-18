@@ -137,6 +137,32 @@ namespace ForestOverlay.Data
             return false;
         }
 
+        /// How many per-action tiles a key has (those that go with it when its own tile is removed).
+        public int CountActionTiles(string key)
+        {
+            int n = 0;
+            for (int i = 0; i < Tiles.Count; i++)
+                if (Tiles[i].Act.Length > 0 && string.Equals(Tiles[i].Key, key, StringComparison.Ordinal)) n++;
+            return n;
+        }
+
+        /// The message after a removal; others = action tiles that went with a key's own tile.
+        public static string RemovedText(string key, int others)
+        {
+            return "Removed " + LabelFor(key) + (others > 0 ? " and its " + others + " action tile" + (others == 1 ? "" : "s") : "") + ".";
+        }
+
+        /// Add a tile on a key already there (T-0421): puts its missing action tiles back and
+        /// says so; with none missing, says it is already there. back = tiles put back.
+        public string AddAgain(string key, InputActionTable table, int refW, int refH, out int back)
+        {
+            back = 0;
+            InputTile have = Find(key);
+            if (have != null && table != null) back = SplitKey(have, table, refW, refH);
+            if (back == 0) return LabelFor(key) + " is already there.";
+            return "Put back " + back + " action tile" + (back == 1 ? "" : "s") + " of " + LabelFor(key) + " beside its tile.";
+        }
+
         // --- one tile per action (T-0409) ------------------------------------------
 
         /// Gives every key tile its per-action tiles (the key's 2nd, 3rd... action in
