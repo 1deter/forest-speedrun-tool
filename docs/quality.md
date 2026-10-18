@@ -30,7 +30,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
-| Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067, T-0411 | 2026-10-18 |
+| Savestates | C | A | C | A | C | T-0046, T-0058, T-0067, T-0411 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | T-0365, T-0366 | 2026-10-16 |
 | Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112, T-0243 | 2026-10-14 |
@@ -67,7 +67,8 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   confirmed: Keep loaded (T-0212), stalagmites (T-0273), the cold
   (T-0269), the wreck's navmesh and asset-sweep cuts (T-0278, T-0279).
   A busy surface area (enemies, a shelter, pickups) confirmed over 5
-  in-place restores, and the full-inventory pickup keep (T-0053, v0.24.344).
+  in-place restores, and the full-inventory pickup keep (T-0053, v0.24.344);
+  rope restores keep the height and the rope (T-0065, v0.24.346).
 - Legibility **C**: `SavestateModule.cs` 2,539 lines, `SavestateBridge.cs`
   2,355 (both grew ~360 since 2026-10-07); 14 keepers; 17 restore
   gotchas, 14 of them judgement only. docs/savestates.md and plugin.md's
@@ -76,7 +77,7 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   row (T-0010).
 - Gaps **C**: native crashes on F7 in the vault door / Megan pickup
   cutscenes (T-0058, blocked on Tom); half-chopped trees regrow (T-0067);
-  a wall rope is ended, not put back (T-0065); item drift after restores
+  item drift after restores
   (T-0066); a hang after ~30 Quick loads + a Full load (runner, v0.22.6) did not
   reproduce on v0.24.344 (T-0056), cause unknown; the
   game's dropped copies of a full-inventory pickup stay after a restore
