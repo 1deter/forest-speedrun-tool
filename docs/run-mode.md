@@ -539,8 +539,11 @@ than the table's plan:
 
 - The game's debug console has `_timescale`, `_speedyrun` and more
   (game-notes *The game ships a debug console*). The report flags
-  `Cheats.DebugConsole` being on, but not what was typed into it. A
-  `Time.timeScale` watch could be added.
+  `Cheats.DebugConsole` being on, but not what was typed into it. Since
+  T-0109 every frame of an attempt checks `Time.timeScale`: anything but
+  0 or 1 flags the attempt once (not while a savestate action or a cutscene
+  fast-forward drives it, nor while a save loads). `_speedyrun` writes the
+  player's run / swim speed instead (T-0413).
 - A bridge `go` / `restart` refused by run mode answers the refusal
   (T-0110, done).
 - The report reads the game's file on disk at startup, not the loaded

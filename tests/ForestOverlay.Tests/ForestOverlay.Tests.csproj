@@ -44,6 +44,7 @@
     <Compile Include="../../src/Data/SpeedRamp.cs" Link="Linked/SpeedRamp.cs" />
     <Compile Include="../../src/Data/ExternalMods.cs" Link="Linked/ExternalMods.cs" />
     <Compile Include="../../src/Data/ArmCause.cs" Link="Linked/ArmCause.cs" />
+    <Compile Include="../../src/Data/SpeedCheck.cs" Link="Linked/SpeedCheck.cs" />
     <Compile Include="../../src/Data/ColdNote.cs" Link="Linked/ColdNote.cs" />
     <Compile Include="../../src/Data/LevelText.cs" Link="Linked/LevelText.cs" />
     <Compile Include="../../src/Data/UiPalette.cs" Link="Linked/UiPalette.cs" />

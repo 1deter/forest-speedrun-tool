@@ -41,6 +41,8 @@ namespace ForestOverlay.Modules
 
         private BridgeModule _bridge;
         private DeathModule _death;
+        private SavestateModule _savestates;
+        private bool _timeScaleFlagged;     // this attempt's speed flag is raised (once per attempt)
         private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
         private bool _loaded;               // last frame: in a loaded game
         private bool _attemptOpen;          // an attempt is running (not reset yet)
@@ -68,6 +70,7 @@ namespace ForestOverlay.Modules
             base.Initialise(ctx);
             _bridge = Host.Find<BridgeModule>();
             _death = Host.Find<DeathModule>();
+            _savestates = Host.Find<SavestateModule>();
             _upload = Host.Find<RunUploadModule>();
             InitCodes(ctx);
             InitCategories(ctx);
@@ -106,6 +109,16 @@ namespace ForestOverlay.Modules
             {
                 _nextCheck = Time.unscaledTime + 1f;
                 Watch();
+            }
+            // Every frame, not in Watch(): a menu close sets 1 again, so a
+            // short cheat would slip between the once-a-second checks. Not
+            // while the plugin drives timeScale itself (savestate action,
+            // cutscene fast-forward).
+            if (Ctx.Run.Active && _attemptOpen && loaded && !_timeScaleFlagged &&
+                !(_savestates != null && (_savestates.Busy || _savestates.FastForwarding)))
+            {
+                string speed = SpeedCheck.TimeScaleFlag(Time.timeScale);
+                if (speed != null) { _timeScaleFlagged = true; Ctx.Run.Flag(speed); }
             }
             if (_reportDirty) { _reportDirty = false; WriteReport(); }
             TickChain();
@@ -198,6 +211,7 @@ namespace ForestOverlay.Modules
             Ctx.Run.Begin(started, label, cat);
             ResetMoves();
             ResetAudit();
+            _timeScaleFlagged = false;
             _attemptOpen = true;
 
             _report = new RunReport();

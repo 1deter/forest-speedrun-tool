@@ -1299,7 +1299,18 @@ namespace ForestOverlay.Modules
             return ReplayCutscene(f, stand, at, delegate { return _doors.Replay(door); }, what, "a keypad door's cutscene");
         }
 
+        private int _fastForwards;
+        /// A cutscene fast-forward is running: the plugin itself is driving Time.timeScale.
+        public bool FastForwarding { get { return _fastForwards > 0; } }
+
         private IEnumerator FastForwardCutscene(SavestateFile f, int startsBefore, string what)
+        {
+            _fastForwards++;
+            try { yield return Ctx.Runner.StartCoroutine(FastForwardCutsceneRun(f, startsBefore, what)); }
+            finally { _fastForwards--; }
+        }
+
+        private IEnumerator FastForwardCutsceneRun(SavestateFile f, int startsBefore, string what)
         {
             GameEvents ev = Ctx.Events;
             if (ev == null) yield break;
