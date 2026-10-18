@@ -1884,7 +1884,7 @@ cut (`cutbushes`). After a Full load - and a Quick load from another
 world - each is cut again: `DespawnCurrent` if its view is up, then the
 LOD object destroyed, which is what the game's cut leaves. Scene bush
 objects are there as soon as the load ends (`Nature_Spawned` is in
-`ForestMain_v08`). Not done: a sapling's two sticks are not put back.
+`ForestMain_v08`). A sapling cut at capture drops its two sticks again after the re-cut (T-0067: `MyCut` instantiated at the burst pose; the ones taken before the capture are removed 3.5 s later).
 
 **Half-chopped trees and sapling sticks, rebuilt by hand** (bridge,
 2026-10-18, T-0067). The cut model's children `1`..`4` each hold a

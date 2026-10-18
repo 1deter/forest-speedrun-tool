@@ -100,6 +100,7 @@ namespace ForestOverlay.Game
         private static float _nextChop;
         // Saplings ApplyCuts dropped sticks for since the last TakeDropped.
         private static int _dropped;
+        private static bool _fakeWarned;
 
         private static Type _manager;
         private Type _lodBase, _lodTrees, _lodStump, _treeId, _grid;
@@ -739,6 +740,7 @@ namespace ForestOverlay.Game
                     {
                         GameObject f = ChunkFakes[k] != null ? ChunkFakes[k].GetValue(chunk) as GameObject : null;
                         if (f != null) f.SetActive(k + 1 == fake);
+                        else if (!_fakeWarned) { _fakeWarned = true; _log.LogWarning("NatureKeeper: TreeCutChunk.Fake" + (k + 1) + " is not a GameObject; the chunk's look was not set."); }
                     }
                 }
                 for (int d = 0; d < drop.Count; d++) UnityEngine.Object.Destroy(drop[d].gameObject);

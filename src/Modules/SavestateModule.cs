@@ -1166,7 +1166,8 @@ namespace ForestOverlay.Modules
                 // Saplings cut again from another world drop their sticks again
                 // (NatureKeeper.ApplyCuts): the ones taken before the capture go
                 // once the new ones have settled.
-                if (r.Ok && presentPickups != null && _nature.TakeDropped() > 0)
+                int droppedSticks = _nature.TakeDropped();   // read on every restore, so it never carries over
+                if (r.Ok && presentPickups != null && droppedSticks > 0)
                     Ctx.Runner.StartCoroutine(StickPassLater(presentPickups, "restore " + what));
                 SetStatus(line);
 
@@ -1805,7 +1806,8 @@ namespace ForestOverlay.Modules
             // A load regrows every bush; the ones cut at capture go again.
             string again = f != null ? _nature.ApplyCuts(f.CutBushes) : "";
             if (again.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + again + ".");
-            if (f != null && f.Pickups != null && _nature.TakeDropped() > 0)
+            int droppedSticks = _nature.TakeDropped();
+            if (f != null && f.Pickups != null && droppedSticks > 0)
                 Ctx.Runner.StartCoroutine(StickPassLater(new HashSet<string>(f.Pickups), "after the load"));
             // Trees half-chopped at capture are chopped again once their view is up.
             try
