@@ -106,6 +106,8 @@ namespace ForestOverlay.Game
             {
                 _harmony = new Harmony(harmonyId + ".pickups");
                 _harmony.Patch(clearOut, new HarmonyMethod(typeof(PickupKeeper).GetMethod("ClearOutPrefix",
+                    BindingFlags.Static | BindingFlags.NonPublic)),
+                    new HarmonyMethod(typeof(PickupKeeper).GetMethod("ClearOutPostfix",
                     BindingFlags.Static | BindingFlags.NonPublic)));
                 Status = "hooked";
 
@@ -140,11 +142,21 @@ namespace ForestOverlay.Game
             TakenList.Clear();
         }
 
+        // A fake drop (Collect with the inventory full, T-0053): the game
+        // spawns a dynamic copy (Stick_Dynamic) and, when DoFakeDrop says
+        // false, clears the pickup like a taken one - so it is kept too. When
+        // DoFakeDrop says true the pickup itself is the dropped item and stays
+        // active: the postfix undoes what the prefix did.
+        private static Component _fakePickup;
+        private static GameObject _fakeTarget;
+        private static string _fakeKey;
+
         // Never throws into the game; never skips the original.
         private static void ClearOutPrefix(object __instance, bool fakeDrop)
         {
-            if (_inCollect) _clearedInCollect = true;
-            if (!Armed || fakeDrop) return;
+            if (_inCollect && !fakeDrop) _clearedInCollect = true;
+            _fakePickup = null;
+            if (!Armed) return;
             try
             {
                 if ((bool)_disable.GetValue(__instance)) return;              // the game already hides it
@@ -157,10 +169,43 @@ namespace ForestOverlay.Game
 
                 _disable.SetValue(__instance, true);
 
+                if (fakeDrop)
+                {
+                    _fakePickup = pickup;
+                    _fakeTarget = target;
+                    _fakeKey = KeyFor(pickup, target);
+                    return;
+                }
+
                 Taken t = new Taken();
                 t.Pickup = pickup;
                 t.Target = target;
                 t.Key = KeyFor(pickup, target);
+                TakenList.Add(t);
+            }
+            catch (Exception) { }
+        }
+
+        private static void ClearOutPostfix(object __instance, bool fakeDrop)
+        {
+            if (!fakeDrop || _fakePickup == null || !ReferenceEquals(_fakePickup, __instance)) return;
+            Component pickup = _fakePickup;
+            GameObject target = _fakeTarget;
+            string key = _fakeKey;
+            _fakePickup = null;
+            _fakeTarget = null;
+            _fakeKey = null;
+            try
+            {
+                if (target != null && target.activeSelf)
+                {
+                    _disable.SetValue(pickup, false);                         // DoFakeDrop kept it: not taken
+                    return;
+                }
+                Taken t = new Taken();
+                t.Pickup = pickup;
+                t.Target = target;
+                t.Key = key;
                 TakenList.Add(t);
             }
             catch (Exception) { }

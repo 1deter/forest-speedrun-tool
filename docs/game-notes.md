@@ -2233,6 +2233,17 @@ its parents or its `_destroyTarget` (logged in game). Taking a pickup runs
 gone until a scene load re-creates it — which is why every menu load
 respawns pickups, and why `LoadNow` cannot.
 
+**A pickup taken with the inventory full (bridge, 2026-10-18, T-0053).**
+`PickUp.Collect` -> `MainEffect` -> `AddItem` returns false at the item's
+max (sticks 10; `HudGui` "can't carry any more") -> `ClearOut(true)`: with
+`_spawnAfterPickupPrefab` set (a stick) the game first instantiates a
+physics copy (`Stick_Dynamic(Clone)`, 1-1.5 m off) and `DoFakeDrop` says
+false, so the pickup is cleared like a taken one (unparent, pool); with a
+Rigidbody and no prefab `DoFakeDrop` says true and the pickup itself
+stays as the dropped item. Seen live with a real `Take` press and with
+`PickUp.Collect`. The count stays 10; this is what looks like "the stick
+vanished" (the old `Pickup gone, inventory unchanged` line).
+
 **Streaming comes back by itself.** `ForcedUnload(bool)` on
 `GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
 `SceneUnloadInCave.Awake` registers `CheckInCave` with
