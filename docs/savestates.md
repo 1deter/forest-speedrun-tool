@@ -391,3 +391,40 @@ Not covered yet (no bridge call, or needs hands): achievements, the
 bestiary (same shape as the nature
 guide, not runner-facing), a built structure damaged or destroyed since
 (`BuildingHealth` is saved; untested).
+
+## A busy surface area, and pickups taken with a full inventory (T-0053, 2026-10-18, v0.24.343 + the keeper fix)
+
+**Busy area, Quick load (bridge, Slot 2 Normal, god mode).** At (523, 57,
+10): two cannibals 22 m away (a family), a built shelter 10 m away, a
+Rock, two hanging ropes and cash greebles near, a stick held with 3 in
+the inventory. Capture, change things, `restore` - five times in a row,
+each compared with the capture:
+
+| Changed after the capture | After the restore |
+|---|---|
+| Walked 40 m (into a cave mouth), took a rock, +2 sticks | position within 0.2 m, 3 sticks, stick held, rock back (`pickups put back 1`), 2 cannibals, shelter |
+| Took a rock and a rope, weapon stashed (hands empty) | position exact, stick re-equipped by the game, both back (`put back 2`), 2 cannibals |
+| Shelter destroyed, cash taken, +4 sticks, 20 m away | shelter rebuilt (`identifiers 165 -> 167`), 3 sticks, cash back |
+| Rocks to the max (5), a rock taken at the max (fake drop) | 0 rocks, the fake-dropped rock back (`put back 1`) |
+| Stood 9 m from the cannibals, hands empty | position exact, 2 cannibals back 22 m away, stick re-equipped |
+
+No exception in the log. The cannibals come back as *new* objects at
+their captured spots (`EnemyKeeper.Rebuild`: `mutant_female(Clone)0011`
+-> `0021` ...); the player's position can differ by up to 0.2 m (a drop
+onto the ground), exact when standing. A loose rock from the player's own
+greeble layer (not a pooled one) can be somewhere else after a capture
+already (random per spawn, game-notes *Greebles*) - not a restore fault.
+Not covered: a fight in progress, building under attack.
+
+**A pickup taken with the inventory full** (game-notes *A pickup taken
+with the inventory full*): `PickUp.ClearOut(true)` is the game's fake
+drop. Until this fix `PickupKeeper` skipped it, so a Quick load did not
+put the pickup back (a stick at 10 sticks stayed gone) and the
+`Pickup gone, inventory unchanged` line fired on every one. Now the
+prefix keeps it and a postfix decides: when the game cleared the pickup
+(`DoFakeDrop` false: a stick, a rock - the game spawns a `*_Dynamic`
+copy) it is kept like a taken one; when the pickup itself became the
+dropped item (`DoFakeDrop` true: a `Rock_Dynamic` picked up again at the
+max) it stays active and the postfix puts `_disableInsteadOfDestroy` back
+to false (live: the dynamic rock moved 0.8 m, kept count unchanged, flag
+false). Open: the dropped `*_Dynamic` copy stays after a restore (T-0411).
