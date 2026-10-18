@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.358 - 2026-10-18
+
+- A Quick load now puts out every fire started since the savestate: trees, bushes, built fires, cave fires, effigies, cave cannibals and animals. A fire burning at the savestate keeps burning.
+- A bush that burnt down since the savestate comes back on a Quick load, and an effigy lit since no longer burns down and leaves bones.
+
 ## v0.24.357 - 2026-10-18
 
 - A Quick load brings back dropped sticks, rocks and other dropped items that the game cleared away since the savestate, at the spot where they lay.
