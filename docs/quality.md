@@ -39,7 +39,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Performance and loads | B | B | B | A | B | T-0034, T-0048 | 2026-10-14 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |
-| Bridge, e2e and QA | B | A | B | B | A | T-0394, T-0395 | 2026-10-16 |
+| Bridge, e2e and QA | B | A | B | B | A | T-0394 | 2026-10-18 |
 | Release and updater | A | A | A | A | A | | 2026-10-14 |
 | Site app | B | A | A | A | B | T-0285, T-0304 | 2026-10-14 |
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
@@ -232,11 +232,11 @@ exports, the offline IL scanner.
 
 Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectProbe}.cs` `src/Core/{LogKeeper,UnityErrorLog}.cs` `src/Data/{BridgeCommand,CrashFolders,InjectedInputs,LogArchive,QaList,UnityLogFilter,ZipWriter}.cs` `tools/BridgeMcp/` `tests/e2e/` `scripts/{e2e,read-report,sendinput}.py` `scripts/bridge.sh` `qa/` `docs/bridge.md`
 
-- Verification **A**: BridgeCommand, BridgeMcp, InjectedInputs, QaList,
+- Verification **A**: BridgeCommand, BridgeMcp, GpuFault, InjectedInputs, QaList,
   ZipWriter, LogArchive tests; the bridge drives every in-game test and the
   e2e suite runs it end to end.
 - Legibility **B** (was A, against the table: a file over 1,000 lines):
-  docs/bridge.md, docs/log-lines.md (generated); `Tools.cs` 1,027 and
+  docs/bridge.md, docs/log-lines.md (generated); `Tools.cs` 1,049 and
   `ObjectProbe.cs` 1,050 lines.
 - Stability **B**: every script test runs in CI (T-0147); the e2e suite
   runs only locally (it needs the game): release smokes clean through
