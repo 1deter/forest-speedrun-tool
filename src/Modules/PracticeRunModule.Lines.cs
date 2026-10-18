@@ -68,6 +68,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipReplayOpacity = new GUIContent(
             "The ghost, the replay's buildings and markers, and the comparison line while you watch it.");
         private static readonly GUIContent TipLineOpacity = new GUIContent("Your run's line, the comparison's and the red one.");
+        private static readonly GUIContent TipOwnLive = new GUIContent("Off: your own run's line is drawn in replays and once the run is over, not while you run. The comparison line is unchanged.");
         private static readonly GUIContent TipLineWidth = new GUIContent("How thick the run lines and the ghost are drawn, in pixels on a 1080p screen.");
 
         private float LineOpacity { get { return _lineOpacityNow >= 0f ? _lineOpacityNow : _lineOpacity.Value; } }
@@ -106,6 +107,8 @@ namespace ForestOverlay.Modules
                 _markFieldsCfg.Value = next;
                 ctx.Log.LogInfo("Run lines: checkpoint labels moved from the old default to " + next + ".");
             }
+            _ownLineLiveCfg = ctx.Config.Bind("Runs", "RunLineOwnLive", false,
+                "Draw your own run's line while a run is going (off: it is drawn in replays and once the run is over).");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
@@ -287,6 +290,15 @@ namespace ForestOverlay.Modules
             if (UiKit.Toggle(new Rect(x + 224f, y, 96, 20), bySpeed, " by speed") && !bySpeed) SetLineBySpeed(true);
             y += 24f;
             if (_lineBySpeedCfg.Value) y = DrawSpeedLegend(x, y, w);
+
+            bool own = UiKit.Toggle(new Rect(x, y, w, 20), _ownLineLiveCfg.Value, " Your own line while a run is going");
+            UiKit.Hint(new Rect(x, y, w, 20), TipOwnLive);
+            if (own != _ownLineLiveCfg.Value)
+            {
+                _ownLineLiveCfg.Value = own;
+                Ctx.Log.LogInfo("Run lines: your own line while running set to " + (own ? "on" : "off") + ".");
+            }
+            y += 22f;
 
             bool failed = UiKit.Toggle(new Rect(x, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
             if (failed != _keepFailedCfg.Value) _keepFailedCfg.Value = failed;
