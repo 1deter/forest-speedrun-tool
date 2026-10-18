@@ -1092,7 +1092,7 @@ namespace ForestOverlay.Modules
                 string animalNote = "";
                 if (r.Ok && file != null)
                 {
-                    bool sameWorld = SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()) < 0;
+                    bool sameWorld = SpawnMark.IsSameWorld(SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()));
                     animalNote = _animals.Restore(file.Animals, sameWorld);
                 }
                 RestoreGarbage.Mark("animals");
