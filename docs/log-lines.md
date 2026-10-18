@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 837 log calls.
+249 prefixes from 840 log calls.
 
 ## `ActionReaders`
 
@@ -1316,6 +1316,8 @@ Written by PickupKeeper.cs; info / warning.
 - warning `PickupKeeper: <Status>` (x2)
 - info `PickupKeeper: <Status>.`
 - warning `PickupKeeper: could not restore <t.Key>: <ex.Message>`
+- warning `PickupKeeper: game type '<..>' not found; things thrown since a capture of that kind stay after a restore.`
+- warning `PickupKeeper: spawn pools unreadable (<ex.Message>); things thrown since a capture are left alone.`
 
 ## `Plane site`
 
@@ -1726,8 +1728,9 @@ Written by SavestateModule.cs; info.
 ## `Savestate capture`
 
 Meaning: A savestate capture's steps: what was done first (menu, glider) or failed.
-Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
+Written by PickupKeeper.cs, SavestateBridge.cs, SavestateModule.cs; info / warning.
 
+- warning `Savestate capture: recording loose items failed: <ex.Message>`
 - warning `Savestate capture: <inner>`
 - info `Savestate capture: glider dropped for the save, <back>.`
 - info `Savestate capture: <menu> first, as the game's save does.`

@@ -789,15 +789,18 @@ namespace ForestOverlay.Game
             }
             int spawnedThreshold = SpawnedThreshold;
             SpawnedThreshold = ForestOverlay.Data.SpawnMark.Unknown;
-            Dictionary<int, int> spawnedCounts = new Dictionary<int, int>();
+            string droppedLine = DroppedAtCapture;
+            DroppedAtCapture = "";
+            PickupKeeper.MirrorResult mirror = new PickupKeeper.MirrorResult();
             int spawned = 0;
             bool spawnedChecked = stored != null && spawnedThreshold != ForestOverlay.Data.SpawnMark.Unknown;
             if (spawnedChecked)
             {
-                try { spawned = PickupKeeper.RemoveSpawnedSince(spawnedThreshold, keepRoot, spawnedCounts); }
+                try { mirror = PickupKeeper.MirrorRoots(spawnedThreshold, keepRoot, droppedLine); spawned = mirror.Items; }
                 catch (Exception ex) { _log.LogWarning("Savestate restore: removing items made since the capture failed: " + ex.Message); }
             }
-            if (deleted + rebuilt + spawned > 0) yield return null;   // let Destroy land before the loader looks
+            Dictionary<int, int> spawnedCounts = mirror.ItemCounts;
+            if (deleted + rebuilt + spawned + mirror.Thrown + mirror.Moved > 0) yield return null;   // let Destroy land before the loader looks
             RestoreGarbage.Mark("delete step");
 
             _loadDone = false;
@@ -891,6 +894,18 @@ namespace ForestOverlay.Game
                             first = false;
                         }
                         if (!first) sb.Append(")");
+                        if (mirror.Thrown > 0)
+                        {
+                            sb.Append(", removed ").Append(mirror.Thrown).Append(" thing(s) thrown since the capture");
+                            first = true;
+                            foreach (KeyValuePair<string, int> kv in mirror.ThrownCounts)
+                            {
+                                sb.Append(first ? " (" : ", ").Append(kv.Key).Append(" x").Append(kv.Value);
+                                first = false;
+                            }
+                            if (!first) sb.Append(")");
+                        }
+                        if (mirror.Moved > 0) sb.Append(", moved ").Append(mirror.Moved).Append(" copy(ies) back to where they lay at the capture");
                     }
                 }
                 sb.Append(", 'not found' ").Append(_logNotFound);
@@ -1575,6 +1590,8 @@ namespace ForestOverlay.Game
         /// Set before RestoreInPlace: scene-root items made after this
         /// instance id are removed (Data/SpawnMark); int.MinValue = none.
         public int SpawnedThreshold = ForestOverlay.Data.SpawnMark.Unknown;
+        /// T-0416: the capture's `dropped` line (Data/DroppedPoses), for the next in-place restore.
+        public string DroppedAtCapture = "";
 
         private bool HandsMatch(List<int> wanted)
         {

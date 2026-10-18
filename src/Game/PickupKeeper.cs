@@ -370,29 +370,241 @@ namespace ForestOverlay.Game
             return n;
         }
 
-        /// T-0411: destroys scene-root world items made after the capture
-        /// (a full-inventory take's Stick_Dynamic copy and kin): the root
-        /// has no identifier, a lower instance id than `threshold`, and a
-        /// PickUp below it whose destroy target is the root. Walks the root
-        /// objects only. Counts by item id. Returns how many. A live animal
-        /// is never one (T-0415): a rabbit (rabbitGo, from the creatures
-        /// pool, which leaves it at the root) carries an inactive 'Rabbit
-        /// Alive' PickUp aimed at itself; destroying it left dead entries in
-        /// its spawn zone and the pool.
-        public static int RemoveSpawnedSince(int threshold, Transform player, Dictionary<int, int> counts)
+        // ---- T-0416: the scene roots a Quick load leaves or moves ----------
+
+        private static bool _rootTypesLoaded;
+        private static Type _fakeParentType, _heldIdType;
+        private static Type[] _markerTypes;     // destroyAfter, Molotov, Bomb, Explode, FlareWeapon, effigyRangeDetect
+        private static readonly string[] MarkerNames = { "destroyAfter", "Molotov", "Bomb", "Explode", "FlareWeapon", "effigyRangeDetect" };
+        private static List<object> _pools;
+        private static MethodInfo _isSpawned;
+        private static bool _poolWarned;
+
+        private static void LoadRootTypes()
         {
-            if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return 0;
+            if (_rootTypesLoaded) return;
+            _rootTypesLoaded = true;
+            _fakeParentType = GameBridge.FindGameType("TheForest.Utils.FakeParent");
+            _heldIdType = GameBridge.FindGameType("HeldItemIdentifier") ?? GameBridge.FindGameType("TheForest.Items.HeldItemIdentifier");
+            _markerTypes = new Type[MarkerNames.Length];
+            for (int i = 0; i < MarkerNames.Length; i++)
+            {
+                _markerTypes[i] = GameBridge.FindGameType(MarkerNames[i]);
+                if (_markerTypes[i] == null) _log.LogWarning("PickupKeeper: game type '" + MarkerNames[i] + "' not found; things thrown since a capture of that kind stay after a restore.");
+            }
+        }
+
+        /// The game's spawn pools (PoolManager.Pools values); false when they
+        /// cannot be read, then nothing is judged "not pooled".
+        private static bool LoadPools()
+        {
+            _pools = null;
+            _isSpawned = null;
+            try
+            {
+                Type pm = GameBridge.FindGameType("PathologicalGames.PoolManager");
+                Type sp = GameBridge.FindGameType("PathologicalGames.SpawnPool");
+                if (pm == null || sp == null) throw new Exception("pool types not found");
+                _isSpawned = sp.GetMethod("IsSpawned", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(Transform) }, null);
+                BindingFlags st = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                object dict = null;
+                FieldInfo f = pm.GetField("Pools", st);
+                if (f != null) dict = f.GetValue(null);
+                else
+                {
+                    PropertyInfo p = pm.GetProperty("Pools", st);
+                    if (p != null) dict = p.GetValue(null, null);
+                }
+                System.Collections.IEnumerable en = dict as System.Collections.IEnumerable;
+                if (_isSpawned == null || en == null) throw new Exception("PoolManager.Pools / SpawnPool.IsSpawned not readable");
+                List<object> list = new List<object>();
+                foreach (object e in en)
+                {
+                    if (e == null) continue;
+                    object pool = e;
+                    if (!sp.IsInstanceOfType(e))
+                    {
+                        PropertyInfo v = e.GetType().GetProperty("Value");
+                        pool = v != null ? v.GetValue(e, null) : null;
+                    }
+                    if (pool != null) list.Add(pool);
+                }
+                _pools = list;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (!_poolWarned) { _poolWarned = true; _log.LogWarning("PickupKeeper: spawn pools unreadable (" + ex.Message + "); things thrown since a capture are left alone."); }
+                return false;
+            }
+        }
+
+        private static bool IsPooled(Transform t)
+        {
+            if (_pools == null) return false;
+            for (int i = 0; i < _pools.Count; i++)
+            {
+                try { if ((bool)_isSpawned.Invoke(_pools[i], new object[] { t })) return true; }
+                catch (Exception) { }
+            }
+            return false;
+        }
+
+        /// The PickUp below root `r` that is aimed at the root (its destroy
+        /// target), not a live animal's; null when none.
+        private static Component RootPickup(GameObject r, Type pickUp, FieldInfo despawn)
+        {
+            Component[] pickups = r.GetComponentsInChildren(pickUp, true);
+            for (int k = 0; k < pickups.Length; k++)
+            {
+                Component c = pickups[k];
+                try
+                {
+                    if (despawn != null && (bool)despawn.GetValue(c)) continue;
+                    GameObject target = _destroyTarget.GetValue(c) as GameObject;
+                    if (target == null ? c.gameObject == r : target == r) return c;
+                }
+                catch (Exception) { }
+            }
+            return null;
+        }
+
+        private static bool IsRootCandidate(GameObject r, Transform player)
+        {
+            if (r == null || !r.activeInHierarchy) return false;
+            if (player != null && r.transform == player.root) return false;
+            if (r.GetComponent(_uniqueIdType) != null) return false;
+            if (_coopAnimalType != null && r.GetComponent(_coopAnimalType) != null) return false;
+            return true;
+        }
+
+        /// T-0416, at a capture: the pose of every loose world item at a
+        /// scene root (what MirrorRoots matches), as a `dropped` line (Data/
+        /// DroppedPoses), so a restore can move a copy that rolled back.
+        public static string CaptureDropped(Transform player)
+        {
+            try
+            {
+                if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return "";
+                Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
+                if (pickUp == null) return "";
+                FieldInfo despawn = pickUp.GetField("_poolManagerDespawnCreature", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                LoadRootTypes();
+                bool pools = LoadPools();
+                List<KeyValuePair<int, DroppedPoses.Pose>> list = new List<KeyValuePair<int, DroppedPoses.Pose>>();
+                for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
+                {
+                    UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(s);
+                    if (!scene.isLoaded) continue;
+                    GameObject[] roots = scene.GetRootGameObjects();
+                    for (int i = 0; i < roots.Length; i++)
+                    {
+                        GameObject r = roots[i];
+                        if (!IsRootCandidate(r, player)) continue;
+                        Component hit = RootPickup(r, pickUp, despawn);
+                        if (hit == null) continue;
+                        if (pools && IsPooled(r.transform)) continue;
+                        DroppedPoses.Pose p;
+                        p.Item = 0;
+                        try { p.Item = (int)_itemId.GetValue(hit); } catch (Exception) { }
+                        Vector3 pos = r.transform.position;
+                        Quaternion q = r.transform.rotation;
+                        p.X = pos.x; p.Y = pos.y; p.Z = pos.z;
+                        p.Qx = q.x; p.Qy = q.y; p.Qz = q.z; p.Qw = q.w;
+                        list.Add(new KeyValuePair<int, DroppedPoses.Pose>(r.GetInstanceID(), p));
+                    }
+                }
+                return DroppedPoses.Format(list);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Savestate capture: recording loose items failed: " + ex.Message);
+                return "";
+            }
+        }
+
+        private static bool PutBack(Transform t, DroppedPoses.Pose p)
+        {
+            Vector3 pos = t.position;
+            Quaternion q = t.rotation;
+            bool off = DroppedPoses.Differs(p, pos.x, pos.y, pos.z, q.x, q.y, q.z, q.w);
+            if (!off) return false;
+            t.position = new Vector3(p.X, p.Y, p.Z);
+            t.rotation = new Quaternion(p.Qx, p.Qy, p.Qz, p.Qw);
+            Rigidbody rb = t.GetComponent<Rigidbody>();
+            if (rb != null && !rb.isKinematic && t.gameObject.activeInHierarchy)
+            {
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.Sleep();
+            }
+            return true;
+        }
+
+        /// What one root walk did (T-0416).
+        public sealed class MirrorResult
+        {
+            public int Items;                                   // made since the capture, removed (T-0411)
+            public int Thrown;                                  // bombs, flares, molotovs ... removed
+            public int Moved;                                   // copies put back where they lay
+            public Dictionary<int, int> ItemCounts = new Dictionary<int, int>();
+            public Dictionary<string, int> ThrownCounts = new Dictionary<string, int>();
+        }
+
+        /// One walk over the scene roots at a restore, before the load.
+        /// T-0411: destroys world items made after the capture (a full-
+        /// inventory take's Stick_Dynamic copy and kin): the root has no
+        /// identifier, a lower instance id than `threshold`, and a PickUp
+        /// below it whose destroy target is the root. A live animal is never
+        /// one (T-0415): a rabbit (rabbitGo, from the creatures pool, which
+        /// leaves it at the root) carries an inactive 'Rabbit Alive' PickUp
+        /// aimed at itself; destroying it left dead entries in its spawn zone
+        /// and the pool.
+        /// T-0416: also destroys things thrown since (lit flare, molotov,
+        /// bomb and its blast: a root, no PickUp, not pooled, whose own
+        /// component is one the game destroys it with on a timer), and, with
+        /// `dropped` (the capture's line, only for the same world), puts
+        /// copies that moved since back at their captured pose - the ones
+        /// taken since too (their kept key is recomputed so the restore
+        /// matches the capture's).
+        public static MirrorResult MirrorRoots(int threshold, Transform player, string dropped)
+        {
+            MirrorResult res = new MirrorResult();
+            if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return res;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
-            if (pickUp == null) return 0;
+            if (pickUp == null) return res;
             FieldInfo despawn = pickUp.GetField("_poolManagerDespawnCreature", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            LoadRootTypes();
+            Dictionary<int, DroppedPoses.Pose> poses = null;
+            if (threshold < 0 && threshold != SpawnMark.Unknown && !string.IsNullOrEmpty(dropped)) poses = DroppedPoses.Parse(dropped);
+            if (poses != null && poses.Count == 0) poses = null;
+
             // Copies taken again after the capture are kept hidden: forget them.
             for (int t = TakenList.Count - 1; t >= 0; t--)
             {
                 GameObject tg = TakenList[t].Target;
                 if (tg != null && tg.transform.parent == null && SpawnMark.IsAfter(tg.GetInstanceID(), threshold)) TakenList.RemoveAt(t);
             }
+            // A copy that rolled and was then taken: put back where it lay and
+            // re-keyed, so Restore(present) finds the capture's key.
+            if (poses != null)
+            {
+                for (int t = 0; t < TakenList.Count; t++)
+                {
+                    Taken tk = TakenList[t];
+                    if (tk.Target == null || tk.Pickup == null || tk.Target.transform.parent != null) continue;
+                    DroppedPoses.Pose p;
+                    if (!poses.TryGetValue(tk.Target.GetInstanceID(), out p)) continue;
+                    try
+                    {
+                        if (PutBack(tk.Target.transform, p)) res.Moved++;
+                        tk.Key = KeyFor(tk.Pickup, tk.Target);
+                    }
+                    catch (Exception) { }
+                }
+            }
 
-            int n = 0;
+            bool poolsRead = false, poolsOk = false;
             for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
             {
                 UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(s);
@@ -401,37 +613,50 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < roots.Length; i++)
                 {
                     GameObject r = roots[i];
-                    if (r == null || !SpawnMark.IsAfter(r.GetInstanceID(), threshold)) continue;
-                    if (!r.activeInHierarchy || (player != null && r.transform == player.root)) continue;
-                    if (r.GetComponent(_uniqueIdType) != null) continue;
-                    if (_coopAnimalType != null && r.GetComponent(_coopAnimalType) != null) continue;
-                    Component[] pickups = r.GetComponentsInChildren(pickUp, true);
-                    Component hit = null;
-                    for (int k = 0; k < pickups.Length && hit == null; k++)
+                    if (r == null) continue;
+                    DroppedPoses.Pose pose;
+                    if (poses != null && poses.TryGetValue(r.GetInstanceID(), out pose))
                     {
-                        Component c = pickups[k];
-                        try
-                        {
-                            if (despawn != null && (bool)despawn.GetValue(c)) continue;
-                            GameObject target = _destroyTarget.GetValue(c) as GameObject;
-                            if (target == null ? c.gameObject == r : target == r) hit = c;
-                        }
-                        catch (Exception) { }
+                        if (r.activeInHierarchy && PutBack(r.transform, pose)) res.Moved++;
+                        continue;
                     }
-                    if (hit == null) continue;
-                    int id = 0;
-                    try { id = (int)_itemId.GetValue(hit); } catch (Exception) { }
-                    UnityEngine.Object.Destroy(r);
-                    if (counts != null)
+                    if (!SpawnMark.IsAfter(r.GetInstanceID(), threshold)) continue;
+                    if (!IsRootCandidate(r, player)) continue;
+                    Component hit = RootPickup(r, pickUp, despawn);
+                    if (hit != null)
                     {
+                        int id = 0;
+                        try { id = (int)_itemId.GetValue(hit); } catch (Exception) { }
+                        UnityEngine.Object.Destroy(r);
                         int have;
-                        counts.TryGetValue(id, out have);
-                        counts[id] = have + 1;
+                        res.ItemCounts.TryGetValue(id, out have);
+                        res.ItemCounts[id] = have + 1;
+                        res.Items++;
+                        continue;
                     }
-                    n++;
+
+                    // Not an item: a thrown thing, by the root's own component.
+                    if (_fakeParentType != null && r.GetComponent(_fakeParentType) != null) continue;
+                    if (_heldIdType != null && r.GetComponent(_heldIdType) != null) continue;
+                    bool[] has = new bool[MarkerNames.Length];
+                    bool any = false;
+                    for (int m = 0; m < has.Length; m++)
+                    {
+                        has[m] = _markerTypes[m] != null && r.GetComponent(_markerTypes[m]) != null;
+                        any |= has[m];
+                    }
+                    string kind = DroppedPoses.ThrownKind(has[2], has[3], has[1], has[4], r.name, any);
+                    if (kind.Length == 0) continue;
+                    if (!poolsRead) { poolsRead = true; poolsOk = LoadPools(); }
+                    if (!poolsOk || IsPooled(r.transform)) continue;
+                    UnityEngine.Object.Destroy(r);
+                    int n;
+                    res.ThrownCounts.TryGetValue(kind, out n);
+                    res.ThrownCounts[kind] = n + 1;
+                    res.Thrown++;
                 }
             }
-            return n;
+            return res;
         }
 
         /// After a Quick load: loaded world pickups (no identifier) of an
