@@ -273,6 +273,38 @@ every frame. With the inventory closed nothing re-asserts it, so the
 savestate cutscene fast-forward (`SavestateModule.FastForwardCutscene`)
 can drive it; the ESC menu's 0 is left alone.
 
+**The values vanilla writes (IL + bridge, 2026-10-18, T-0109).** Only 0
+and 1 during play, plus **0.1 while a save loads**
+(`LoadSave.LevelSerializer_Progress` on "Done", before `Scene.FinishGameLoad`
+turns true at the end of `LoadSave.Activation`, whose step 5 sets 1; live:
+one 0.1 sample over a title -> Continue load of Slot 1, every other
+sample 1). The other writers never run in a game: `SlowMoButton`,
+`clscameratarget` and `SteamVR_Render` have no instance (bridge `type ...
+all`); PlayMaker's `ScaleTime` action is in none of the loaded FSMs (the
+player's six, rabbit, mutant male / female exported and searched) nor in
+the level files; `UpgradeCleaner` writes 0 / 1 inside the open
+inventory; `LevelLoader` / `JSONLevelLoader` restore the value they found.
+The debug console's `_timescale <x>` sets any float, `_profile` 0 / 1.
+**An external value sticks** (live: 2 held for 3 s, nothing re-asserts
+it) until the pause menu or the inventory closes (both set 1 - live, from
+2 and 0.5). **The console only exists with `Cheats.DebugConsole` on**
+(`DebugConsole.Awake` destroys the component otherwise; live with it
+off: the `DebugConsole` root carries only a Transform), so its
+`_timescale` / `_speedyrun` come with that cheat; a mod or explorer
+setting `Time.timeScale` does not.
+
+**`_speedyrun` does not touch `timeScale`** (IL): `on` starts the
+coroutine `setFastRun`, which sets `LocalPlayer.FpCharacter.runSpeed = 60`
+and `swimmingSpeed = 20` every frame; `off` stops it and writes 9 / 3 (not
+the player's own values). Vanilla `runSpeed` is **13.5** and
+`swimmingSpeed` **3.75** on the player (bridge; the script defaults 8 / 3
+are overridden), `walkSpeed` 6.5; `swimmingSpeed` has no other writer,
+`runSpeed` only goes **down** - `playerHitReactions.enableControllerFreeze`
+1.2, `setControllerSpeed` from the player FSM's `doSeated` (0) and
+`initCharge` (1) - and back to the 13.5 `playerHitReactions` kept at
+`Start` (`disableControllerFreeze`). Athleticism multiplies at use
+(`FirstPersonCharacter`: x up to 1.3), never writes the field.
+
 ---
 
 ## Inventory
