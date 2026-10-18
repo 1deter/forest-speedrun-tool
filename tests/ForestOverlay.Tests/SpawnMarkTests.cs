@@ -36,5 +36,16 @@ namespace ForestOverlay.Tests
             Assert.True(SpawnMark.IsAfter(-1, 0));
             Assert.False(SpawnMark.IsAfter(0, 0));
         }
+
+        [Fact]
+        public void SameWorldNeedsARealNegativeMark()
+        {
+            Assert.False(SpawnMark.IsSameWorld(SpawnMark.Unknown));
+            Assert.False(SpawnMark.IsSameWorld(0));
+            Assert.True(SpawnMark.IsSameWorld(-4935808));
+            Assert.False(SpawnMark.IsSameWorld(SpawnMark.Threshold("", "w-1")));
+            Assert.False(SpawnMark.IsSameWorld(SpawnMark.Threshold("w-2:-5", "w-1")));
+            Assert.True(SpawnMark.IsSameWorld(SpawnMark.Threshold("w-1:-5", "w-1")));
+        }
     }
 }

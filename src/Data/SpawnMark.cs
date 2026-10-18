@@ -32,6 +32,13 @@ namespace ForestOverlay.Data
             return n < 0 ? n : Unknown;
         }
 
+        /// The file is from this world and launch: a real negative mark (not
+        /// Unknown, which is int.MinValue, and not 0 = another world).
+        public static bool IsSameWorld(int threshold)
+        {
+            return threshold != Unknown && threshold < 0;
+        }
+
         /// Made after the mark: negative and lower than it (threshold 0 =
         /// every negative id).
         public static bool IsAfter(int instanceId, int threshold)
