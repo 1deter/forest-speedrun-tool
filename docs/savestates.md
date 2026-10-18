@@ -97,9 +97,14 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   its captured place, gliding at the captured velocity (the save's
   dropped glider picked up), on the cliff. Before a Quick load a ride in
   flight is ended and a held glider dropped (one not in the save is then
-  deleted by the restore). Cave ropes: `Game/RopeClimb` (`rope`). Not
-  covered: a climbing rope on a wall (`PlayerClimbWallAction`, ended
-  only), the raft.
+  deleted by the restore). Ropes (cave ropes, fishing stands, the built
+  Climbing Rope): `Game/RopeClimb` (`rope`) - since T-0065 entered from
+  the bottom, the rope picked by path and nearest the captured spot (built
+  ropes share one path), the captured height set again once the climb
+  idles (`... : on the rope at y 35.0.`); before, the top entry put the
+  player near the top, or stuck in the ground low on a rope. The wall
+  climb (`PlayerClimbWallAction`) has no trigger in the game. Not
+  covered: the raft.
   **Blueprints and menus** (v0.24.203, `Game/BlueprintKeeper`,
   `blueprints` header = `Data/BlueprintState`): the capture lists every
   placed blueprint's ingredient counts; a Quick load deletes a blueprint

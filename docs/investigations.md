@@ -224,10 +224,12 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
 
 ## Savestates - open, not blocking
 
-- **A climbing rope on a wall** (`PlayerClimbWallAction`, shares the
-  rope's `onRope`): ended on a restore, not put back (`RopeClimb` keys on
-  `PlayerClimbRopeAction._currentRopeRoot`). Same recipe as the rides
-  (game-notes *Rides*) if a runner needs it.
+- **A climbing rope on a wall** (T-0065, 2026-10-18): the built Climbing
+  Rope is a rope climb, already captured; the wall climb is unreachable.
+  The real faults - every rope restore enters from the top (wrong height,
+  or stuck in the ground near the bottom) and built ropes share one path -
+  were fixed in T-0065 (tasks/notes/T-0065.md; game-notes *Rope climb
+  entrances*).
 - **The endgame flag on a Go**: fixed for the vault entrance only
   (v0.24.112, `AreaKeeper.InVaultEntrance`); a Go straight into the lab
   leaves `IsInEndgame` false. Not seen to break anything - check it first
