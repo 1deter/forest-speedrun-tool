@@ -228,7 +228,7 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   Rope is a rope climb, already captured; the wall climb is unreachable.
   The real faults - every rope restore enters from the top (wrong height,
   or stuck in the ground near the bottom) and built ropes share one path -
-  are proved and planned in tasks/notes/T-0065.md (game-notes *Rope climb
+  were fixed in T-0065 (tasks/notes/T-0065.md; game-notes *Rope climb
   entrances*).
 - **The endgame flag on a Go**: fixed for the vault entrance only
   (v0.24.112, `AreaKeeper.InVaultEntrance`); a Go straight into the lab
