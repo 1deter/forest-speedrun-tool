@@ -60,6 +60,11 @@ namespace ForestOverlay.Tests
             Assert.Equal(-1, LitFires.SinceOf("3f2a9c1e-41234:7", ""));                  // not in a game
             Assert.Equal(-1, LitFires.SinceOf("3f2a9c1e-41234:x", "3f2a9c1e-41234"));
             Assert.Equal(0, LitFires.SinceOf("w:0", "w"));
+            Assert.True(LitFires.SameWorld("w:0", "w"));
+            Assert.False(LitFires.SameWorld("", "w"));
+            Assert.False(LitFires.SameWorld(null, "w"));
+            Assert.False(LitFires.SameWorld("w", "w"));
+            Assert.False(LitFires.SameWorld("other-1:3", "w"));
         }
 
         [Fact]

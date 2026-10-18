@@ -613,6 +613,9 @@ namespace ForestOverlay.Modules
             Ctx.Runner.StartCoroutine(_bridge.Capture(light, delegate(SavestateBridge.Result r)
             {
                 string error = OnCaptured(r, p);
+                // The streaming reload brought back story-spot pickups taken before (T-0066).
+                if (error == null && r.StreamingUnloaded)
+                    Ctx.Runner.StartCoroutine(StoryPickupsAfterReload(p.Pickups, p.Areas, "capture '" + p.Name + "'"));
                 // Written on a worker thread: `after` runs once the file is
                 // on disk (DrainWrites, main thread).
                 if (error == null && opts != null && opts.Queued) { opts.After = p.After; return; }
@@ -1204,7 +1207,15 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
                 if (r.Ok) Ctx.Runner.StartCoroutine(SyncSun("restore " + what));
                 if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value, familiesBefore, file));
-                if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
+                // A file from another world: the scene load re-created every
+                // placed pickup taken before the capture, as in a Full load (T-0066).
+                SavestateFile otherWorld = r.Ok && file != null && file.Pickups != null && file.Pickups.Count > 0 &&
+                                           !LitFires.SameWorld(file.Bushes, NatureKeeper.WorldKey()) ? file : null;
+                if (otherWorld != null) Ctx.Runner.StartCoroutine(RemoveLatePickups(otherWorld));
+                if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what, otherWorld));
+                // Our streaming force-unload re-creates the story spots' pickups (T-0066).
+                if (r.Ok && file != null && unloadStreaming)
+                    Ctx.Runner.StartCoroutine(StoryPickupsAfterReload(file.Pickups, file.Areas, "restore " + what));
                 // Saplings cut again from another world drop their sticks again
                 // (NatureKeeper.ApplyCuts): the ones taken before the capture go
                 // once the new ones have settled.
@@ -1520,9 +1531,15 @@ namespace ForestOverlay.Modules
         // rocks that came back elsewhere (fix list 4). The removals 0.5 s
         // after the restore, when the bodies it cleared are gone; the
         // listing once the plane wreck has settled.
-        private IEnumerator LogNewPickups(HashSet<string> present, string what)
+        private IEnumerator LogNewPickups(HashSet<string> present, string what, SavestateFile otherWorld = null)
         {
             yield return new WaitForSecondsRealtime(0.5f);
+
+            if (otherWorld != null)
+            {
+                RemoveTakenPickups(otherWorld, false, "Savestate restore " + what);
+                yield return null;   // let Destroy land before the listing below
+            }
 
             // Spears thrown or dropped since the capture (author, 2026-09-24:
             // Megan's fight left them on the floor while the restored
@@ -1622,6 +1639,45 @@ namespace ForestOverlay.Modules
                 sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
             Ctx.Log.LogInfo("Savestate restore " + what + ": " + n + " world pickup(s) not at capture (" + sb +
                             ") - moved, or new since the capture.");
+        }
+
+        // Our streaming force-unload (capture and Quick load) makes the game
+        // load MainSceneWorldStorySpots again, and a reload re-creates its
+        // placed pickups: ones taken before are back (T-0066, the film crew
+        // tape). Once it is loaded again, placed pickups there the list does
+        // not account for go. Placed only: clones (greeble rocks, zone
+        // sticks) re-roll and are not ours.
+        private const string StorySpots = "MainSceneWorldStorySpots";
+
+        private IEnumerator StoryPickupsAfterReload(List<string> list, string areas, string prefix)
+        {
+            if (list == null || list.Count == 0 || string.IsNullOrEmpty(areas)) yield break;
+            if (!ScenesIn(areas).Contains(StorySpots)) yield break;
+            yield return new WaitForSecondsRealtime(1f);
+            float from = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - from < 10f)
+            {
+                bool loaded = false;
+                try { loaded = UnityEngine.SceneManagement.SceneManager.GetSceneByName(StorySpots).isLoaded; }
+                catch (Exception) { }
+                if (loaded) break;
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(1f);   // its pickups switch on after the load
+            try
+            {
+                HashSet<string> scenes = new HashSet<string>();
+                scenes.Add(StorySpots);
+                Dictionary<int, int> counts = new Dictionary<int, int>();
+                int[] skipped = new int[3];
+                int n = _keeper.RemoveTakenAfterLoad(new HashSet<string>(list), scenes, counts, skipped, Vector3.zero, true);
+                if (n == 0) yield break;
+                StringBuilder sb = new StringBuilder();
+                foreach (KeyValuePair<int, int> kv in counts)
+                    sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
+                Ctx.Log.LogInfo("Savestate " + prefix + ": removed " + n + " story-spot pickup(s) the scene reload brought back (taken before the capture: " + sb + ").");
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing story-spot pickups failed: " + ex.Message); }
         }
 
         // The sticks a re-cut sapling dropped fall 3.3 m first; once they lie,
@@ -2015,7 +2071,7 @@ namespace ForestOverlay.Modules
             }
         }
 
-        private void RemoveTakenPickups(SavestateFile f, bool late)
+        private void RemoveTakenPickups(SavestateFile f, bool late, string restorePrefix = null)
         {
             if (f == null || f.Pickups == null || f.Pickups.Count == 0 || f.Areas.Length == 0) return;
             try
@@ -2030,14 +2086,15 @@ namespace ForestOverlay.Modules
                     " clone(s), " + skipped[2] + " in scenes not loaded at capture.";
                 if (n == 0)
                 {
-                    if (!late) Ctx.Log.LogInfo("Savestate after the load: pickups - none back that were taken before the capture." + kept);
+                    if (!late && restorePrefix == null) Ctx.Log.LogInfo("Savestate after the load: pickups - none back that were taken before the capture." + kept);
                     return;
                 }
                 StringBuilder sb = new StringBuilder();
                 foreach (KeyValuePair<int, int> kv in counts)
                     sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
-                Ctx.Log.LogInfo("Savestate after the load: pickups - removed " + n + (late ? " that appeared late" : "") +
-                                " the load brought back (taken before the capture: " + sb + ")." + (late ? "" : kept));
+                string head = restorePrefix != null ? restorePrefix + ": pickups - removed " : "Savestate after the load: pickups - removed ";
+                Ctx.Log.LogInfo(head + n + (late ? " that appeared late" : "") +   // log: Savestate restore, Savestate after the load
+                                " the scene load since the capture brought back (taken before the capture: " + sb + ")." + (late ? "" : kept));
             }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate after the load: removing taken pickups failed: " + ex.Message); }
         }

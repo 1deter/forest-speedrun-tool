@@ -74,6 +74,13 @@ namespace ForestOverlay.Data
             return n;
         }
 
+        /// True when the `bushes` mark is from `world` (this launch and this
+        /// game); "" / no mark / another launch or world = false (T-0066).
+        public static bool SameWorld(string mark, string world)
+        {
+            return SinceOf(mark, world) >= 0;
+        }
+
         /// A fire lit as number `seq` goes out: lit after the capture's
         /// number, or `since` is -1 (another world: every fire, as a load).
         public static bool PutOut(int seq, int since)
