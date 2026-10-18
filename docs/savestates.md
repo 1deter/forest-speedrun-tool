@@ -549,4 +549,6 @@ differing `Health`, rewrites the skin floats, and cancels `HitPoison` /
 gains `| animals: N put back (health xN, skin xN, poison stopped xN)`.
 Gaps left: an animal killed since stays dead, one spawned since stays,
 none is moved back; poison running at the capture keeps its current state;
-a deer's longer flee distance after a hit is not put back.
+a deer's longer flee distance after a hit is not put back; a pooled animal
+killed since and respawned on the same root gets the captured health and
+skin (matched by root instance id; not seen live).

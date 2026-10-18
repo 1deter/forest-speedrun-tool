@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.359 - 2026-10-18
+
+- A Quick load gives an animal that was alive at the save back its health and its hurt look as they were.
+- A Quick load stops poison an animal got after the save.
+
 ## v0.24.358 - 2026-10-18
 
 - A Quick load now puts out every fire started since the savestate: trees, bushes, built fires, cave fires, effigies, cave cannibals and animals. A fire burning at the savestate keeps burning.
