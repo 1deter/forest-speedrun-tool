@@ -2,6 +2,19 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (run R-0024 handoff)
+
+- **2026-10-18 (run R-0021, chain C-0002, unattended):** 4 of 5
+  progressed, 3 confirmed in game. v0.24.348 T-0109 (run mode flags a
+  changed timeScale per episode with its duration; a 0 outside menus
+  too), v0.24.349 T-0112 (foreign Harmony patches on .NET methods listed;
+  only BepInEx's preloader fixes skipped), T-0115 (first-input start
+  checked live), T-0092 (jrik.dev research, docs). Parked for the author:
+  T-0111 (option A costs ~30 MB + 10 ms per GC; loaded-image hash
+  instead?), T-0413 (flag _speedyrun's run / swim speed?), plus T-0066,
+  T-0409, T-0411, T-0410, T-0366. **Next:** answer the parked questions;
+  the chain's next run.
+
 ## Moved out 2026-10-18 (run R-0023 handoff)
 
 - **2026-10-18 (run R-0020, chain C-0002, unattended):** 4 of 5 progressed,

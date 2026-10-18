@@ -157,6 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0024, chain C-0002, unattended):** 4 of 5
+  confirmed in game. T-0420 (tasks.py keeps a repeated --verify),
+  v0.24.356 T-0409 (one input-overlay tile per game action, 1b/2a/3a),
+  v0.24.357 T-0418 (a Quick load re-makes dropped copies the game
+  despawned; despawn timers resume as at the capture), v0.24.358 T-0419
+  (a Quick load puts out fire lit since the capture). Parked: T-0421
+  (Remove / re-add per-action tiles), T-0423 (old files' drop age),
+  T-0424 (creatures burning at the capture). Filed: T-0422, T-0425,
+  T-0426. **Next:** answer the parked questions; the chain's next run.
+
 - **2026-10-18 (run R-0023, chain C-0002, unattended):** 4 of 5
   confirmed in game. v0.24.352 T-0366 (HUD values Passengers found and
   Loads, the ASL Var Viewer's missing two; dockable), v0.24.353 T-0410
@@ -175,17 +185,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Parked for the author: T-0416 (move rolled copies back? remove flares /
   fire / bombs?), plus T-0111, T-0413, T-0066, T-0409, T-0410, T-0366.
   **Next:** answer the parked questions; the chain's next run.
-
-- **2026-10-18 (run R-0021, chain C-0002, unattended):** 4 of 5
-  progressed, 3 confirmed in game. v0.24.348 T-0109 (run mode flags a
-  changed timeScale per episode with its duration; a 0 outside menus
-  too), v0.24.349 T-0112 (foreign Harmony patches on .NET methods listed;
-  only BepInEx's preloader fixes skipped), T-0115 (first-input start
-  checked live), T-0092 (jrik.dev research, docs). Parked for the author:
-  T-0111 (option A costs ~30 MB + 10 ms per GC; loaded-image hash
-  instead?), T-0413 (flag _speedyrun's run / swim speed?), plus T-0066,
-  T-0409, T-0411, T-0410, T-0366. **Next:** answer the parked questions;
-  the chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
