@@ -1649,19 +1649,38 @@ namespace ForestOverlay.Modules
         // sticks) re-roll and are not ours.
         private const string StorySpots = "MainSceneWorldStorySpots";
 
+        private static bool StoryLoaded()
+        {
+            try { return UnityEngine.SceneManagement.SceneManager.GetSceneByName(StorySpots).isLoaded; }
+            catch (Exception) { return false; }
+        }
+
         private IEnumerator StoryPickupsAfterReload(List<string> list, string areas, string prefix)
         {
             if (list == null || list.Count == 0 || string.IsNullOrEmpty(areas)) yield break;
             if (!ScenesIn(areas).Contains(StorySpots)) yield break;
-            yield return new WaitForSecondsRealtime(1f);
+            // isLoaded is also true before the unload lands: wait for the
+            // scene to go away, then to come back (each with a timeout).
             float from = Time.realtimeSinceStartup;
+            bool sawUnload = false;
+            while (Time.realtimeSinceStartup - from < 3f)
+            {
+                if (!StoryLoaded()) { sawUnload = true; break; }
+                yield return null;
+            }
+            if (!sawUnload)
+                Ctx.Log.LogInfo("Savestate " + prefix + ": story-spot scene never showed as unloaded in 3 s - it may have reloaded already, checking anyway.");
+            from = Time.realtimeSinceStartup;
+            bool back = false;
             while (Time.realtimeSinceStartup - from < 10f)
             {
-                bool loaded = false;
-                try { loaded = UnityEngine.SceneManagement.SceneManager.GetSceneByName(StorySpots).isLoaded; }
-                catch (Exception) { }
-                if (loaded) break;
+                if (StoryLoaded()) { back = true; break; }
                 yield return null;
+            }
+            if (!back)
+            {
+                Ctx.Log.LogWarning("Savestate " + prefix + ": story-spot scene not loaded again within 10 s - its pickups were not checked.");
+                yield break;
             }
             yield return new WaitForSecondsRealtime(1f);   // its pickups switch on after the load
             try

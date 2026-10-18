@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-251 prefixes from 860 log calls.
+251 prefixes from 862 log calls.
 
 ## `ActionReaders`
 
@@ -1678,6 +1678,8 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate <line>`
 - info `Savestate <prefix>: removed <n> story-spot pickup(s) the scene reload brought back (taken before the capture: <sb>).`
 - info `Savestate <prefix>: removed <sticks> sapling stick(s) taken before the capture (saplings cut again).`
+- info `Savestate <prefix>: story-spot scene never showed as unloaded in 3 s - it may have reloaded already, checking anyway.`
+- warning `Savestate <prefix>: story-spot scene not loaded again within 10 s - its pickups were not checked.`
 - warning `Savestate <what> failed: <error>`
 - info `Savestate <what>: <note>.`
 - info `Savestate <what>: captured <..> s into <of> - <note>.`
