@@ -110,7 +110,16 @@ namespace ForestOverlay.Data
         public static long PeOffset(byte[] head)
         {
             if (head == null || head.Length < 64) return 0;
-            return head[60] | (head[61] << 8) | (head[62] << 16) | ((long)head[63] << 24);
+            return (long)head[60] | ((long)head[61] << 8) | ((long)head[62] << 16) | ((long)head[63] << 24);
+        }
+
+        /// A message on one line, at most 120 characters, so it cannot break
+        /// the report's line format.
+        public static string OneLine(string s)
+        {
+            if (s == null) return "";
+            s = s.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return s.Length > 120 ? s.Substring(0, 120) : s;
         }
 
         public static bool IsKnownGame(string hash)

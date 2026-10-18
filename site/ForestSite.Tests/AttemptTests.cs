@@ -357,6 +357,17 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void Report_GameFileAndFallbackNotes_DoNotChangeTheVerdict()
+    {
+        var (v, f) = Attempts.JudgeReport(Report(r => r.GameFileHash = new string('a', 64)), None);
+        Assert.Equal("green", v);
+        Assert.Contains(f, x => x.Level == "note" && x.Text.Contains("file on disk is not the code that was loaded (aaaaaaaaaaaa)"));
+        (v, f) = Attempts.JudgeReport(Report(r => r.GameFrom = "32-bit game"), None);
+        Assert.Equal("green", v);
+        Assert.Contains(f, x => x.Level == "note" && x.Text.Contains("checked from its file, not from memory (32-bit game)"));
+    }
+
+    [Fact]
     public void Report_AnotherMod_Red_UnlessAllowed()
     {
         string text = Report(r =>
