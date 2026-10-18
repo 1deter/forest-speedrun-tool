@@ -1074,6 +1074,25 @@ takes a pile with it). A Quick load puts pickups taken after the capture
 back (`PickupKeeper.Restore`) and leaves ones taken before it gone
 (bridge, v0.24.52: both directions, cave 5).
 
+**Quick loads across a scene load, and our streaming reload (bridge,
+T-0066, v0.24.346).** "Gone" holds only in the capture's own world: after
+a title load, a Quick load of a file captured before it leaves the
+re-created pickups in the world (Pot + Cash taken before `t66a`, back
+after the title load: `not at capture (Rock x2, Pot x1, Cash x1,
+TapeSticky x1)`; `phantom-a` from an older launch: `bone x8` =
+`Sections/UpperWalkway` + `Sections/Crawlspace` `Bone_PickUp`, none in
+its list). The file's `bushes` mark (`<launch>-<MassDestructionSaveManager
+id>:<seq>`) tells the worlds apart: only the other-world restore logged
+`bushes: 1 cut again`. And the savestates' streaming force-unload of
+`MainSceneGreebles` + `MainSceneWorldStorySpots` (capture and Quick load)
+is a reload: the game loads them again at once, re-creating their
+pickups - a taken `WorldStorySpots/FilmCrewBase/Tape_Roll` was back with
+a new instance right after the capture. The odd `Rock` / `Small Rock` not
+at capture is the player's `GreebleLayer` (`Standard`: `SmallRock`,
+`Rock`, `lb_groundTarget`; spawned as `Pooling/Pool_PickUps/
+Rock_High(Clone)00N`): a 270 m trip and back moved one 4.6 m and dropped
+another - random per spawn, below.
+
 ## The weapon across a cutscene (IL, v0.24.28)
 
 Megan's transformation (`doGirlTransformRoutine`) calls
