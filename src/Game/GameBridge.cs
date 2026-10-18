@@ -503,6 +503,14 @@ namespace ForestOverlay.Game
             return (a as UnityEngine.Object) != null ? a : null;
         }
 
+        private readonly AslValues _asl = new AslValues();
+
+        /// The autosplitter's found-passengers count (T-0366); -1 = unknown.
+        public int FoundPassengers() { return _asl.FoundPassengers(); }
+
+        /// LevelLoader.loadingCount, the autosplitter's load counter; -1 = unknown.
+        public int LoadCount() { return _asl.Loads(); }
+
         /// The game's current cave in lower case ("cave06"), "" for none.
         public string CurrentCaveId()
         {
