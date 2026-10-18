@@ -157,6 +157,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0021, chain C-0002, unattended):** 4 of 5
+  progressed, 3 confirmed in game. v0.24.348 T-0109 (run mode flags a
+  changed timeScale per episode with its duration; a 0 outside menus
+  too), v0.24.349 T-0112 (foreign Harmony patches on .NET methods listed;
+  only BepInEx's preloader fixes skipped), T-0115 (first-input start
+  checked live), T-0092 (jrik.dev research, docs). Parked for the author:
+  T-0111 (option A costs ~30 MB + 10 ms per GC; loaded-image hash
+  instead?), T-0413 (flag _speedyrun's run / swim speed?), plus T-0066,
+  T-0409, T-0411, T-0410, T-0366. **Next:** answer the parked questions;
+  the chain's next run.
+
 - **2026-10-18 (run R-0020, chain C-0002, unattended):** 4 of 5 progressed,
   3 confirmed in game. v0.24.345 T-0056 (runner hang not reproduced; a
   cached LocalPlayer held the old world ~126 MB after a cave tp + Full
@@ -177,16 +188,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Parked for the author: T-0409 (split multi-action input tiles: layout,
   Raw, migration), T-0411 (remove dropped copies on restore?), plus T-0410,
   T-0366. **Next:** answer the parked questions; the chain's next run.
-
-- **2026-10-18 (run R-0018, author away overnight):** 5 of 5 confirmed in
-  game. v0.24.338 T-0390 (collision view boxes a mesh with no triangles),
-  v0.24.339 T-0393 (own run line off while running, [Runs] RunLineOwnLive
-  brings it back), T-0395 (bridge MCP status / timed-out screenshot name
-  nvlddmkm GPU faults; MCP rebuilt), v0.24.340 T-0396 (Perf GL counts the
-  input overlay), v0.24.341 T-0403 (bridge `select <id>`). Parked for the
-  author: T-0410 (keep your finished run's line drawn after it ends?),
-  T-0366. **Next:** answer T-0410; confirm T-0391 / T-0398 / T-0401 /
-  T-0404 / T-0408 in game; a fresh session for the next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

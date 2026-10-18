@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (run R-0021 handoff)
+
+- **2026-10-18 (run R-0018, author away overnight):** 5 of 5 confirmed in
+  game. v0.24.338 T-0390 (collision view boxes a mesh with no triangles),
+  v0.24.339 T-0393 (own run line off while running, [Runs] RunLineOwnLive
+  brings it back), T-0395 (bridge MCP status / timed-out screenshot name
+  nvlddmkm GPU faults; MCP rebuilt), v0.24.340 T-0396 (Perf GL counts the
+  input overlay), v0.24.341 T-0403 (bridge `select <id>`). Parked for the
+  author: T-0410 (keep your finished run's line drawn after it ends?),
+  T-0366. **Next:** answer T-0410; confirm T-0391 / T-0398 / T-0401 /
+  T-0404 / T-0408 in game; a fresh session for the next run.
+
 ## Moved out 2026-10-18 (run R-0020 handoff)
 
 - **2026-10-18 (session 4, quick pair):** v0.24.337 T-0398 (Inventory held
