@@ -50,9 +50,14 @@ namespace ForestOverlay.Game
             {
                 try
                 {
-                    string fileHash = Sha256(path);
+                    string fileHash = "";
+                    string fileErr = "";
+                    try { fileHash = Sha256(path); }
+                    catch (Exception ex) { fileErr = ex.Message; }
                     string why;
                     string loaded = LoadedImageHash(GameAssembly(), out why);
+                    why = Data.RunReport.OneLine(why);
+                    if (loaded == null && fileHash.Length == 0) throw new InvalidOperationException(why + "; " + fileErr);
                     string hash = loaded ?? fileHash;
                     // A changed game: every type hashed, so the site can name
                     // what changed (run mode phase 3). Before GameHash is
@@ -68,7 +73,7 @@ namespace ForestOverlay.Game
                         }
                         catch (Exception ex) { log.LogWarning("Run mode: could not hash the game's types: " + ex.Message); }
                     }
-                    _gameFileHash = loaded != null && loaded != fileHash ? fileHash : "";
+                    _gameFileHash = loaded != null && fileHash.Length > 0 && loaded != fileHash ? fileHash : "";
                     _gameFrom = loaded == null ? why : "";
                     _gameHash = hash;
                     log.LogInfo("Run mode: game code " + (Data.RunReport.IsKnownGame(_gameHash) ? "is the known Steam build" : "is NOT a known build") +
@@ -80,7 +85,7 @@ namespace ForestOverlay.Game
                 }
                 catch (Exception ex)
                 {
-                    _gameHash = "error: " + ex.Message;
+                    _gameHash = "error: " + Data.RunReport.OneLine(ex.Message);
                     log.LogWarning("Run mode: could not hash the game's code: " + ex.Message);
                 }
             });

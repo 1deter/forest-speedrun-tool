@@ -189,6 +189,17 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void OneLineKeepsAMessageOnOneLine()
+        {
+            Assert.Equal("a b  c", RunReport.OneLine("a b\r\nc\n"));
+            Assert.Equal(120, RunReport.OneLine(new string('x', 500)).Length);
+            Assert.Equal("", RunReport.OneLine(null));
+            RunReport r = Clean();
+            r.GameFrom = RunReport.OneLine("bad\nthing\n[runreport]");
+            Assert.Equal("bad thing [runreport]", RunReport.Parse(r.Format()).GameFrom);
+        }
+
+        [Fact]
         public void OldReportsHaveNoNotes()
         {
             RunReport r = RunReport.Parse(Clean().Format());
