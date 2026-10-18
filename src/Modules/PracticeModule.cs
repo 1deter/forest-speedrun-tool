@@ -823,6 +823,16 @@ namespace ForestOverlay.Modules
             return _refusedByRun;   // run mode's refusal, not ok
         }
 
+        /// Bridge `select <id>`: a click on the entry's row (Select), so the
+        /// comparison line and checkpoint labels draw without a click.
+        public string BridgeSelect(string id)
+        {
+            Segment s = _library.ById(id);
+            if (s == null) return "no practice entry '" + id + "' (spots lists them)";
+            if (!ReferenceEquals(s, _selected)) Select(s);
+            return null;
+        }
+
         // Set where run mode refuses a Go / Restart, so the bridge can answer it.
         private string _refusedByRun;
 

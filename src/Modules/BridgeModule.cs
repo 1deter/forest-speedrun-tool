@@ -471,6 +471,13 @@ namespace ForestOverlay.Modules
                     if (a.Count < 1) return "go <spot id>";
                     return p.BridgeGo(a[0]);
                 }
+                case "select":
+                {
+                    PracticeModule p = Host.Find<PracticeModule>();
+                    if (p == null) return "no practice module";
+                    if (a.Count < 1) return "select <spot id>";
+                    return p.BridgeSelect(a[0]);
+                }
                 case "restart":
                 {
                     PracticeModule p = Host.Find<PracticeModule>();
@@ -557,7 +564,7 @@ namespace ForestOverlay.Modules
             "set <target> <path> <value> | call <target> <path.Method> [args] | destroy <target>   (practice)",
             "  values: numbers, true/false, enum names, x,y,z, null, #handle; an IEnumerator method starts as a coroutine",
             "savestates | capture <name> | restore <name> [load]   (capture / restore wait until done)",
-            "spots [filter] | go <id> | restart [id] (waits until idle) | tp x y z [yaw] | dump",
+            "spots [filter] | go <id> | select <id> (as a row click) | restart [id] (waits until idle) | tp x y z [yaw] | dump",
             "mark <target> | mark x y z | mark clear   - a magenta beacon on it for the player to find (max 16)",
             "anim | anim watch <seconds> | anim reset   - the player's animator: layers, states (tags), clips, parameters; watch: every change, in the background; reset: what a restart does to an action",
             "shot [name]   - a screenshot into the bridge folder",
