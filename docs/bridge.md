@@ -241,6 +241,8 @@ and leave the window as found. Every `shot` / `set` / `call` marks
 practice (expected). QA answers reload from `qa/answers/<id>.txt` on
 `SelectList` - delete the file to clear test answers.
 
+**Endgame cutscene events** (T-0055, a hook test, not a run): the player's SpecialActions (`find PlayerGoodbyeTimmyAction`) takes `call <h> PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` and `PlayerEndCrashAction.doShutDownRoutine <h>` (the mark is any Transform: the same handle); a raft is `call static:UnityEngine.Object Instantiate #<h of Prefabs.Instance.Constructions._blueprints[15]._builtPrefab>`, then `RaftPush.outOfWorldRoutine` on its `RaftController` child (it NREs on the null driver after 2 s: `set static:TheForest.Utils.LocalPlayer AnimControl.endGameCutScene false`, `call ... Create.Grabber.gameObject.SetActive true`, destroy the clone). Each logs `Game event: endgame-cutscene` + the event.
+
 **Test spots**: `call ..._modules[9].QuickSaveSpot` makes a spot where
 the player stands, selects it, makes it current and writes it (id
 `s-...`: `get ..._modules[9]._selected.Id`). Triggers are structs, and
