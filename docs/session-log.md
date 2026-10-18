@@ -2,6 +2,15 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (run R-0018 handoff)
+
+- **2026-10-17 (session 2):** v0.24.335 T-0391 released (Esc tile reads
+  'Menu' and lights on the press that opens the pause menu, drawn alone over
+  the menu while lit; checker accept, live SendInput proof by main - needs
+  forest-tester / e2e to confirm). Filed T-0409 (split multi-purpose input
+  tiles, the other half of the author's T-0391 answer). **Next:** confirm
+  T-0391 in game, then `tasks.py next`.
+
 ## Moved out 2026-10-18 (session 4 handoff)
 
 - **2026-10-17 (session, author present):** v0.24.334 T-0400 confirmed

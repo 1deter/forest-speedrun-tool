@@ -157,6 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0018, author away overnight):** 5 of 5 confirmed in
+  game. v0.24.338 T-0390 (collision view boxes a mesh with no triangles),
+  v0.24.339 T-0393 (own run line off while running, [Runs] RunLineOwnLive
+  brings it back), T-0395 (bridge MCP status / timed-out screenshot name
+  nvlddmkm GPU faults; MCP rebuilt), v0.24.340 T-0396 (Perf GL counts the
+  input overlay), v0.24.341 T-0403 (bridge `select <id>`). Parked for the
+  author: T-0410 (keep your finished run's line drawn after it ends?),
+  T-0366. **Next:** answer T-0410; confirm T-0391 / T-0398 / T-0401 /
+  T-0404 / T-0408 in game; a fresh session for the next run.
+
 - **2026-10-18 (session 4, quick pair):** v0.24.337 T-0398 (Inventory held
   marks read the live equipment slots) + T-0401 (untimed spot: 'This spot
   is not timed: no checkpoints to show.'), checker accept both - need
@@ -167,13 +177,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   chevron header) + T-0408 (stat tips explain the label rules), checker
   accept both - need in-game confirm. **Next:** confirm T-0391 / T-0404 /
   T-0408 in game, then `tasks.py next`.
-
-- **2026-10-17 (session 2):** v0.24.335 T-0391 released (Esc tile reads
-  'Menu' and lights on the press that opens the pause menu, drawn alone over
-  the menu while lit; checker accept, live SendInput proof by main - needs
-  forest-tester / e2e to confirm). Filed T-0409 (split multi-purpose input
-  tiles, the other half of the author's T-0391 answer). **Next:** confirm
-  T-0391 in game, then `tasks.py next`.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
