@@ -56,6 +56,7 @@ namespace ForestOverlay.Modules
         private KeypadDoorKeeper _doors;
         private AreaKeeper _area;
         private NatureKeeper _nature;
+        private FireKeeper _fire;
         private GreebleKeeper _greebles;
         private BreakableKeeper _breakables;
         private EnemyKeeper _enemies;
@@ -137,6 +138,8 @@ namespace ForestOverlay.Modules
             _area = new AreaKeeper(ctx.Log);
             _nature = new NatureKeeper(ctx.Log);
             _nature.Install(OverlayPlugin.PluginGuid);
+            _fire = new FireKeeper(ctx.Log);
+            _fire.Install(OverlayPlugin.PluginGuid);
             _greebles = new GreebleKeeper(ctx.Log);
             _greebles.Install(OverlayPlugin.PluginGuid);
             _breakables = new BreakableKeeper(ctx.Log);
@@ -202,6 +205,7 @@ namespace ForestOverlay.Modules
             if (_keeper != null) _keeper.Uninstall();
             if (_panels != null) _panels.Uninstall();
             if (_nature != null) _nature.Uninstall();
+            if (_fire != null) _fire.Uninstall();
             if (_greebles != null) _greebles.Uninstall();
             if (_breakables != null) _breakables.Uninstall();
             if (_bossHold != null) _bossHold.Uninstall();
@@ -296,6 +300,7 @@ namespace ForestOverlay.Modules
                 // Before the census, so its heap line shows the result.
                 _subscribers.Prune();
                 _nature.ForgetWorld();
+                FireKeeper.Prune();
                 _keeper.PruneDestroyed();
                 _panels.PruneDestroyed();
                 DeathHooks.ForgetDeath();
@@ -444,6 +449,8 @@ namespace ForestOverlay.Modules
             public string Blueprint = "", Stance = "", Rope = "";
             public int Logs;
             public string Bushes = "", Spawned = "", Dropped = "";
+            // Null until its step ran: no line rather than "none lit".
+            public string Fires;
             public List<string> CutBushes, Chopped, Greebles, Broken;
             public string Areas = "", EnemyNote = "";
             public List<string> Enemies = new List<string>();
@@ -552,6 +559,7 @@ namespace ForestOverlay.Modules
                     p.Dropped = PickupKeeper.CaptureDropped(Ctx.Player.Found ? Ctx.Player.Transform : null);
                     p.CutBushes = _nature.CaptureCuts();
                     p.Chopped = _nature.CaptureChopped();
+                    p.Fires = _fire.Capture();
                     break;
                 case 8: p.Greebles = _greebles.Capture(); break;
                 case 9: p.Broken = _breakables.Capture(); break;
@@ -668,6 +676,7 @@ namespace ForestOverlay.Modules
                 f.Spawned = spawned;
                 f.Dropped = dropped;
                 f.CutBushes = cutBushes;
+                f.Fires = p.Fires;
                 f.Chopped = chopped;
                 f.Greebles = greebles;
                 f.Broken = broken;
@@ -1069,6 +1078,10 @@ namespace ForestOverlay.Modules
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
                 RestoreGarbage.Mark("area");
+                // Fire lit since the capture (FireKeeper, T-0419): before the
+                // bushes come back, so a copy never meets a live fire.
+                string fireNote = r.Ok ? _fire.Restore(file != null ? file.Bushes : "", file != null ? file.Fires : null) : "";
+                RestoreGarbage.Mark("fire");
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
                 string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null, file != null ? file.Chopped : null) : "";
@@ -1158,6 +1171,7 @@ namespace ForestOverlay.Modules
                               (slidingNote.Length == 0 ? "" : " | " + slidingNote) +
                               (weatherNote.Length == 0 ? "" : " | " + weatherNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
+                              (fireNote.Length == 0 ? "" : " | " + fireNote) +
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
                               (guideNote.Length == 0 ? "" : " | " + guideNote) +
                               (greebleNote.Length == 0 ? "" : " | " + greebleNote) +

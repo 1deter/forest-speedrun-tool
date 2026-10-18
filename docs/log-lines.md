@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 844 log calls.
+250 prefixes from 847 log calls.
 
 ## `ActionReaders`
 
@@ -514,6 +514,14 @@ Meaning: The type explorer's filtered dump failed (dev).
 Written by TypeExplorer.cs; error.
 
 - error `Filtered dump failed: <ex>`
+
+## `FireKeeper`
+
+Meaning: Fire across a Quick load (T-0419): at startup, how many of its 7 game hooks were found; a warning when cancelling the effigies' pending self-destroy before a load failed. What a restore put out is in the `Savestate restore` line (`fire: N put out (...)`).
+Written by FireKeeper.cs; info / warning.
+
+- info `FireKeeper: <Status><..>.`
+- warning `FireKeeper: cancelling effigy timers failed: <ex.Message>`
 
 ## `FirstPersonCharacter bound`
 
@@ -1129,7 +1137,7 @@ Written by NatureKeeper.cs; info / warning.
 - info `NatureKeeper: <Status><..>.`
 - warning `NatureKeeper: TreeCutChunk.Fake<..> is not a GameObject; the chunk's look was not set.`
 - warning `NatureKeeper: chopping trees again failed: <ex.Message>`
-- warning `NatureKeeper: keeping a bush failed: <ex.Message>`
+- warning `NatureKeeper: keeping a bush failed: <ex.Message>` (x2)
 
 ## `Network`
 

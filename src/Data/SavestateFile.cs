@@ -35,6 +35,7 @@ namespace ForestOverlay.Data
     //   ride = zipline 395.89,73.88,-28.38 0.65,-7.3,24.67
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
+    //   fires = Cave_FiresAll/C6_Fires/Cave_FireBuilt(Clone)/Trigger@891.2,46.1,73.4;...
     //   chopped = 2543:3:1=2,3=0,4=0;...   (CoopTreeId:Health:chunk=damage,...)
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
     //   broken = 1230.8,-33.9,525.2;...
@@ -80,7 +81,10 @@ namespace ForestOverlay.Data
     // breakable greebles (cave stalagmites) broken at capture, by where
     // they stood (SpotKey; Game/BreakableKeeper breaks them again and
     // puts back whole the ones broken since); absent when none was, and
-    // in files before T-0273 (then every one comes back whole). `weather` the rain,
+    // in files before T-0273 (then every one comes back whole). `fires` the
+    // built and cave fires lit at the capture (Data/LitFires, Game/FireKeeper:
+    // the ones lit since go out); empty when none was, absent before T-0419.
+    // `weather` the rain,
     // clouds and fog distance (Data/WeatherState, Game/WeatherKeeper); absent
     // before it was added, and then the weather is left as it is. None of these is
     // in the start-state hash (only
@@ -172,6 +176,11 @@ namespace ForestOverlay.Data
 
         /// Null when the file has no cutbushes line (before v0.24.65).
         public List<string> CutBushes;
+
+        /// Data/LitFires: the built / cave fires lit at the capture
+        /// (T-0419); "" when none was, null when the file has no fires line
+        /// (older files).
+        public string Fires;
 
         /// Trees half-chopped at capture, ChoppedTree records; null when the
         /// file has no chopped line (before T-0067).
@@ -271,6 +280,7 @@ namespace ForestOverlay.Data
             c.Families = Families != null ? new List<string>(Families) : null;
             c.Spawned = Spawned;
             c.Dropped = Dropped;
+            c.Fires = Fires;
             c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
             c.Chopped = Chopped != null ? new List<string>(Chopped) : null;
             c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
@@ -322,6 +332,7 @@ namespace ForestOverlay.Data
             if (Spawned.Length > 0) Line(sb, "spawned", Spawned);
             if (Dropped.Length > 0) Line(sb, "dropped", Dropped);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
+            if (Fires != null) Line(sb, "fires", Fires);
             if (Chopped != null && Chopped.Count > 0) Line(sb, "chopped", string.Join(";", Chopped.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
             if (Broken != null && Broken.Count > 0) Line(sb, "broken", string.Join(";", Broken.ToArray()));
@@ -394,6 +405,7 @@ namespace ForestOverlay.Data
                     case "bushes": s.Bushes = value; break;
                     case "spawned": s.Spawned = value; break;
                     case "dropped": s.Dropped = value; break;
+                    case "fires": s.Fires = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');

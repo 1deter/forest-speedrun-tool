@@ -229,6 +229,30 @@ namespace ForestOverlay.Game
                 Type t = view.GetType();
                 Component lod = Field(LodFields, t, "LodBase").GetValue(__instance) as Component;
                 if (lod == null) return;
+                KeepLod(lod, Field(CutFields, t, "MyCut").GetValue(__instance) as UnityEngine.Object);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("NatureKeeper: keeping a bush failed: " + ex.Message);
+            }
+        }
+
+        /// The next number in the order of cuts and fires this launch (the
+        /// `bushes` mark is the last one at a capture; Game/FireKeeper
+        /// numbers each fire lit with it, T-0419).
+        public static int NextSeq() { return ++_seq; }
+
+        /// A bush / sapling LOD about to lose its scene object (a cut, or a
+        /// fire: Game/FireKeeper, T-0419): recorded as cut, and while armed a
+        /// copy kept for a Quick load. Trees (not destroyed), greeble bushes
+        /// (the greeble system's) and LODs already kept are skipped.
+        /// `myCut` is what the game leaves where it stood (MyCut / MyBurnt):
+        /// sticks under it are the cut's. Never throws.
+        public static void KeepLod(Component lod, UnityEngine.Object myCut)
+        {
+            try
+            {
+                if (lod == null) return;
                 GameObject go = lod.gameObject;
                 if (KeptIds.Contains(go.GetInstanceID())) return;
                 // A greeble's bush is the greeble system's (a pooled clone).
@@ -273,8 +297,7 @@ namespace ForestOverlay.Game
                 KeptList.Add(k);
                 KeptIds.Add(go.GetInstanceID());
 
-                UnityEngine.Object cut = Field(CutFields, t, "MyCut").GetValue(__instance) as UnityEngine.Object;
-                if (cut != null) CutNames.Add(cut.name + "(Clone)");
+                if (myCut != null) CutNames.Add(myCut.name + "(Clone)");
             }
             catch (Exception ex)
             {
@@ -282,7 +305,9 @@ namespace ForestOverlay.Game
             }
         }
 
-        private static string KeyOf(GameObject go)
+        /// "scene path@x,y,z": a scene object by its path and place (names
+        /// repeat), as the `cutbushes` and `fires` lines hold them.
+        public static string KeyOf(GameObject go)
         {
             Vector3 p = go.transform.position;
             return ObjectProbe.PathOf(go.transform) + "@" + F(p.x) + "," + F(p.y) + "," + F(p.z);
@@ -488,14 +513,7 @@ namespace ForestOverlay.Game
                 trees = "trees: regrowing failed (" + ex.Message + ")";
             }
             int since = -1;
-            try
-            {
-                int colon = mark != null ? mark.LastIndexOf(':') : -1;
-                int n;
-                if (colon > 0 && mark.Substring(0, colon) == World() &&
-                    int.TryParse(mark.Substring(colon + 1), System.Globalization.NumberStyles.Integer,
-                                 System.Globalization.CultureInfo.InvariantCulture, out n)) since = n;
-            }
+            try { since = LitFires.SinceOf(mark, World()); }
             catch (Exception) { }
             try { bushes = PutBushesBack(since); }
             catch (Exception ex) { bushes = "bushes: putting back failed (" + ex.Message + ")"; }
@@ -786,7 +804,14 @@ namespace ForestOverlay.Game
             {
                 Kept k = KeptList[i];
                 if (k.Spare == null) continue;                      // a load destroyed the holder
-                if (k.Original != null || k.Parent == null) { UnityEngine.Object.Destroy(k.Spare); gone++; continue; }
+                if (k.Original != null || k.Parent == null)
+                {
+                    // Still standing (a bush put out mid-burn, T-0419): not cut.
+                    if (k.Original != null) Unrecord(KeyOf(k.Original));
+                    UnityEngine.Object.Destroy(k.Spare);
+                    gone++;
+                    continue;
+                }
                 if (k.Seq <= since) { left.Add(k); stay++; continue; }   // cut before the capture
                 Transform t = k.Spare.transform;
                 t.SetParent(k.Parent, false);

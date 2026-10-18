@@ -803,6 +803,10 @@ namespace ForestOverlay.Game
             if (deleted + rebuilt + spawned + mirror.Thrown + mirror.Moved + mirror.Remade > 0) yield return null;   // let Destroy land before the loader looks
             RestoreGarbage.Mark("delete step");
 
+            // An effigy's pending self-destroy (T-0419): the load invokes it
+            // again for the ones lit at the capture.
+            FireKeeper.BeforeLoad();
+
             _loadDone = false;
             _logNotFound = 0;
             _logProblems = 0;
@@ -2082,6 +2086,10 @@ namespace ForestOverlay.Game
                 if (stats == null) return "blood: no player";
                 bool before = (bool)_isBloody.GetValue(stats, null);
                 _gotCleanReal.Invoke(stats, null);
+                // The wash puts a burning player out; its pending end of the
+                // burn would cut a new one short (T-0419).
+                MonoBehaviour statsBehaviour = stats as MonoBehaviour;
+                if (statsBehaviour != null) statsBehaviour.CancelInvoke("StopBurning");
                 bool after = (bool)_isBloody.GetValue(stats, null);
                 if (!before) return "";
                 return after ? "blood: still bloody (the game refused the wash)" : "blood: washed";
