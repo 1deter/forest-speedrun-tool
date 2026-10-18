@@ -14,16 +14,22 @@ namespace ForestOverlay.Data
             return world + ":" + mark.ToString(CultureInfo.InvariantCulture);
         }
 
+        /// Nothing is removed: the mark is unknown.
+        public const int Unknown = int.MinValue;
+
         /// The mark when the line is for `currentWorld` and parses to a
-        /// negative id; else 0 (every runtime-made item counts as new).
+        /// negative id; 0 (every runtime-made item is new) when the line is
+        /// for another world; Unknown when there is no line, no world key or
+        /// the line does not parse.
         public static int Threshold(string line, string currentWorld)
         {
-            if (string.IsNullOrEmpty(line) || string.IsNullOrEmpty(currentWorld)) return 0;
+            if (string.IsNullOrEmpty(line) || string.IsNullOrEmpty(currentWorld)) return Unknown;
             int colon = line.LastIndexOf(':');
-            if (colon <= 0 || line.Substring(0, colon) != currentWorld) return 0;
+            if (colon <= 0) return Unknown;
+            if (line.Substring(0, colon) != currentWorld) return 0;
             int n;
-            if (!int.TryParse(line.Substring(colon + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out n)) return 0;
-            return n < 0 ? n : 0;
+            if (!int.TryParse(line.Substring(colon + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out n)) return Unknown;
+            return n < 0 ? n : Unknown;
         }
 
         /// Made after the mark: negative and lower than it (threshold 0 =

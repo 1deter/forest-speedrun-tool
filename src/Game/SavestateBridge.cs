@@ -788,10 +788,11 @@ namespace ForestOverlay.Game
                 }
             }
             int spawnedThreshold = SpawnedThreshold;
-            SpawnedThreshold = int.MinValue;
+            SpawnedThreshold = ForestOverlay.Data.SpawnMark.Unknown;
             Dictionary<int, int> spawnedCounts = new Dictionary<int, int>();
             int spawned = 0;
-            if (stored != null && spawnedThreshold != int.MinValue)
+            bool spawnedChecked = stored != null && spawnedThreshold != ForestOverlay.Data.SpawnMark.Unknown;
+            if (spawnedChecked)
             {
                 try { spawned = PickupKeeper.RemoveSpawnedSince(spawnedThreshold, keepRoot, spawnedCounts); }
                 catch (Exception ex) { _log.LogWarning("Savestate restore: removing items made since the capture failed: " + ex.Message); }
@@ -880,7 +881,7 @@ namespace ForestOverlay.Game
                     if (keptHeld > 0) sb.Append(", kept ").Append(keptHeld).Append(" held-item object(s) of the player the save lacks");
                     if (_keptInventoryViews > 0) sb.Append(", kept ").Append(_keptInventoryViews).Append(" inventory view object(s) the save lacks");
                     if (rebuilt > 0) sb.Append(", ").Append(rebuilt).Append(" blueprint(s) filled since rebuilt from the save");
-                    if (spawned > 0)
+                    if (spawnedChecked)
                     {
                         sb.Append(", removed ").Append(spawned).Append(" item(s) made since the capture");
                         bool first = true;
@@ -1573,7 +1574,7 @@ namespace ForestOverlay.Game
 
         /// Set before RestoreInPlace: scene-root items made after this
         /// instance id are removed (Data/SpawnMark); int.MinValue = none.
-        public int SpawnedThreshold = int.MinValue;
+        public int SpawnedThreshold = ForestOverlay.Data.SpawnMark.Unknown;
 
         private bool HandsMatch(List<int> wanted)
         {

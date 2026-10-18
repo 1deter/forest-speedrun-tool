@@ -14,14 +14,14 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void AnotherWorldOrGarbageGivesZero()
+        public void AnotherWorldGivesZeroUnknownMarkSkips()
         {
             Assert.Equal(0, SpawnMark.Threshold("w-12:-5", "w-13"));
-            Assert.Equal(0, SpawnMark.Threshold("w-12:abc", "w-12"));
-            Assert.Equal(0, SpawnMark.Threshold("w-12:7", "w-12"));
-            Assert.Equal(0, SpawnMark.Threshold("", "w-12"));
-            Assert.Equal(0, SpawnMark.Threshold(null, "w-12"));
-            Assert.Equal(0, SpawnMark.Threshold("w-12:-5", ""));
+            Assert.Equal(SpawnMark.Unknown, SpawnMark.Threshold("w-12:abc", "w-12"));
+            Assert.Equal(SpawnMark.Unknown, SpawnMark.Threshold("w-12:7", "w-12"));
+            Assert.Equal(SpawnMark.Unknown, SpawnMark.Threshold("", "w-12"));
+            Assert.Equal(SpawnMark.Unknown, SpawnMark.Threshold(null, "w-12"));
+            Assert.Equal(SpawnMark.Unknown, SpawnMark.Threshold("w-12:-5", ""));
             Assert.Equal("", SpawnMark.Format("", -5));
         }
 
