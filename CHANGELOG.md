@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.341 - 2026-10-18
+
+- Test bridge (developers): a new select command picks a Practice spot by id, the way clicking its row does.
+
 ## v0.24.340 - 2026-10-18
 
 - The 30 s Perf log line's GL figures now count the input overlay's mouse path (Comet and Box), so a perf check of the input overlay reads a real number.
