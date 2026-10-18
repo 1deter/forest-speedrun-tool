@@ -4,8 +4,8 @@
 Called by .githooks/pre-push with the hook's stdin. For each update of refs/heads/main it
 checks the pushed commit out into a throwaway worktree - the main checkout is shared with
 loop sessions and usually holds someone's uncommitted edits, so the tests must see exactly
-what is pushed - and runs the workflow steps the pushed paths trigger (the same commands
-as .github/workflows: build.yml on every push, site.yml / bot.yml by their `paths:`).
+what is pushed - and runs the workflow steps the push triggers (the same commands as
+.github/workflows: every build.yml step always, site.yml / bot.yml by their `paths:`).
 A failure stops the push with WHAT / WHY / FIX.
 
     python scripts/prepush.py < <hook stdin>        # what the hook does
@@ -22,20 +22,19 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ZERO = "0" * 40
 PY = sys.executable or "python"
 
-# (name, path prefixes that trigger it - None = always, command). Mirrors the workflows;
-# scripts/tests/test_prepush.py holds site.yml / bot.yml's `paths:` to these lists.
-PLUGIN = ("src/", "patcher/", "tests/ForestOverlay.Tests/", "locations/", "collectibles/", "qa/",
-          "ForestOverlay.csproj", "nuget.config", "Directory.Build.props", "Directory.Build.targets")
+# (name, path prefixes that trigger it - None = always, command). Mirrors the workflows:
+# build.yml has no `paths:`, so its steps run on every push (its tests read community/,
+# locations/, docs/ ... - a path filter here missed those); site.yml / bot.yml run by their
+# `paths:`. scripts/tests/test_prepush.py holds these lists to the workflow files.
 STEPS = [
     ("task file", None, [PY, "scripts/tasks.py", "check"]),
     ("lint", None, [PY, "scripts/lint.py"]),
-    ("script tests", ("scripts/", ".githooks/", ".github/"),
-     [PY, "-m", "unittest", "discover", "-s", "scripts/tests", "-q"]),
-    ("plugin build", PLUGIN, ["dotnet", "build", "ForestOverlay.csproj", "-c", "Release", "--nologo", "-v", "q"]),
-    ("plugin tests", PLUGIN,
+    ("plugin build", None, ["dotnet", "build", "ForestOverlay.csproj", "-c", "Release", "--nologo", "-v", "q"]),
+    ("plugin tests", None,
      ["dotnet", "test", "tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj", "-c", "Release", "--nologo", "-v", "q"]),
-    ("ILScan tests", ("tools/ILScan/", "tests/ILScan.Tests/"),
+    ("ILScan tests", None,
      ["dotnet", "test", "tests/ILScan.Tests/ILScan.Tests.csproj", "-c", "Release", "--nologo", "-v", "q"]),
+    ("script tests", None, [PY, "-m", "unittest", "discover", "-s", "scripts/tests", "-q"]),
     ("site tests", ("site/", "community/", "src/Data/", "tests/ForestOverlay.Tests/UnityShim.cs", "nuget.config"),
      ["dotnet", "test", "site/ForestSite.Tests", "-c", "Release", "--nologo", "-v", "q"]),
     ("bot tests", ("bot/", "knowledge/", "docs/game-notes.md", "docs/savestates.md", "docs/run-mode.md",

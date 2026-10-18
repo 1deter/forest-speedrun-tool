@@ -28,22 +28,41 @@ def push_paths(workflow):
     return [re.sub(r"\*\*$", "", re.search(r"'([^']+)'", line).group(1)) for line in block.splitlines()]
 
 
-class Plan(unittest.TestCase):
-    def test_a_task_file_push_runs_only_the_quick_checks(self):
-        self.assertEqual(names(["tasks/tasks.jsonl", "docs/tasks.md", "tasks/loop.jsonl"]), ["task file", "lint"])
+BUILD_STEPS = ["task file", "lint", "plugin build", "plugin tests", "ILScan tests", "script tests"]
 
-    def test_plugin_code_builds_and_tests_the_plugin(self):
-        got = names(["src/Modules/SavestateModule.cs"])
-        self.assertIn("plugin build", got)
-        self.assertIn("plugin tests", got)
+
+def build_targets():
+    """What build.yml's run lines build, test or run: project paths and script names."""
+    with open(os.path.join(WORKFLOWS, "build.yml"), encoding="utf-8") as f:
+        text = f.read()
+    return (re.findall(r"dotnet (?:build|test) (\S+)", text)
+            + re.findall(r"python3? (scripts/\S+\.py|-m unittest discover)", text))
+
+
+class Plan(unittest.TestCase):
+    def test_build_yml_has_no_path_filter(self):
+        # if it gains one, the always-run steps below must follow it
+        with open(os.path.join(WORKFLOWS, "build.yml"), encoding="utf-8") as f:
+            self.assertNotIn("paths:", f.read())
+
+    def test_every_build_yml_step_runs_on_any_push(self):
+        for paths in (["tasks/tasks.jsonl"], ["community/index.json"], ["docs/x.md"]):
+            self.assertEqual(names(paths)[:len(BUILD_STEPS)], BUILD_STEPS, paths)
+
+    def test_every_build_yml_command_is_mirrored(self):
+        ours = " | ".join(" ".join(c) for _, c in P.plan([]))
+        targets = build_targets()
+        self.assertGreaterEqual(len(targets), 6)
+        for target in targets:
+            self.assertIn(target, ours, "build.yml runs %r, prepush.py does not" % target)
+
+    def test_a_task_file_push_skips_site_and_bot(self):
+        got = names(["tasks/tasks.jsonl", "docs/tasks.md", "tasks/loop.jsonl"])
+        self.assertNotIn("site tests", got)
         self.assertNotIn("bot tests", got)
 
     def test_src_data_also_runs_the_site(self):
         self.assertIn("site tests", names(["src/Data/RunReport.cs"]))
-
-    def test_scripts_run_the_script_tests(self):
-        self.assertIn("script tests", names(["scripts/loop.py"]))
-        self.assertIn("script tests", names([".githooks/pre-push"]))
 
     def test_windows_separators(self):
         self.assertIn("bot tests", names(["knowledge\\cards\\x.md"]))

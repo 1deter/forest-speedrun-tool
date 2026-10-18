@@ -36,9 +36,9 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   carries that version). **CI failures stay off main** (author 2026-10-18:
   failing main runs mail the author): pre-commit stages the `docs/tasks.md`
   rendered from the staged task file (`tasks.py check --staged`), and a
-  push to main runs the workflow steps its paths trigger on the pushed
-  commit in a throwaway worktree (`scripts/prepush.py`; `--plan <paths>`
-  lists them; 5-40 s). Not covered: the site's browser smoke, outages; the
+  push to main runs, on the pushed commit in a throwaway worktree, every
+  build.yml step plus the site / bot tests its paths trigger
+  (`scripts/prepush.py`; `--plan <paths>` lists them; ~40-60 s). Not covered: the site's browser smoke, outages; the
   bot and site restore from nuget.org only (`bot/nuget.config`,
   `site/nuget.config`). Every gotcha has one index line in an area doc,
   ending with `[check: <name>]`, `[check: T-n]` (an open task) or
