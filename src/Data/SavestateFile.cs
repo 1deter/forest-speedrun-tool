@@ -86,7 +86,10 @@ namespace ForestOverlay.Data
     // the ones lit since go out); empty when none was, absent before T-0419.
     // `animals` each live animal's health, hurt skin and poison (Data/
     // AnimalStates, Game/AnimalKeeper); absent when none, and before T-0425
-    // (then animals are left as they are).
+    // (then animals are left as they are). `animalposes`, `animalzones`,
+    // `animalcounts` where the zone animals stood, each zone's cap and the
+    // scene counters (Data/AnimalSpawns, T-0428); absent before it (then
+    // animals are not moved, brought back or removed, counters left).
     // `weather` the rain,
     // clouds and fog distance (Data/WeatherState, Game/WeatherKeeper); absent
     // before it was added, and then the weather is left as it is. None of these is
@@ -190,6 +193,9 @@ namespace ForestOverlay.Data
         /// (older files, or no animal): the animals are left as they are.
         public string Animals;
 
+        /// T-0428 (Data/AnimalSpawns): null when the file has none.
+        public string AnimalPoses, AnimalZones, AnimalCounts;
+
         /// Trees half-chopped at capture, ChoppedTree records; null when the
         /// file has no chopped line (before T-0067).
         public List<string> Chopped;
@@ -290,6 +296,7 @@ namespace ForestOverlay.Data
             c.Dropped = Dropped;
             c.Fires = Fires;
             c.Animals = Animals;
+            c.AnimalPoses = AnimalPoses; c.AnimalZones = AnimalZones; c.AnimalCounts = AnimalCounts;
             c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
             c.Chopped = Chopped != null ? new List<string>(Chopped) : null;
             c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
@@ -343,6 +350,9 @@ namespace ForestOverlay.Data
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Fires != null) Line(sb, "fires", Fires);
             if (!string.IsNullOrEmpty(Animals)) Line(sb, "animals", Animals);
+            if (!string.IsNullOrEmpty(AnimalPoses)) Line(sb, "animalposes", AnimalPoses);
+            if (!string.IsNullOrEmpty(AnimalZones)) Line(sb, "animalzones", AnimalZones);
+            if (!string.IsNullOrEmpty(AnimalCounts)) Line(sb, "animalcounts", AnimalCounts);
             if (Chopped != null && Chopped.Count > 0) Line(sb, "chopped", string.Join(";", Chopped.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
             if (Broken != null && Broken.Count > 0) Line(sb, "broken", string.Join(";", Broken.ToArray()));
@@ -417,6 +427,9 @@ namespace ForestOverlay.Data
                     case "dropped": s.Dropped = value; break;
                     case "fires": s.Fires = value; break;
                     case "animals": s.Animals = value; break;
+                    case "animalposes": s.AnimalPoses = value; break;
+                    case "animalzones": s.AnimalZones = value; break;
+                    case "animalcounts": s.AnimalCounts = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');
