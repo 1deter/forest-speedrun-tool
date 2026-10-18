@@ -94,6 +94,18 @@ namespace ForestOverlay.Data
             return liveUsed;
         }
 
+        /// Which live pickups to remove: those no captured one accounts for
+        /// (`Match`) AND that `removable` marks. The match pool is every live
+        /// pickup, the removal only some: a new sapling stick must not pair
+        /// with a captured greeble stick that lies beside it (T-0067).
+        public static bool[] Removable(IList<Entry> captured, IList<Entry> live, IList<bool> removable, float near, bool farToo)
+        {
+            bool[] matched = Match(captured, live, near, farToo);
+            bool[] r = new bool[live.Count];
+            for (int i = 0; i < r.Length; i++) r[i] = !matched[i] && removable[i];
+            return r;
+        }
+
         /// Whether any captured pickup, of any item, sits within `within`
         /// of `position` (a greeble slot that re-rolled its item on a load).
         public static bool SpotTaken(IList<Entry> captured, Vector3 position, float within)

@@ -40,6 +40,7 @@ namespace ForestOverlay.Tests
             s.Enemies = new List<string> { "e1" };
             s.Families = new List<string> { "f1" };
             s.CutBushes = new List<string> { "b1" };
+            s.Chopped = new List<string> { "1:3:1=0" };
             s.Greebles = new List<string> { "g1" };
             s.Broken = new List<string> { "1.0,2.0,3.0" };
             SavestateFile c = s.Copy();
@@ -52,7 +53,7 @@ namespace ForestOverlay.Tests
                 Assert.NotNull(fi.GetValue(s));
                 Assert.False(ReferenceEquals(fi.GetValue(s), fi.GetValue(c)), fi.Name + " is shared");
             }
-            Assert.Equal(9, lists);
+            Assert.Equal(10, lists);
             c.Pickups.Clear();
             Assert.Equal(2, s.Pickups.Count);
         }

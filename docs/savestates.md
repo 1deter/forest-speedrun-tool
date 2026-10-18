@@ -20,7 +20,9 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
     ran `CutDown` twice and the second, piece-less copy was rebuilt).
     Restart closes the game's pause menu / inventory first
     (`Game/MenuClose`, v0.24.123: their timeScale 0 stalled the restore). Spears and limbs left since the capture are removed;
-    trees chopped since regrow, bushes / saplings cut since come back,
+    trees chopped since regrow (a tree half-chopped at capture is left
+    so, or chopped again as captured: `chopped` header, T-0067), bushes /
+    saplings cut since come back,
     and their new logs / sticks go (`Game/NatureKeeper`, v0.24.61-62); boss
     Megan is put back seated when she was at capture (`megan` header,
     `Game/MeganKeeper`, v0.24.35-37; game-notes *Megan after a Quick
@@ -42,7 +44,9 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
     Quick load loads it first by the same rule), placed pickups taken before the capture are removed, the captured
     cannibal families are rebuilt, the held items are equipped again
     for the animator (v0.24.43), bushes / saplings cut at capture are cut
-    again (`cutbushes`, v0.24.65-66).
+    again (`cutbushes`, v0.24.65-66) and a cut sapling drops its two sticks
+    again (T-0067), trees half-chopped at capture are chopped again once
+    their view is up.
   Both: a sun still out of step with the restored time is snapped
   (`Game/SunSync`, v0.24.67). A cutscene capture is fast-forwarded (25x) with the held weapon's
   memory put back (`heldbefore`) and its sounds kept in step

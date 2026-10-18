@@ -35,6 +35,7 @@ namespace ForestOverlay.Data
     //   ride = zipline 395.89,73.88,-28.38 0.65,-7.3,24.67
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
+    //   chopped = 2543:3:1=2,3=0,4=0;...   (CoopTreeId:Health:chunk=damage,...)
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
     //   broken = 1230.8,-33.9,525.2;...
     //   weather = state=Raining type=Heavy dice=4,1,0 overcast=1,1 ... fog=300,300
@@ -165,6 +166,10 @@ namespace ForestOverlay.Data
         /// Null when the file has no cutbushes line (before v0.24.65).
         public List<string> CutBushes;
 
+        /// Trees half-chopped at capture, ChoppedTree records; null when the
+        /// file has no chopped line (before T-0067).
+        public List<string> Chopped;
+
         /// Null when the file has no greebles line (before v0.24.70);
         /// GreebleRecord entries.
         public List<string> Greebles;
@@ -258,6 +263,7 @@ namespace ForestOverlay.Data
             c.Enemies = Enemies != null ? new List<string>(Enemies) : null;
             c.Families = Families != null ? new List<string>(Families) : null;
             c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
+            c.Chopped = Chopped != null ? new List<string>(Chopped) : null;
             c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
             c.Broken = Broken != null ? new List<string>(Broken) : null;
             return c;
@@ -305,6 +311,7 @@ namespace ForestOverlay.Data
             if (Weather.Length > 0) Line(sb, "weather", Weather);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
+            if (Chopped != null && Chopped.Count > 0) Line(sb, "chopped", string.Join(";", Chopped.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
             if (Broken != null && Broken.Count > 0) Line(sb, "broken", string.Join(";", Broken.ToArray()));
             Line(sb, "data", Data);
@@ -390,6 +397,17 @@ namespace ForestOverlay.Data
                             s.CutBushes = new List<string>();
                             string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                             for (int k = 0; k < keys.Length; k++) s.CutBushes.Add(keys[k].Trim());
+                            break;
+                        }
+                    case "chopped":
+                        {
+                            s.Chopped = new List<string>();
+                            string[] recs = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < recs.Length; k++)
+                            {
+                                ChoppedTree t;
+                                if (ChoppedTree.TryParse(recs[k], out t)) s.Chopped.Add(t.Format());
+                            }
                             break;
                         }
                     case "greebles":

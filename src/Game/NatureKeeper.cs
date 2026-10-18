@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using HarmonyLib;
 using UnityEngine;
 
@@ -87,6 +88,19 @@ namespace ForestOverlay.Game
         private static FieldInfo _lodTree;             // TreeHealth.LodTree
         private static FieldInfo _isSpawned, _lodTransform, _lodDestroyed, _currentLod;   // LOD_Base
 
+        // T-0067: half-chopped trees (TreeHealth / TreeCutChunk) and a sapling's cut.
+        private static Type _treeHealthType, _chunkType, _cutBushType;
+        private static FieldInfo _thHealth, _thSpawnedCut, _chunkDamage, _high, _myCut, _myBurst, _sapling;
+        private static MethodInfo _thDoCut;
+        private static readonly FieldInfo[] ChunkFakes = new FieldInfo[4];
+        // Trees to chop again once their standing view is up (id -> LOD_Trees).
+        private static readonly List<ChoppedTree> Pending = new List<ChoppedTree>();
+        private static Dictionary<int, Behaviour> _pendingLods;
+        private static string _pendingWorld = "";
+        private static float _nextChop;
+        // Saplings ApplyCuts dropped sticks for since the last TakeDropped.
+        private static int _dropped;
+
         private static Type _manager;
         private Type _lodBase, _lodTrees, _lodStump, _treeId, _grid;
         private FieldInfo _dontSpawn, _id, _cutIds;
@@ -135,6 +149,27 @@ namespace ForestOverlay.Game
             _cutIds = _manager.GetField("CutDownTreeIds", Inst);
             _regrowth = _grid != null ? _grid.GetMethod("RegisterTreeRegrowth", Inst, null, new[] { typeof(Vector3) }, null) : null;
             _lodTree = treeHealth != null ? treeHealth.GetField("LodTree", Inst) : null;
+            _treeHealthType = treeHealth;
+            _cutBushType = cutBush;
+            _chunkType = GameBridge.FindGameType("TreeCutChunk");
+            if (treeHealth != null)
+            {
+                _thHealth = treeHealth.GetField("Health", Inst);
+                _thSpawnedCut = treeHealth.GetField("SpawnedCutTree", Inst);
+                _thDoCut = treeHealth.GetMethod("DoSpawnCutTree", Inst, null, Type.EmptyTypes, null);
+            }
+            if (_chunkType != null)
+            {
+                _chunkDamage = _chunkType.GetField("damage", Inst);
+                for (int i = 0; i < 4; i++) ChunkFakes[i] = _chunkType.GetField("Fake" + (i + 1), Inst);
+            }
+            _high = lodBase.GetField("High", Inst);
+            if (cutBush != null)
+            {
+                _myCut = cutBush.GetField("MyCut", Inst);
+                _myBurst = cutBush.GetField("MyBurstPos", Inst);
+                _sapling = cutBush.GetField("sapling", Inst);
+            }
 
             int hooks = 0;
             try
@@ -286,7 +321,7 @@ namespace ForestOverlay.Game
         public string ApplyCuts(List<string> keys)
         {
             if (keys == null || keys.Count == 0) return "";
-            int cut = 0, absent = 0;
+            int cut = 0, absent = 0, sticks = 0;
             try
             {
                 for (int i = 0; i < keys.Count; i++)
@@ -294,19 +329,65 @@ namespace ForestOverlay.Game
                     GameObject go = FindCut(keys[i]);
                     if (go == null) { Record(keys[i], ++_seq); absent++; continue; }
                     Component lod = _lodBase != null ? go.GetComponent(_lodBase) : null;
+                    // A sapling's cut model drops its two sticks (T-0067): its
+                    // pose is read before the view goes.
+                    GameObject myCut = null;
+                    Vector3 burstPos = Vector3.zero;
+                    Quaternion burstRot = Quaternion.identity;
+                    bool saplingCut = false;
+                    if (lod != null) saplingCut = BurstPose(lod, out myCut, out burstPos, out burstRot);
                     if (lod != null && _lodTransform != null && _lodTransform.GetValue(lod) != null && _despawn != null)
                         _despawn.Invoke(lod, null);
                     Record(go, ++_seq);
                     UnityEngine.Object.Destroy(go);
                     cut++;
+                    if (saplingCut)
+                    {
+                        UnityEngine.Object.Instantiate(myCut, burstPos, burstRot);
+                        CutNames.Add(myCut.name + "(Clone)");
+                        sticks++;
+                    }
                 }
+                _dropped += sticks;
             }
             catch (Exception ex)
             {
                 while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
                 return "bushes: cutting again failed after " + cut + " (" + ex.Message + ")";
             }
-            return "bushes: " + cut + " cut again (cut at capture)" + (absent > 0 ? ", " + absent + " already gone" : "");
+            return "bushes: " + cut + " cut again (cut at capture)" + (absent > 0 ? ", " + absent + " already gone" : "") +
+                   (sticks > 0 ? ", " + sticks + " sapling(s) dropped their sticks again" : "");
+        }
+
+        /// How many saplings ApplyCuts dropped sticks for since the last call:
+        /// the caller then runs the stick pass once they have settled.
+        public int TakeDropped()
+        {
+            int n = _dropped;
+            _dropped = 0;
+            return n;
+        }
+
+        // A sapling's cut model and where it bursts: the LOD's view prefab
+        // (`High`) holds a CutBush2 with `sapling`; a view sits at its LOD's
+        // position and rotation at scale 1, so the burst pose is the
+        // prefab's local one through the LOD's (bridge, T-0067).
+        private static bool BurstPose(Component lod, out GameObject myCut, out Vector3 pos, out Quaternion rot)
+        {
+            myCut = null;
+            pos = Vector3.zero;
+            rot = Quaternion.identity;
+            if (_high == null || _cutBushType == null || _myCut == null || _myBurst == null || _sapling == null) return false;
+            Transform high = _high.GetValue(lod) as Transform;
+            Component cb = high != null ? high.GetComponent(_cutBushType) : null;
+            if (cb == null || !(bool)_sapling.GetValue(cb)) return false;
+            myCut = _myCut.GetValue(cb) as GameObject;
+            Transform burst = _myBurst.GetValue(cb) as Transform;
+            if (myCut == null || burst == null) return false;
+            Transform lt = lod.transform;
+            pos = lt.position + lt.rotation * burst.localPosition;
+            rot = lt.rotation * burst.localRotation;
+            return true;
         }
 
         // The object at `path` nearest the key's place, within half a metre
@@ -394,10 +475,10 @@ namespace ForestOverlay.Game
         /// After a Quick load, once the serializer has put the save's cut
         /// list back; `mark` is the file's `bushes` line ("" for none).
         /// Returns the log note ("" when nothing changed).
-        public string Restore(string mark, List<string> cutAtCapture)
+        public string Restore(string mark, List<string> cutAtCapture, List<string> chopped)
         {
             string trees = "", bushes = "";
-            try { trees = RegrowTrees(); }
+            try { trees = RegrowTrees(chopped); }
             catch (Exception ex)
             {
                 while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
@@ -421,9 +502,13 @@ namespace ForestOverlay.Game
             return trees + (trees.Length > 0 && bushes.Length > 0 ? ", " : "") + bushes;
         }
 
-        private string RegrowTrees()
+        private string RegrowTrees(List<string> chopped)
         {
+            Pending.Clear();
+            _pendingLods = null;
             if (_refresh == null || _currentView == null || _id == null || _cutIds == null || _dontSpawn == null) return "";
+            Dictionary<int, ChoppedTree> recs = ParseChopped(chopped);
+            HashSet<int> same = new HashSet<int>();
             // Scene searches kept between restores (SceneCache, T-0148):
             // four walks of the scene were ~90 ms of the restore's frame.
             UnityEngine.Object manager = SceneCache.One(_manager);
@@ -442,11 +527,19 @@ namespace ForestOverlay.Game
                 if (idc == null) continue;
                 Behaviour lod = lods[i];
                 if (lod == null || lod.enabled) continue;
-                if (cut.Contains((int)_id.GetValue(idc))) continue;
+                int treeId = (int)_id.GetValue(idc);
+                if (cut.Contains(treeId)) continue;
 
                 // Its chopped model (half-chopped) or falling trunk, then the
                 // game's own regrowth.
                 Component view = _currentView.GetValue(lod, null) as Component;
+                // Half-chopped at capture and still so, as captured: stays.
+                ChoppedTree rec;
+                if (view != null && recs.TryGetValue(treeId, out rec))
+                {
+                    ChoppedTree live = ReadChop(treeId, view);
+                    if (live != null && rec.Matches(live.Health, live.Slots, live.Damage)) { same.Add(treeId); continue; }
+                }
                 if (view != null) { UnityEngine.Object.Destroy(view.gameObject); midChop++; }
                 GameObject trunk;
                 if (Trunks.TryGetValue(lod.GetInstanceID(), out trunk))
@@ -483,8 +576,174 @@ namespace ForestOverlay.Game
                 if (kv.Value == null) (dead ?? (dead = new List<int>())).Add(kv.Key);
             if (dead != null) for (int i = 0; i < dead.Count; i++) Trunks.Remove(dead[i]);
 
-            if (regrown == 0) return "";
-            return "trees: " + regrown + " regrown (not cut at capture" + (midChop > 0 ? "; " + midChop + " half-chopped or falling" : "") + ")";
+            string note = regrown == 0 ? "" :
+                "trees: " + regrown + " regrown (not cut at capture" + (midChop > 0 ? "; " + midChop + " half-chopped or falling" : "") + ")";
+            if (recs.Count > 0)
+            {
+                foreach (KeyValuePair<int, ChoppedTree> kv in recs)
+                    if (!same.Contains(kv.Key)) Pending.Add(kv.Value);
+                SetPending(all, lods);
+                ProcessPending();
+                note += (note.Length > 0 ? ", " : "trees: ") + recs.Count + " half-chopped as captured (" + Pending.Count + " waiting for their view)";
+            }
+            return note;
+        }
+
+        private static Dictionary<int, ChoppedTree> ParseChopped(List<string> records)
+        {
+            Dictionary<int, ChoppedTree> d = new Dictionary<int, ChoppedTree>();
+            if (records == null) return d;
+            for (int i = 0; i < records.Count; i++)
+            {
+                ChoppedTree t;
+                if (ChoppedTree.TryParse(records[i], out t)) d[t.Id] = t;
+            }
+            return d;
+        }
+
+        private void SetPending(UnityEngine.Object[] all, Behaviour[] lods)
+        {
+            _pendingWorld = World();
+            _nextChop = 0f;
+            Dictionary<int, Behaviour> map = new Dictionary<int, Behaviour>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                Component idc = all[i] as Component;
+                if (idc != null && lods[i] != null) map[(int)_id.GetValue(idc)] = lods[i];
+            }
+            _pendingLods = map;
+        }
+
+        // The cut model's chunks (its children 1..4, each with a
+        // TreeCutChunk) and Health; null when the view is not a cut model.
+        private static ChoppedTree ReadChop(int id, Component view)
+        {
+            if (_treeHealthType == null || _thHealth == null || _thSpawnedCut == null || _chunkType == null || _chunkDamage == null) return null;
+            Component th = view.GetComponent(_treeHealthType);
+            if (th == null || !(bool)_thSpawnedCut.GetValue(th)) return null;
+            ChoppedTree t = new ChoppedTree();
+            t.Id = id;
+            t.Health = (int)_thHealth.GetValue(th);
+            Transform root = view.transform;
+            for (int c = 0; c < root.childCount; c++)
+            {
+                Transform child = root.GetChild(c);
+                int slot;
+                if (!int.TryParse(child.name, System.Globalization.NumberStyles.Integer,
+                                  System.Globalization.CultureInfo.InvariantCulture, out slot) || slot < 1 || slot > 4) continue;
+                Component chunk = child.GetComponentInChildren(_chunkType);
+                if (chunk == null) continue;
+                t.Add(slot, (float)_chunkDamage.GetValue(chunk));
+            }
+            return t.Slots.Count == 0 ? null : t;
+        }
+
+        /// The file's `chopped` line for a capture: each tree standing as a
+        /// cut model (its LOD_Trees disabled, the view a TreeHealth with
+        /// SpawnedCutTree). Null when none or the game's types are missing.
+        public List<string> CaptureChopped()
+        {
+            if (_currentView == null || _id == null || _treeId == null) return null;
+            List<string> list = null;
+            UnityEngine.Object[] all = SceneCache.Trees(_treeId);
+            Behaviour[] lods = TreeLods(all);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Behaviour lod = lods[i];
+                if (lod == null || lod.enabled) continue;
+                Component view = _currentView.GetValue(lod, null) as Component;
+                if (view == null) continue;
+                Component idc = all[i] as Component;
+                if (idc == null) continue;
+                ChoppedTree t = ReadChop((int)_id.GetValue(idc), view);
+                if (t == null) continue;
+                (list ?? (list = new List<string>())).Add(t.Format());
+            }
+            return list;
+        }
+
+        /// A Full load: every record's tree is chopped again once its
+        /// standing view is up. Returns the log note ("" when none).
+        public string ChopAgain(List<string> records)
+        {
+            Pending.Clear();
+            _pendingLods = null;
+            Dictionary<int, ChoppedTree> recs = ParseChopped(records);
+            if (recs.Count == 0 || _currentView == null || _id == null || _treeId == null) return "";
+            foreach (KeyValuePair<int, ChoppedTree> kv in recs) Pending.Add(kv.Value);
+            UnityEngine.Object[] all = SceneCache.Trees(_treeId);
+            SetPending(all, TreeLods(all));
+            ProcessPending();
+            return "trees: " + recs.Count + " half-chopped as captured (" + Pending.Count + " waiting for their view)";
+        }
+
+        /// Each frame from the module: the trees still waiting for a view,
+        /// looked at twice a second; dropped on a new world.
+        public void Tick()
+        {
+            if (Pending.Count == 0) return;
+            float now = Time.realtimeSinceStartup;
+            if (now < _nextChop) return;
+            _nextChop = now + 0.5f;
+            try
+            {
+                if (World() != _pendingWorld) { Pending.Clear(); _pendingLods = null; return; }
+                int before = Pending.Count;
+                ProcessPending();
+                if (Pending.Count < before)
+                    _log.LogInfo("NatureKeeper: " + (before - Pending.Count) + " tree(s) chopped again as captured (" + Pending.Count + " still waiting).");
+            }
+            catch (Exception ex)
+            {
+                Pending.Clear();
+                _log.LogWarning("NatureKeeper: chopping trees again failed: " + ex.Message);
+            }
+        }
+
+        // Chops again each pending tree whose standing view is up; the
+        // others stay (a far tree has no view until the player nears it).
+        private void ProcessPending()
+        {
+            if (_pendingLods == null || _thDoCut == null || _thHealth == null || _chunkType == null) { Pending.Clear(); return; }
+            for (int i = Pending.Count - 1; i >= 0; i--)
+            {
+                ChoppedTree rec = Pending[i];
+                Behaviour lod;
+                if (!_pendingLods.TryGetValue(rec.Id, out lod) || lod == null) { Pending.RemoveAt(i); continue; }
+                Component view = (_currentView.GetValue(lod, null) as Component);
+                if (view == null) continue;
+                Component th = view.GetComponent(_treeHealthType);
+                if (th == null) continue;
+                if ((bool)_thSpawnedCut.GetValue(th)) { Pending.RemoveAt(i); continue; }   // already a cut model
+                _thDoCut.Invoke(th, null);
+                Component cutView = (_currentView.GetValue(lod, null) as Component);
+                Component cth = cutView != null ? cutView.GetComponent(_treeHealthType) : null;
+                if (cutView == null || cth == null || !(bool)_thSpawnedCut.GetValue(cth)) { Pending.RemoveAt(i); continue; }
+                _thHealth.SetValue(cth, rec.Health);
+                Transform root = cutView.transform;
+                List<Transform> drop = new List<Transform>();
+                for (int c = 0; c < root.childCount; c++)
+                {
+                    Transform child = root.GetChild(c);
+                    int slot;
+                    if (!int.TryParse(child.name, System.Globalization.NumberStyles.Integer,
+                                      System.Globalization.CultureInfo.InvariantCulture, out slot) || slot < 1 || slot > 4) continue;
+                    int at = rec.Slots.IndexOf(slot);
+                    if (at < 0) { drop.Add(child); continue; }
+                    Component chunk = child.GetComponentInChildren(_chunkType);
+                    if (chunk == null) continue;
+                    float damage = rec.Damage[at];
+                    _chunkDamage.SetValue(chunk, damage);
+                    int fake = ChoppedTree.ActiveFake(damage);
+                    for (int k = 0; k < 4; k++)
+                    {
+                        GameObject f = ChunkFakes[k] != null ? ChunkFakes[k].GetValue(chunk) as GameObject : null;
+                        if (f != null) f.SetActive(k + 1 == fake);
+                    }
+                }
+                for (int d = 0; d < drop.Count; d++) UnityEngine.Object.Destroy(drop[d].gameObject);
+                Pending.RemoveAt(i);
+            }
         }
 
         // Each tree's LOD_Trees, for the cached tree list it was read for

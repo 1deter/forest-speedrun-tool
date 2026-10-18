@@ -254,9 +254,6 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   re-created by the scene load, which a Quick load does not clean up; and
   our streaming reload re-creates taken story-spot pickups (game-notes
   *Quick loads across a scene load*). Fix planned: tasks/notes/T-0066.md.
-- Trees: a Quick load regrows a half-chopped tree fully (as a Full load
-  does); once, one of two new sapling sticks was not removed; a Full load
-  does not put back a cut sapling's sticks.
 - Time of day sweep (v0.24.67): not reproduced; `SunSync` logs `sun: ...
   snapped` when it acts.
 - Cheesecake's hands held 2 s: a `hands still busy after 2 s - ...` line
