@@ -96,7 +96,7 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _autoRestart;
         // Kept across launches (runner maks, twice: practice mode and run
         // lines came back off; v0.24.191).
-        private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg, _ownLineLiveCfg;
+        private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg, _ownLineLiveCfg, _keepDoneCfg;
         private ConfigEntry<string> _compareCfg;
         private float _autoRestartAt;
 
@@ -132,6 +132,7 @@ namespace ForestOverlay.Modules
         // The last run cut short (a restart, an abort, a death) - kept to
         // see where it went wrong (maks, sxczurass; v0.24.200).
         private readonly LineBuffer _failedLine = new LineBuffer();
+        private readonly LineBuffer _doneLine = new LineBuffer();   // the just-finished run's own line (T-0410)
         private bool _failedFromOtherSegment;   // set around ArmRun when the Go switched segments
         private int _ghostHint;
 
@@ -755,6 +756,8 @@ namespace ForestOverlay.Modules
         {
             Attempt done = _recorder.Finish();
             if (done == null) { _status = "no run in progress"; return; }
+            _doneLine.Clear();
+            if (done.Samples.Count >= 2) _doneLine.Sync(done.Samples);
             _autoRestartCheckpoint = -1;
             FinishedRuns++;
             LastFinishSeconds = done.Duration;
@@ -891,6 +894,7 @@ namespace ForestOverlay.Modules
             _loadedSegmentId = s.Id;
             _attempts.Clear();
             _failedLine.Clear();   // another segment's failure is not this one's
+            _doneLine.Clear();
             _rowsDirty = true;
             // Cleared here, not left to UpdateLines: a segment with no
             // attempts has no reference either, and null == null never
@@ -1057,12 +1061,18 @@ namespace ForestOverlay.Modules
             }
 
             // Your own line is hidden while a run is going unless the setting is on (T-0393);
-            // once the run ends nothing is kept to draw (T-0410).
+            // once the run ends its line stays until the next start, if kept (T-0410).
+            if (running && _doneLine.Count > 0) _doneLine.Clear();
             Attempt current = ForestOverlay.Data.RunLineRules.ShowOwn(_showLines, _ownLineLiveCfg.Value, _camOn, running) ? _recorder.Current : null;
             if (current == null) _currentLine.Clear();
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;
             _lines.CurrentCount = _currentLine.Count;
+            if (_currentLine.Count == 0 && !running && _showLines && _keepDoneCfg.Value && _doneLine.Count > 0)
+            {
+                _lines.CurrentLine = _doneLine.Points;
+                _lines.CurrentCount = _doneLine.Count;
+            }
             _lines.FailedLine = _failedLine.Points;
             _lines.FailedCount = _showLines && _keepFailedCfg.Value ? _failedLine.Count : 0;
             UpdateLineMarks();
@@ -1087,6 +1097,7 @@ namespace ForestOverlay.Modules
             _lines.CurrentCount = 0;
             _lines.FailedCount = 0;
             _lines.HasGhost = false;
+            _doneLine.Clear();
             ClearLineMarks();
             _lineSource = null;
             _referenceLine.Clear();

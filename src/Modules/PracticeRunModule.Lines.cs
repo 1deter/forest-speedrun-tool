@@ -109,6 +109,8 @@ namespace ForestOverlay.Modules
             }
             _ownLineLiveCfg = ctx.Config.Bind("Runs", "RunLineOwnLive", false,
                 "Draw your own run's line while a run is going (off: it is hidden while a run is going).");
+            _keepDoneCfg = ctx.Config.Bind("Runs", "KeepFinishedRunLine", true,
+                "Keep the line of the run you just finished drawn after it ends, until the next run starts.");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
@@ -297,6 +299,14 @@ namespace ForestOverlay.Modules
             {
                 _ownLineLiveCfg.Value = own;
                 Ctx.Log.LogInfo("Run lines: your own line while running set to " + (own ? "on" : "off") + ".");
+            }
+            y += 22f;
+
+            bool done = UiKit.Toggle(new Rect(x, y, w, 20), _keepDoneCfg.Value, " Keep the finished run's line");
+            if (done != _keepDoneCfg.Value)
+            {
+                _keepDoneCfg.Value = done;
+                Ctx.Log.LogInfo("Run lines: keep the finished run's line set to " + (done ? "on" : "off") + ".");
             }
             y += 22f;
 
