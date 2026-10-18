@@ -15,8 +15,10 @@ namespace ForestOverlay.Game
     // The facts behind a run report (Data/RunReport): what code is
     // running beside the game.
     //
-    //  - the game's Assembly-CSharp.dll, hashed once per session on a
-    //    worker thread (8 MB, a few tens of ms - never on the main thread);
+    //  - the game's Assembly-CSharp code as Mono loaded it (the in-memory
+    //    image, T-0111), hashed once per session on a worker thread (8 MB,
+    //    a few tens of ms - never on the main thread); the file on disk is
+    //    hashed too and only noted when it differs;
     //  - BepInEx's loaded plugins other than this one, and patchers other
     //    than our updater;
     //  - assemblies loaded from files outside the game's Managed folder,
@@ -48,7 +50,10 @@ namespace ForestOverlay.Game
             {
                 try
                 {
-                    string hash = Sha256(path);
+                    string fileHash = Sha256(path);
+                    string why;
+                    string loaded = LoadedImageHash(GameAssembly(), out why);
+                    string hash = loaded ?? fileHash;
                     // A changed game: every type hashed, so the site can name
                     // what changed (run mode phase 3). Before GameHash is
                     // set - the report copies both once it is.
@@ -63,9 +68,15 @@ namespace ForestOverlay.Game
                         }
                         catch (Exception ex) { log.LogWarning("Run mode: could not hash the game's types: " + ex.Message); }
                     }
+                    _gameFileHash = loaded != null && loaded != fileHash ? fileHash : "";
+                    _gameFrom = loaded == null ? why : "";
                     _gameHash = hash;
                     log.LogInfo("Run mode: game code " + (Data.RunReport.IsKnownGame(_gameHash) ? "is the known Steam build" : "is NOT a known build") +
-                                " (Assembly-CSharp " + _gameHash.Substring(0, 12) + ").");
+                                " (Assembly-CSharp " + _gameHash.Substring(0, 12) + ", " +
+                                (loaded != null ? "loaded image" : "from the file: " + why) + ").");
+                    if (_gameFileHash.Length > 0)
+                        log.LogWarning("Run mode: the game's file on disk (" + fileHash.Substring(0, 12) +
+                                       ") is not the code that was loaded (" + loaded.Substring(0, 12) + ").");
                 }
                 catch (Exception ex)
                 {
@@ -76,6 +87,65 @@ namespace ForestOverlay.Game
         }
 
         private static volatile List<string> _typeHashes;
+        private static volatile string _gameFileHash = "";
+        private static volatile string _gameFrom = "";
+
+        /// The file's hash when it differs from GameHash ("" otherwise).
+        public static string GameFileHash { get { return _gameFileHash; } }
+
+        /// Why GameHash is the file's, not the loaded image's ("" when it is the image's).
+        public static string GameFrom { get { return _gameFrom; } }
+
+        /// SHA-256 of the Assembly-CSharp image Mono holds in memory (T-0111):
+        /// MonoImage* is the module's _impl; x64 layout raw_data at +16,
+        /// raw_data_len (uint32) at +24 (read live, docs/run-mode.md).
+        /// Null with why when it cannot be read; callers fall back to the file.
+        public static string LoadedImageHash(Assembly asm, out string why)
+        {
+            why = "";
+            try
+            {
+                if (IntPtr.Size != 8) { why = "32-bit game"; return null; }
+                FieldInfo f = typeof(Module).GetField("_impl", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (f == null) { why = "no module handle"; return null; }
+                object o = f.GetValue(asm.ManifestModule);
+                IntPtr img = o is IntPtr ? (IntPtr)o : IntPtr.Zero;
+                if (img == IntPtr.Zero) { why = "module handle is empty"; return null; }
+                IntPtr raw = System.Runtime.InteropServices.Marshal.ReadIntPtr(img, 16);
+                long len = (uint)System.Runtime.InteropServices.Marshal.ReadInt32(img, 24);
+                if (raw == IntPtr.Zero) { why = "image address is empty"; return null; }
+                if (len < 1024 * 1024 || len > 256L * 1024 * 1024) { why = "image length " + len + " is not plausible"; return null; }
+                byte[] head = new byte[64];
+                System.Runtime.InteropServices.Marshal.Copy(raw, head, 0, 64);
+                long pe = Data.RunReport.PeOffset(head);
+                byte[] sig = new byte[4];
+                if (pe > 0 && pe + 4 <= len) System.Runtime.InteropServices.Marshal.Copy(new IntPtr(raw.ToInt64() + pe), sig, 0, 4);
+                if (!Data.RunReport.PlausibleImage(head, len, sig)) { why = "image is not a PE file"; return null; }
+
+                byte[] buf = new byte[65536];
+                using (System.Security.Cryptography.SHA256 sha = new System.Security.Cryptography.SHA256Managed())
+                {
+                    for (long off = 0; off < len; off += buf.Length)
+                    {
+                        int n = (int)Math.Min(buf.Length, len - off);
+                        System.Runtime.InteropServices.Marshal.Copy(new IntPtr(raw.ToInt64() + off), buf, 0, n);
+                        sha.TransformBlock(buf, 0, n, null, 0);
+                    }
+                    sha.TransformFinalBlock(buf, 0, 0);
+                    return Hex(sha.Hash, 32);
+                }
+            }
+            catch (Exception ex) { why = ex.Message; return null; }
+        }
+
+        /// Bridge: `call static:ForestOverlay.Game.RunIntegrity CheckLoadedImage`
+        /// -> "<loaded hash> / <file hash>" (main thread, ~50 ms).
+        public static string CheckLoadedImage()
+        {
+            string why;
+            string loaded = LoadedImageHash(GameAssembly(), out why);
+            return (loaded ?? "none: " + why) + " / " + Sha256(Path.Combine(Paths.ManagedPath, "Assembly-CSharp.dll"));
+        }
 
         /// Per-type hashes of the game's code when its file is not a known
         /// build (null otherwise, or until read).
@@ -182,6 +252,8 @@ namespace ForestOverlay.Game
         public static void Gather(Data.RunReport r, string ownGuid, string ownPath)
         {
             r.GameHash = _gameHash;
+            r.GameFileHash = _gameFileHash;
+            r.GameFrom = _gameFrom;
             r.TypeHashes.Clear();
             List<string> types = _typeHashes;   // set before _gameHash
             if (r.GameHash.Length > 0 && types != null) r.TypeHashes.AddRange(types);

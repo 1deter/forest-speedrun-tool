@@ -549,8 +549,17 @@ than the table's plan:
   `_speedyrun` writes the player's run / swim speed instead (T-0413).
 - A bridge `go` / `restart` refused by run mode answers the refusal
   (T-0110, done).
-- The report reads the game's file on disk at startup, not the loaded
-  assembly. Per-type hashes (phase 3) can hash the loaded code instead.
+- The report hashes the game's code as Mono loaded it (T-0111): the
+  in-memory image of Assembly-CSharp (`MonoImage` from the module's `_impl`,
+  x64: `raw_data` at +16, length at +24), in 64 KB chunks on the startup
+  worker. It equals the file's hash on an untouched game, so the known hash
+  and the site's judging are unchanged. The file is hashed too; a different
+  file is a `gamefile` line and a note, not a failure. A 32-bit game or an
+  implausible image falls back to the file (`gamefrom` note). The per-type
+  hashes (`HashTypes`) still run only for an unknown build, not on every
+  launch: a pass keeps ~28-30 MB for the session and makes every full GC
+  ~10 ms (+14%) longer (measured, game-notes.md *The loaded game code in
+  memory*).
 - Since T-0112 only BepInEx's own runtime fixes are skipped (a BepInEx
   owner id or `harmony-auto-*`, and a patch method in
   `BepInEx/core/BepInEx.Preloader.dll`; `Data/PlatformPatches`); every

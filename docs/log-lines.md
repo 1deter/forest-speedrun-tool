@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-251 prefixes from 862 log calls.
+251 prefixes from 863 log calls.
 
 ## `ActionReaders`
 
@@ -1635,8 +1635,9 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: refused <what>.`
 - warning `Run mode: could not hash the game's code: <ex.Message>`
 - warning `Run mode: could not hash the game's types: <ex.Message>`
-- info `Run mode: game code <..> (Assembly-CSharp <..>).`
+- info `Run mode: game code <..> (Assembly-CSharp <..>, <..>).`
 - info `Run mode: hashed <_typeHashes.Count> types of the game's code for the site to compare (<sw.ElapsedMilliseconds> ms).`
+- warning `Run mode: the game's file on disk (<..>) is not the code that was loaded (<..>).`
 - info `Run mode: <list.Count> categories from the site<..>.`
 - info `Run mode: categories Check now.`
 - warning `Run mode: categories not fetched from <url>: <..>.`

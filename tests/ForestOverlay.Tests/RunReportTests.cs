@@ -151,6 +151,77 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void LoadedKnownButFileDifferentIsOkWithANote()
+        {
+            RunReport r = Clean();
+            r.GameFileHash = new string('a', 64);
+            Assert.True(r.Clean);
+            string text = r.Format();
+            Assert.Contains("gamefile = " + r.GameFileHash + "\n", text);
+            Assert.Contains("# Note  The game's file on disk is not the code that was loaded (aaaaaaaaaaaa).\n", text);
+            Assert.Contains("# OK  The game's code is the unmodified Steam game.\n", text);
+            RunReport back = RunReport.Parse(text);
+            Assert.Equal(r.GameFileHash, back.GameFileHash);
+            Assert.Equal("", back.GameFrom);
+        }
+
+        [Fact]
+        public void LoadedUnknownIsNotOkEvenIfTheFileIsKnown()
+        {
+            RunReport r = Clean();
+            r.GameHash = new string('b', 64);
+            r.GameFileHash = RunReport.KnownGameHashes[0];
+            Assert.False(r.Clean);
+            Assert.StartsWith("NOT OK  The game's code is not the Steam game's", r.Findings()[0]);
+        }
+
+        [Fact]
+        public void FallbackToTheFileIsANote()
+        {
+            RunReport r = Clean();
+            r.GameFrom = "32-bit game";
+            Assert.True(r.Clean);
+            string text = r.Format();
+            Assert.Contains("gamefrom = 32-bit game\n", text);
+            Assert.DoesNotContain("gamefile =", text);
+            Assert.Contains("# Note  The game's code was checked from its file, not from memory (32-bit game).\n", text);
+            Assert.Equal("32-bit game", RunReport.Parse(text).GameFrom);
+        }
+
+        [Fact]
+        public void OldReportsHaveNoNotes()
+        {
+            RunReport r = RunReport.Parse(Clean().Format());
+            Assert.Equal("", r.GameFileHash);
+            Assert.Equal("", r.GameFrom);
+            foreach (string line in r.Findings()) Assert.StartsWith("OK  ", line);
+        }
+
+        private static byte[] Head(int lfanew)
+        {
+            byte[] h = new byte[64];
+            h[0] = (byte)'M'; h[1] = (byte)'Z';
+            h[60] = (byte)lfanew; h[61] = (byte)(lfanew >> 8); h[62] = (byte)(lfanew >> 16);
+            return h;
+        }
+
+        [Fact]
+        public void LoadedImagePlausibility()
+        {
+            byte[] pe = { (byte)'P', (byte)'E', 0, 0 };
+            long len = 8231936;
+            Assert.True(RunReport.PlausibleImage(Head(128), len, pe));
+            Assert.False(RunReport.PlausibleImage(Head(128), 1000, pe));
+            Assert.False(RunReport.PlausibleImage(Head(128), 300L * 1024 * 1024, pe));
+            byte[] noMz = Head(128); noMz[0] = 0;
+            Assert.False(RunReport.PlausibleImage(noMz, len, pe));
+            Assert.False(RunReport.PlausibleImage(Head(128), len, new byte[] { (byte)'P', (byte)'E', 1, 0 }));
+            Assert.False(RunReport.PlausibleImage(Head(0), len, pe));
+            Assert.False(RunReport.PlausibleImage(Head(9000000), len, pe));
+            Assert.False(RunReport.PlausibleImage(new byte[10], len, pe));
+        }
+
+        [Fact]
         public void ParseOfNothingIsPending()
         {
             RunReport r = RunReport.Parse("");
