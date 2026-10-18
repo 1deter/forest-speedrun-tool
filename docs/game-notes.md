@@ -450,7 +450,7 @@ polls the same fields once a frame:
 | `passenger-<n>`, `passenger` | `LocalPlayer.PassengerManifest._foundPassengersIdsCount` | The ASL splits on the count, not on who. |
 | `hold-interact` | static `TheForest.Utils.Input.DelayedActionIsDown` | Set by `GetButtonAfterDelay` on the button-down frame of any hold action (27 callers: pickups, the plane meal, fires, Timmy / Megan pickups). The ASL's "plane meal start" is this flag rising while `Scene.FinishGameLoad`. A bridge `set` is cleared by the game's `Input.LateUpdate` the same frame - only a real hold shows it. |
 | `first-input` | Rewired `Input.player.GetButton(id)` for every action in `ReInput.mapping.Actions` but `Esc`, `Mouse X`, `Mouse Y`, or `Input.GetAxis("Horizontal" / "Vertical")` | After 0.25 s with none; not while `Cursor.visible` (menus, the overlay window); placement resets it (v0.24.193). The game has **50 other actions** (bridge, 2026-10-10). The camera is `Mouse X` / `Mouse Y` (`MouseLook.LookRotation` reads them through `Input.GetAxis` - IL); `Esc` opens the pause menu (`PlayerInventory.Update` -> `TogglePauseMenu` - IL). Bridge 2026-10-10 (T-0282): mouse look (yaw 90 -> 140) and Esc open / close fired nothing, Space fired it, an injected `axis Vertical` fired it. The bridge's injected `press` reaches `Input.GetButton(string)` only, not Rewired by id. The ASL's velocity start (`moving`: speed > 0.15 m/s, `FirstPersonCharacter` + 0x168) is gone (T-0282): the ASL could not read input. |
-| `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` **and** `PlayerClimbRopeAction._currentRopeRoot` set (`RopeClimb.IsOnRope`) | v0.24.193; the rope root since T-0242. `onRope` alone is not a rope (IL writers): `enterClimbMode` (rope, cliff and wall climb actions), `playerEnterCaveAction.doCave` (every crawl / climb cave mouth), `playerOpenKeypadDoorAction.openDoorRoutine` (keycard door, red elevator), `playerPlaceArtifactAction`, `PlayerGoodbyeTimmyAction`, `PlayerStats.dragAwayCutScene`, `playerHitReactions.enableExplodeCamera`, `playerEnterRockThrowerAction.exitThrower` - maks's run logged a "climb" at each cave mouth, the vault door and the red elevator. The game's wall climb (`PlayerClimbWallAction`, `activateClimb.climbType == wallClimb`) has no trigger in the main scene: all 21 `activateClimb` are `ropeClimb` (cave ropes + 12 fishing stands; bridge, 2026-10-09). |
+| `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` **and** `PlayerClimbRopeAction._currentRopeRoot` set (`RopeClimb.IsOnRope`) | v0.24.193; the rope root since T-0242. `onRope` alone is not a rope (IL writers): `enterClimbMode` (rope, cliff and wall climb actions), `playerEnterCaveAction.doCave` (every crawl / climb cave mouth), `playerOpenKeypadDoorAction.openDoorRoutine` (keycard door, red elevator), `playerPlaceArtifactAction`, `PlayerGoodbyeTimmyAction`, `PlayerStats.dragAwayCutScene`, `playerHitReactions.enableExplodeCamera`, `playerEnterRockThrowerAction.exitThrower` - maks's run logged a "climb" at each cave mouth, the vault door and the red elevator. The game's wall climb (`PlayerClimbWallAction`, `activateClimb.climbType == wallClimb`) has no trigger in the main scene: all 21 `activateClimb` are `ropeClimb` (cave ropes + 12 fishing stands; bridge, 2026-10-09), and the player's built Climbing Rope is `ropeClimb` too (T-0065, *Rope climb entrances*). |
 
 ### Segment events from the game's event bus and the rides (IL, not yet seen live)
 
@@ -2062,6 +2062,30 @@ keeps the player on it at the captured spot. A `MoveTo` does not end a climb
 header; before a Quick load, leave the current climb and enter the captured
 rope; after a Full load, after the hold - its per-frame pin undid a climb
 entered before it; Go / `tp` leave a climb).
+
+**The built Climbing Rope and the entry's height (bridge, 2026-10-18,
+T-0065).** The player's Climbing Rope (`BuildingTypes.ClimbingRope`,
+blueprint 49, `_builtPrefab` `RopeBuilt`, hung from a wall / platform
+anchor by `SingleAnchorStructure`) is a plain rope climb: `TriggerBottom`
+(`activateClimb`), `TriggerTop` (`activateClimbTop`), `ExitTriggerTop`
+(`exitClimb`), all `ropeClimb`, `_itemId` 0; `ropeSetGroundHeight` puts the
+bottom trigger 3.5 m above the ground 0.5 s after `Start`. Every built rope
+is `RopeBuilt(Clone)` at the scene root - one path for all (`GameObject.Find`
+returns the oldest). **`PlayerClimbWallAction` is unreachable**: only a
+`wallClimb` trigger sends `enterClimbWall`, and none exists (22
+`activateClimb` with inactive ones, all `ropeClimb`). **`enterClimbRopeTop`
+does not keep a height**: its climb-over-the-edge animation moves the body
+down several metres by root motion, and `stickToRope` then sets y to
+`exitTop - 4` for its first climbing frames (`_enteredTop`) - a restore
+entered from the top landed at the top (Cave10RopeSection: captured at y 35,
+held at 51.12), or, within ~7 m of the bottom trigger, slid past `bottom - 3`
+before `doingClimb` was set (an Invoke, 2.6 s): `stickToRope` breaks, its
+`exitClimbRopeGround` does nothing, and the player stays in the climb pose in
+the ground (`onRope`, kinematic). **`enterClimbRope(<activateClimb>)`** (the
+bottom entry) keeps the player's y every frame (`_onRopeAttachPos.y` = the
+body's); its grab animation lifts the body ~0.78 m over ~1.2 s, after which a
+position set holds; the climb then works (`Vertical` input climbs both ways,
+in a cave too).
 
 ### Rides: zipline, sled, hang glider, cliff climb (IL + bridge, v0.24.201-202)
 
