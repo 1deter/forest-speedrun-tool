@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.361 - 2026-10-18
+
+- A Quick load brings back animals killed since the save and removes ones that appeared since.
+- A Quick load also puts animals back where they stood and resets the game's animal spawn limits to the save.
+
 ## v0.24.360 - 2026-10-18
 
 - Input overlay: Add a tile on a key brings back its per-action tiles you removed.
