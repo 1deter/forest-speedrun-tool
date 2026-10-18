@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.362 - 2026-10-18
+
+- A Quick load of a save from another game session no longer brings back pickups you took before the save (pot, cash, bones).
+- After a save or Quick load, story pickups you had already taken (such as a tape) no longer reappear.
+
 ## v0.24.361 - 2026-10-18
 
 - A Quick load brings back animals killed since the save and removes ones that appeared since.
