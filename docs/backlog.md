@@ -200,7 +200,7 @@ Sorted by area. The QA message id is in brackets.
 **Knowledge bot:**
 - Answer length to match the question's effort (short question = short answer, a reply asks for more) [1556658561470304418].
 - Ways to improve it: efficiency, usefulness, self-learning [same]; how to scrape / learn from all the Forest Discords [1556657503456985291].
-- Research: similar LLM community projects - https://proto.bar/ftesurf/, https://jrik.dev/ [1556988625281884160].
+- Research: similar LLM community projects - https://proto.bar/ftesurf/, https://jrik.dev/ [1556988625281884160] Done 2026-10-18 (T-0092): neither is an LLM project; report and borrow list in tasks/notes/T-0092.md (sum-of-best replay, map-pin guessing game, Twitch-chat guess mode).
 
 **Community / Discord ideas (author, QA 2026-10-06 19:34-19:45, not scheduled):** challenge someone to a 1v1 from Discord (bot or webhook) - they click a link to join / sync, like jrik.dev; minigames hosted through the bot with a link out to the page, e.g. a Forest-themed Wordle and a Forest GeoGuessr (photo map) - to keep the community active when it goes quiet [1557098847816384553, 1557101594296983602].
 
