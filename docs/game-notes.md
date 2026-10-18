@@ -2499,6 +2499,89 @@ sit under `rightHandHeld`). Pool membership:
 Quick load, which leaves it where it rolled. Setting its `Transform.position`
 back and zeroing the `Rigidbody` velocities holds it there.
 
+**Fire, and what a Quick load leaves of it (bridge + decompiled code,
+2026-10-18, v0.24.357, T-0419).** Thrown fire (molotov, flare) reaches
+things by `MasterFireSpread.SpreadFire`: `SendMessage("Burn")` to every
+collider within `FireSpread` m. Who answers:
+- **Bushes, saplings, trees** - their pooled views carry `FireDamage`
+  (`Pool_Bushes/GreenBush_High(Clone)`: `DestroyWhenComplete`, `MyBurnt`
+  `GreenBushCut`, `FuelSeconds` 8) or `FireDamageTree : FireDamage`
+  (`Pool_Trees/*_High(Clone)`, `FuelSeconds` 15, no `MyBurnt`). Every
+  `FireDamage` in the scene is such a view (a census of the type, active or
+  not: only `Pool_Bushes` / `Pool_Trees` clones). `Burn()` nulls
+  `LodBase.CurrentLodTransform` and `LodBase`, then calls `Ignite(pos, 0)`.
+  The spread (`Spread`, every ~2-3 s) calls `Ignite(pos, gen + 1)` on a
+  neighbour's `FireDamage` (its LodBase left alone), else
+  `SendMessage("Burn")`. `Ignite` sets `isBurning`, spawns
+  `Pool_Particles/Fire(Clone)` per fire point (`FireParticle`, `Parent` =
+  the FireDamage) and swaps in `BurnMaterial`. `Update` burns
+  `usedFuelSeconds` up to `FuelSeconds` (smoke from
+  `Prefabs.SpawnBurntDustAndSmokePS` at 85 %), then calls
+  `FinishedBurning`: a bush instantiates `MyBurnt` (a root
+  `GreenBushCut(Clone)`, three falling pieces, gone ~3 s later by itself)
+  and destroys its view; a tree (single player) only stops, with no
+  lasting mark. **A bush lit by `Burn` loses its scene object at once**:
+  the LOD with no view destroys itself (`DestroyInsteadOfDisable`, as after
+  a cut). `Nature_Spawned/GreenBush_49` was destroyed 0.3 s after `Burn`;
+  its view burned on as an orphan (still `IsSpawned` in `Pool_Bushes`).
+  `LodBase` is a private field declared on `FireDamage`: read it through
+  that type, not a subclass.
+- **Built fires and cave fires** - `Fire2` (`_lit`, `_fuel` are
+  `[SerializeThis]`; `Burn()` lights an unlit one; `On()` / `Off()` are
+  private). `Off()` hides `FlamesAll` and the `FireDamage` child and leaves
+  `ModelLit` with the burnt material. The cave fires
+  (`Cave_FiresAll/C<n>_Fires/Cave_FireBuilt(Clone)`, 19) have **no
+  `StoreInformation`: they are not in the save**.
+- **Effigies** - `enableEffigy` (`lightBool` and a `SerializableTimer` are
+  saved). `lightEffigyReal` turns on `fires` and `effigyRange` (scares
+  cannibals) and hides `BirdMarkers`. `receiveLightFire` also calls
+  `Invoke("ShutdownFire", duration - 3)` and `Invoke("die", duration)`
+  (`duration` 600 on the small one); `die` destroys the effigy and drops
+  bones / skulls / rocks. `OnDeserialized` with `lightBool` lights it again
+  and invokes both from the timer, which runs from the effigy's `Awake` (its
+  build), not from the lighting.
+- **Cannibals** - `EnemyHealth.Burn` (`singeBurn` unless doused): `Fire[]`
+  on, `onFire`, the burnt skin material, `InvokeRepeating("HitFire", 2,
+  1)`, `Invoke("disableBurn", 4 / 7-14 s)`. `defaultMat` is null on
+  `mutant_male`, so nothing ever puts the skin back (a pool re-use
+  neither). `disableBurn` is the game's own end (fire off, `HitFire`
+  cancelled, `toBurnRecover`). `OnDisable` / `OnEnable` reset all of it.
+- **Animals** - `animalHealth.Burn`: `Fire` (`AnimalFireGo`) on,
+  `InvokeRepeating("HitFire", 3, 3)`, `Invoke("cancelFire", 15)`;
+  `cancelFire` is the end.
+- **The player** - `PlayerStats.Burn`: `IsLit`, `PlayerFlames`,
+  `InvokeRepeating("HitFire", 0, 3)`, `Invoke("StopBurning", 10)`.
+
+**After a Quick load** (live: each one captured, lit, restored):
+
+| Lit since the capture | Left by the Quick load |
+|---|---|
+| A tree (`FireDamageTree.Burn`) | still burning: `isBurning` True, 3 `Fire(Clone)` around it, `usedFuelSeconds` 3.6 |
+| A bush, burnt out | gone for good: the scene object went at the light, and nothing keeps it |
+| A bush, mid-burn | gone, its orphan view still burning |
+| A built fire (`FireBuilt`, in the save) | `Lit` False from the save, but its flames, light, `ModelLit` and fire-damage child still on |
+| A cave fire (not in the save) | lit, its fuel still draining (117 of 120) |
+| A small effigy (in the save) | `lightBool` False, but its fire and `effigy_range` on and `die` still invoked |
+| A cave cannibal (family kept by the restore) | `onFire`, `HitFire` running: health 35 -> 31 -> 27 after the restore |
+| A surface cannibal | out: the families' re-setup despawns it (`OnDisable`) |
+| A rabbit (kept, T-0415) | `AnimalFireGo` on, `HitFire` invoking, health not back (1 of 4) |
+| The player | out: the restore's wash (`GotCleanReal` -> `StopBurning`); only a stale `Invoke("StopBurning")` is left |
+
+**What puts each out (live):**
+- A `FireDamage`: `enabled = false` then `true` (its `OnDisable` is
+  `StopBurningEvent` + `StopBurning`: particles despawned, sound stopped,
+  material back), then `usedFuelSeconds = 0`. Result: `isBurning` False,
+  no `Fire(Clone)` left.
+- An orphan bush view: `SpawnPool.Despawn` on `Pool_Bushes` (its
+  `OnDisable` puts the fire out too).
+- A `Fire2`: `Off()`, then `ModelLit` inactive for the never-lit look.
+  `Burn()` lit it again afterwards.
+- An effigy: `CancelInvoke("die")` and `("ShutdownFire")`, `fires` and
+  `effigyRange` inactive, `BirdMarkers` active. Lighting it again worked.
+- A cannibal: `disableBurn()` (health stayed 30 over 6 s; a pending
+  `disableBurn` invoke is left to cancel).
+- An animal: `cancelFire()` + `CancelInvoke("cancelFire")`.
+
 **Streaming comes back by itself.** `ForcedUnload(bool)` on
 `GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
 `SceneUnloadInCave.Awake` registers `CheckInCave` with
