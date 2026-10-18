@@ -210,6 +210,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 110. **A collider is not the drawn shape** - a pool rock's collider is a sphere (Rock05, r ~2.6 m), far off the game may draw a coarser cave mesh (+-17 cm), and a cave's mesh collider is itself up to 10 cm off its near mesh; aim at what is drawn (the depth texture), snap to a mesh collider only from 10 m, and let paint show further in front of the scene (8 %) than behind it (2 %) (T-0296); known limits shipped: far pool rocks (trigger sphere only, T-0352), the 8 % band's trade, old strokes on rock spheres vanish, +2.2 ms a frame while painting. [judgement]
 116. **A view gathered around the player goes stale under a flown camera** - the replay camera is a second freecam; place it around `DrawTarget.FreeCam`, else the player; a version named in a report is a guess until the session log agrees (`Replay camera: on`, a constant verts/frame) (T-0389). [judgement]
 119. **A real mouse does not report every frame** - a per-frame raw delta is zero on many frames while the mouse moves; gate on a hold-off or smoothed velocity, never "moved this frame" (T-0383). [check: in game]
+122. **A prefix on a tiny getter misses callers compiled before the patch** - Mono inlines it at the caller's JIT; transpile the readers that must see it, and test with a caller the game already ran, not by reflection (T-0431). [check: in game]
 
 ### Restores (savestates)
 

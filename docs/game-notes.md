@@ -455,11 +455,15 @@ inventory mat) to `TheForest.Items.Special.LogControler`
   targets a plain `BuildingHealth` only while `!HasLogs`, so a plain part
   missing logs takes none even in vanilla. A `FoundationHealth` part takes
   them.
-- **The `get_HasLogs` prefix does not reach every reader** (live,
-  2026-10-19, T-0431). Called by reflection it answers patched, but
-  `PlayerInventory.Equip` refused a right-hand item while `_logs` > 0 and
-  equipped it at 0. Most likely the 10-byte getter is JIT-inlined into its
-  callers, so only transpiled readers see the store.
+- **A Harmony prefix on `get_HasLogs` / `get_Amount` reaches only callers
+  JIT-compiled after the patch** (live, 2026-10-19, T-0431). Mono inlines
+  the 10-byte getter into a caller when that caller is compiled, so a
+  caller compiled earlier keeps the raw `_logs` read. With the mod on and 2
+  stored, `HideRightHand` (first run after the patch) kept both, while
+  `HideAllEquiped` (compiled before the patch, same logs branch) dropped
+  both. `PlayerInventory.Equip` is compiled at load, so it refused right-hand
+  items. Readers that must see a patched answer are transpiled (a fresh
+  DMD). The same holds for any tiny game getter.
 
 `Game/LogStore` (the *Logs in the inventory* mod) keeps the count in
 `_logs` and patches around it - see its header.
