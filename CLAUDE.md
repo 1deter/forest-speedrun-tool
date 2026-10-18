@@ -157,6 +157,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0020, chain C-0002, unattended):** 4 of 5 progressed,
+  3 confirmed in game. v0.24.345 T-0056 (runner hang not reproduced; a
+  cached LocalPlayer held the old world ~126 MB after a cave tp + Full
+  load), v0.24.346 T-0065 (rope restores keep the height and the rope;
+  no wall climb exists), v0.24.347 T-0067 (half-chopped trees, sapling
+  sticks as captured), T-0412 (tasks.py warns when a built plugin task's
+  commits touch no plugin path). Parked for the author: T-0066 (build
+  plan ready; 2 choices on story-spot pickups / old files), plus T-0409,
+  T-0411, T-0410, T-0366. **Next:** answer the parked questions; the
+  chain's next run.
+
 - **2026-10-18 (run R-0019, chain C-0002, unattended):** 4 of 5 progressed,
   3 confirmed in game. v0.24.342-343 T-0034 (the old world after a Full
   load: the A* path pool + our drawings view freed; heap flat over 4
@@ -176,12 +187,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   author: T-0410 (keep your finished run's line drawn after it ends?),
   T-0366. **Next:** answer T-0410; confirm T-0391 / T-0398 / T-0401 /
   T-0404 / T-0408 in game; a fresh session for the next run.
-
-- **2026-10-18 (session 4, quick pair):** v0.24.337 T-0398 (Inventory held
-  marks read the live equipment slots) + T-0401 (untimed spot: 'This spot
-  is not timed: no checkpoints to show.'), checker accept both - need
-  in-game confirm. **Next:** the overnight loop; confirm T-0391 / T-0398 /
-  T-0401 / T-0404 / T-0408 in game.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

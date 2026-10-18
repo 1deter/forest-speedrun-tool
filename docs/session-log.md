@@ -2,6 +2,14 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (run R-0020 handoff)
+
+- **2026-10-18 (session 4, quick pair):** v0.24.337 T-0398 (Inventory held
+  marks read the live equipment slots) + T-0401 (untimed spot: 'This spot
+  is not timed: no checkpoints to show.'), checker accept both - need
+  in-game confirm. **Next:** the overnight loop; confirm T-0391 / T-0398 /
+  T-0401 / T-0404 / T-0408 in game.
+
 ## Moved out 2026-10-18 (run R-0019 handoff)
 
 - **2026-10-17 (session 3, low usage):** v0.24.336 T-0404 (Items fold is a
