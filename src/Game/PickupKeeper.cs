@@ -385,7 +385,7 @@ namespace ForestOverlay.Game
             if (_rootTypesLoaded) return;
             _rootTypesLoaded = true;
             _fakeParentType = GameBridge.FindGameType("TheForest.Utils.FakeParent");
-            _heldIdType = GameBridge.FindGameType("HeldItemIdentifier") ?? GameBridge.FindGameType("TheForest.Items.HeldItemIdentifier");
+            _heldIdType = GameBridge.FindGameType("TheForest.Items.Inventory.HeldItemIdentifier");   // ILScan
             _markerTypes = new Type[MarkerNames.Length];
             for (int i = 0; i < MarkerNames.Length; i++)
             {
@@ -645,7 +645,7 @@ namespace ForestOverlay.Game
                         has[m] = _markerTypes[m] != null && r.GetComponent(_markerTypes[m]) != null;
                         any |= has[m];
                     }
-                    string kind = DroppedPoses.ThrownKind(has[2], has[3], has[1], has[4], r.name, any);
+                    string kind = DroppedPoses.ThrownKind(has[2], has[3], has[1], has[4], r.name.StartsWith("FlareSpawn", StringComparison.Ordinal), any);
                     if (kind.Length == 0) continue;
                     if (!poolsRead) { poolsRead = true; poolsOk = LoadPools(); }
                     if (!poolsOk || IsPooled(r.transform)) continue;

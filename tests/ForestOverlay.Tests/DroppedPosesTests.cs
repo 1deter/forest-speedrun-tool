@@ -57,13 +57,13 @@ namespace ForestOverlay.Tests
         [Fact]
         public void ThrownKindLabels()
         {
-            Assert.Equal("bomb", DroppedPoses.ThrownKind(true, false, false, false, "Bomb_Timed(Clone)", false));
-            Assert.Equal("explosion", DroppedPoses.ThrownKind(false, true, false, false, "Explosion", true));
-            Assert.Equal("molotov", DroppedPoses.ThrownKind(false, false, true, false, "Molotov(Clone)", true));
-            Assert.Equal("flare", DroppedPoses.ThrownKind(false, false, false, true, "Flare(Clone)", false));
-            Assert.Equal("flare", DroppedPoses.ThrownKind(false, false, false, false, "FlareSpawn(Clone)", true));
-            Assert.Equal("effect", DroppedPoses.ThrownKind(false, false, false, false, "rabbitExploded(Clone)", true));
-            Assert.Equal("", DroppedPoses.ThrownKind(false, false, false, false, "x", false));
+            Assert.Equal("bomb", DroppedPoses.ThrownKind(true, false, false, false, false, false));
+            Assert.Equal("explosion", DroppedPoses.ThrownKind(false, true, false, false, false, true));
+            Assert.Equal("molotov", DroppedPoses.ThrownKind(false, false, true, false, false, true));
+            Assert.Equal("flare", DroppedPoses.ThrownKind(false, false, false, true, false, false));
+            Assert.Equal("flare", DroppedPoses.ThrownKind(false, false, false, false, true, true));
+            Assert.Equal("effect", DroppedPoses.ThrownKind(false, false, false, false, false, true));
+            Assert.Equal("", DroppedPoses.ThrownKind(false, false, false, false, false, false));
         }
     }
 }

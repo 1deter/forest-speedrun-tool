@@ -87,12 +87,12 @@ namespace ForestOverlay.Data
 
         /// The label a thrown thing counts under, from which marker
         /// components its root carries; "" when none marks it as one.
-        public static string ThrownKind(bool bomb, bool explode, bool molotov, bool flareWeapon, string rootName, bool other)
+        public static string ThrownKind(bool bomb, bool explode, bool molotov, bool flareWeapon, bool flareSpawn, bool other)
         {
             if (bomb) return "bomb";
             if (explode) return "explosion";
             if (molotov) return "molotov";
-            if (flareWeapon || (rootName != null && rootName.StartsWith("FlareSpawn", StringComparison.Ordinal))) return "flare";
+            if (flareWeapon || flareSpawn) return "flare";
             return other ? "effect" : "";
         }
     }
