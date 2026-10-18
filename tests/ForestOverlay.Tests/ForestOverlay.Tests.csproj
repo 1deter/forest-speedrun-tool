@@ -71,6 +71,7 @@
     <Compile Include="../../src/Data/PickupMatch.cs" Link="Linked/PickupMatch.cs" />
     <Compile Include="../../src/Data/SpawnMark.cs" Link="Linked/SpawnMark.cs" />
     <Compile Include="../../src/Data/DroppedPoses.cs" Link="Linked/DroppedPoses.cs" />
+    <Compile Include="../../src/Data/DespawnTimer.cs" Link="Linked/DespawnTimer.cs" />
     <Compile Include="../../src/Data/ChoppedTree.cs" Link="Linked/ChoppedTree.cs" />
     <Compile Include="../../src/Data/CapturedAreas.cs" Link="Linked/CapturedAreas.cs" />
     <Compile Include="../../src/Data/LookupCache.cs" Link="Linked/LookupCache.cs" />

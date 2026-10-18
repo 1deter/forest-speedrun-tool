@@ -8,13 +8,28 @@ namespace ForestOverlay.Data
     /// The savestate's `dropped` line (T-0416): where each loose world item
     /// (a root object with a pickup, no identifier) lay at the capture, keyed
     /// by the root's GameObject instance id, so a restore can put a copy that
-    /// rolled since back. Format `id:item@x,y,z@qx,qy,qz,qw;...`. Pure.
+    /// rolled since back. Format `id:item@x,y,z@qx,qy,qz,qw;...`, with an
+    /// optional 4th segment of comma tags (T-0418): `p` (a copy of the item's
+    /// own drop prefab, re-made when it is gone), `t<age>` (its despawn timer
+    /// ran, `age` game seconds old) or `s` (it has one, not running). Unknown
+    /// tags are ignored. Pure.
     public static class DroppedPoses
     {
+        /// What the capture knew of a copy's despawn timer.
+        public enum TimerKind
+        {
+            Unknown,        // no tag: a file from before T-0418, or no timer component
+            Running,        // `t<age>`
+            Stopped         // `s`
+        }
+
         public struct Pose
         {
             public int Item;
             public float X, Y, Z, Qx, Qy, Qz, Qw;
+            public bool Remake;
+            public TimerKind Timer;
+            public float Age;
         }
 
         private static string F(float v) { return v.ToString("R", CultureInfo.InvariantCulture); }
@@ -31,8 +46,54 @@ namespace ForestOverlay.Data
                   .Append(p.Item.ToString(CultureInfo.InvariantCulture)).Append('@')
                   .Append(F(p.X)).Append(',').Append(F(p.Y)).Append(',').Append(F(p.Z)).Append('@')
                   .Append(F(p.Qx)).Append(',').Append(F(p.Qy)).Append(',').Append(F(p.Qz)).Append(',').Append(F(p.Qw));
+                string tags = Tags(p);
+                if (tags.Length > 0) sb.Append('@').Append(tags);
             }
             return sb.ToString();
+        }
+
+        private static string Tags(Pose p)
+        {
+            string s = p.Remake ? "p" : "";
+            if (p.Timer == TimerKind.Running) s += (s.Length > 0 ? "," : "") + "t" + F(p.Age);
+            else if (p.Timer == TimerKind.Stopped) s += (s.Length > 0 ? "," : "") + "s";
+            return s;
+        }
+
+        private static void ReadTags(string seg, ref Pose p)
+        {
+            string[] tags = seg.Split(',');
+            for (int i = 0; i < tags.Length; i++)
+            {
+                string t = tags[i].Trim();
+                if (t == "p") p.Remake = true;
+                else if (t == "s") { p.Timer = TimerKind.Stopped; p.Age = 0f; }
+                else if (t.Length > 1 && t[0] == 't')
+                {
+                    float age;
+                    if (float.TryParse(t.Substring(1), NumberStyles.Float, CultureInfo.InvariantCulture, out age) && age >= 0f)
+                    {
+                        p.Timer = TimerKind.Running;
+                        p.Age = age;
+                    }
+                }
+            }
+        }
+
+        /// The captured ids to make again: flagged `Remake`, made at runtime
+        /// (negative id), of a real item, and not among `present` (the
+        /// captured ids still in the world, hidden ones too).
+        public static List<int> ToRemake(Dictionary<int, Pose> poses, ICollection<int> present)
+        {
+            List<int> ids = new List<int>();
+            if (poses == null) return ids;
+            foreach (KeyValuePair<int, Pose> kv in poses)
+            {
+                if (!kv.Value.Remake || kv.Key >= 0 || kv.Value.Item <= 0) continue;
+                if (present != null && present.Contains(kv.Key)) continue;
+                ids.Add(kv.Key);
+            }
+            return ids;
         }
 
         /// Instance id -> pose. A part that does not parse is skipped; never null.
@@ -47,16 +108,17 @@ namespace ForestOverlay.Data
                 int colon = part.IndexOf(':');
                 if (colon <= 0) continue;
                 string[] seg = part.Substring(colon + 1).Split('@');
-                if (seg.Length != 3) continue;
+                if (seg.Length != 3 && seg.Length != 4) continue;
                 int id, item;
                 if (!int.TryParse(part.Substring(0, colon), NumberStyles.Integer, CultureInfo.InvariantCulture, out id)) continue;
                 if (!int.TryParse(seg[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out item)) continue;
                 float[] v = new float[7];
                 if (!Floats(seg[1], v, 0, 3) || !Floats(seg[2], v, 3, 4)) continue;
-                Pose p;
+                Pose p = new Pose();
                 p.Item = item;
                 p.X = v[0]; p.Y = v[1]; p.Z = v[2];
                 p.Qx = v[3]; p.Qy = v[4]; p.Qz = v[5]; p.Qw = v[6];
+                if (seg.Length == 4) ReadTags(seg[3], ref p);
                 map[id] = p;
             }
             return map;
