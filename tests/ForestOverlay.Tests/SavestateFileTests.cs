@@ -191,6 +191,24 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void AnimalsRoundTripAndAreNullWhenAbsent()
+        {
+            string error;
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Animals);
+
+            SavestateFile s = Sample();
+            s.Animals = "-1234:4@0,0.5,0,0;5678:2@1,0,0.25,0@p";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Animals, back.Animals);
+            Assert.Equal(s.Data, back.Data);
+            Assert.Equal(s.Animals, s.Copy().Animals);
+
+            s.Animals = "";
+            Assert.Null(SavestateFile.Parse(s.Write(), out error).Animals);
+        }
+
+        [Fact]
         public void FiresRoundTripAreNullInOldFilesAndEmptyIsNotAbsent()
         {
             string error;

@@ -536,5 +536,17 @@ capture)`. Gaps left: a cannibal or animal burning at the capture is put out
 too (T-0424: its fire timer is not recorded); a fire burning at the capture
 keeps its current fuel, not the captured one; a built fire burnt out before
 the capture and lit again since gets the unlit model, not the burnt one; a
-kept animal's health, hurt skin and poison (T-0425; game-notes *An animal's
-health, hurt skin and poison*) and a cannibal's burnt skin are not put back.
+cannibal's burnt skin is not put back.
+
+A kept animal's health, hurt skin and poison (T-0425; game-notes *An
+animal's health, hurt skin and poison*; `animalHealth` is not in the save).
+The capture writes an `animals` header line (Data/AnimalStates,
+Game/AnimalKeeper): per live animal its root's instance id, `Health`, the
+skin property block's `_Damage1-4` and whether `HitPoison` was pending. A
+Quick load of the same world and launch (the `spawned` mark) sets back a
+differing `Health`, rewrites the skin floats, and cancels `HitPoison` /
+`disablePoison` on an animal not poisoned at the capture. The restore line
+gains `| animals: N put back (health xN, skin xN, poison stopped xN)`.
+Gaps left: an animal killed since stays dead, one spawned since stays,
+none is moved back; poison running at the capture keeps its current state;
+a deer's longer flee distance after a hit is not put back.

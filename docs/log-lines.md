@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-250 prefixes from 847 log calls.
+251 prefixes from 851 log calls.
 
 ## `ActionReaders`
 
@@ -50,6 +50,16 @@ Meaning: The allocation tracker's report (Debug view): KB/s and objects/s, then 
 Written by DebugViewModule.cs; info.
 
 - info `<..>` *(declared)*
+
+## `AnimalKeeper`
+
+Meaning: A kept animal's health, hurt skin and poison after a Quick load (T-0425): a warning means the animals are left as they are.
+Written by AnimalKeeper.cs; warning.
+
+- warning `AnimalKeeper: animalHealth.Health not found; animals are left as they are.`
+- warning `AnimalKeeper: capture failed: <ex.Message>`
+- warning `AnimalKeeper: resolving failed: <ex.Message>`
+- warning `AnimalKeeper: restore failed: <ex.Message>`
 
 ## `AreaKeeper`
 

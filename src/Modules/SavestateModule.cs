@@ -57,6 +57,7 @@ namespace ForestOverlay.Modules
         private AreaKeeper _area;
         private NatureKeeper _nature;
         private FireKeeper _fire;
+        private AnimalKeeper _animals;
         private GreebleKeeper _greebles;
         private BreakableKeeper _breakables;
         private EnemyKeeper _enemies;
@@ -140,6 +141,7 @@ namespace ForestOverlay.Modules
             _nature.Install(OverlayPlugin.PluginGuid);
             _fire = new FireKeeper(ctx.Log);
             _fire.Install(OverlayPlugin.PluginGuid);
+            _animals = new AnimalKeeper(ctx.Log);
             _greebles = new GreebleKeeper(ctx.Log);
             _greebles.Install(OverlayPlugin.PluginGuid);
             _breakables = new BreakableKeeper(ctx.Log);
@@ -451,6 +453,7 @@ namespace ForestOverlay.Modules
             public string Bushes = "", Spawned = "", Dropped = "";
             // Null until its step ran: no line rather than "none lit".
             public string Fires;
+            public string Animals = "";
             public List<string> CutBushes, Chopped, Greebles, Broken;
             public string Areas = "", EnemyNote = "";
             public List<string> Enemies = new List<string>();
@@ -560,6 +563,7 @@ namespace ForestOverlay.Modules
                     p.CutBushes = _nature.CaptureCuts();
                     p.Chopped = _nature.CaptureChopped();
                     p.Fires = _fire.Capture();
+                    p.Animals = _animals.Capture();
                     break;
                 case 8: p.Greebles = _greebles.Capture(); break;
                 case 9: p.Broken = _breakables.Capture(); break;
@@ -677,6 +681,7 @@ namespace ForestOverlay.Modules
                 f.Dropped = dropped;
                 f.CutBushes = cutBushes;
                 f.Fires = p.Fires;
+                f.Animals = p.Animals;
                 f.Chopped = chopped;
                 f.Greebles = greebles;
                 f.Broken = broken;
@@ -1082,6 +1087,15 @@ namespace ForestOverlay.Modules
                 // bushes come back, so a copy never meets a live fire.
                 string fireNote = r.Ok ? _fire.Restore(file != null ? file.Bushes : "", file != null ? file.Fires : null) : "";
                 RestoreGarbage.Mark("fire");
+                // A kept animal's health, hurt skin and poison (T-0425);
+                // after the fire put-out, same world and launch only.
+                string animalNote = "";
+                if (r.Ok && file != null)
+                {
+                    bool sameWorld = SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()) < 0;
+                    animalNote = _animals.Restore(file.Animals, sameWorld);
+                }
+                RestoreGarbage.Mark("animals");
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
                 string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null, file != null ? file.Chopped : null) : "";
@@ -1172,6 +1186,7 @@ namespace ForestOverlay.Modules
                               (weatherNote.Length == 0 ? "" : " | " + weatherNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
                               (fireNote.Length == 0 ? "" : " | " + fireNote) +
+                              (animalNote.Length == 0 ? "" : " | " + animalNote) +
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
                               (guideNote.Length == 0 ? "" : " | " + guideNote) +
                               (greebleNote.Length == 0 ? "" : " | " + greebleNote) +
