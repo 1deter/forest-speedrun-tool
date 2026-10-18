@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.343 - 2026-10-18
+
+- The 100% tab no longer keeps the previous world in memory for up to 10 s after each load.
+
 ## v0.24.342 - 2026-10-18
 
 - After a Full load or a death reload the previous world's pathfinding data is freed at once (75-115 MB in our tests) instead of being held for minutes, so memory no longer climbs with each load.
