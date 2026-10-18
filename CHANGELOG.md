@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.360 - 2026-10-18
+
+- Input overlay: Add a tile on a key brings back its per-action tiles you removed.
+- Removing a key's tile now says which of its action tiles go with it.
+
 ## v0.24.359 - 2026-10-18
 
 - A Quick load gives an animal that was alive at the save back its health and its hurt look as they were.
