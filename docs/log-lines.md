@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-247 prefixes from 816 log calls.
+248 prefixes from 820 log calls.
 
 ## `ActionReaders`
 
@@ -178,6 +178,16 @@ Meaning: The game's GotoCave / IsInCaves members found by reflection (startup).
 Written by GameBridge.cs; info.
 
 - info `Cave switch: GotoCave:<..> IsInCaves:<..>`
+
+## `Census paths`
+
+Meaning: Bridge-only leak finder (T-0034): the shortest field path from a static or one of our scripts to each destroyed object still held, grouped by path shape, and to objects of a named type.
+Written by MemoryCensus.cs; info.
+
+- info `  <typeName>: <..>` *(declared)*
+- info `  destroyed x<..>: <..>` *(declared)*
+- info `  e.g. <..>` *(declared)*
+- info `<summary>` *(declared)*
 
 ## `Checkpoint state`
 

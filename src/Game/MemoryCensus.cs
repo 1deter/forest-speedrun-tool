@@ -390,6 +390,224 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
+        private struct Link
+        {
+            public object Parent;
+            public string Edge;
+            public Link(object parent, string edge) { Parent = parent; Edge = edge; }
+        }
+
+        /// Who holds a destroyed world (dev; the bridge calls it, T-0034): a
+        /// breadth-first walk from every static of `Assemblies` (or only
+        /// ForestOverlay's, ownOnly) and this plugin's live scripts, through
+        /// plain and destroyed objects, stopping at live Unity objects. Logs
+        /// the shortest field path to each destroyed Unity object whose
+        /// holder is still alive (the first `max`), and to the first `max`
+        /// objects whose type name is `typeName` ("" = none) - the edge into
+        /// the old world. Walks up to 8 M objects / 90 s: a freeze of seconds.
+        public string Paths(string typeName, int max, bool ownOnly)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            if (_roots == null) FindRoots();
+            Dictionary<object, Link> parent = new Dictionary<object, Link>(new RefEq());
+            Queue<object> queue = new Queue<object>();
+            List<object> deadHits = new List<object>();
+            Dictionary<string, int> deadGroups = new Dictionary<string, int>();
+            List<object> typeHits = new List<object>();
+            int deadTotal = 0, typeTotal = 0, walked = 0;
+            const int Budget = 8000000;
+            bool timedOut = false;
+
+            for (int i = 0; i < _roots.Count; i++)
+            {
+                FieldInfo fi = _roots[i].Field;
+                if (ownOnly && !fi.DeclaringType.Assembly.GetName().Name.StartsWith("ForestOverlay", StringComparison.Ordinal)) continue;
+                object value;
+                try { value = fi.GetValue(null); }
+                catch (Exception) { continue; }
+                Enqueue(value, null, _roots[i].Name, parent, queue);
+            }
+            MonoBehaviour[] ours = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>();
+            for (int i = 0; i < ours.Length; i++)
+            {
+                if (ours[i] == null || !ours[i].GetType().Assembly.GetName().Name.StartsWith("ForestOverlay", StringComparison.Ordinal)) continue;
+                if (parent.ContainsKey(ours[i])) continue;
+                parent[ours[i]] = new Link(null, "[script] " + ours[i].GetType().Name);
+                EnqueueFields(ours[i], ours[i].GetType(), parent, queue);
+            }
+
+            while (queue.Count > 0)
+            {
+                if (++walked > Budget) break;
+                if ((walked & 0xFFFF) == 0 && sw.Elapsed.TotalSeconds > 90) { timedOut = true; break; }
+                object o = queue.Dequeue();
+                Type t = o.GetType();
+
+                if (typeName.Length > 0 && t.Name == typeName)
+                {
+                    typeTotal++;
+                    if (typeHits.Count < max) typeHits.Add(o);
+                }
+
+                if (o is UnityEngine.Object)
+                {
+                    if ((UnityEngine.Object)o != null) continue;   // live: belongs to the scene
+                    Link up;
+                    bool holderDead = parent.TryGetValue(o, out up) && up.Parent is UnityEngine.Object && (UnityEngine.Object)up.Parent == null;
+                    if (!holderDead)
+                    {
+                        deadTotal++;
+                        string group = Normalised(PathOf(o, parent)) + " -> " + t.Name;
+                        int n;
+                        if (!deadGroups.TryGetValue(group, out n)) deadHits.Add(o);
+                        deadGroups[group] = n + 1;
+                    }
+                    EnqueueFields(o, t, parent, queue);
+                    continue;
+                }
+
+                Array arr = o as Array;
+                if (arr != null)
+                {
+                    if (t.GetElementType().IsValueType) continue;
+                    int k = 0;
+                    foreach (object e in arr) { Enqueue(e, o, "[" + k + "]", parent, queue); k++; }
+                    continue;
+                }
+
+                Delegate d = o as Delegate;
+                if (d != null)
+                {
+                    Delegate[] list = d.GetInvocationList();
+                    for (int i = 0; i < list.Length; i++)
+                        Enqueue(list[i].Target, o, ".Target(" + list[i].Method.Name + ")", parent, queue);
+                    continue;
+                }
+
+                if (IsFrameworkCollection(t))
+                {
+                    try
+                    {
+                        IDictionary dict = o as IDictionary;
+                        if (dict != null)
+                        {
+                            int k = 0;
+                            foreach (DictionaryEntry e in dict)
+                            {
+                                Enqueue(e.Key, o, ".key" + k, parent, queue);
+                                Enqueue(e.Value, o, "{" + Short(e.Key) + "}", parent, queue);
+                                k++;
+                            }
+                            continue;
+                        }
+                        IEnumerable en = o as IEnumerable;
+                        if (en != null)
+                        {
+                            int k = 0;
+                            foreach (object e in en) { Enqueue(e, o, "[" + k + "]", parent, queue); k++; }
+                            continue;
+                        }
+                    }
+                    catch (InvalidOperationException) { _changed++; continue; }
+                }
+
+                EnqueueFields(o, t, parent, queue);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Census paths (").Append(sw.ElapsedMilliseconds).Append(" ms, ").Append(walked).Append(" objects")
+              .Append(ownOnly ? ", ForestOverlay's roots" : ", every root").Append("): ")
+              .Append(deadTotal).Append(" destroyed object(s) held by live ones");
+            if (typeName.Length > 0) sb.Append(", ").Append(typeTotal).Append(' ').Append(typeName);
+            if (walked > Budget) sb.Append(" | CAPPED");
+            if (timedOut) sb.Append(" | stopped after 90 s");
+            string summary = sb.ToString();
+            _log.LogInfo(summary);   // log: Census paths
+            // One line per path shape (indexes and keys out), biggest first,
+            // then the first example of each shown shape.
+            List<KeyValuePair<string, int>> groups = new List<KeyValuePair<string, int>>(deadGroups);
+            groups.Sort(delegate(KeyValuePair<string, int> a, KeyValuePair<string, int> b) { return b.Value.CompareTo(a.Value); });
+            for (int i = 0; i < groups.Count && i < max; i++)
+                _log.LogInfo("  destroyed x" + groups[i].Value + ": " + groups[i].Key);   // log: Census paths
+            for (int i = 0; i < groups.Count && i < max; i++)
+                for (int k = 0; k < deadHits.Count; k++)
+                    if (Normalised(PathOf(deadHits[k], parent)) + " -> " + deadHits[k].GetType().Name == groups[i].Key)
+                    {
+                        _log.LogInfo("  e.g. " + PathOf(deadHits[k], parent));   // log: Census paths
+                        break;
+                    }
+            for (int i = 0; i < typeHits.Count; i++)
+                _log.LogInfo("  " + typeName + ": " + PathOf(typeHits[i], parent));   // log: Census paths
+            return summary;
+        }
+
+        private static void Enqueue(object o, object from, string edge, Dictionary<object, Link> parent, Queue<object> queue)
+        {
+            if (o == null || o is string || o is MemberInfo || o is Assembly || o is Module) return;
+            if (o.GetType().IsValueType || parent.ContainsKey(o)) return;
+            parent[o] = new Link(from, edge);
+            queue.Enqueue(o);
+        }
+
+        private void EnqueueFields(object o, Type t, Dictionary<object, Link> parent, Queue<object> queue)
+        {
+            FieldInfo[] fields = FieldsOf(t);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                object v;
+                try { v = fields[i].GetValue(o); }
+                catch (Exception) { continue; }
+                Enqueue(v, o, "." + fields[i].Name, parent, queue);
+            }
+        }
+
+        private static string PathOf(object o, Dictionary<object, Link> parent)
+        {
+            List<string> parts = new List<string>();
+            object cur = o;
+            for (int guard = 0; cur != null && guard < 200; guard++)
+            {
+                Link l;
+                if (!parent.TryGetValue(cur, out l)) break;
+                string edge = l.Edge;
+                if (l.Parent != null && !(l.Parent is Array) && !IsFrameworkCollection(l.Parent.GetType()) && !(l.Parent is Delegate))
+                    edge = "(" + l.Parent.GetType().Name + ")" + edge;
+                parts.Add(edge);
+                cur = l.Parent;
+            }
+            parts.Reverse();
+            return string.Join("", parts.ToArray());
+        }
+
+        // Indexes and keys out, so a list's thousand entries are one group.
+        private static string Normalised(string path)
+        {
+            StringBuilder sb = new StringBuilder(path.Length);
+            char close = '\0';
+            for (int i = 0; i < path.Length; i++)
+            {
+                char c = path[i];
+                if (close != '\0')
+                {
+                    if (c != close) continue;
+                    close = '\0';
+                }
+                else if (c == '[') close = ']';
+                else if (c == '{') close = '}';
+                sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
+        private static string Short(object key)
+        {
+            string s;
+            try { s = key == null ? "null" : key.ToString(); }
+            catch (Exception) { s = "?"; }
+            return s.Length > 40 ? s.Substring(0, 40) : s;
+        }
+
+        // ------------------------------------------------------------------
         /// intoLive: start is a live Unity object whose own fields are the
         /// root (a DontDestroyOnLoad object); otherwise live ones end the walk.
         private void Walk(object start, RootStat st, HashSet<object> seen, ref int budget, bool intoLive)
