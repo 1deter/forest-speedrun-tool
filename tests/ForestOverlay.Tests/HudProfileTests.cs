@@ -141,7 +141,9 @@ namespace ForestOverlay.Tests
         public void TheDefaultLookHasNoSettingOfItsOwnAndLabelsEveryValue()
         {
             HudProfile look = HudProfile.Parse(HudProfile.DefaultLook().Format());
-            Assert.Equal(0, look.Count);
+            Assert.Equal(1, look.Count);   // only the list of labels given (T-0417)
+            Assert.NotNull(look.Get(HudProfile.LabelsKey));
+            Assert.False(look.GiveNewLabels());
             // T-0336: labels as the values' text, every value in the column.
             Assert.Equal(HudLines.DefaultText.Length, look.Layout.Widgets.Count);
             foreach (string[] t in HudLines.DefaultText)
@@ -160,6 +162,32 @@ namespace ForestOverlay.Tests
             a.Layout.SetText("ShowSpot", "", "");
             Assert.False(HudProfile.DefaultLook().Layout.IsFree("ShowSpeed"));
             Assert.Equal("Spot ", HudProfile.DefaultLook().Layout.Find("ShowSpot").Before);
+        }
+
+        [Fact]
+        public void AValueAddedLaterGetsItsLabelOnceAndAClearedOneStaysCleared()
+        {
+            // A profile from before the list: Passengers / Loads have no text, Speed was cleared on purpose.
+            HudLayout old = HudProfile.DefaultLayout();
+            old.SetText("ShowPassengers", "", "");
+            old.SetText("ShowLoads", "", "");
+            old.SetText("ShowSpeed", "", "");
+            HudProfile p = new HudProfile();
+            p.Layout = old;
+            Assert.True(p.GiveNewLabels());
+            Assert.Equal("Passengers ", p.Layout.Find("ShowPassengers").Before);
+            Assert.Equal("Loads ", p.Layout.Find("ShowLoads").Before);
+            Assert.Null(p.Layout.Find("ShowSpeed"));
+            // Saved and read back: a second pass changes nothing, even if Loads is cleared now.
+            HudProfile again = HudProfile.Parse(p.Format());
+            again.Layout.SetText("ShowLoads", "", "");
+            Assert.False(again.GiveNewLabels());
+            Assert.Null(again.Layout.Find("ShowLoads"));
+            // Text the runner wrote is kept.
+            HudProfile mine = new HudProfile();
+            mine.Layout.SetText("ShowLoads", "L: ", "");
+            mine.GiveNewLabels();
+            Assert.Equal("L: ", mine.Layout.Find("ShowLoads").Before);
         }
     }
 }

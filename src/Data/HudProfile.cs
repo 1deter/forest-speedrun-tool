@@ -37,7 +37,58 @@ namespace ForestOverlay.Data
         {
             HudProfile p = new HudProfile();
             p.Layout = DefaultLayout();
+            p.Set(LabelsKey, AllLabelKeys());
             return p;
+        }
+
+        /// The setting that lists the values whose default label the profile
+        /// has been given (T-0417): a value added later is given its label
+        /// once, and one the runner cleared since is not given it again.
+        public const string LabelsKey = "Labels.Given";
+
+        /// The values added after the list was introduced's predecessor
+        /// (v0.24.352): a profile without the list never had these two.
+        private static readonly string[] LateKeys = { "ShowPassengers", "ShowLoads" };
+
+        private static string AllLabelKeys()
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < HudLines.DefaultText.Length; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append(HudLines.DefaultText[i][0]);
+            }
+            return sb.ToString();
+        }
+
+        private static bool InList(string list, string key)
+        {
+            if (list == null) return false;
+            string[] parts = list.Split(',');
+            for (int i = 0; i < parts.Length; i++)
+                if (string.Equals(parts[i].Trim(), key, StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        /// Gives the values not yet in the profile's list their default label
+        /// (unless the layout already has text for them), then lists them
+        /// all. True when the profile changed (so it is saved).
+        public bool GiveNewLabels()
+        {
+            string list = Get(LabelsKey);
+            for (int i = 0; i < HudLines.DefaultText.Length; i++)
+            {
+                string key = HudLines.DefaultText[i][0];
+                bool seen = list != null ? InList(list, key) : Array.IndexOf(LateKeys, key) >= 0 ? false : true;
+                if (seen) continue;
+                HudWidgetLayout w = Layout.Find(key);
+                if (w == null || (w.Before.Length == 0 && w.After.Length == 0))
+                    Layout.SetText(key, HudLines.DefaultText[i][1], w == null ? "" : w.After);
+            }
+            string all = AllLabelKeys();
+            if (list == all) return false;
+            Set(LabelsKey, all);
+            return true;
         }
 
         /// The default look's layout: the labels only, a new one each call.

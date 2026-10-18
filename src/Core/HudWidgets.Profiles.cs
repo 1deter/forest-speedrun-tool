@@ -121,6 +121,8 @@ namespace ForestOverlay.Core
                 if (_log != null) _log.LogWarning("HUD profile: the old layout file not read (" + ex.Message + ") - Default starts with every value in the column.");
             }
             _layout = p.Layout;
+            p.GiveNewLabels();
+            _labelsGiven = p.Get(HudProfile.LabelsKey);
             Rebuild();
             if (!Write(HudProfileNames.DefaultName, p)) return;
             _activeCfg.Value = HudProfileNames.DefaultName;
@@ -169,12 +171,15 @@ namespace ForestOverlay.Core
 
         // --- files ---------------------------------------------------------------------
 
+        private string _labelsGiven;
+
         private HudProfile Capture()
         {
             HudProfile p = new HudProfile();
             for (int i = 0; i < _entries.Count; i++)
                 p.Set(KeyOf(_entries[i]), _entries[i].GetSerializedValue());
             p.Layout = _layout;
+            if (_labelsGiven != null) p.Set(HudProfile.LabelsKey, _labelsGiven);
             if (_settings != null && _settings.Ui.HasReference)
             {
                 p.Set(ProfileUnits.WidthKey, _settings.Ui.RefW.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -273,6 +278,8 @@ namespace ForestOverlay.Core
             }
             if (changed) _config.Save();
 
+            if (p.GiveNewLabels()) _dirty = true;   // a value added since gets its label once (T-0417)
+            _labelsGiven = p.Get(HudProfile.LabelsKey);
             _layout = p.Layout;
             if (convert)
             {
