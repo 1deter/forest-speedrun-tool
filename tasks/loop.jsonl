@@ -214,3 +214,5 @@
 {"at": "2026-10-16T17:50:03", "event": "round", "run": "R-0017", "round": 5, "task": "T-0390", "reviews_before": 0}
 {"at": "2026-10-16T17:53:06", "event": "end", "run": "R-0017", "round": 5, "task": "T-0390", "status": "todo", "progress": false, "parked": false, "summary": "T-0390: built (9be94c08, on main, unreleased), then given back: the checker wants GetTopology / GetIndexCount proven on non-readable collision meshes over the bridge before release, and the author needed the computer.", "tier": "normal", "route": "-/-/-"}
 {"at": "2026-10-16T17:53:06", "event": "stop", "run": "R-0017", "reason": "author needs the computer"}
+{"at": "2026-10-18T01:50:54", "event": "begin", "run": "R-0018", "max_rounds": 5, "bridge": true, "by": "main"}
+{"at": "2026-10-18T01:50:57", "event": "round", "run": "R-0018", "round": 1, "task": "T-0390", "reviews_before": 1}
