@@ -116,9 +116,6 @@ namespace ForestOverlay.Data
               "Velocity along x, y and z."),
             Off("runinfo", "Pos", "ShowPosition", "Position",
               "Where you stand (x, y, z)."),
-            // An autosplitter value (T-0366): the cave its cave splits read.
-            Off("runinfo", "Cave", "ShowCave", "Current cave",
-              "The cave the game says you are in (the one the autosplitter's cave splits read); blank outside caves."),
             L("runinfo", "Lock", "ShowLockWarning", "Player hold warning",
               "Only while the window is open and cannot hold the player - says why."),
             Off("inventory", "Items", "ShowItems", "Items carried",
@@ -178,7 +175,6 @@ namespace ForestOverlay.Data
             new[] { "ShowTotalSpeed", "Total " },
             new[] { "ShowVelocity", "Vel " },
             new[] { "ShowPosition", "Pos " },
-            new[] { "ShowCave", "Cave " },
             new[] { "ShowItems", "Items " },
             new[] { "ShowLogs", "Logs " },
             new[] { "ShowSpot", "Spot " },

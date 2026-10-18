@@ -30,7 +30,6 @@ namespace ForestOverlay.Modules
         private Vector3 _posShown = new Vector3(float.NaN, 0f, 0f);
         private string _posText;
         private string _lockFor, _lockText;
-        private string _caveFor, _caveText;
 
         public override void ContributeHud(HudBuilder hud)
         {
@@ -88,18 +87,6 @@ namespace ForestOverlay.Modules
                 {
                     hud.Pair("Pos", compact ? "-" : "player not found yet");
                 }
-            }
-
-            // The cave the autosplitter's cave splits read (T-0366).
-            if (hud.Shows("Cave") && Ctx.Bridge != null)
-            {
-                string cave = Ctx.Bridge.CurrentCaveId();
-                if (_caveText == null || !string.Equals(cave, _caveFor))
-                {
-                    _caveFor = cave;
-                    _caveText = cave.Length == 0 ? "-" : cave;
-                }
-                hud.Pair("Cave", _caveText);
             }
 
             // Lock state is reported because a failure here used to be
