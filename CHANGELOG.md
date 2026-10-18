@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.337 - 2026-10-18
+
+- Inventory tab: an item you just equipped is marked held right away, not only after the game saves.
+- Checkpoint settings: on a spot that is not timed, the status line now says 'This spot is not timed: no checkpoints to show.' instead of blaming the comparison run.
+
 ## v0.24.336 - 2026-10-17
 
 - Run options > Checkpoints: the Items fold is a chevron header like the other folds, not a tick box (T-0404)
