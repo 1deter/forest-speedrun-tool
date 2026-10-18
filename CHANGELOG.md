@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.354 - 2026-10-18
+
+- A Quick load now removes bombs, dynamite, molotovs and flares you threw after the capture, so a bomb no longer goes off after the load.
+- A dropped rock or stick that rolled since the capture goes back to where it lay, even one you picked up after it rolled.
+
 ## v0.24.353 - 2026-10-18
 
 - Your just-finished run's line now stays drawn after the run ends, until the next one starts, so you can look at it.
