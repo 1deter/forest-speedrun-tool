@@ -104,6 +104,19 @@ class Routing(unittest.TestCase):
             T.run, T.locked = saved
         self.assertEqual([(a.tier, a.route) for a in seen], [("hard", "//xhigh")] * 3)
 
+    def test_a_repeated_verify_keeps_every_step(self):
+        # T-0420: nargs="+" alone kept only the last --verify, silently.
+        seen = []
+        saved = (T.run, T.locked)
+        T.run, T.locked = (lambda a: seen.append(a) or 0), (lambda *a, **k: _Null())
+        try:
+            for cmd in (["set", "T-0001"], ["start", "T-0001", "--by", "main"], ["add", "x", "--area", "docs"]):
+                self.assertEqual(T.main(cmd + ["--verify", "a", "--verify", "b", "c"]), 0)
+            self.assertEqual(T.main(["set", "T-0001", "--verify", "a", "b"]), 0)
+        finally:
+            T.run, T.locked = saved
+        self.assertEqual([a.verify for a in seen], [["a", "b", "c"]] * 3 + [["a", "b"]])
+
 
 class _Null(object):
     def __enter__(self):

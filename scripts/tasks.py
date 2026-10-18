@@ -1056,7 +1056,7 @@ def main(argv=None):
     def common(sp, setting=False):
         sp.add_argument("--behavior")
         sp.add_argument("--scope")
-        sp.add_argument("--verify", nargs="+")
+        sp.add_argument("--verify", nargs="+", action="extend")
         sp.add_argument("--keep")
         sp.add_argument("--notes")
         sp.add_argument("--priority", type=int, choices=[1, 2, 3, 4], default=None if setting else 3)
@@ -1091,7 +1091,7 @@ def main(argv=None):
     sp.add_argument("--by", required=True)
     sp.add_argument("--behavior")
     sp.add_argument("--scope")
-    sp.add_argument("--verify", nargs="+")
+    sp.add_argument("--verify", nargs="+", action="extend")
     sp.add_argument("--keep")
     routing(sp)
     sp = sub.add_parser("set")
