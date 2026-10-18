@@ -30,7 +30,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
-| Savestates | C | A | C | A | C | T-0046, T-0058, T-0066, T-0416 | 2026-10-18 |
+| Savestates | C | A | C | A | C | T-0046, T-0058, T-0066, T-0418, T-0419 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | T-0365 | 2026-10-18 |
 | Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
 | Run mode | B | A | A | A | B | T-0111, T-0243, T-0413 | 2026-10-18 |
@@ -81,9 +81,10 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   cutscenes (T-0058, blocked on Tom);
   item drift after restores
   (T-0066, causes found, build plan parked for the author); a hang after ~30 Quick loads + a Full load (runner, v0.22.6) did not
-  reproduce on v0.24.344 (T-0056), cause unknown; rolled
-  capture-time copies and flares / fire / bombs made after a capture are
-  left by a Quick load (T-0416, parked for the author). Live animals kept
+  reproduce on v0.24.344 (T-0056), cause unknown; copies that despawned
+  since the capture are not re-made (T-0418) and fires started since are
+  not put out (T-0419). Rolled copies put back and thrown bombs / flares /
+  molotovs removed since T-0416 (v0.24.354). Live animals kept
   since T-0415 (v0.24.351).
 
 ### Timed runs
