@@ -2,6 +2,19 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (run R-0023 handoff)
+
+- **2026-10-18 (run R-0020, chain C-0002, unattended):** 4 of 5 progressed,
+  3 confirmed in game. v0.24.345 T-0056 (runner hang not reproduced; a
+  cached LocalPlayer held the old world ~126 MB after a cave tp + Full
+  load), v0.24.346 T-0065 (rope restores keep the height and the rope;
+  no wall climb exists), v0.24.347 T-0067 (half-chopped trees, sapling
+  sticks as captured), T-0412 (tasks.py warns when a built plugin task's
+  commits touch no plugin path). Parked for the author: T-0066 (build
+  plan ready; 2 choices on story-spot pickups / old files), plus T-0409,
+  T-0411, T-0410, T-0366. **Next:** answer the parked questions; the
+  chain's next run.
+
 ## Moved out 2026-10-18 (run R-0022 handoff)
 
 - **2026-10-18 (run R-0019, chain C-0002, unattended):** 4 of 5 progressed,

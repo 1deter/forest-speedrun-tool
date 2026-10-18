@@ -157,6 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (run R-0023, chain C-0002, unattended):** 4 of 5
+  confirmed in game. v0.24.352 T-0366 (HUD values Passengers found and
+  Loads, the ASL Var Viewer's missing two; dockable), v0.24.353 T-0410
+  (the finished run's line kept until the next start, toggle), v0.24.354
+  T-0416 (a Quick load removes thrown bombs / flares / molotovs and puts
+  rolled copies back), v0.24.355 T-0417 (labels for HUD values new to an
+  old profile). Parked: T-0409 (does 'yes' mean the lean 1b / 2a / 3a?).
+  Filed: T-0418, T-0419 (restore follow-ups), T-0420 (tasks.py --verify).
+  **Next:** answer T-0409; the chain's next run.
+
 - **2026-10-18 (run R-0022, chain C-0002, unattended):** 5 of 5
   confirmed in game. T-0116 (hold-interact start), T-0117 (rope-grab /
   rope-leave splits), T-0118 (fast building's hold) checked live, no
@@ -176,17 +186,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   instead?), T-0413 (flag _speedyrun's run / swim speed?), plus T-0066,
   T-0409, T-0411, T-0410, T-0366. **Next:** answer the parked questions;
   the chain's next run.
-
-- **2026-10-18 (run R-0020, chain C-0002, unattended):** 4 of 5 progressed,
-  3 confirmed in game. v0.24.345 T-0056 (runner hang not reproduced; a
-  cached LocalPlayer held the old world ~126 MB after a cave tp + Full
-  load), v0.24.346 T-0065 (rope restores keep the height and the rope;
-  no wall climb exists), v0.24.347 T-0067 (half-chopped trees, sapling
-  sticks as captured), T-0412 (tasks.py warns when a built plugin task's
-  commits touch no plugin path). Parked for the author: T-0066 (build
-  plan ready; 2 choices on story-spot pickups / old files), plus T-0409,
-  T-0411, T-0410, T-0366. **Next:** answer the parked questions; the
-  chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
