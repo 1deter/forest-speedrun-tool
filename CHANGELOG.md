@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.338 - 2026-10-18
+
+- Collision view: a mesh collider with nothing to draw now shows its bounds box and counts as not drawable, instead of drawing nothing.
+
 ## v0.24.337 - 2026-10-18
 
 - Inventory tab: an item you just equipped is marked held right away, not only after the game saves.
