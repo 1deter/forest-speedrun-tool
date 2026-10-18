@@ -5,26 +5,27 @@ namespace ForestOverlay.Tests
 {
     public class SpeedCheckTests
     {
-        [Fact]
-        public void ZeroAndOneAreSilent()
-        {
-            Assert.Null(SpeedCheck.TimeScaleFlag(0f));
-            Assert.Null(SpeedCheck.TimeScaleFlag(1f));
-        }
-
         [Theory]
-        [InlineData(0.1f, "0.1")]
-        [InlineData(2f, "2")]
-        [InlineData(0.5f, "0.5")]
-        [InlineData(1.0001f, "1")]
-        public void OtherValuesAreFlagged(float scale, string shown)
+        [InlineData(0f, false)]
+        [InlineData(1f, false)]
+        [InlineData(0.1f, true)]
+        [InlineData(2f, true)]
+        [InlineData(0.5f, true)]
+        [InlineData(1.0001f, true)]
+        public void IrregularIsAnythingButZeroAndOne(float scale, bool expected)
         {
-            Assert.Equal("the game's speed was changed (time scale " + shown + ")", SpeedCheck.TimeScaleFlag(scale));
+            Assert.Equal(expected, SpeedCheck.Irregular(scale));
         }
 
-        private static string F(TimeScaleWatch w, float scale, bool excused, float dt, out string ended)
+        [Fact]
+        public void FlagTextShowsTheValue()
         {
-            return w.Frame(scale, excused, dt, out ended);
+            Assert.Equal("the game's speed was changed (time scale 0.5)", SpeedCheck.FlagText(0.5f));
+        }
+
+        private static string F(TimeScaleWatch w, float scale, float dt, out string ended, bool excused = false, bool zeroOk = false)
+        {
+            return w.Frame(scale, excused, zeroOk, dt, out ended);
         }
 
         [Fact]
@@ -32,13 +33,13 @@ namespace ForestOverlay.Tests
         {
             var w = new TimeScaleWatch();
             string end;
-            Assert.Equal("the game's speed was changed (time scale 2)", F(w, 2f, false, 0.1f, out end));
+            Assert.Equal("the game's speed was changed (time scale 2)", F(w, 2f, 0.1f, out end));
             Assert.Null(end);
-            Assert.Null(F(w, 2f, false, 0.1f, out end));
-            Assert.Null(F(w, 2f, false, 0.2f, out end));
-            Assert.Null(F(w, 1f, false, 0.1f, out end));
+            Assert.Null(F(w, 2f, 0.1f, out end));
+            Assert.Null(F(w, 2f, 0.2f, out end));
+            Assert.Null(F(w, 1f, 0.1f, out end));
             Assert.Equal("time scale 2 lasted 0.4 s (back to normal)", end);
-            Assert.Null(F(w, 1f, false, 0.1f, out end));
+            Assert.Null(F(w, 1f, 0.1f, out end));
             Assert.Null(end);
         }
 
@@ -47,9 +48,9 @@ namespace ForestOverlay.Tests
         {
             var w = new TimeScaleWatch();
             string end;
-            Assert.Null(F(w, 0.1f, true, 0.1f, out end));
-            Assert.Null(F(w, 6f, true, 0.1f, out end));
-            Assert.Null(F(w, 1f, false, 0.1f, out end));
+            Assert.Null(F(w, 0.1f, 0.1f, out end, excused: true));
+            Assert.Null(F(w, 6f, 0.1f, out end, excused: true));
+            Assert.Null(F(w, 1f, 0.1f, out end));
             Assert.Null(end);
             Assert.Null(w.End());
         }
@@ -59,27 +60,25 @@ namespace ForestOverlay.Tests
         {
             var w = new TimeScaleWatch();
             string end;
-            F(w, 2f, false, 0.1f, out end);
-            Assert.Null(F(w, 1f, true, 0.5f, out end));
+            F(w, 2f, 0.1f, out end);
+            Assert.Null(F(w, 1f, 0.5f, out end, excused: true));
             Assert.Null(end);
-            Assert.Null(F(w, 2f, false, 0.1f, out end));
+            Assert.Null(F(w, 2f, 0.1f, out end));
             Assert.Equal("time scale 2 lasted 0.2 s (back to normal)", w.End());
         }
 
         [Fact]
-        public void TwoEpisodesDifferentValuesFlagTwiceSameValueOnce()
+        public void TwoBurstsOfTheSameValueEachFlagAndEachEndWithADuration()
         {
             var w = new TimeScaleWatch();
             string end;
-            Assert.NotNull(F(w, 2f, false, 0.1f, out end));
-            F(w, 1f, false, 0.1f, out end);
-            Assert.NotNull(end);
-            Assert.NotNull(F(w, 0.5f, false, 0.1f, out end));
-            F(w, 1f, false, 0.1f, out end);
-            Assert.NotNull(end);
-            Assert.Null(F(w, 0.5f, false, 0.1f, out end));
-            F(w, 1f, false, 0.1f, out end);
-            Assert.Null(end);   // not flagged, so no summary either
+            Assert.NotNull(F(w, 2f, 0.1f, out end));
+            F(w, 2f, 0.1f, out end);
+            F(w, 1f, 0.1f, out end);
+            Assert.Equal("time scale 2 lasted 0.2 s (back to normal)", end);
+            Assert.NotNull(F(w, 2f, 0.3f, out end));
+            F(w, 1f, 0.1f, out end);
+            Assert.Equal("time scale 2 lasted 0.3 s (back to normal)", end);
         }
 
         [Fact]
@@ -87,22 +86,66 @@ namespace ForestOverlay.Tests
         {
             var w = new TimeScaleWatch();
             string end;
-            F(w, 1.5f, false, 0.1f, out end);
-            F(w, 3f, false, 0.1f, out end);
-            F(w, 2f, false, 0.1f, out end);
+            F(w, 1.5f, 0.1f, out end);
+            F(w, 3f, 0.1f, out end);
+            F(w, 2f, 0.1f, out end);
             Assert.Equal("time scale 3 lasted 0.3 s (back to normal)", w.End());
         }
 
         [Fact]
-        public void EndClosesARunningEpisodeAndResetForgetsEverything()
+        public void EndClosesARunningEpisodeAndResetForgetsIt()
         {
             var w = new TimeScaleWatch();
             string end;
-            F(w, 2f, false, 0.26f, out end);
+            F(w, 2f, 0.26f, out end);
             Assert.Equal("time scale 2 lasted 0.3 s (back to normal)", w.End());
             Assert.Null(w.End());
+            F(w, 2f, 0.1f, out end);
             w.Reset();
-            Assert.NotNull(F(w, 2f, false, 0.1f, out end));   // same value flags again after a reset
+            Assert.Null(w.End());
+        }
+
+        [Fact]
+        public void ZeroInAMenuIsSilentHoweverLong()
+        {
+            var w = new TimeScaleWatch();
+            string end;
+            for (int i = 0; i < 100; i++) Assert.Null(F(w, 0f, 0.1f, out end, zeroOk: true));
+            Assert.Null(w.End());
+        }
+
+        [Fact]
+        public void ZeroInPlainPlayPastTheGraceIsFlagged()
+        {
+            var w = new TimeScaleWatch();
+            string end;
+            Assert.Null(F(w, 0f, 0.3f, out end));
+            Assert.Equal("the game's speed was changed (time scale 0)", F(w, 0f, 0.3f, out end));
+            Assert.Null(F(w, 0f, 0.4f, out end));
+            F(w, 1f, 0.1f, out end);
+            Assert.Equal("time scale 0 lasted 1.0 s (back to normal)", end);
+        }
+
+        [Fact]
+        public void ZeroBrieflyUnderTheGraceIsSilentAndTheGraceRestarts()
+        {
+            var w = new TimeScaleWatch();
+            string end;
+            Assert.Null(F(w, 0f, 0.3f, out end));
+            Assert.Null(F(w, 1f, 0.1f, out end));
+            Assert.Null(F(w, 0f, 0.3f, out end));   // 0.3 again, not 0.6 in total
+            Assert.Null(end);
+            Assert.Null(w.End());
+        }
+
+        [Fact]
+        public void ZeroWhenAMenuOpensMidwayEndsTheEpisode()
+        {
+            var w = new TimeScaleWatch();
+            string end;
+            F(w, 0f, 0.6f, out end);
+            F(w, 0f, 0.1f, out end, zeroOk: true);
+            Assert.Equal("time scale 0 lasted 0.6 s (back to normal)", end);
         }
     }
 }

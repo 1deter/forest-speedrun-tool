@@ -393,7 +393,7 @@ automatic reject.
 | Cave state force load | `InACave` sent by `playerEnterCaveAction.doCave` while the player is not under the terrain (the game's own rule: `SampleHeight - y > 3`); also cave state above the terrain for > 2 s away from a cave mouth | high |
 | Fall damage cancel | prefix on `FirstPersonCharacter.HandleLanded`: our own fastest downward speed over the last ~0.2 s > 28 m/s while the game's `prevVelocity` <= 28 (or > 3.8 s in the air and no death) | high for "a fast landing took no damage"; a long natural slide may show too - amber |
 | Wall / axe clip | a line from the capsule's last centre to the new one (each FixedUpdate) crossing a static, non-trigger collider, outside known movers (our teleports, cutscenes, elevators, the death warp) | medium - needs a filter list built from real runs |
-| Game speed changed (T-0109, built) | `Time.timeScale` read every frame of an attempt in a loaded game (`RunModeModule.Tick`, pure state in `Data/SpeedCheck` `TimeScaleWatch`): anything but exactly 0 or 1 flags the episode's first frame ("the game's speed was changed (time scale N)"); one log line when it returns to normal or the attempt ends (peak, unscaled seconds). Same value as the last flagged episode: not flagged again. Excused: a save loading (0.1), a savestate action, a cutscene fast-forward | exact for the value; it cannot say who wrote it (the debug console, another mod) |
+| Game speed changed (T-0109, built) | `Time.timeScale` read every frame of an attempt in a loaded game (`RunModeModule.Tick`, pure state in `Data/SpeedCheck` `TimeScaleWatch`): anything but exactly 1 flags the episode's first frame (a 0 only outside the pause menu / inventory, after 0.5 s unscaled) ("the game's speed was changed (time scale N)"); one log line when it returns to normal or the attempt ends (peak, unscaled seconds). Every episode flags and logs, repeats too (the flag list dedups by text; the end lines are the record). Excused: a save loading (0.1), a savestate action, a cutscene fast-forward | exact for the value; it cannot say who wrote it (the debug console, another mod) |
 | Log boost | an upward speed spike not from a jump, explosion, ride or cutscene, with a log wall / structure within ~2 m | medium |
 
 Cost: the two exact ones are two Harmony postfixes and a comparison; the
@@ -541,10 +541,12 @@ than the table's plan:
 - The game's debug console has `_timescale`, `_speedyrun` and more
   (game-notes *The game ships a debug console*). The report flags
   `Cheats.DebugConsole` being on, but not what was typed into it. Since
-  T-0109 every frame of an attempt checks `Time.timeScale`: anything but
-  0 or 1 flags the attempt once (not while a savestate action or a cutscene
-  fast-forward drives it, nor while a save loads). `_speedyrun` writes the
-  player's run / swim speed instead (T-0413).
+  T-0109 every frame of an attempt checks `Time.timeScale`: each episode
+  of anything but 1 (or a 0 outside the pause menu / inventory for over
+  0.5 s) flags its first frame and logs one line with the value and its
+  duration when it ends, repeats included (not while a savestate action or
+  a cutscene fast-forward drives it, nor while a save loads).
+  `_speedyrun` writes the player's run / swim speed instead (T-0413).
 - A bridge `go` / `restart` refused by run mode answers the refusal
   (T-0110, done).
 - The report reads the game's file on disk at startup, not the loaded

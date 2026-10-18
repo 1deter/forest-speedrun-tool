@@ -118,7 +118,9 @@ namespace ForestOverlay.Modules
             {
                 bool excused = !loaded || (_savestates != null && (_savestates.Busy || _savestates.FastForwarding));
                 string speedEnd;
-                string speed = _timeScale.Frame(Time.timeScale, excused, Time.unscaledDeltaTime, out speedEnd);
+                float scale = Time.timeScale;
+                bool zeroOk = scale != 0f || MenuClose.AnyOpen();   // a 0 is vanilla in the pause menu / inventory (reflection only when 0)
+                string speed = _timeScale.Frame(scale, excused, zeroOk, Time.unscaledDeltaTime, out speedEnd);
                 if (speed != null) Ctx.Run.Flag(speed);
                 if (speedEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedEnd);
             }
