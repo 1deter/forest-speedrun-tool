@@ -441,3 +441,4 @@ Confirmed 2026-10-10 (game, bridge, ui-redesign f0e0707, banner v0.24.267): **th
 - v0.24.349 T-0115 first-input start: after F7 the run stayed Armed 5+ s with no input (log "armed after F7 restart (start: event first-input)"), a SendInput W press -> Running, Elapsed 0.49 s (bridge 2026-10-18)
 
 - v0.24.349 T-0116 hold-interact start: after F7 the run stayed Armed (log "armed after F7 restart (start: event hold-interact)", timer 0.00); a real SendInput hold of E at a pond drink zone (CanDrink true) -> timer running 1.97 s, Attempts 1 (shot t0116-r); a tapped stick pickup (GetButtonDown) does not start it (bridge 2026-10-18)
+Confirmed 2026-10-18 (game, bridge, v0.24.349): **a segment with check = event rope-grab / rope-leave splits once on each on the cave 4 rope, in order (checkpoint 1/2 at 3.0 s, 2/2 at 8.0 s; start zone must be entered first) (T-0117)**. bridge 2026-10-18.
