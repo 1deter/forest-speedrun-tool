@@ -390,6 +390,8 @@ namespace ForestOverlay.BridgeMcp
                     sb.Append("game: running (pid ").Append(p.Id).Append(", up ").Append(up).Append(")\n");
                 }
             }
+            string gpu = CheckRunningGame();
+            if (gpu != null) sb.Append(gpu).Append('\n');
             sb.Append("game folder: ").Append(_paths.Root).Append('\n');
             sb.Append("bridge folder: ").Append(_paths.Bridge).Append('\n');
             sb.Append("TestBridge setting: ").Append(_paths.TestBridgeSetting() ?? "(not in the .cfg)").Append('\n');
@@ -492,9 +494,11 @@ namespace ForestOverlay.BridgeMcp
             string path = Path.Combine(_paths.Bridge, name + ".png");
             TryDelete(path);
             BridgeReply r = await Send(cmds, ct);
-            if (!r.Complete || r.Transcript.Errors > 0) return FromReply(r, false);
+            if (!r.Complete || r.Transcript.Errors > 0) return WithGpuFault(FromReply(r, false), !r.Complete);
 
-            byte[] png = await Images.ReadWhenComplete(path, TimeSpan.FromSeconds(10), ct);
+            byte[] png;
+            try { png = await Images.ReadWhenComplete(path, TimeSpan.FromSeconds(10), ct); }
+            catch (IOException ex) { return WithGpuFault(ToolResult.Fail(ex.Message), true); }
 
             Rectangle? region = null;
             List<string> reg = a.List("region");
@@ -512,6 +516,24 @@ namespace ForestOverlay.BridgeMcp
                                    (region.HasValue ? ", region " + string.Join(",", reg) : "") +
                                    ", sent as " + img.Width + "x" + img.Height)
                 .AddImage(img.Data, img.Mime);
+        }
+
+        /// GpuFault.Check since the running game's launch; null when it is not running.
+        private static string CheckRunningGame()
+        {
+            try
+            {
+                using (Process p = GameProcess.Find())
+                    return p == null ? null : GpuFault.Check(p.StartTime.ToUniversalTime());
+            }
+            catch (Exception) { return null; }
+        }
+
+        /// A timed-out screenshot also names any GPU driver fault (T-0395).
+        private static ToolResult WithGpuFault(ToolResult res, bool timedOut)
+        {
+            string gpu = timedOut ? CheckRunningGame() : null;
+            return gpu == null ? res : res.AddText(gpu);
         }
 
         /// Keeps the newest 40 of this server's own screenshots.
