@@ -447,6 +447,18 @@ with `CoopAnimal` (a live rabbit, lizard or bird) is never removed
 inactive `Rabbit Alive` pickup aims at it (game-notes *Live animals sit
 at the scene root too*).
 
+A Quick load of a file of another world (a title / Full load since the
+capture, or an older file with no `bushes` line; `LitFires.SameWorld`)
+also removes the placed pickups that scene load re-created though they
+were taken before the capture, as a Full load does (T-0066,
+`PickupKeeper.RemoveTakenAfterLoad` placed-only: pooled clones such as
+greeble rocks and zone sticks are skipped), before the "not at capture"
+listing. Our capture / Quick load force-unloads streaming, and the reload
+of `MainSceneWorldStorySpots` re-creates its taken pickups (tapes); once
+that scene has reloaded, the ones the taken list holds are removed again
+(`removed N story-spot pickup(s)`; only when the capture's areas include
+that scene).
+
 A Quick load also mirrors the other scene roots (T-0416, `PickupKeeper.
 MirrorRoots`, one walk before the load). The capture's `dropped` header line
 (`id:item@x,y,z@qx,qy,qz,qw;...`, Data/DroppedPoses) holds the pose of every

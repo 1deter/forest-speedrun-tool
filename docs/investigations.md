@@ -253,7 +253,7 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   (vanilla); the bones were taken before a capture in an older world and
   re-created by the scene load, which a Quick load does not clean up; and
   our streaming reload re-creates taken story-spot pickups (game-notes
-  *Quick loads across a scene load*). Fix planned: tasks/notes/T-0066.md.
+  *Quick loads across a scene load*). Fixed in T-0066 (docs/savestates.md, the another-world Quick load and story-spot paragraph).
 - Time of day sweep (v0.24.67): not reproduced; `SunSync` logs `sun: ...
   snapped` when it acts.
 - Cheesecake's hands held 2 s: a `hands still busy after 2 s - ...` line
