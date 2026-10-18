@@ -1226,3 +1226,17 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     back from `git show HEAD:tasks/tasks.jsonl`. To add a line, pass the
     old notes plus the new line, or use `tasks.py note T-n` (the running
     note file).
+
+122. **A Harmony prefix on a tiny getter misses callers compiled before
+    the patch.** (2026-10-19, T-0431, bridge.) Logs in the inventory
+    prefixed `LogControler.get_HasLogs` (10 bytes of IL) to answer "arms
+    empty", and a reflection call answered patched. But Mono inlines a
+    getter that small into each caller when the caller is JIT-compiled,
+    and the detour only rewrites the getter's own code. `HideAllEquiped`,
+    compiled before the switch-on, dropped both stored logs, while
+    `HideRightHand`, with the same branch but first run after the patch,
+    kept them. `Equip`, compiled at load, refused right-hand items. What a
+    reader saw depended on what the game had run before. Transpile the
+    readers that must see the patched answer (a fresh DMD), and test a
+    getter patch with a caller the game already ran, never only by
+    reflection.
