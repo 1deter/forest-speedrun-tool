@@ -462,3 +462,34 @@ with on a timer; they are destroyed (which also cancels a bomb's pending
 blast). If the pools cannot be read, none are removed. The done line gains
 `, removed N thing(s) thrown since the capture (bomb x1, flare x2)` and
 `, moved N copy(ies) back to where they lay at the capture`.
+
+A dropped copy gone since the capture is made again (T-0418). The game
+despawns a `_Dynamic` copy on its own timer (`destroyAfter`: 60 s, then
+every 10 s while the player is 20 m+ away; game-notes *A dropped copy's
+despawn timer*), and restoring an older capture removes copies made after
+it (T-0411). Each entry may carry a 4th segment of comma tags:
+`id:item@x,y,z@q@p,t37.25`. `p` marks a runtime copy (negative id) named
+after the item's own drop prefab (`ItemById(item)._pickupPrefab` +
+`(Clone)`). When no root stands for that id after the walk, MirrorRoots
+instantiates the prefab at the captured pose, at rest (velocities zeroed,
+asleep). The new copy's id is below the capture's mark, so `PickupKeeper`
+remembers which captured id it stands for (in memory, this launch): later
+restores of that capture put it back or keep it like the original, instead
+of removing it as "made since". The done line gains `, re-made N copy(ies)
+gone since the capture (Stick x1, Rock x1)`.
+
+The despawn timer is mirrored too. A postfix on `destroyAfter.Start`
+(installed at plugin start) records when each root copy's timer began
+(`Time.time`, scaled, as `Invoke` counts). The capture writes the copy's
+age as `t<age>` when its timer is running, or `s` when the copy has one
+that is not running. After the pickups step of a Quick load,
+`PickupKeeper.ResumeTimers` handles every recorded copy: re-made, put back
+after a pickup, rolled and moved back, or untouched. It cancels the timer
+and, for `t`, starts it again from the captured age
+(`Data/DespawnTimer.NextCheck`: the first check at 60 s minus the age, then
+the 10 s steps). A copy with `s` keeps no timer, as at the capture. An entry
+with no timer tag (a file from before T-0418) is left as the game has it.
+A put-back copy then has no timer, because hiding it cancelled the game's
+own. The module's restore line gains `, despawn timers set as at the
+capture N`. After a downgrade to v0.24.354-356, those plugins skip the
+4-segment entries, so tagged copies are not moved back.
