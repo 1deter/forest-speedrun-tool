@@ -30,7 +30,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
-| Savestates | C | A | C | A | C | T-0046, T-0058, T-0066, T-0411 | 2026-10-18 |
+| Savestates | C | A | C | A | C | T-0046, T-0058, T-0066, T-0415 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | T-0365, T-0366 | 2026-10-16 |
 | Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
 | Run mode | B | A | A | A | B | T-0111, T-0243, T-0413 | 2026-10-18 |
@@ -69,7 +69,8 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   A busy surface area (enemies, a shelter, pickups) confirmed over 5
   in-place restores, and the full-inventory pickup keep (T-0053, v0.24.344);
   rope restores keep the height and the rope (T-0065, v0.24.346);
-  half-chopped trees and sapling sticks as captured (T-0067, v0.24.347).
+  half-chopped trees and sapling sticks as captured (T-0067, v0.24.347); a Quick load removes items dropped since the capture (T-0411,
+  v0.24.350).
 - Legibility **C**: `SavestateModule.cs` 2,539 lines, `SavestateBridge.cs`
   2,355 (both grew ~360 since 2026-10-07); 14 keepers; 17 restore
   gotchas, 14 of them judgement only. docs/savestates.md and plugin.md's
@@ -80,9 +81,9 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   cutscenes (T-0058, blocked on Tom);
   item drift after restores
   (T-0066, causes found, build plan parked for the author); a hang after ~30 Quick loads + a Full load (runner, v0.22.6) did not
-  reproduce on v0.24.344 (T-0056), cause unknown; the
-  game's dropped copies of a full-inventory pickup stay after a restore
-  (T-0411, parked for the author).
+  reproduce on v0.24.344 (T-0056), cause unknown; a
+  restore from another world's file also removes a 'Rabbit Alive' root
+  pickup (T-0415, P2).
 
 ### Timed runs
 
