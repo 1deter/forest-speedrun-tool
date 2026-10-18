@@ -915,8 +915,10 @@ namespace ForestOverlay.Modules
             if (blueprint.Length > 0) fall += (fall.Length > 0 ? ", " : "") + blueprint;
             // The climb is outside the save; a free body at a rope spot is
             // thrown out of the rock (runner maks, cave 4). On the rope
-            // before the restore, a restore keeps the player on it.
-            string rope = RopeClimb.Prepare(file != null ? file.Rope : "");
+            // before the restore, a restore keeps the player on it; its
+            // height is set again once the climb idles (HoldHeight, T-0065).
+            string rope = RopeClimb.Prepare(file != null ? file.Rope : "",
+                                            file != null ? new Vector3(file.X, file.Y, file.Z) : Vector3.zero);
             if (rope.Length > 0) fall += (fall.Length > 0 ? ", " : "") + rope;
             // A cliff climb, sled, glider or zipline in flight holds the body
             // too: ended the game's way before the restore moves it.
@@ -1125,6 +1127,7 @@ namespace ForestOverlay.Modules
                     PullOutBlueprint(pullOut, "Savestate restore " + what);
                     PutRideBack(file, rideBack, "Savestate restore " + what);
                 }
+                if (r.Ok && file != null) HoldRopeHeight(file, "Savestate restore " + what);
 
                 string line = "restore " + what + " in place: " + r.Message +
                               ", pickups put back " + pickups +
@@ -1769,7 +1772,8 @@ namespace ForestOverlay.Modules
             if (pin && Ctx.Player.Found) { Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation); Ctx.Bridge.EndFall(); }
             // A load rebuilds the player off any rope (RopeClimb); after
             // the pin, which undid a climb entered before it (bridge).
-            string rope = f.Rope.Length > 0 ? RopeClimb.Prepare(f.Rope) : "";
+            string rope = f.Rope.Length > 0 ? RopeClimb.Prepare(f.Rope, at) : "";
+            HoldRopeHeight(f, "Savestate after the load");
             PutRideBack(f, f.Ride, "Savestate after the load");
             Ctx.Log.LogInfo("Savestate after the load: held the player at the captured spot for " +
                             (Time.realtimeSinceStartup - start).ToString("F1") + " s" +
@@ -1876,6 +1880,17 @@ namespace ForestOverlay.Modules
         {
             if (string.IsNullOrEmpty(ride)) return;
             Ctx.Runner.StartCoroutine(RideModes.PutBack(ride, new Vector3(f.X, f.Y, f.Z), delegate(string note)
+            {
+                if (note.Length > 0) Ctx.Log.LogInfo(prefix + ": " + note + ".");   // log: Savestate restore, Savestate after the load
+            }));
+        }
+
+        /// The captured rope climb's height, set again once the grab is
+        /// over (RopeClimb.HoldHeight); its own log line.
+        private void HoldRopeHeight(SavestateFile f, string prefix)
+        {
+            if (string.IsNullOrEmpty(f.Rope) || (f.X == 0f && f.Y == 0f && f.Z == 0f)) return;
+            Ctx.Runner.StartCoroutine(RopeClimb.HoldHeight(f.Rope, new Vector3(f.X, f.Y, f.Z), delegate(string note)
             {
                 if (note.Length > 0) Ctx.Log.LogInfo(prefix + ": " + note + ".");   // log: Savestate restore, Savestate after the load
             }));

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 825 log calls.
+249 prefixes from 826 log calls.
 
 ## `ActionReaders`
 
@@ -1681,7 +1681,7 @@ Written by LogStore.cs, SavestateModule.cs; info / warning.
 
 - info `<context>: logs in the inventory <was> -> <..> (as captured).` *(declared)*
 - info `<prefix>: <..>.` *(declared)*
-- info `<prefix>: <note>.` *(declared)*
+- info `<prefix>: <note>.` *(declared)* (x2)
 - info `Savestate after the load: <..> (<late> broken as they spawned in the load).`
 - info `Savestate after the load: <..>.`
 - info `Savestate after the load: <again>.`
@@ -1753,7 +1753,7 @@ Written by LogStore.cs, SavestateBridge.cs, SavestateModule.cs; info / warning.
 - info `Savestate restore (load): difficulty <was> -> <diff> for the load (the capture's<..>).`
 - info `Savestate restore (load): game mode <..> for the load (the capture's mode).`
 - info `<prefix>: <..>.` *(declared)*
-- info `<prefix>: <note>.` *(declared)*
+- info `<prefix>: <note>.` *(declared)* (x2)
 - info `Savestate restore <what> in place: <note> - <..> after <..> s.`
 - info `Savestate restore <what> in place: starting.`
 - warning `Savestate restore <what>: <death> - a Full load instead.`
