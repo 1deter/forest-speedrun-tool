@@ -747,6 +747,9 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     after the attempt ended, so the save loaded after a reset was charged
     to it. Before trusting a "NOT OK", run the check on a clean install
     and in every game mode, and stop watching when the thing watched ends.
+    (T-0112: the first fix skipped every patch on .NET, hiding a cheat's
+    too; BepInEx's are now named by their patch method's file, since two
+    of their owner ids are random `harmony-auto` guids.)
 
 83. **A picture can depend on load order - test the old build the same
     way before blaming the new one.** (2026-10-02, the website's version 3

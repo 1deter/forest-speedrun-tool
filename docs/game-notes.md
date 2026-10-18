@@ -256,6 +256,22 @@ property with a getter. HarmonyX 2.x (`BepInEx/core/0Harmony.dll`):
 `HarmonyMethod` has public fields `priority` (int) and `after`
 (`string[]`), and `Priority.Last` is a static int.
 
+**BepInEx's own Harmony patches** (live, BepInEx 5.4.23.5, v0.24.348,
+T-0112; read from `HarmonyLib.Public.Patching.PatchManager.PatchInfos`, a
+static `Dictionary<MethodBase, PatchInfo>` whose `Patch` objects carry
+`owner` and `PatchMethod`): at the title screen 100 methods are patched,
+94 by us and 6 by BepInEx, all on .NET and all with a patch method in
+`BepInEx/core/BepInEx.Preloader.dll` (namespace
+`BepInEx.Preloader.RuntimeFixes`): `Console.SetOut` (`ConsoleSetOutFix`,
+owner `harmony-auto-<guid>`), `Assembly.LoadFile` / `LoadFrom`
+(`HarmonyInteropFix`, `org.bepinex.fixes.harmonyinterop`),
+`Assembly.get_Location` / `get_CodeBase` (`UnityPatches`, a second
+`harmony-auto-<guid>`), `Trace.DoTrace` (`TraceFix`,
+`com.bepis.bepinex.tracefix`). The `harmony-auto` guids differ every
+launch, so the owner id alone cannot name BepInEx's patches. A plugin's
+`new Harmony(id).Patch` on `File.ReadAllText` (mscorlib) works on this
+Mono and shows in the same table.
+
 ---
 
 ## `timeScale`

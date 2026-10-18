@@ -241,40 +241,62 @@ namespace ForestOverlay.Game
             GatherPatches(r, ownGuid);
         }
 
-        /// The Harmony patches: ours counted, everyone else's listed.
+        /// The Harmony patches: ours counted, BepInEx's own runtime fixes
+        /// skipped (Data/PlatformPatches, T-0112), everyone else's listed -
+        /// on any method, .NET's included.
         public static void GatherPatches(Data.RunReport r, string ownGuid)
         {
             r.ForeignPatches.Clear();
             r.OwnPatchedMethods = 0;
             try
             {
+                string core = Path.Combine(Paths.BepInExRootPath, "core");
                 foreach (MethodBase m in Harmony.GetAllPatchedMethods())
                 {
-                    // BepInEx patches .NET itself (Console, Assembly, Trace -
-                    // seen live, v0.24.207): only the game's and Unity's code
-                    // count.
-                    if (IsRuntimeCode(m)) continue;
                     Patches info = Harmony.GetPatchInfo(m);
                     if (info == null) continue;
                     bool ours = false;
-                    foreach (string owner in info.Owners)
-                    {
-                        if (owner != null && owner.StartsWith(ownGuid)) { ours = true; continue; }
-                        string entry = (m.DeclaringType != null ? m.DeclaringType.Name + "." : "") + m.Name + " (by " + owner + ")";
-                        if (!r.ForeignPatches.Contains(entry)) r.ForeignPatches.Add(entry);
-                    }
+                    ours |= SortPatches(info.Prefixes, m, r, ownGuid, core);
+                    ours |= SortPatches(info.Postfixes, m, r, ownGuid, core);
+                    ours |= SortPatches(info.Transpilers, m, r, ownGuid, core);
+                    ours |= SortPatches(info.Finalizers, m, r, ownGuid, core);
+                    ours |= SortPatches(info.ILManipulators, m, r, ownGuid, core);
                     if (ours) r.OwnPatchedMethods++;
                 }
             }
             catch (Exception ex) { r.ForeignPatches.Add("could not list the patches: " + ex.Message); }
         }
 
-        private static bool IsRuntimeCode(MethodBase m)
+        /// Lists the foreign patches of one kind on `m`; true if one is ours.
+        private static bool SortPatches(IList<Patch> patches, MethodBase m, Data.RunReport r, string ownGuid, string core)
         {
-            Type t = m.DeclaringType;
-            if (t == null) return false;
-            string asm = t.Assembly.GetName().Name;
-            return asm == "mscorlib" || asm == "System" || asm.StartsWith("System.") || asm.StartsWith("Mono.");
+            if (patches == null) return false;
+            bool ours = false;
+            for (int i = 0; i < patches.Count; i++)
+            {
+                Patch p = patches[i];
+                if (p == null) continue;
+                string owner = p.owner;
+                if (owner != null && owner.StartsWith(ownGuid)) { ours = true; continue; }
+                if (Data.PlatformPatches.IsBepInEx(owner, PatchFile(p), core)) continue;
+                string entry = (m.DeclaringType != null ? m.DeclaringType.Name + "." : "") + m.Name + " (by " + owner + ")";
+                if (!r.ForeignPatches.Contains(entry)) r.ForeignPatches.Add(entry);
+            }
+            return ours;
+        }
+
+        /// The file the patch method was loaded from ("" when it has none).
+        private static string PatchFile(Patch p)
+        {
+            try
+            {
+                MethodInfo pm = p.PatchMethod;
+                if (pm == null || pm.DeclaringType == null) return "";
+                Assembly a = pm.DeclaringType.Assembly;
+                if (a is System.Reflection.Emit.AssemblyBuilder) return "";
+                return a.Location ?? "";
+            }
+            catch (Exception) { return ""; }
         }
 
         /// How many methods are patched now - a cheap "did anything change".
