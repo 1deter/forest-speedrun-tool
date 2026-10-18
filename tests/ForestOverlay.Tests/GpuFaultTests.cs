@@ -31,6 +31,21 @@ namespace ForestOverlay.Tests
             Assert.Contains("nvlddmkm", line);
             Assert.Contains("Restarting TDR occurred", line);
             Assert.Contains("close the game", line);
+            Assert.Contains("event 153", line);
+        }
+
+        [Fact]
+        public void Many_events_pick_the_newest_first_and_cap_the_count()
+        {
+            string newest = Real.Replace("153", "117").Replace("2026-10-16T08:26:33", "2026-10-16T09:00:00");
+            string xml = newest;
+            for (int i = 0; i < 25; i++) xml += Real;
+            var faults = GpuFault.Parse(xml);
+            Assert.Equal(26, faults.Count);
+            string line = GpuFault.Line(faults);
+            Assert.Contains("event 117", line);
+            Assert.Contains("20+", line);
+            Assert.Contains("3 nvlddmkm", GpuFault.Line(GpuFault.Parse(Real + Real + Real)));
         }
 
         [Fact]

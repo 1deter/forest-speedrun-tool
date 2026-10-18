@@ -57,14 +57,19 @@ namespace ForestOverlay.BridgeMcp
             return list;
         }
 
+        /// Most events one query reads; a burst past it shows as "20+".
+        public const int Cap = 20;
+
         /// The one line for a tool reply; null when there is no fault.
+        /// `faults` is newest first (wevtutil /rd:true).
         public static string Line(List<Fault> faults)
         {
             if (faults == null || faults.Count == 0) return null;
-            Fault last = faults[faults.Count - 1];
-            string what = string.IsNullOrEmpty(last.Text) ? "nvlddmkm event " + last.EventId : last.Text;
-            return "GPU DRIVER FAULT: " + faults.Count + " nvlddmkm event(s) in the System log since the game launched (last " +
-                   last.Utc.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture) + ": " + what +
+            Fault last = faults[0];
+            string count = faults.Count >= Cap ? Cap + "+" : faults.Count.ToString(CultureInfo.InvariantCulture);
+            return "GPU DRIVER FAULT: " + count + " nvlddmkm event(s) in the System log since the game launched (newest: event " +
+                   last.EventId + " at " + last.Utc.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
+                   (string.IsNullOrEmpty(last.Text) ? "" : ", " + last.Text) +
                    "). The game's render is likely hung - stop driving it and close the game.";
         }
 
@@ -76,7 +81,7 @@ namespace ForestOverlay.BridgeMcp
             {
                 string stamp = sinceUtc.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.000'Z'", CultureInfo.InvariantCulture);
                 ProcessStartInfo psi = new ProcessStartInfo("wevtutil",
-                    "qe System \"/q:*[System[Provider[@Name='nvlddmkm'] and TimeCreated[@SystemTime>='" + stamp + "']]]\" /f:xml /c:20")
+                    "qe System \"/q:*[System[Provider[@Name='nvlddmkm'] and TimeCreated[@SystemTime>='" + stamp + "']]]\" /f:xml /rd:true /c:" + Cap)
                 {
                     RedirectStandardOutput = true,
                     CreateNoWindow = true,
@@ -84,9 +89,9 @@ namespace ForestOverlay.BridgeMcp
                 using (Process p = ChildProcess.Start(psi))
                 {
                     if (p == null) return null;
-                    string xml = p.StandardOutput.ReadToEnd();
-                    if (!p.WaitForExit(8000)) { try { p.Kill(); } catch (Exception) { } return null; }
-                    return Line(Parse(xml));
+                    System.Threading.Tasks.Task<string> read = p.StandardOutput.ReadToEndAsync();
+                    if (!read.Wait(4000)) { try { p.Kill(); } catch (Exception) { } return null; }
+                    return Line(Parse(read.Result));
                 }
             }
             catch (Exception) { return null; }
