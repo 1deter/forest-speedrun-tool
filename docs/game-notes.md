@@ -444,6 +444,22 @@ inventory mat) to `TheForest.Items.Special.LogControler`
   (`GetTired`: 1 log 0.15, 2 logs 0.25) and calories.
 - A world log: `Log(Clone)` (layer PickUp), its `Trigger` child's
   `PickUp.Collect` is the pickup.
+- **Repairs take logs only for collapsed pieces** (IL, live 2026-10-19,
+  T-0121): `CalcMissingRepairLogs = _collapsedLogs / 3 - _repairLogs` on
+  `BuildingHealth` and `FoundationHealth`. A `BuildingHealthChunk` collapse
+  adds 1 per active renderer tagged `Log`, and a `FoundationChunkTier` break
+  adds 1 per renderer. Damage alone needs only repair material (sap). Two
+  `RepairTool`s run `Update` (Take -> `RemoveItem(78)`): one on the held log
+  `LogHeld1`, so a carried log is added with no tool, and one on
+  `RepairToolHeld/collide` (`LocalPlayer.RepairTool`). `OnGrabberEnter`
+  targets a plain `BuildingHealth` only while `!HasLogs`, so a plain part
+  missing logs takes none even in vanilla. A `FoundationHealth` part takes
+  them.
+- **The `get_HasLogs` prefix does not reach every reader** (live,
+  2026-10-19, T-0431). Called by reflection it answers patched, but
+  `PlayerInventory.Equip` refused a right-hand item while `_logs` > 0 and
+  equipped it at 0. Most likely the 10-byte getter is JIT-inlined into its
+  callers, so only transpiled readers see the store.
 
 `Game/LogStore` (the *Logs in the inventory* mod) keeps the count in
 `_logs` and patches around it - see its header.
