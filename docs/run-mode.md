@@ -551,8 +551,11 @@ than the table's plan:
   (T-0110, done).
 - The report reads the game's file on disk at startup, not the loaded
   assembly. Per-type hashes (phase 3) can hash the loaded code instead.
-- BepInEx's own patches on .NET methods are skipped by assembly (mscorlib,
-  System*, Mono.*), whoever owns them.
+- Since T-0112 only BepInEx's own runtime fixes are skipped (a BepInEx
+  owner id or `harmony-auto-*`, and a patch method in
+  `BepInEx/core/BepInEx.Preloader.dll`; `Data/PlatformPatches`); every
+  other patch is listed, .NET methods included. A BepInEx update that adds
+  a new fix would show as a foreign patch until it is added there.
 
 ## Phases
 
