@@ -445,3 +445,5 @@ Confirmed 2026-10-18 (game, bridge, v0.24.349): **a segment with check = event r
 - v0.24.349 T-0118 fast building hold (Normal game): switch off, 1 s Build hold adds 1 stick (0 -> 1); switch on, 0.3 s hold adds 4 (1 -> 5, ~0.065 s pace) and the bag drops 9 -> 5 (bridge 2026-10-18)
 - T-0411 v0.24.350: Quick load removes drops made since the capture (Stick, Rock, Spear: "removed 3 item(s)", pre-capture rock kept, same handle); repeat restore removes 0; after a Full load a root drop goes (threshold 0). Side effect: "Rabbit Alive x1" also removed on each restore in the new world (bridge 2026-10-18)
 - T-0415 v0.24.351: Quick load after a Full load keeps live rabbits/lizards (no 'Rabbit Alive' removed), post-capture Stick drops still removed (bridge 2026-10-18)
+
+- v0.24.352 T-0366 HUD Passengers found / Loads: docked rows in the splits panel (shot t0366-c); Loads 2 -> 3 after a Full load = LevelLoader.loadingCount; FpCharacter.velocity equals Rigidbody.velocity, +0x168 field unsettled (bridge 2026-10-18)
