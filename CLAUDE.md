@@ -157,6 +157,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-18 (session 4, quick pair):** v0.24.337 T-0398 (Inventory held
+  marks read the live equipment slots) + T-0401 (untimed spot: 'This spot
+  is not timed: no checkpoints to show.'), checker accept both - need
+  in-game confirm. **Next:** the overnight loop; confirm T-0391 / T-0398 /
+  T-0401 / T-0404 / T-0408 in game.
+
 - **2026-10-17 (session 3, low usage):** v0.24.336 T-0404 (Items fold is a
   chevron header) + T-0408 (stat tips explain the label rules), checker
   accept both - need in-game confirm. **Next:** confirm T-0391 / T-0404 /
@@ -168,15 +174,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   forest-tester / e2e to confirm). Filed T-0409 (split multi-purpose input
   tiles, the other half of the author's T-0391 answer). **Next:** confirm
   T-0391 in game, then `tasks.py next`.
-
-- **2026-10-17 (session, author present):** v0.24.334 T-0400 confirmed
-  (checkpoint labels: 7 stats in runner words + the run's items, new
-  default time / delta / speed / Health / Stamina / Armor, moved once;
-  smoke PASS). Answered: T-0400..T-0402, T-0405..T-0407 (T-0401 / T-0402
-  / T-0406 / T-0407 ready to build). Filed T-0403 (bridge spot select -
-  the line's labels were not seen in game), T-0404, T-0408 (forest-ux).
-  Earlier: R-0017 (v0.24.330-333), docs/session-log.md. **Next:** a
-  fresh session, `tasks.py next` (T-0391 Esc tile is answered).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

@@ -2,6 +2,17 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-18 (session 4 handoff)
+
+- **2026-10-17 (session, author present):** v0.24.334 T-0400 confirmed
+  (checkpoint labels: 7 stats in runner words + the run's items, new
+  default time / delta / speed / Health / Stamina / Armor, moved once;
+  smoke PASS). Answered: T-0400..T-0402, T-0405..T-0407 (T-0401 / T-0402
+  / T-0406 / T-0407 ready to build). Filed T-0403 (bridge spot select -
+  the line's labels were not seen in game), T-0404, T-0408 (forest-ux).
+  Earlier: R-0017 (v0.24.330-333), docs/session-log.md. **Next:** a
+  fresh session, `tasks.py next` (T-0391 Esc tile is answered).
+
 ## Moved out 2026-10-17 (T-0400 session handoff)
 
 - **2026-10-16 (run R-0017, author present):** 4 confirmed. v0.24.330
