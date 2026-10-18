@@ -174,7 +174,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 3. **A throwing `Awake` silently kills the plugin** - try/catch every lifecycle method. [check: lint.py check_lifecycle]
 4. **Don't trust assumed names** - everything in `src/Game/` comes from a dump or IL. [judgement]
 5. **The F11 dump is metadata only** - behaviour questions go to `tools/ILScan` (`strings` finds `SendMessage` callers). [judgement]
-6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics. [judgement]
+6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics; a stale one holds the old world in memory (T-0056). [judgement]
 7. **Edge semantics** - a start zone fires on crossing, checkpoints / ends on entry. [check: CrossingTests]
 12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: lint.py check_render]
 13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`. [judgement]
