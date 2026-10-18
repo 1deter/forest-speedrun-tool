@@ -210,8 +210,11 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
    (tasks/notes/T-0033.md). Ours fixed: 21 caught exceptions a second in
    the 100% tab. Open: the strings (4-16 KB/s, source not found) and the
    restart loop (~40 MB and 1-2 forced GCs per Quick load).
-2. The old world held 30-70 s after each Full load / death reload (~25 ms
-   longer pauses meanwhile). Root unknown; low payoff.
+2. The old world held 30 s to for good after each Full load / death
+   reload (~25 ms longer pauses meanwhile): root found (T-0034, game-notes
+   *The heap across restores*: A*'s `PathPool`), fix planned in
+   tasks/notes/T-0034.md. Census tool for the next one: `_census.Paths
+   <TypeName> <max> <ownOnly>`.
 3. The live heap: mostly the A* navmesh, needed.
 4. The big frame at a load's scene start-up (750-900 ms) and the Quick
    load's streamed-scene reload - the game's own work; only if a cheap
