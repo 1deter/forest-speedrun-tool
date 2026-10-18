@@ -493,3 +493,44 @@ A put-back copy then has no timer, because hiding it cancelled the game's
 own. The module's restore line gains `, despawn timers set as at the
 capture N`. After a downgrade to v0.24.354-356, those plugins skip the
 4-segment entries, so tagged copies are not moved back.
+
+A Quick load puts out fire lit since the capture (T-0419, `Game/FireKeeper`;
+game-notes *Fire, and what a Quick load leaves of it*). Hooks installed at
+plugin start list what burns. `FireDamage.Ignite` numbers each new fire on
+a tree or bush view with NatureKeeper's sequence, so the `bushes` mark
+tells fires lit before the capture from fires lit after. `FireDamage.Burn`
+(a bush's; it destroys the bush's scene object) and the spread's `Ignite`
+keep a copy of the bush's LOD as a cut does (`NatureKeeper.KeepLod`), so
+the Quick load puts the bush back, and a Full load removes it again when
+it was gone at the capture (`cutbushes`). `Fire2.On`, `enableEffigy.lightEffigyReal`,
+`EnemyHealth.Burn` / `singeBurn` and `animalHealth.Burn` list the built /
+cave fires, effigies, cannibals and animals they lit. The capture writes a
+`fires` header line (Data/LitFires): the listed `Fire2`s lit then, each
+`scene path@x,y,z`; empty when none was. Before LoadNow each listed
+effigy's pending `die` / `ShutdownFire` is cancelled; the load invokes them
+again from the effigy's own timer for the ones lit at the capture. After
+LoadNow, before the bushes come back:
+- a tree / bush view lit after the mark (every one for a file from another
+  world) is put out the game's way (`enabled` off and on: `StopBurningEvent`
+  + `StopBurning`), its fuel used set back to 0; a bush view whose LOD
+  destroyed itself is despawned to `Pool_Bushes`, and the kept copy comes
+  back with a view of its own;
+- a `Fire2` not in the `fires` line that shows fire gets `Off()` and its
+  unlit model (one with no starting fuel keeps the burnt model, as the game
+  starts it); one in the line that went out since is lit again
+  (`Action_LightFire`: a cave fire is not in the save). A file with no
+  `fires` line (older, or a slot) only puts out the ones the save says are
+  out but still show flames;
+- an effigy the save says is not lit, with its fire on: fire and
+  `effigyRange` off, `BirdMarkers` on;
+- a cannibal on fire: `disableBurn()`, its pending one cancelled; an animal
+  on fire: `cancelFire()`, likewise;
+- the player was already put out by the wash; its pending `StopBurning` is
+  cancelled.
+The restore line gains `| fire: N put out (tree x1, bush x1, fire x1, ...)`,
+`, M orphan bush view(s) removed` and `, K fire(s) lit again (burning at the
+capture)`. Gaps left: a cannibal or animal burning at the capture is put out
+too (T-0424: its fire timer is not recorded); a fire burning at the capture
+keeps its current fuel, not the captured one; a built fire burnt out before
+the capture and lit again since gets the unlit model, not the burnt one; a
+kept animal's health and a cannibal's burnt skin are not put back.
