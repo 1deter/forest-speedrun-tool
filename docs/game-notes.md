@@ -4767,6 +4767,38 @@ below the root. A restore puts all this back as captured
 (`Game/BreakableKeeper`, T-0273, bridge 2026-10-10: 10 restores in a row
 kept 11 roots / 10 whole, a Full load re-broke the captured one).
 
+## The loaded game code in memory (bridge + process memory read, 2026-10-18, T-0111)
+
+- **Where the loaded image is.** `Assembly-CSharp`'s
+  `ManifestModule._impl` (Mono's `System.Reflection.Module`, an internal
+  IntPtr) is the `MonoImage*`; `Assembly._mono_assembly` is the
+  `MonoAssembly*`. In the x64 player (Unity 5.6.5's Mono): `ref_count`
+  int at +0, `raw_data_handle` at +8 (0 - Mono read the file into memory,
+  nothing mapped), **`raw_data` at +16, `raw_data_len` (uint32) at +24**.
+  Read live from outside the process (ReadProcessMemory on the image
+  pointer the bridge printed): length 8,231,936 = the file's, the bytes
+  start `MZ`, and their SHA-256 is the file's, `3fcb3958...` (the Steam
+  build). The fields follow Mono's `struct _MonoImage` (int, then
+  pointers), so x86 would be +8 / +12 - not seen live.
+- **mono.dll exports no raw-data getter** (`mono_image_get_raw_data`
+  is newer than this Mono); it has `mono_assembly_get_image`,
+  `mono_image_get_filename`, `mono_image_loaded[_full]`.
+  `Assembly.Location` is `...\TheForest_Data\Managed\Assembly-CSharp.dll`.
+- **The per-type IL hash of the loaded code** (`RunIntegrity.HashTypes`,
+  `GetMethodBody().GetILAsByteArray()` per method) with our Harmony
+  patches in place equals `site/ForestSite/GameCode/steam-types.txt` line
+  for line: patches leave the IL that reflection returns alone.
+- **What that pass costs** (main thread over the bridge, so the GC count
+  is the game's own trigger): 275-371 ms the first time, 187 ms again;
+  ~42.7 MB of garbage (strings 24 MB, `byte[]` 10 MB, `string[]` 4.6 MB,
+  StringBuilder 2 MB; the allocation tracker), 1-2 collections. **It also
+  keeps ~28-30 MB for the rest of the session**: title screen live heap
+  39.1 -> 68.6 MB (`GetTotalMemory(true)`, twice each), a full GC 8 ->
+  13 ms; in a loaded Slot 1, 279.0 -> 306.5 MB, a full GC 69-71 -> 79-81
+  ms. A second pass keeps nothing more: the reflection objects
+  (`MethodInfo` / `MethodBody` per method) are cached by the runtime once
+  made - not read in Mono's source.
+
 ## How to extend this file
 
 0. **Decompiled C#** (2026-10-03, the overnight sweep) - for reading whole
