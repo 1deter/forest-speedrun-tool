@@ -101,6 +101,18 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ARootTheCaptureHoldsCountsAsItselfDespiteAStandIn()
+        {
+            Dictionary<int, int> map = new Dictionary<int, int> { { 50, 1 } };
+            Assert.Equal(50, AnimalSpawns.Resolve(50, new[] { 1, 50 }, map));
+            Assert.Equal(1, AnimalSpawns.Resolve(50, new[] { 1 }, map));
+            AnimalSpawns.Plan plan = AnimalSpawns.MakePlan(new[] { 1, 50 }, new[] { 50 }, map);
+            Assert.Equal(new[] { 50 }, plan.Move.ToArray());
+            Assert.Equal(new[] { 1 }, plan.Respawn.ToArray());
+            Assert.Empty(plan.Despawn);
+        }
+
+        [Fact]
         public void DescribeNamesEachPartAndIsEmptyWhenNothingHappened()
         {
             Assert.Equal("", AnimalSpawns.Describe("", 0, 0, 0, 0));
