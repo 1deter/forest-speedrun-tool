@@ -146,7 +146,7 @@ namespace ForestOverlay.Game
         // GL.wireframe + Graphics.DrawMeshNow, after the GL lines. A convex
         // collider collides as the hull of this mesh. MeshVertexBudget caps
         // the vertices drawn in one frame; past it a mesh shows its bounds.
-        // A mesh with no vertices or no GPU buffer shows its bounds too:
+        // A mesh with no vertices, no GPU buffer or no triangle submesh shows its bounds too:
         // checked once per mesh on the refresh throttle (CheckMesh), as
         // GetNativeVertexBufferPtr waits for the render thread; a mesh not
         // checked yet is a box until it is (counted in neither reason).
@@ -161,7 +161,7 @@ namespace ForestOverlay.Game
         private static int _lines;
 
         /// Mesh colliders drawn as their bounds box in the last draw: over
-        /// the frame's vertex budget, and with no mesh / vertices / GPU buffer.
+        /// the frame's vertex budget, and with no mesh / vertices / GPU buffer / triangles.
         public int MeshBoxesLarge { get; private set; }
         public int MeshBoxesUndrawable { get; private set; }
 
@@ -175,9 +175,23 @@ namespace ForestOverlay.Game
             _checksLeft--;
             if (_drawable.Count >= MaxChecked) _drawable.Clear();
             bool ok;
-            try { ok = mesh.vertexCount > 0 && mesh.GetNativeVertexBufferPtr(0) != IntPtr.Zero; }
+            try { ok = mesh.vertexCount > 0 && mesh.GetNativeVertexBufferPtr(0) != IntPtr.Zero && HasTriangles(mesh); }
             catch (Exception) { ok = false; }
             _drawable[id] = ok;
+        }
+
+        // T-0390: a GPU index buffer and a submesh with indices in a triangle
+        // topology, else the wireframe pass would draw nothing for it.
+        private static bool HasTriangles(Mesh mesh)
+        {
+            if (mesh.GetNativeIndexBufferPtr() == IntPtr.Zero) return false;
+            int subs = mesh.subMeshCount;
+            for (int i = 0; i < subs; i++)
+            {
+                MeshTopology t = mesh.GetTopology(i);
+                if ((t == MeshTopology.Triangles || t == MeshTopology.Quads) && mesh.GetIndexCount(i) > 0) return true;
+            }
+            return false;
         }
 
         // Draw, GL pass: queue the mesh for the wireframe pass. False = draw
