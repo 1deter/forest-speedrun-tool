@@ -54,10 +54,12 @@ namespace ForestOverlay.Game
         private static MethodInfo _clearOut;
 
         // The phantom stick (fix list 2, author, once after Quick loads): a
-        // stick picked up, gone, nothing in the inventory. Never reproduced
-        // through the bridge; a PickUp.Collect that clears the pickup while
-        // the item's count does not rise logs one line (the plane axe a
-        // Quick load re-created did exactly that at its max of 1).
+        // stick picked up, gone, nothing in the inventory. A PickUp.Collect
+        // that clears the pickup while the item's count does not rise logs
+        // one line (the plane axe a Quick load re-created did exactly that
+        // at its max of 1). Explained in T-0053: at the max the game fake-
+        // drops it (game-notes *A pickup taken with the inventory full*);
+        // those are kept for a restore now, and not counted as gone.
         private static FieldInfo _localInventory;
         private static MethodInfo _amountOf;
         private static MethodInfo _maxAmountOf;
