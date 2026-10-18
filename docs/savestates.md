@@ -436,4 +436,7 @@ copy) it is kept like a taken one; when the pickup itself became the
 dropped item (`DoFakeDrop` true: a `Rock_Dynamic` picked up again at the
 max) it stays active and the postfix puts `_disableInsteadOfDestroy` back
 to false (live: the dynamic rock moved 0.8 m, kept count unchanged, flag
-false). Open: the dropped `*_Dynamic` copy stays after a restore (T-0411).
+false). Open: the dropped `*_Dynamic` copy stays after a Quick load
+(a Full load clears it); build plan in `tasks/notes/T-0411.md` (an
+instance-id mark at capture, game-notes *Dropped copies and instance
+ids*).
