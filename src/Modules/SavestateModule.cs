@@ -443,7 +443,7 @@ namespace ForestOverlay.Modules
             public string ActiveArea = "", AreaWarning = "";
             public string Blueprint = "", Stance = "", Rope = "";
             public int Logs;
-            public string Bushes = "";
+            public string Bushes = "", Spawned = "";
             public List<string> CutBushes, Chopped, Greebles, Broken;
             public string Areas = "", EnemyNote = "";
             public List<string> Enemies = new List<string>();
@@ -548,6 +548,7 @@ namespace ForestOverlay.Modules
                     break;
                 case 7:
                     p.Bushes = _nature.CaptureMark();
+                    p.Spawned = CaptureSpawnMark();
                     p.CutBushes = _nature.CaptureCuts();
                     p.Chopped = _nature.CaptureChopped();
                     break;
@@ -618,7 +619,7 @@ namespace ForestOverlay.Modules
             List<int> held = p.Held;
             string book = p.Book, bookNote = p.BookNote, cutscene = p.Cutscene, megan = p.Megan, elevators = p.Elevators;
             string slidingDoors = p.SlidingDoors, activeArea = p.ActiveArea, keypadDoor = p.KeypadDoor, blueprint = p.Blueprint;
-            string areas = p.Areas, enemyNote = p.EnemyNote ?? "", bushes = p.Bushes, stance = p.Stance, rope = p.Rope, ride = p.Ride;
+            string areas = p.Areas, enemyNote = p.EnemyNote ?? "", bushes = p.Bushes, spawned = p.Spawned, stance = p.Stance, rope = p.Rope, ride = p.Ride;
             string blueprints = p.Blueprints, weather = p.Weather;
             float cutsceneAt = p.CutsceneAt;
             List<string> enemies = p.Enemies, families = p.Families, cutBushes = p.CutBushes, chopped = p.Chopped, greebles = p.Greebles, broken = p.Broken;
@@ -663,6 +664,7 @@ namespace ForestOverlay.Modules
                 f.Blueprints = blueprints;
                 f.Weather = weather;
                 f.Bushes = bushes;
+                f.Spawned = spawned;
                 f.CutBushes = cutBushes;
                 f.Chopped = chopped;
                 f.Greebles = greebles;
@@ -934,6 +936,7 @@ namespace ForestOverlay.Modules
             // Outside a cutscene replay (its hands are the replay's).
             _bridge.KeepHandsIfHeld = file != null && file.CutsceneAt < 0f ? file.Held : null;
             _bridge.BlueprintsAtCapture = file != null ? file.Blueprints : null;
+            _bridge.SpawnedThreshold = file != null ? SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()) : int.MinValue;
             RestoreGarbage.Mark("before the restore");
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
@@ -1617,6 +1620,21 @@ namespace ForestOverlay.Modules
         {
             string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
             return n == "Arm" || n == "Leg" || n == "Head";
+        }
+
+        // T-0411: the engine's next instance id, as the "made since" mark.
+        private static string CaptureSpawnMark()
+        {
+            try
+            {
+                string world = NatureKeeper.WorldKey();
+                if (world.Length == 0) return "";
+                GameObject probe = new GameObject("ForestOverlay spawn mark");
+                int id = probe.GetInstanceID();
+                UnityEngine.Object.DestroyImmediate(probe);
+                return SpawnMark.Format(world, id);
+            }
+            catch (Exception) { return ""; }
         }
 
         private string NameOfItem(int id)

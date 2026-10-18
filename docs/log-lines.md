@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 835 log calls.
+249 prefixes from 836 log calls.
 
 ## `ActionReaders`
 
@@ -1760,6 +1760,7 @@ Written by LogStore.cs, SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate restore (load): <inner>`
 - info `Savestate restore (load): difficulty <was> -> <diff> for the load (the capture's<..>).`
 - info `Savestate restore (load): game mode <..> for the load (the capture's mode).`
+- warning `Savestate restore: removing items made since the capture failed: <ex.Message>`
 - info `<prefix>: <..>.` *(declared)*
 - info `<prefix>: <note>.` *(declared)* (x2)
 - info `Savestate restore <what> in place: <note> - <..> after <..> s.`

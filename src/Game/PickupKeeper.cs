@@ -368,6 +368,65 @@ namespace ForestOverlay.Game
             return n;
         }
 
+        /// T-0411: destroys scene-root world items made after the capture
+        /// (a full-inventory take's Stick_Dynamic copy and kin): the root
+        /// has no identifier, a lower instance id than `threshold`, and a
+        /// PickUp below it whose destroy target is the root. Walks the root
+        /// objects only. Counts by item id. Returns how many.
+        public static int RemoveSpawnedSince(int threshold, Transform player, Dictionary<int, int> counts)
+        {
+            if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return 0;
+            Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
+            if (pickUp == null) return 0;
+            FieldInfo despawn = pickUp.GetField("_poolManagerDespawnCreature", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            // Copies taken again after the capture are kept hidden: forget them.
+            for (int t = TakenList.Count - 1; t >= 0; t--)
+            {
+                GameObject tg = TakenList[t].Target;
+                if (tg != null && tg.transform.parent == null && SpawnMark.IsAfter(tg.GetInstanceID(), threshold)) TakenList.RemoveAt(t);
+            }
+
+            int n = 0;
+            for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
+            {
+                UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(s);
+                if (!scene.isLoaded) continue;
+                GameObject[] roots = scene.GetRootGameObjects();
+                for (int i = 0; i < roots.Length; i++)
+                {
+                    GameObject r = roots[i];
+                    if (r == null || !SpawnMark.IsAfter(r.GetInstanceID(), threshold)) continue;
+                    if (!r.activeInHierarchy || (player != null && r.transform == player.root)) continue;
+                    if (r.GetComponent(_uniqueIdType) != null) continue;
+                    Component[] pickups = r.GetComponentsInChildren(pickUp, true);
+                    Component hit = null;
+                    for (int k = 0; k < pickups.Length && hit == null; k++)
+                    {
+                        Component c = pickups[k];
+                        try
+                        {
+                            if (despawn != null && (bool)despawn.GetValue(c)) continue;
+                            GameObject target = _destroyTarget.GetValue(c) as GameObject;
+                            if (target == null ? c.gameObject == r : target == r) hit = c;
+                        }
+                        catch (Exception) { }
+                    }
+                    if (hit == null) continue;
+                    int id = 0;
+                    try { id = (int)_itemId.GetValue(hit); } catch (Exception) { }
+                    UnityEngine.Object.Destroy(r);
+                    if (counts != null)
+                    {
+                        int have;
+                        counts.TryGetValue(id, out have);
+                        counts[id] = have + 1;
+                    }
+                    n++;
+                }
+            }
+            return n;
+        }
+
         /// After a Quick load: loaded world pickups (no identifier) of an
         /// item `item` accepts, where `where` accepts the target, that the
         /// capture does not account for - by item, nearest first within

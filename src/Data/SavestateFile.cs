@@ -163,6 +163,9 @@ namespace ForestOverlay.Data
         /// Game/NatureKeeper's capture mark; "" when absent.
         public string Bushes = "";
 
+        /// Data/SpawnMark: world and instance id at the capture; "" when absent.
+        public string Spawned = "";
+
         /// Null when the file has no cutbushes line (before v0.24.65).
         public List<string> CutBushes;
 
@@ -262,6 +265,7 @@ namespace ForestOverlay.Data
             c.Panels = Panels != null ? new List<string>(Panels) : null;
             c.Enemies = Enemies != null ? new List<string>(Enemies) : null;
             c.Families = Families != null ? new List<string>(Families) : null;
+            c.Spawned = Spawned;
             c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
             c.Chopped = Chopped != null ? new List<string>(Chopped) : null;
             c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
@@ -310,6 +314,7 @@ namespace ForestOverlay.Data
             if (Blueprints != null) Line(sb, "blueprints", Blueprints);
             if (Weather.Length > 0) Line(sb, "weather", Weather);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
+            if (Spawned.Length > 0) Line(sb, "spawned", Spawned);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Chopped != null && Chopped.Count > 0) Line(sb, "chopped", string.Join(";", Chopped.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
@@ -381,6 +386,7 @@ namespace ForestOverlay.Data
                     case "blueprints": s.Blueprints = value; break;
                     case "weather": s.Weather = value; break;
                     case "bushes": s.Bushes = value; break;
+                    case "spawned": s.Spawned = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');

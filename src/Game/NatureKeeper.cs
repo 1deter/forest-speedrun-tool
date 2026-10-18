@@ -466,6 +466,8 @@ namespace ForestOverlay.Game
             return w.Length == 0 ? "" : w + ":" + _seq.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        public static string WorldKey() { return World(); }
+
         private static string World()
         {
             if (_manager == null) return "";
