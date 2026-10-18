@@ -36,7 +36,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112, T-0243 | 2026-10-14 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
 | Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-16 |
-| Performance and loads | B | B | B | A | B | T-0034, T-0048 | 2026-10-14 |
+| Performance and loads | B | B | B | A | B | T-0048 | 2026-10-18 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |
 | Bridge, e2e and QA | B | A | B | B | A | T-0394 | 2026-10-18 |
@@ -177,7 +177,8 @@ Paths: `src/Core/{PerfMonitor,StallWatch}.cs` `src/Game/{AllocationTracker,Camer
 - Verification **B**: FrameTimeline, ProfileTable, LoadTimes tests; the
   `Perf` / `Frame` / `Load timing` lines read by hand; idle garbage and the
   load leak confirmed (v0.23.3-7, v0.24.244); the e2e `launch` journey
-  loads but measures nothing.
+  loads but measures nothing; the post-load heap A/B (T-0034) confirmed
+  live 2026-10-18.
 - Legibility **B**: `PerfPatches.cs` 1,128 (over 1,000 since T-0072 /
   T-0277), `MemoryCensus.cs` 765; all seven performance gotchas are
   judgement.
@@ -194,7 +195,8 @@ Paths: `src/Core/{PerfMonitor,StallWatch}.cs` `src/Game/{AllocationTracker,Camer
   endgame (T-0274) and the practice-mode toggle (T-0275); garbage in play
   measured (T-0033: 50-150 KB/s, half Unity's; the small game patches
   wait on the author, T-0203; the restart loop's ~40 MB a Quick load, T-0202, and the
-  strings' source open); the old world held after a load (T-0034); the census hitch
+  strings' source open); the old world held after a load fixed (T-0034, v0.24.342-343: the A* path
+  pool and our drawings view; heap flat over 4 Full loads); the census hitch
   check (T-0048); raw FPS (T-0030 done: no safe camera cut; T-0199 done: no safe main-camera
   draw cut, the in-cave surface parked for the author; T-0031, T-0032).
 
