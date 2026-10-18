@@ -145,6 +145,21 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DroppedLineRoundTripsIsEmptyWhenAbsentAndCopies()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Dropped);
+
+            SavestateFile s = Sample();
+            s.Dropped = "-197640:53@430.11,76.08,-4.12@0,0.7,0,0.7";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Dropped, back.Dropped);
+            Assert.Equal(s.Data, back.Data);
+            Assert.Equal(s.Dropped, s.Copy().Dropped);
+        }
+
+        [Fact]
         public void BushesMarkRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

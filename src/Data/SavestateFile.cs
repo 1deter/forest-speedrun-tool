@@ -166,6 +166,10 @@ namespace ForestOverlay.Data
         /// Data/SpawnMark: world and instance id at the capture; "" when absent.
         public string Spawned = "";
 
+        /// Data/DroppedPoses: where loose world items lay at the capture
+        /// (T-0416); "" when absent.
+        public string Dropped = "";
+
         /// Null when the file has no cutbushes line (before v0.24.65).
         public List<string> CutBushes;
 
@@ -266,6 +270,7 @@ namespace ForestOverlay.Data
             c.Enemies = Enemies != null ? new List<string>(Enemies) : null;
             c.Families = Families != null ? new List<string>(Families) : null;
             c.Spawned = Spawned;
+            c.Dropped = Dropped;
             c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
             c.Chopped = Chopped != null ? new List<string>(Chopped) : null;
             c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
@@ -315,6 +320,7 @@ namespace ForestOverlay.Data
             if (Weather.Length > 0) Line(sb, "weather", Weather);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (Spawned.Length > 0) Line(sb, "spawned", Spawned);
+            if (Dropped.Length > 0) Line(sb, "dropped", Dropped);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Chopped != null && Chopped.Count > 0) Line(sb, "chopped", string.Join(";", Chopped.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
@@ -387,6 +393,7 @@ namespace ForestOverlay.Data
                     case "weather": s.Weather = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "spawned": s.Spawned = value; break;
+                    case "dropped": s.Dropped = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');

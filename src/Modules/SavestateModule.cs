@@ -443,7 +443,7 @@ namespace ForestOverlay.Modules
             public string ActiveArea = "", AreaWarning = "";
             public string Blueprint = "", Stance = "", Rope = "";
             public int Logs;
-            public string Bushes = "", Spawned = "";
+            public string Bushes = "", Spawned = "", Dropped = "";
             public List<string> CutBushes, Chopped, Greebles, Broken;
             public string Areas = "", EnemyNote = "";
             public List<string> Enemies = new List<string>();
@@ -549,6 +549,7 @@ namespace ForestOverlay.Modules
                 case 7:
                     p.Bushes = _nature.CaptureMark();
                     p.Spawned = CaptureSpawnMark();
+                    p.Dropped = PickupKeeper.CaptureDropped(Ctx.Player.Found ? Ctx.Player.Transform : null);
                     p.CutBushes = _nature.CaptureCuts();
                     p.Chopped = _nature.CaptureChopped();
                     break;
@@ -619,7 +620,7 @@ namespace ForestOverlay.Modules
             List<int> held = p.Held;
             string book = p.Book, bookNote = p.BookNote, cutscene = p.Cutscene, megan = p.Megan, elevators = p.Elevators;
             string slidingDoors = p.SlidingDoors, activeArea = p.ActiveArea, keypadDoor = p.KeypadDoor, blueprint = p.Blueprint;
-            string areas = p.Areas, enemyNote = p.EnemyNote ?? "", bushes = p.Bushes, spawned = p.Spawned, stance = p.Stance, rope = p.Rope, ride = p.Ride;
+            string areas = p.Areas, enemyNote = p.EnemyNote ?? "", bushes = p.Bushes, spawned = p.Spawned, dropped = p.Dropped, stance = p.Stance, rope = p.Rope, ride = p.Ride;
             string blueprints = p.Blueprints, weather = p.Weather;
             float cutsceneAt = p.CutsceneAt;
             List<string> enemies = p.Enemies, families = p.Families, cutBushes = p.CutBushes, chopped = p.Chopped, greebles = p.Greebles, broken = p.Broken;
@@ -665,6 +666,7 @@ namespace ForestOverlay.Modules
                 f.Weather = weather;
                 f.Bushes = bushes;
                 f.Spawned = spawned;
+                f.Dropped = dropped;
                 f.CutBushes = cutBushes;
                 f.Chopped = chopped;
                 f.Greebles = greebles;
@@ -937,6 +939,7 @@ namespace ForestOverlay.Modules
             _bridge.KeepHandsIfHeld = file != null && file.CutsceneAt < 0f ? file.Held : null;
             _bridge.BlueprintsAtCapture = file != null ? file.Blueprints : null;
             _bridge.SpawnedThreshold = file != null ? SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()) : SpawnMark.Unknown;
+            _bridge.DroppedAtCapture = file != null ? file.Dropped : "";
             RestoreGarbage.Mark("before the restore");
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
