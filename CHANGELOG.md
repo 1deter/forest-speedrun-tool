@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.363 - 2026-10-19
+
+- Run mode now checks the game's code as it runs in memory, not only the file on disk.
+- A game file changed on disk but not the one loaded shows as a note on the run report, not a failure.
+
 ## v0.24.362 - 2026-10-18
 
 - A Quick load of a save from another game session no longer brings back pickups you took before the save (pot, cash, bones).
