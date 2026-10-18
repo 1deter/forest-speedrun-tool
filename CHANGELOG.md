@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.356 - 2026-10-18
+
+- Input overlay (game input): a key that does several things - C, left click, right click - now shows one tile per action, each lit only when its own action fires; move, size or hide each tile on its own in Edit HUD.
+- Raw input still shows one tile per key. A saved layout gets the extra tiles once, next to the key's old tile.
+
 ## v0.24.355 - 2026-10-18
 
 - HUD values added in an update (Passengers found, Loads) now show their label in profiles you already had.
