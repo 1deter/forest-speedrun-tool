@@ -469,7 +469,6 @@ namespace ForestOverlay.Game
         // uses to restore an in-cave player. Same rule, same call here.
         // ------------------------------------------------------------------
         private Type _localPlayerType;
-        private Component _localPlayer;
         private FieldInfo _localPlayerGo;          // static LocalPlayer.GameObject
         private MethodInfo _gotoCave;
         private PropertyInfo _isInCaves;
@@ -563,18 +562,17 @@ namespace ForestOverlay.Game
             bool destInCave = terrain.SampleHeight(destination) - destination.y > (inCaves ? 3f : 6f);
             if (destInCave == inCaves) return "";
 
-            // LocalPlayer is a component; find it once, re-find only after a
-            // save load has destroyed it (fake-null).
-            if (_localPlayer == null)
-            {
-                try { _localPlayer = UnityEngine.Object.FindObjectOfType(_localPlayerType) as Component; }
-                catch (Exception) { _localPlayer = null; }
-            }
-            if (_localPlayer == null) return "cave switch: LocalPlayer not found";
+            // Found per call, never kept: a cached LocalPlayer outlived a
+            // Full load as a destroyed component whose managed fields
+            // (_stats -> mutantController -> RecastGraph, _inventory) held
+            // the whole previous world, ~126 MB, until the next cave switch
+            // (T-0056).
+            Component localPlayer = FindLocalPlayer();
+            if (localPlayer == null) return "cave switch: LocalPlayer not found";
 
             try
             {
-                _gotoCave.Invoke(_localPlayer, new object[] { destInCave });
+                _gotoCave.Invoke(localPlayer, new object[] { destInCave });
                 return (destInCave ? "entered cave" : "left cave") + CaveBlack(destInCave);
             }
             catch (Exception ex)
@@ -582,6 +580,22 @@ namespace ForestOverlay.Game
                 _log.LogWarning("GotoCave failed: " + ex.Message);
                 return "cave switch failed";
             }
+        }
+
+        /// The live LocalPlayer component. It sits on a child of the static
+        /// LocalPlayer.GameObject ('player/ControllerObjects', bridge
+        /// 2026-10-18), so the static gives it cheaply; the scene search is
+        /// the fallback.
+        private Component FindLocalPlayer()
+        {
+            try
+            {
+                GameObject go = _localPlayerGo != null ? _localPlayerGo.GetValue(null) as GameObject : null;
+                Component c = go != null ? go.GetComponentInChildren(_localPlayerType, true) : null;
+                if (c != null) return c;
+                return UnityEngine.Object.FindObjectOfType(_localPlayerType) as Component;
+            }
+            catch (Exception) { return null; }
         }
 
         /// Puts the player in or out of cave state UNCONDITIONALLY, by sending

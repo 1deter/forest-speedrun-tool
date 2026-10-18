@@ -32,7 +32,12 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
 
 6. **Cached component references go stale across a save load.** Unity's
    fake-null makes them look merely absent. Re-resolve, and prefer the game's
-   statics (`LocalPlayer.Inventory`) over `FindObjectOfType`.
+   statics (`LocalPlayer.Inventory`) over `FindObjectOfType`. **A stale one
+   also holds memory**: a destroyed component keeps its managed fields, so
+   `GameBridge`'s cached `LocalPlayer` (re-found only at the next cave
+   switch) held the whole previous world after a Full load, ~126 MB
+   (T-0056, v0.24.344: 440 -> 314 MB when cleared over the bridge). Don't
+   keep a world object in a field across loads; find it per use.
 
 7. **Edge semantics matter.** A start zone fires on *crossing* (you spawn
    inside it); checkpoints and ends fire on *entry*. Getting this wrong made

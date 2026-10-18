@@ -11,7 +11,10 @@ Everything here is confirmed from a live `F11` dump or from IL via
 
 ## Player
 
-Root GameObject **`player`**, tagged `Player`.
+Root GameObject **`player`**, tagged `Player`. The static
+`LocalPlayer.GameObject` is that root; the `LocalPlayer` component itself
+sits on its child `player/ControllerObjects` (bridge, 2026-10-18) and has
+no static instance - `GetComponentInChildren` from the static finds it.
 
 ### `FirstPersonCharacter`
 
@@ -3078,6 +3081,16 @@ full-GC pause). **No lasting step:**
   found from any static. With both fixes (v0.24.342 + `ForgetView`),
   second reads 15 s after each of 4 Full loads: 278 -> 291, 300, 303,
   305 MB; the pool clear off: 280 -> 291, 301, 421, 542.
+- **And our cached `LocalPlayer` (T-0056, bridge, v0.24.344,
+  2026-10-18):** after a `tp` that switched cave state, every Full load
+  stayed at ~416-440 MB (second reads, minutes later). Census: a
+  destroyed `LocalPlayer` in `GameBridge._localPlayer` (kept for
+  `GotoCave`, re-found only at the next cave switch) reached the old
+  `PlayerStats.mutantControl.rg` (`RecastGraph`, 6084 `NavmeshTile`) and
+  the old inventory views; `set ... Bridge._localPlayer null`: 440 ->
+  314 MB, full-GC pause 104 -> 83 ms. One old world at most, not
+  cumulative. Fixed by finding it per call (branch build: 285 -> 293 ->
+  300 MB over two Full loads with cave switches between).
 - **Collections come from volume, not headroom:** 218 MB of garbage
   (40 x `File.ReadAllBytes` of a 5.45 MB file) = 1 collection on a fresh
   heap, 2 on one grown by Full loads - so pre-growing the heap would not
