@@ -256,6 +256,24 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void SplitAll_WithTheMarker_DoesNotBringBackARemovedOrHiddenTile()
+        {
+            InputLayout l = InputLayout.Parse("C,500,500,1,0;Mouse0,700,500,1,1;!split");
+            Assert.True(l.Split);
+            Assert.Equal(0, l.SplitAll(Table(), 1920, 1080));
+            Assert.Null(l.Find("C", "Batch"));
+            Assert.Null(l.Find("Mouse0", "Equip"));
+        }
+
+        [Fact]
+        public void SplitKey_OfAHiddenKey_StaysHidden()
+        {
+            InputLayout l = InputLayout.Parse("C,500,500,1,0");
+            l.SplitAll(Table(), 1920, 1080);
+            Assert.False(l.Find("C", "Batch").Shown);
+        }
+
+        [Fact]
         public void Remove_KeyTakesItsActionTiles_ActionTileGoesAlone()
         {
             InputLayout l = InputLayout.Parse("C,500,500,1,1;C,560,500,1,1,Batch;Mouse0,700,500,1,1");

@@ -144,6 +144,7 @@ namespace ForestOverlay.Data
         /// Returns how many were added.
         public int SplitAll(InputActionTable table, int refW, int refH)
         {
+            if (Split) return 0;   // once only: a tile hidden or removed since stays so
             int n = Tiles.Count, added = 0;
             for (int i = 0; i < n; i++)
             {
@@ -170,6 +171,7 @@ namespace ForestOverlay.Data
                 InputTile t = Add(baseTile.Key, name, x, y);
                 if (t == null) continue;
                 t.Scale = baseTile.Scale;
+                t.Shown = baseTile.Shown;
                 added++;
             }
             return added;
@@ -208,6 +210,12 @@ namespace ForestOverlay.Data
                 if (!(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') && c != '_') return false;
             }
             return true;
+        }
+
+        /// A tile's name in a log line: the key, and the action for a per-action tile.
+        public static string TileName(InputTile t)
+        {
+            return t.Act.Length > 0 ? t.Key + " (" + t.Act + ")" : t.Key;
         }
 
         public static float ClampScale(float s)
