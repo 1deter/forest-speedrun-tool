@@ -785,11 +785,13 @@ namespace ForestOverlay.Modules
         }
 
         /// One segment as a quad of the given thickness, fading from colour c0 to c1.
+        private static int _glVerts;   // quads drawn this batch x 4, for the Perf line
         private static void Quad(float x0, float y0, float x1, float y1, float thick, Color c0, Color c1)
         {
             float dx = x1 - x0, dy = y1 - y0;
             float len = Mathf.Sqrt(dx * dx + dy * dy);
             if (len < 0.01f) return;
+            _glVerts += 4;
             float nx = -dy / len * thick * 0.5f, ny = dx / len * thick * 0.5f;
             GL.Color(c0);
             Vertex(x0 + nx, y0 + ny);
@@ -797,6 +799,14 @@ namespace ForestOverlay.Modules
             GL.Color(c1);
             Vertex(x1 - nx, y1 - ny);
             Vertex(x1 + nx, y1 + ny);
+        }
+
+        // Feeds the 30 s Perf line (T-0396), as the run lines' DrawTarget.Record.
+        private static void Perf(long startTicks)
+        {
+            PerfCounters.DrawPasses++;
+            PerfCounters.Vertices += _glVerts;
+            PerfCounters.RenderTicks += System.Diagnostics.Stopwatch.GetTimestamp() - startTicks;
         }
 
         /// A HUD point to GL's pixel space (LoadPixelMatrix: origin bottom-left), through the HUD's scale.
@@ -825,6 +835,8 @@ namespace ForestOverlay.Modules
                 _cometFitAt = now;
                 float fit = half * _cometFit;
                 float px = cx, py = cy, pAge = 0f, ba = 0.8f * before.a * a;
+                long glStart = System.Diagnostics.Stopwatch.GetTimestamp();
+                _glVerts = 0;
                 GL.PushMatrix();
                 _lineMat.SetPass(0);
                 GL.LoadPixelMatrix();
@@ -843,6 +855,7 @@ namespace ForestOverlay.Modules
                 }
                 GL.End();
                 GL.PopMatrix();
+                Perf(glStart);
             }
             float head = DotSize * scale;
             Flat(new Rect(cx - head * 0.5f, cy - head * 0.5f, head, head), new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, before.a * a));
@@ -858,8 +871,11 @@ namespace ForestOverlay.Modules
             float hx = cx + _mx * half, hy = cy + _my * half;
             float px = hx, py = hy, pAge = 0f;   // the line runs from the head back along the trail
             bool gl = _trailCount > 0 && Event.current.type == EventType.Repaint && EnsureLineMaterial();
+            long glStart = 0;
             if (gl)
             {
+                glStart = System.Diagnostics.Stopwatch.GetTimestamp();
+                _glVerts = 0;
                 GL.PushMatrix();
                 _lineMat.SetPass(0);
                 GL.LoadPixelMatrix();   // screen pixels; Vertex applies the HUD's scale and flips y (as MapModule)
@@ -892,6 +908,7 @@ namespace ForestOverlay.Modules
             {
                 GL.End();
                 GL.PopMatrix();
+                Perf(glStart);
             }
             float head = DotSize * scale;
             Flat(new Rect(hx - head * 0.5f, hy - head * 0.5f, head, head), new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, before.a * a));
