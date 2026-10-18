@@ -157,6 +157,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-19 (run R-0025, chain C-0002, unattended):** 5 of 5
+  confirmed in game. v0.24.359 T-0425 (a Quick load puts back a kept
+  animal's health, hurt skin, poison), v0.24.360 T-0421 (input overlay:
+  Remove names a key's action tiles, Add puts removed ones back),
+  v0.24.361 T-0428 (animals killed since come back, spawned since go,
+  the rest moved back, spawn limits reset), v0.24.362 T-0066 (an
+  other-world Quick load removes pickups taken before the capture;
+  story-spot pickups stay gone), v0.24.363 T-0111 (run mode hashes the
+  loaded Assembly-CSharp image). Filed: T-0428, T-0429 (birds, fish,
+  turtles, trap rabbits). No parked questions. **Next:** the
+  chain's next run.
+
 - **2026-10-18 (run R-0024, chain C-0002, unattended):** 4 of 5
   confirmed in game. T-0420 (tasks.py keeps a repeated --verify),
   v0.24.356 T-0409 (one input-overlay tile per game action, 1b/2a/3a),
@@ -176,15 +188,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   old profile). Parked: T-0409 (does 'yes' mean the lean 1b / 2a / 3a?).
   Filed: T-0418, T-0419 (restore follow-ups), T-0420 (tasks.py --verify).
   **Next:** answer T-0409; the chain's next run.
-
-- **2026-10-18 (run R-0022, chain C-0002, unattended):** 5 of 5
-  confirmed in game. T-0116 (hold-interact start), T-0117 (rope-grab /
-  rope-leave splits), T-0118 (fast building's hold) checked live, no
-  code; v0.24.350 T-0411 (a Quick load removes items dropped since the
-  capture, by an instance-id mark), v0.24.351 T-0415 (live animals kept).
-  Parked for the author: T-0416 (move rolled copies back? remove flares /
-  fire / bombs?), plus T-0111, T-0413, T-0066, T-0409, T-0410, T-0366.
-  **Next:** answer the parked questions; the chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

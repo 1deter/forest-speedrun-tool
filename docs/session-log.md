@@ -2,6 +2,17 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (run R-0025 handoff)
+
+- **2026-10-18 (run R-0022, chain C-0002, unattended):** 5 of 5
+  confirmed in game. T-0116 (hold-interact start), T-0117 (rope-grab /
+  rope-leave splits), T-0118 (fast building's hold) checked live, no
+  code; v0.24.350 T-0411 (a Quick load removes items dropped since the
+  capture, by an instance-id mark), v0.24.351 T-0415 (live animals kept).
+  Parked for the author: T-0416 (move rolled copies back? remove flares /
+  fire / bombs?), plus T-0111, T-0413, T-0066, T-0409, T-0410, T-0366.
+  **Next:** answer the parked questions; the chain's next run.
+
 ## Moved out 2026-10-18 (run R-0024 handoff)
 
 - **2026-10-18 (run R-0021, chain C-0002, unattended):** 4 of 5
