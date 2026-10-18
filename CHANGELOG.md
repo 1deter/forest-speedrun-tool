@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.346 - 2026-10-18
+
+- A savestate taken on a rope (cave ropes and built Climbing Ropes) now restores at the captured height instead of near the top or stuck in the ground.
+- With several built Climbing Ropes, a restore puts you back on the one you were on.
+
 ## v0.24.345 - 2026-10-18
 
 - A Full load no longer keeps the previous world in memory after a teleport into or out of a cave.
