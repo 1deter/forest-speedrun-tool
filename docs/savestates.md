@@ -436,7 +436,9 @@ copy) it is kept like a taken one; when the pickup itself became the
 dropped item (`DoFakeDrop` true: a `Rock_Dynamic` picked up again at the
 max) it stays active and the postfix puts `_disableInsteadOfDestroy` back
 to false (live: the dynamic rock moved 0.8 m, kept count unchanged, flag
-false). Open: the dropped `*_Dynamic` copy stays after a Quick load
-(a Full load clears it); build plan in `tasks/notes/T-0411.md` (an
-instance-id mark at capture, game-notes *Dropped copies and instance
-ids*).
+false). A Quick load removes the dropped `*_Dynamic` copy made after the
+capture (T-0411): the file's `spawned` line holds the instance id at the
+capture, and scene-root items with a lower id are destroyed (game-notes
+*Dropped copies and instance ids*). A file without the line, or an
+unreadable one, removes nothing; a file of another world removes every
+runtime-made root item. A Full load clears them with the scene.

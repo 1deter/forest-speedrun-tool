@@ -936,7 +936,7 @@ namespace ForestOverlay.Modules
             // Outside a cutscene replay (its hands are the replay's).
             _bridge.KeepHandsIfHeld = file != null && file.CutsceneAt < 0f ? file.Held : null;
             _bridge.BlueprintsAtCapture = file != null ? file.Blueprints : null;
-            _bridge.SpawnedThreshold = file != null ? SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()) : int.MinValue;
+            _bridge.SpawnedThreshold = file != null ? SpawnMark.Threshold(file.Spawned, NatureKeeper.WorldKey()) : SpawnMark.Unknown;
             RestoreGarbage.Mark("before the restore");
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
