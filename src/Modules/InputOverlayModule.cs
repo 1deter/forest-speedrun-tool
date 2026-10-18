@@ -530,10 +530,11 @@ namespace ForestOverlay.Modules
             if (have != null)
             {
                 // A key whose action tile was removed: Add puts the missing ones back beside its tile (T-0421).
-                int back = GameInput && GameActions.Ready ? _layout.SplitKey(have, GameActions.Table, ui.RefW, ui.RefH) : 0;
-                if (back == 0) { SetStatus(InputLayout.LabelFor(key) + " is already there."); return; }
+                int back;
+                string msg = _layout.AddAgain(key, GameInput && GameActions.Ready ? GameActions.Table : null, ui.RefW, ui.RefH, out back);
+                if (back == 0) { SetStatus(msg); return; }
                 Commit(); Reload();
-                SetStatus("Put back " + back + " action tile" + (back == 1 ? "" : "s") + " of " + InputLayout.LabelFor(key) + " beside its tile.");
+                SetStatus(msg);
                 Ctx.Log.LogInfo("Inputs: tile " + key + " got " + back + " action tile(s) back.");
                 return;
             }
@@ -556,14 +557,11 @@ namespace ForestOverlay.Modules
         private void RemoveTile(int i)
         {
             string key = _states[i].Tile.Key, act = _states[i].Tile.Act;
-            int others = 0;
-            if (act.Length == 0)
-                for (int k = 0; k < _layout.Tiles.Count; k++)
-                    if (_layout.Tiles[k].Key == key && _layout.Tiles[k].Act.Length > 0) others++;
+            int others = act.Length == 0 ? _layout.CountActionTiles(key) : 0;
             _layout.Remove(key, act);
             Commit();
             Reload();
-            SetStatus("Removed " + InputLayout.LabelFor(key) + (others > 0 ? " and its " + others + " action tile" + (others == 1 ? "" : "s") : "") + ".");
+            SetStatus(InputLayout.RemovedText(key, others));
             Ctx.Log.LogInfo("Inputs: tile " + key + (act.Length > 0 ? " (" + act + ")" : "") + " removed.");
         }
 

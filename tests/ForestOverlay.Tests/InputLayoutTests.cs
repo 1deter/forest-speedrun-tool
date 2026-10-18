@@ -283,5 +283,38 @@ namespace ForestOverlay.Tests
             Assert.True(l.Remove("C", ""));
             Assert.Single(l.Tiles);
         }
+
+        [Fact]
+        public void Remove_CountsAndNamesTheActionTilesThatGoWithTheKey()
+        {
+            InputLayout l = InputLayout.Parse("C,500,500,1,1;C,560,500,1,1,Batch;C,620,500,1,1,Crouch;Mouse0,700,500,1,1");
+            Assert.Equal(2, l.CountActionTiles("C"));
+            Assert.Equal(0, l.CountActionTiles("Mouse0"));
+            Assert.Equal("Removed C and its 2 action tiles.", InputLayout.RemovedText("C", 2));
+            Assert.Equal("Removed C and its 1 action tile.", InputLayout.RemovedText("C", 1));
+            Assert.Equal("Removed C.", InputLayout.RemovedText("C", 0));
+            l.Remove("C", "");
+            Assert.Equal(0, l.CountActionTiles("C"));
+            Assert.Null(l.Find("C", "Batch"));
+        }
+
+        [Fact]
+        public void AddAgain_PutsBackARemovedActionTile_OrSaysAlreadyThere()
+        {
+            InputLayout l = InputLayout.Parse("C,500,500,1,1;Mouse0,700,500,1,1");
+            l.SplitAll(Table(), 1920, 1080);
+            int back;
+            Assert.Contains("already there", l.AddAgain("C", Table(), 1920, 1080, out back));
+            Assert.Equal(0, back);
+            l.Remove("C", "Batch");
+            string msg = l.AddAgain("C", Table(), 1920, 1080, out back);
+            Assert.Equal(1, back);
+            Assert.Contains("Put back 1 action tile", msg);
+            Assert.NotNull(l.Find("C", "Batch"));
+            // raw input (no table): nothing is put back
+            l.Remove("C", "Batch");
+            Assert.Contains("already there", l.AddAgain("C", null, 1920, 1080, out back));
+            Assert.Null(l.Find("C", "Batch"));
+        }
     }
 }
