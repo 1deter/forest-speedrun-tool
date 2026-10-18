@@ -3727,7 +3727,12 @@ Threads, the plugin's texture paths and the live checks:
   `Graphics.DrawMeshNow` draws them in the late pass (the Views tab's
   mesh colliders since T-0367; Hidden/Internal-Colored's `_Color`
   shows, so a mesh with no vertex colours reads as white).
-  `vertexCount` / `bounds` / `subMeshCount` read fine. Collision objects
+  `vertexCount` / `bounds` / `subMeshCount` read fine, and so do
+  `GetTopology(i)` / `GetIndexCount(i)` (uint) on these non-readable
+  meshes (T-0390, bridge 2026-10-18: cliff cap `Collision` convex, 1
+  submesh, `Triangles`, 504 indices; a `Cave_10_Collision/Collision`
+  non-convex, 462 verts, `Triangles`, 1,980); an index past
+  `subMeshCount - 1` throws `IndexOutOfRangeException`. Collision objects
   carry a `MeshFilter` beside the `MeshCollider` (no renderer); 9,333
   MeshColliders in the main scene, most of them cave collision. The
   bridge's `find` / `type` radius is the transform's distance, while

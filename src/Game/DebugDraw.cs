@@ -146,7 +146,7 @@ namespace ForestOverlay.Game
         // GL.wireframe + Graphics.DrawMeshNow, after the GL lines. A convex
         // collider collides as the hull of this mesh. MeshVertexBudget caps
         // the vertices drawn in one frame; past it a mesh shows its bounds.
-        // A mesh with no vertices or no GPU buffer shows its bounds too:
+        // A mesh with no vertices, no GPU buffer or no triangle submesh shows its bounds too:
         // checked once per mesh on the refresh throttle (CheckMesh), as
         // GetNativeVertexBufferPtr waits for the render thread; a mesh not
         // checked yet is a box until it is (counted in neither reason).
@@ -161,7 +161,7 @@ namespace ForestOverlay.Game
         private static int _lines;
 
         /// Mesh colliders drawn as their bounds box in the last draw: over
-        /// the frame's vertex budget, and with no mesh / vertices / GPU buffer.
+        /// the frame's vertex budget, and with no mesh / vertices / GPU buffer / triangles.
         public int MeshBoxesLarge { get; private set; }
         public int MeshBoxesUndrawable { get; private set; }
 
