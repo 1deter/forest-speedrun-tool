@@ -341,7 +341,10 @@ a windowed size is `call static:UnityEngine.Screen SetResolution <w> <h>
 false`, then `wait 2`. When a screenshot "never appeared complete" and
 unity.log says `Failed to capture screen shot`, a GPU driver fault is
 the leading hypothesis (gotcha 120, until confirmed live; the trigger is
-open). Look before retrying: run `wevtutil qe System
+open). The MCP's `status` and a timed-out `screenshot` now say so
+themselves: a `GPU DRIVER FAULT` line when the System log has nvlddmkm
+events since the game launched (T-0395, `tools/BridgeMcp/GpuFault.cs`).
+By hand: run `wevtutil qe System
 /q:"*[System[Provider[@Name='nvlddmkm']]]" /c:5 /rd:true /f:text`. If it
 shows an event during the session, stop driving, close the game (`game`
 close) and report it; the monitor may be blank (author, 2026-10-16;
