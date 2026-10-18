@@ -309,7 +309,7 @@ profiler's `alloc:` row charges those bytes to the hooked method that
 made it (an `enabled = true` runs the target's OnEnable inside the
 caller). Put the config back after.
 **Who holds the old world** (T-0034): `call static:System.GC
-GetTotalMemory true` every few seconds after a load (gotcha 49), then
+GetTotalMemory true` twice in a row (take the second), every few seconds after a load (gotcha 49), then
 `call BepInEx_Manager OverlayPlugin._host._modules[10]._census.Paths
 <TypeName> <max> <ownOnly>` - a breadth-first walk from the statics (only
 ours with `true`) logging `Census paths` lines: each held destroyed

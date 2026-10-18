@@ -184,7 +184,7 @@ Written by GameBridge.cs; info.
 Meaning: Bridge-only leak finder (T-0034): the shortest field path from a static or one of our scripts to each destroyed object still held, grouped by path shape, and to objects of a named type.
 Written by MemoryCensus.cs; info.
 
-- info `  <typeName>: <..>` *(declared)*
+- info `  <typeName> x<..>: <p>` *(declared)*
 - info `  destroyed x<..>: <..>` *(declared)*
 - info `  e.g. <..>` *(declared)*
 - info `<summary>` *(declared)*

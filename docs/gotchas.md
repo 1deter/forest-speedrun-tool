@@ -390,7 +390,11 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `GC.GetTotalMemory(true)` over time, with a control (a Full load
     alone), before calling growth a leak; the bridge's reply time for
     that call is the full-GC pause (v0.24.108, game-notes *The heap
-    across restores*).
+    across restores*). **And read it twice in a row** (T-0034,
+    2026-10-18): the first forced collection after a load still keeps
+    the old world (reached from objects waiting for their finalizer),
+    the second frees it - 433 -> 316 MB one frame apart. A single read
+    failed a working fix in QA.
 
 50. **A camera costs its culling whatever it draws.** The game profiler
     said the game's scripts were 1.5 ms of a 5 ms frame and stopped

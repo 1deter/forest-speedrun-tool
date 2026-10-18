@@ -3054,7 +3054,19 @@ full-GC pause). **No lasting step:**
   Seeker destroyed after the AstarPath, so a clean-up belongs at the new
   `AstarPath.Awake`, not the old `OnDestroy`. Ours, smaller:
   `NatureKeeper`'s tree-LOD cache (`_lodsFor` / `_lods`) keeps the last
-  world's 8628 trees until the next Quick load (~22 MB).
+  world's 8628 trees until the next Quick load (~22 MB); `DrawingsReader`
+  (the 100% tab's drawings) searched during the load, kept the old
+  `DrawingsInventoryItemView` and through its `_inventory` -> player ->
+  `sceneTracker.birdController.rg` the old `RecastGraph` until its next
+  search, up to 10 s (433 -> 314 MB at the re-search). **Measuring it:
+  read `GetTotalMemory(true)` twice** - the first forced collection after
+  a load keeps the old world (reached from objects queued for their
+  finalizer; which ones is not known - Unity's `Coroutine` wrapper, whose
+  finalizer frees the native coroutine holding the iterator, fits), the
+  second frees it: 433 -> 316 MB one frame apart, with no reference
+  found from any static. With both fixes (v0.24.342 + `ForgetView`),
+  second reads 15 s after each of 4 Full loads: 278 -> 291, 300, 303,
+  305 MB; the pool clear off: 280 -> 291, 301, 421, 542.
 - **Collections come from volume, not headroom:** 218 MB of garbage
   (40 x `File.ReadAllBytes` of a 5.45 MB file) = 1 collection on a fresh
   heap, 2 on one grown by Full loads - so pre-growing the heap would not
