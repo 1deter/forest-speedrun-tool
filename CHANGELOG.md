@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.357 - 2026-10-18
+
+- A Quick load brings back dropped sticks, rocks and other dropped items that the game cleared away since the savestate, at the spot where they lay.
+- After a Quick load, dropped items disappear on the game's own timer again, picking up where they stood when the savestate was made.
+
 ## v0.24.356 - 2026-10-18
 
 - Input overlay (game input): a key that does several things - C, left click, right click - now shows one tile per action, each lit only when its own action fires; move, size or hide each tile on its own in Edit HUD.
