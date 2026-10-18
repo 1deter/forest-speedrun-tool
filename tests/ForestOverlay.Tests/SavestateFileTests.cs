@@ -191,6 +191,27 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void FiresRoundTripAreNullInOldFilesAndEmptyIsNotAbsent()
+        {
+            string error;
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Fires);
+
+            SavestateFile s = Sample();
+            s.Fires = "Cave_FiresAll/C6_Fires/Cave_FireBuilt(Clone)/Trigger@891.2,46.1,73.4;FireBuilt(Clone)/Trigger@431,76.1,-4.5";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Fires, back.Fires);
+            Assert.Equal(s.Data, back.Data);
+            Assert.Equal(s.Fires, s.Copy().Fires);
+
+            // Captured with no fire lit: "", not an older file's null.
+            s.Fires = "";
+            back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Equal("", back.Fires);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void GreeblesRoundTripAndAreAbsentFromOldFiles()
         {
             string error;
