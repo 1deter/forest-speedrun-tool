@@ -447,3 +447,4 @@ Confirmed 2026-10-18 (game, bridge, v0.24.349): **a segment with check = event r
 - T-0415 v0.24.351: Quick load after a Full load keeps live rabbits/lizards (no 'Rabbit Alive' removed), post-capture Stick drops still removed (bridge 2026-10-18)
 
 - v0.24.352 T-0366 HUD Passengers found / Loads: docked rows in the splits panel (shot t0366-c); Loads 2 -> 3 after a Full load = LevelLoader.loadingCount; FpCharacter.velocity equals Rigidbody.velocity, +0x168 field unsettled (bridge 2026-10-18)
+- T-0410 v0.24.353: finished run's line kept (_doneLine 3, _lines.CurrentCount 3, shot t410-kept), gone after the next start (0/0), setting off: CurrentCount 0 at the finish, lines hidden + run started/aborted + lines shown: _doneLine 0, CurrentCount 0; the toggle click's log line not driven (bridge 2026-10-18)
