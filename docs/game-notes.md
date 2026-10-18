@@ -2491,6 +2491,54 @@ Its state is not in the save, and a Quick load leaves all of it as it is:
   at `startHealth` and the skin cleared. A Quick load does not bring it back
   (still inactive after `restore`).
 
+**An animal's death, spawn and pool, and what a Quick load leaves (bridge +
+decompiled code, 2026-10-18, T-0428, v0.24.360, Slot 1 at (428, 78, -4)).**
+- `Die()` also lowers its zone's cap: `SpawnedFromZone.MaxAnimalsTotal--`
+  and `AddSpawnBackTimes.Enqueue(Time.time + DelayAfterKillTime x
+  RespawnDelayRatio)` (180 s in a rabbit zone); `MainThreadRefresh` gives
+  the cap back as each time passes. The old `sceneTracker` counters drop
+  too: `maxRabbitAmount -= 2` (12 -> 10), and `animalSpawnFunctions.
+  despawn()` does `currRabbitAmount--` (0 -> -2 after two zone rabbits died;
+  only `animalController.SpawnAnimal` raises it). The dead root stays in
+  `zone.SpawnedAnimals` (only `AnimalDespawner.UpdateSpawnState` or the
+  zone's `OnDisable` removes an entry) and keeps its `AnimalDespawner`. A
+  Quick load leaves all of it (cap 7 and one back time after the restore).
+- The corpse is a root `<animal>_RAGDOLL(Clone)` (`clsragdollify.
+  metgoragdoll`: `Object.Instantiate`, with `destroyAfter`); rabbit, deer and
+  raccoon ones were removed by the T-0411 restore as items made since
+  (`Rabbit Dead x1, GenericMeat x2`).
+- The pool reuses roots: `SpawnPool.Spawn(prefab)` takes
+  `PrefabPool._despawned[0]` (despawns append at the end). Moving a root to
+  index 0 first (`_despawned.Remove` + `Insert 0`) got that exact root (same
+  instance id) back. Rabbits' `PrefabPool`: `cullDespawned` true,
+  `cullAbove` 6, `cullDelay` 30, `limitAmount` 14 - with more than 6 a
+  despawned root can be destroyed, and the next spawn is a new id.
+  `SpawnPool.GetPrefab(instance)` gives the prefab (`rabbitGo`);
+  `prefabPools` is keyed by prefab name.
+- A respawn the game's way: `SpawnPool.Spawn` + the root's position, then
+  `AnimalSpawnController.OnSpawnedFromAssetBundle(go, zone)` (=
+  `SetupAnimal`: random yaw on `GetChild(0)`, `startUpdateSpawn`,
+  `setSnowType`, `zone.SpawnedAnimals.Add`, the `AnimalDespawner` set to the
+  zone, 70 m, every 1 s). The dead root's old entry makes it listed twice
+  (zone count 5 -> 6), so remove it first. Two rabbits brought back this
+  way walked off within 3 s, `homeState`, skin renderer visible, zone count
+  unchanged. A respawned root that keeps its old `AnimalDespawner` and sits
+  70 m+ away behind the player (the prefab's spot, (0, 70, 0)) is despawned
+  again within 1 s - position it in the same frame as the spawn.
+- `AnimalDespawner.UpdateSpawnState(false)` despawns the game's way: the
+  entry leaves the zone list (6 -> 5), the root goes to the
+  pool (`IsSpawned` false), the despawner component is destroyed.
+- Setting a live animal's root `Transform.position` holds (it settles onto
+  the ground, then stays; `homeState` after 3 s). Root rotation stays
+  (0, 0, 0): the facing is on `animalAI.animatorTr` (the `*_ANIM_base`
+  child; a deer's `GetChild(0)` is `currentWaypoint`, not the animator), and
+  a yaw set there held.
+- Zones: `CoopAnimalSpawner`'s `AnimalSpawnController.Zones` (131, from
+  `GetComponentsInChildren`); rabbit / lizard zones spawn `rabbitGo` /
+  `lizardGo`, deer zones `deerGo` / `raccoonGo` / `squirrelGo`, all with
+  `animalHealth` and `CoopAnimal`. `animalController` (161, `_creatureSetup`)
+  spawns fish and turtles, with no zone and no `AnimalDespawner`.
+
 **Thrown things are scene roots too (bridge, 2026-10-18, T-0416).**
 `PlayerInventory.ThrowProjectile` (private; lit = `UseAltWorldPrefab`
 false) instantiates the held view's world prefab, and `FireRangedWeapon`
