@@ -545,6 +545,15 @@ class ReleaseFiles(unittest.TestCase):
         plan = T.release_plan(ts, "0.24.9", in_head=lambda c: True, tag_of=lambda cs: None, files_of=files.get)
         self.assertEqual([t["id"] for t, r in plan], ["T-0002"])
 
+    def test_unreleasable_warning_names_a_docs_only_built_task(self):
+        files = {"aaa": ["docs/game-notes.md"], "bbb": ["src/A.cs"]}
+        docs = task("T-0001", area="plugin", status="built", commits=["aaa"])
+        self.assertIn("T-0001", T.unreleasable_warning(docs, files.get))
+        code = task("T-0002", area="plugin", status="built", commits=["aaa", "bbb"])
+        self.assertIsNone(T.unreleasable_warning(code, files.get))
+        site = task("T-0003", area="site", status="built", commits=["aaa"])
+        self.assertIsNone(T.unreleasable_warning(site, files.get))
+
     def test_release_plan_counts_a_real_merge(self):
         sha = self.merge("src/Core/X.cs")
         ts = [task("T-0001", area="plugin", status="built", commits=[sha])]

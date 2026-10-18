@@ -71,7 +71,7 @@ never their maker (author, 2026-10-07; *The checker* below). New requests become
 (`tasks.py add`), with their detail in backlog.md when it is long; the
 author's feature list (*Next up* until 2026-10-07) is P2-P4 there.
 Multi-session notes: `tasks.py note T-n "..."` (`tasks/notes/`).
-A release moves its tasks by itself (`bump.py` -> `released`, T-0007; a plugin task whose commits touch no plugin path stays `built` and confirms on test / lint evidence, T-0196);
+A release moves its tasks by itself (`bump.py` -> `released`, T-0007; a plugin task whose commits touch no plugin path stays `built` and confirms on test / lint evidence, T-0196; `tasks.py set --status built` warns then - give the code commit, not a worktree branch's docs-only head, T-0412);
 a check only a tester can do is a `needs: tester` task with a `qa` line,
 which is all the #qa-todo-list message shows (docs/bridge.md).
 

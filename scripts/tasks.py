@@ -642,6 +642,20 @@ def touches_plugin(commits, files_of=None):
     return False
 
 
+def unreleasable_warning(t, files_of=None):
+    """A warning when a built plugin task's commits touch no plugin path: release_plan skips it
+    in silence, so bump.py will not mark it released (T-0412 - the commit given was a worktree
+    branch's docs-only head, the code in its parent). None when fine."""
+    if t["status"] != "built" or t["area"] not in RELEASED_AREAS or not t.get("commits"):
+        return None
+    if touches_plugin(t["commits"], files_of):
+        return None
+    return ("warning: %s is built but its commits (%s) touch no plugin path, so bump.py will not "
+            "mark it released; if the code is in another commit (a branch head is often a docs "
+            "commit), add it: `tasks.py set %s --commit <code sha>`; a docs-only task needs no release"
+            % (t["id"], ", ".join(c[:8] for c in t["commits"]), t["id"]))
+
+
 def release_plan(tasks, version, in_head=None, tag_of=first_tag, files_of=None):
     """[(task, release)] for built plugin tasks whose commits are all in HEAD and touch a plugin
     path (the rule loop.py's needs_release uses); raises if one of them may not be released yet
@@ -952,6 +966,10 @@ def cmd_set(tasks, a):
             t["needs"] = "none"
     if a.status:
         transition(tasks, t, a.status, by=a.by, note=a.notes)
+    if a.status == "built" or (a.commit and t["status"] == "built"):
+        warning = unreleasable_warning(t)
+        if warning:
+            print(warning, file=sys.stderr)
     t["updated"] = today()
     return t
 
