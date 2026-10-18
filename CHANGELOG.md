@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.339 - 2026-10-18
+
+- Run lines: your own line is no longer drawn while you run; the comparison line still is.
+- New Runs > Run lines option 'Your own line while a run is going' brings it back live.
+
 ## v0.24.338 - 2026-10-18
 
 - Collision view: a mesh collider with nothing to draw now shows its bounds box and counts as not drawable, instead of drawing nothing.
