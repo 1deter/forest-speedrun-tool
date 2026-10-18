@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.342 - 2026-10-18
+
+- After a Full load or a death reload the previous world's pathfinding data is freed at once (75-115 MB in our tests) instead of being held for minutes, so memory no longer climbs with each load.
+- The tree cache of the previous world is also released on load (about 20 MB).
+- Settings: [Fixes] ClearPathPoolOnLoad switches the first one off.
+
 ## v0.24.341 - 2026-10-18
 
 - Test bridge (developers): a new select command picks a Practice spot by id, the way clicking its row does.
