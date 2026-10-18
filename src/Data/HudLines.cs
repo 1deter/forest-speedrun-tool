@@ -120,7 +120,7 @@ namespace ForestOverlay.Data
             Off("runinfo", "Pass", "ShowPassengers", "Passengers found",
               "How many passengers you have found - the count the autosplitter's passenger splits use."),
             Off("runinfo", "Loads", "ShowLoads", "Loads",
-              "How many game loads have run this session (the autosplitter's load counter)."),
+              "How many game loads have run since the game started (the autosplitter's load counter)."),
             L("runinfo", "Lock", "ShowLockWarning", "Player hold warning",
               "Only while the window is open and cannot hold the player - says why."),
             Off("inventory", "Items", "ShowItems", "Items carried",

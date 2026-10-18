@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.352 - 2026-10-18
+
+- New HUD values "Passengers found" and "Loads": the same numbers the LiveSplit autosplitter's variable viewer shows. Both are off by default (Settings > HUD) and can be docked into the splits panel like any other value.
+
 ## v0.24.351 - 2026-10-18
 
 - A Quick load no longer removes live rabbits (or other animals) that appeared after the capture; only dropped item copies go.
