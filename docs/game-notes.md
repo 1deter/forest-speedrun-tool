@@ -3017,6 +3017,13 @@ hand-over, is the freeze seen after those Full loads (author, 2026-09-26).
 Also `animClipMemoryManager.UnloadEndGameAnimation` (~1.1 s, a 760-870 ms
 frame) runs inside every load.
 
+**Full loads held the old world 30-70 s (T-0034, v0.24.341):** the A*
+`Pathfinding.PathPool.pool` keeps old pooled paths (-> PathHandler nodes,
+Seeker callback) until the new world reuses them (~100-130 MB; `pool.Clear`
+after a Full load: 443 -> 328 MB). Fix: `PathPoolCleanup` empties it in a
+prefix on `AstarPath.Awake` (`[Fixes] ClearPathPoolOnLoad`);
+`NatureKeeper._lods` dropped on load (~22 MB).
+
 **The heap across restores** (bridge, 2026-09-26, v0.24.108, fresh
 launches, Slot 1; `call static:System.GC GetTotalMemory true` = live
 bytes after a full collection, and the bridge's reply time for it = the
