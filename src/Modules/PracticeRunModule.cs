@@ -1056,9 +1056,9 @@ namespace ForestOverlay.Modules
                 _lines.ReferenceCount = e;
             }
 
-            // Your own line only shows live when the setting is on (T-0393);
-            // watching a replay or looking at a finished run always shows it.
-            Attempt current = ForestOverlay.Data.RunLineRules.ShowOwn(_showLines, _ownLineLiveCfg.Value, _camOn, running) ?_recorder.Current : null;
+            // Your own line is hidden while a run is going unless the setting is on (T-0393);
+            // once the run ends nothing is kept to draw (T-0410).
+            Attempt current = ForestOverlay.Data.RunLineRules.ShowOwn(_showLines, _ownLineLiveCfg.Value, _camOn, running) ? _recorder.Current : null;
             if (current == null) _currentLine.Clear();
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;

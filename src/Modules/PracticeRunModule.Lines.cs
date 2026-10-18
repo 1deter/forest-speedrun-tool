@@ -68,7 +68,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipReplayOpacity = new GUIContent(
             "The ghost, the replay's buildings and markers, and the comparison line while you watch it.");
         private static readonly GUIContent TipLineOpacity = new GUIContent("Your run's line, the comparison's and the red one.");
-        private static readonly GUIContent TipOwnLive = new GUIContent("Off: your own run's line is drawn in replays and once the run is over, not while you run. The comparison line is unchanged.");
+        private static readonly GUIContent TipOwnLive = new GUIContent("Off: your own run's line is hidden while a run is going. The comparison line is unchanged.");
         private static readonly GUIContent TipLineWidth = new GUIContent("How thick the run lines and the ghost are drawn, in pixels on a 1080p screen.");
 
         private float LineOpacity { get { return _lineOpacityNow >= 0f ? _lineOpacityNow : _lineOpacity.Value; } }
@@ -108,7 +108,7 @@ namespace ForestOverlay.Modules
                 ctx.Log.LogInfo("Run lines: checkpoint labels moved from the old default to " + next + ".");
             }
             _ownLineLiveCfg = ctx.Config.Bind("Runs", "RunLineOwnLive", false,
-                "Draw your own run's line while a run is going (off: it is drawn in replays and once the run is over).");
+                "Draw your own run's line while a run is going (off: it is hidden while a run is going).");
             _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
                 "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
