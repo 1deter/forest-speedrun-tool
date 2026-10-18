@@ -107,6 +107,8 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _threadsFix;
         private StaleSubscribers _subscribers;
         private ConfigEntry<bool> _subscribersFix;
+        private ConfigEntry<bool> _pathPoolFix;
+        private PathPoolCleanup _pathPool;
         private float _censusDue;
         private string _censusLabel = "";
         private readonly GUIContent _censusText = new GUIContent("");
@@ -174,6 +176,14 @@ namespace ForestOverlay.Modules
                 "(the game only clears them at the title screen) - they keep the old world in memory, ~120 MB a load.");
             StaleSubscribers.Enabled = _subscribersFix.Value;
             _subscribers = new StaleSubscribers(ctx.Log);
+
+            // The A* path pool keeps the old world's navmesh (T-0034).
+            _pathPoolFix = ctx.Config.Bind("Fixes", "ClearPathPoolOnLoad", true,
+                "When a new world starts, empty the game's pool of old pathfinding paths - it keeps the previous world's " +
+                "navigation mesh in memory (~100 MB) for a minute or more after a load.");
+            PathPoolCleanup.Enabled = _pathPoolFix.Value;
+            _pathPool = new PathPoolCleanup(ctx.Log);
+            _pathPool.Install(OverlayPlugin.PluginGuid);
             // Off since v0.23.6 (the leak is fixed; the census is the ~0.7 s
             // hitch after a load). A new key, so existing configs turn it off.
             _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusAfterEveryLoad", false,
@@ -206,6 +216,7 @@ namespace ForestOverlay.Modules
             ElevatorRides.Uninstall();
             SceneCache.Uninstall();
             if (_threads != null) _threads.Uninstall();
+            if (_pathPool != null) _pathPool.Uninstall();
         }
 
         // ------------------------------------------------------------------
@@ -283,6 +294,7 @@ namespace ForestOverlay.Modules
             {
                 // Before the census, so its heap line shows the result.
                 _subscribers.Prune();
+                _nature.ForgetWorld();
                 _keeper.PruneDestroyed();
                 _panels.PruneDestroyed();
                 DeathHooks.ForgetDeath();
@@ -2513,6 +2525,10 @@ namespace ForestOverlay.Modules
             bool subs = UiKit.Toggle(new Rect(x, y, w, 22), _subscribersFix.Value,
                                    " Fix: drop the old world's event subscriptions after a load (the game keeps them)");
             if (subs != _subscribersFix.Value) { _subscribersFix.Value = subs; StaleSubscribers.Enabled = subs; }
+            y += 26f;
+            bool pool = UiKit.Toggle(new Rect(x, y, w, 22), _pathPoolFix.Value,
+                                   " Fix: empty the old pathfinding paths when a world starts (they keep its navmesh)");
+            if (pool != _pathPoolFix.Value) { _pathPoolFix.Value = pool; PathPoolCleanup.Enabled = pool; }
             y += 26f;
             return y;
         }

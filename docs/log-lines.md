@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-248 prefixes from 820 log calls.
+249 prefixes from 825 log calls.
 
 ## `ActionReaders`
 
@@ -1204,9 +1204,10 @@ Written by PassengerReader.cs; info.
 
 ## `Pathfinding`
 
-Meaning: Pathfinding graph updates: AstarPath awake / destroyed (and how long), graph updates queued and by whom.
-Written by PathfindingWatch.cs; info / warning.
+Meaning: Pathfinding graph updates: AstarPath awake / destroyed (and how long), graph updates queued and by whom, and old pooled paths dropped at a new world.
+Written by PathPoolCleanup.cs, PathfindingWatch.cs; info / warning.
 
+- info `Pathfinding: dropped <n> pooled path(s) left by the previous world (<Dropped> this session).`
 - info `Pathfinding: AstarPath #<..> awake.`
 - info `Pathfinding: AstarPath #<..> destroyed in <..> ms<..>.`
 - info `Pathfinding: graph update queued (+<..> s) at <..> size <..><physics>, from <..>.`
@@ -1223,6 +1224,16 @@ Written by PathfindingWatch.cs; info / warning.
 - warning `PathfindingWatch: AstarPath not found - graph updates are not logged.`
 - warning `PathfindingWatch: gridObjectBlocker.Start / loadGameNavSetup not found - a Quick load's structure nav cut stays the slow one.`
 - info `PathfindingWatch: watching <patched> UpdateGraphs overload(s)<..>.`
+
+## `PathPoolCleanup`
+
+Meaning: The fix that empties the game's old pathfinding path pool when a world starts: installed, or why it could not be.
+Written by PathPoolCleanup.cs; info / warning.
+
+- warning `PathPoolCleanup: <Status>.`
+- warning `PathPoolCleanup: clear failed: <ex.Message>`
+- warning `PathPoolCleanup: install failed: <ex>`
+- info `PathPoolCleanup: installed.`
 
 ## `Perf`
 
