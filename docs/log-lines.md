@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-249 prefixes from 832 log calls.
+249 prefixes from 833 log calls.
 
 ## `ActionReaders`
 
@@ -1126,6 +1126,7 @@ Written by NatureKeeper.cs; info / warning.
 - info `NatureKeeper: <..> tree(s) chopped again as captured (<Pending.Count> still waiting).`
 - warning `NatureKeeper: <Status>`
 - info `NatureKeeper: <Status><..>.`
+- warning `NatureKeeper: TreeCutChunk.Fake<..> is not a GameObject; the chunk's look was not set.`
 - warning `NatureKeeper: chopping trees again failed: <ex.Message>`
 - warning `NatureKeeper: keeping a bush failed: <ex.Message>`
 
