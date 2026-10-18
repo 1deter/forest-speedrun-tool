@@ -2375,14 +2375,36 @@ respawns pickups, and why `LoadNow` cannot.
 
 **A pickup taken with the inventory full (bridge, 2026-10-18, T-0053).**
 `PickUp.Collect` -> `MainEffect` -> `AddItem` returns false at the item's
-max (sticks 10; `HudGui` "can't carry any more") -> `ClearOut(true)`: with
-`_spawnAfterPickupPrefab` set (a stick) the game first instantiates a
-physics copy (`Stick_Dynamic(Clone)`, 1-1.5 m off) and `DoFakeDrop` says
-false, so the pickup is cleared like a taken one (unparent, pool); with a
-Rigidbody and no prefab `DoFakeDrop` says true and the pickup itself
-stays as the dropped item. Seen live with a real `Take` press and with
+max (sticks 10; `HudGui` "can't carry any more") -> `ClearOut(true)` ->
+`DoFakeDrop`: when the pickup's own Rigidbody is missing or a trigger (a
+greeble stick: `Trigger`'s collider is a trigger) it says false and calls
+`PlayerInventory.FakeDrop(itemId, null)`, which instantiates the item's
+pickup prefab 1.2 m ahead (`Stick_Dynamic(Clone)`), and the pickup is
+cleared like a taken one (unparent, pool); with a solid Rigidbody it says
+true and the pickup itself stays as the dropped item. (Not
+`_spawnAfterPickupPrefab`: null on `Pool_Greebles/Stick_High(Clone)`,
+bridge 2026-10-18, T-0411.) Seen live with a real `Take` press and with
 `PickUp.Collect`. The count stays 10; this is what looks like "the stick
 vanished" (the old `Pickup gone, inventory unchanged` line).
+
+**Dropped copies and instance ids (bridge, 2026-10-18, T-0411).**
+`PlayerInventory.FakeDrop <id> null` makes `Stick_Dynamic(Clone)`,
+`Rock_Dynamic(Clone)`, `spear_Dynamic(Clone)`: scene-root objects in
+`ForestMain_v08` (layer 28 PickUp), no `UniqueIdentifier`, a `Trigger`
+child whose `PickUp._destroyTarget` is the root
+(`_poolManagerDespawnCreature` false). Stick / Rock carry `destroyAfter`
+(60 s, then every 10 s if the player is over 20 m away); the spear has
+none (`BoltEntity`, `CoopDynamicPickUp`) and stays. A Quick load leaves
+them (`not at capture (Rock x1, Stick x1)`; only the spear goes, by the
+spear rule); a Full load clears them (the scene reloads). **Unity's
+instance ids order creation**: scene / asset objects positive, every
+runtime-made object negative and lower than all made before it - pool
+greebles -4.81 M, a drop after them -4.82 M, the plane wreck a restore
+re-created -4.82 M+, the player after a Full load -4.84 M (the counter
+runs on across scene loads), an `Object.Instantiate` -4936210 then the
+next drop -4936214. The bridge's `#handle` is the instance id. In a
+fresh world (after a Full load) the only runtime-made pickups at a scene
+root were those drops; the wreck's (`Hull(Clone)/...`) are children.
 
 **Streaming comes back by itself.** `ForcedUnload(bool)` on
 `GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
