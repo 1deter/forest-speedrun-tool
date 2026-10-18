@@ -30,6 +30,8 @@ namespace ForestOverlay.Modules
         private Vector3 _posShown = new Vector3(float.NaN, 0f, 0f);
         private string _posText;
         private string _lockFor, _lockText;
+        private int _passShown = -2, _loadsShown = -2;
+        private string _passText, _loadsText;
 
         public override void ContributeHud(HudBuilder hud)
         {
@@ -87,6 +89,20 @@ namespace ForestOverlay.Modules
                 {
                     hud.Pair("Pos", compact ? "-" : "player not found yet");
                 }
+            }
+
+            // The autosplitter's variable viewer values (T-0366).
+            if (hud.Shows("Pass") && Ctx.Bridge != null)
+            {
+                int n = Ctx.Bridge.FoundPassengers();
+                if (_passText == null || n != _passShown) { _passShown = n; _passText = n < 0 ? "-" : n.ToString(); }
+                hud.Pair("Pass", _passText);
+            }
+            if (hud.Shows("Loads") && Ctx.Bridge != null)
+            {
+                int n = Ctx.Bridge.LoadCount();
+                if (_loadsText == null || n != _loadsShown) { _loadsShown = n; _loadsText = n < 0 ? "-" : n.ToString(); }
+                hud.Pair("Loads", _loadsText);
             }
 
             // Lock state is reported because a failure here used to be
