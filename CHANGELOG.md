@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.355 - 2026-10-18
+
+- HUD values added in an update (Passengers found, Loads) now show their label in profiles you already had.
+- A label you cleared on purpose stays cleared.
+
 ## v0.24.354 - 2026-10-18
 
 - A Quick load now removes bombs, dynamite, molotovs and flares you threw after the capture, so a bomb no longer goes off after the load.
