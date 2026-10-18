@@ -308,6 +308,15 @@ wrapper type (`UnityEngine.Material` 24 bytes) at that rate, and the
 profiler's `alloc:` row charges those bytes to the hooked method that
 made it (an `enabled = true` runs the target's OnEnable inside the
 caller). Put the config back after.
+**Who holds the old world** (T-0034): `call static:System.GC
+GetTotalMemory true` every few seconds after a load (gotcha 49), then
+`call BepInEx_Manager OverlayPlugin._host._modules[10]._census.Paths
+<TypeName> <max> <ownOnly>` - a breadth-first walk from the statics (only
+ours with `true`) logging `Census paths` lines: each held destroyed
+object's shortest field path, grouped by shape, and the first paths to
+`<TypeName>` (`NavmeshTile` = a navmesh); `_census.RunScene x` gives
+sizes per root. Clear a suspect over the bridge (`set ... null`, `call
+... Clear`) and read the heap again - the drop is the proof.
 **What a draw costs / does a cut show** (T-0199): `game close`, then
 `python scripts/launch-with-args.py -force-gfx-direct` (rendering on the
 main thread, so `FrameTimer Snapshot`'s camera times include the render

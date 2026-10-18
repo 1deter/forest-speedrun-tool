@@ -3027,12 +3027,27 @@ full-GC pause). **No lasting step:**
   pause ~100-115 ms - and **drops back** to ~290-300 MB in two steps
   (e.g. 419 -> 375 -> 302 over two collections), once **30 s** after the
   load and once **68 s** after: the old world is held for a while, then
-  released (the two steps look like finalization). No log line at the
-  drop, nothing of ours waits that long (our after-load coroutines stop
-  within 30 s), statics reach only ~33 MB (census) - the root is not
-  known (a thread stack or a coroutine of the game's). Earlier readings
-  ("+118 MB that stays", 437 -> 549 -> 556) were taken inside that
-  window.
+  released. Earlier readings ("+118 MB that stays", 437 -> 549 -> 556)
+  were taken inside that window. **The root (T-0034, bridge, v0.24.341,
+  2026-10-18): A*'s static `Pathfinding.PathPool.pool`**
+  (`Dictionary<Type, Stack<Path>>`). `Path.OnEnterPool` releases only
+  `path` / `vectorPath`; a pooled path keeps `pathHandler` (the old path
+  thread's `PathHandler`: a `PathNode` per graph node -> its node -> the
+  whole old navmesh), `callback` (the old `Seeker`), `currentR`,
+  `hTargetNode`, `next` until `GetPath` pops and `Reset()`s it. LIFO and
+  as deep as the old world's peak, so the hold lasts until the new world
+  needs as many paths at once: 15 s to minutes, or for good in a quiet
+  world (one session: 294 -> 445 -> 580 -> 714 -> 778 MB over four Full
+  loads, 446 MB still 5.5 min after the first). `RunScene` 5 s after a
+  Full load: `PathPool.pool` reaches 823k `PathNode`, 186k
+  `TriangleMeshNode`, 6084 `NavmeshTile` (~112 MB) besides the live graph;
+  `call static:Pathfinding.PathPool pool.Clear` then: 443.6 -> 327.7 MB
+  (again 397.3 -> 322.7), full-GC pause 112 -> 89 ms. `Seeker.OnDestroy`
+  -> `ReleaseClaimedPath` -> `Path.Release` re-pools a path for every
+  Seeker destroyed after the AstarPath, so a clean-up belongs at the new
+  `AstarPath.Awake`, not the old `OnDestroy`. Ours, smaller:
+  `NatureKeeper`'s tree-LOD cache (`_lodsFor` / `_lods`) keeps the last
+  world's 8628 trees until the next Quick load (~22 MB).
 - **Collections come from volume, not headroom:** 218 MB of garbage
   (40 x `File.ReadAllBytes` of a 5.45 MB file) = 1 collection on a fresh
   heap, 2 on one grown by Full loads - so pre-growing the heap would not
