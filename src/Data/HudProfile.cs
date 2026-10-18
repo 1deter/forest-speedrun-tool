@@ -46,8 +46,8 @@ namespace ForestOverlay.Data
         /// once, and one the runner cleared since is not given it again.
         public const string LabelsKey = "Labels.Given";
 
-        /// The values added after the list was introduced's predecessor
-        /// (v0.24.352): a profile without the list never had these two.
+        /// The values added in v0.24.352, before this list existed: a
+        /// profile from before then (no list) never had these two.
         private static readonly string[] LateKeys = { "ShowPassengers", "ShowLoads" };
 
         private static string AllLabelKeys()
