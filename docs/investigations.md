@@ -242,8 +242,8 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   lands beside you (game-notes *Full inventory*). The keeper skipped fake
   drops, so a Quick load did not put the stick back; fixed. Still open:
   the dropped `Stick_Dynamic` stays after a restore ("not at capture
-  (Stick x2)") - a decision (any stick not at capture is also a greeble
-  that moved). The first stick going to the inventory, not the hand: the
+  (Stick x2)") - T-0411, the author's decision (any stick not at capture
+  is also a greeble that moved). The first stick going to the inventory, not the hand: the
   game's own rule (a held weapon stays held; with the right hand empty the
   stick is equipped, before and after a restore - 3 of 3 here).
 - `Small Rock x1` "not at capture" after restores (an `LOD_PickUps` rock
