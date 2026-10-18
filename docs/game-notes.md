@@ -281,7 +281,8 @@ can drive it; the ESC menu's 0 is left alone.
 | `_possessedItems` | `List<InventoryItem>` — read via non-generic `IList` |
 | `_possessedItemsCount` | **does not track reliably**; derive totals from the list |
 | `_itemDatabase` | `ItemDatabase` |
-| `_equipmentSlotsIds` | `int[]` — currently equipped |
+| `_equipmentSlots` | `InventoryItemView[]` — the held views (`_itemId`; `_noEquipedItem` = empty) |
+| `_equipmentSlotsIds` | `int[]` — written only on save (`OnSerializing`), lags the live slots |
 
 `InventoryItem`: `_itemId`, `_amount`, `_maxAmount`, `_maxAmountBonus`.
 
@@ -302,7 +303,7 @@ LiveSplit autosplitter filters them as `id < 29 || id > 311 || id == 302`
 (302 is a dev item; 122 is the MP radio, listed in singleplayer). Observed:
 
 - **An equipped item reads `_amount = 0`** while held — cross-reference
-  `_equipmentSlotsIds` to tell "equipped" from "gone".
+  the live `_equipmentSlots` to tell "equipped" from "gone".
 - That id range describes `_possessedItems`, **not the database** — applying it
   to the catalogue hides real items from search.
 

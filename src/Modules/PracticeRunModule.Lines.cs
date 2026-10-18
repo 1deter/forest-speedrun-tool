@@ -429,7 +429,7 @@ namespace ForestOverlay.Modules
 
             // Why nothing (or less) shows, in words.
             int splits = _reference != null && _reference.Splits != null ? _reference.Splits.Length : 0;
-            Segment cur = _practice.CurrentSegment;
+            Segment cur = _practice != null ? _practice.CurrentSegment : null;
             bool untimed = cur != null && !cur.IsTimed;
             if (!ReferenceEquals(_markStatusFor, _reference) || _markStatusVer != _markSpecVer || _markStatusCount != _markCount ||
                 _markStatusUntimed != untimed)
