@@ -248,9 +248,12 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   is also a greeble that moved). The first stick going to the inventory, not the hand: the
   game's own rule (a held weapon stays held; with the right hand empty the
   stick is equipped, before and after a restore - 3 of 3 here).
-- `Small Rock x1` "not at capture" after restores (an `LOD_PickUps` rock
-  probably not spawned 8 s after a teleport); `phantom-a` after a title
-  load listed 19 (bones, skulls, a booze). Not looked into.
+- `Small Rock x1` / `phantom-a`'s bones "not at capture" (T-0066,
+  2026-10-18): explained - rocks are the player's GreebleLayer re-rolling
+  (vanilla); the bones were taken before a capture in an older world and
+  re-created by the scene load, which a Quick load does not clean up; and
+  our streaming reload re-creates taken story-spot pickups (game-notes
+  *Quick loads across a scene load*). Fix planned: tasks/notes/T-0066.md.
 - Trees: a Quick load regrows a half-chopped tree fully (as a Full load
   does); once, one of two new sapling sticks was not removed; a Full load
   does not put back a cut sapling's sticks.
