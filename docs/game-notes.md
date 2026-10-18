@@ -1867,6 +1867,25 @@ LOD object destroyed, which is what the game's cut leaves. Scene bush
 objects are there as soon as the load ends (`Nature_Spawned` is in
 `ForestMain_v08`). Not done: a sapling's two sticks are not put back.
 
+**Half-chopped trees and sapling sticks, rebuilt by hand** (bridge,
+2026-10-18, T-0067). The cut model's children `1`..`4` each hold a
+`TreeDmg<n>` (`TreeCutChunk`: public `damage`, `Fake1..Fake4`,
+`mapleTree`; `Fake1` is its own `Chunk1` child) and `Fake2..4`.
+`TreeCutChunk.Hit(amount)` adds to `damage` (x2 on a maple) and shows
+Fake2 / Fake3 / Fake4 from 1 / 2 / 3; at 4 it sends `Hit` to the tree
+(`Health` - 1) and destroys the chunk's parent. `TreeHealth.DoSpawnCutTree`
+(public) on a standing view is the game's first hit: a fresh cut model,
+`LOD_Trees` disabled, `CurrentView` = it. A chop rebuilt from fields
+(chunk parents destroyed, `damage` and Fakes set, `Health` set) chopped
+on and fell normally and went on `CutDownTreeIds`. A sapling's cut:
+`LOD_Base.High` is the view prefab, its `CutBush2.MyCut` (`Sapling1_Cut`)
+spawns at `MyBurstPos` (~3.4 m up); a view sits at its LOD's position and
+rotation at scale 1 (the LOD's own scale, e.g. 0.8, is not applied), so
+the burst pose is `lod.position + lod.rotation * localPos`. `Instantiate`
+of `MyCut` at a captured burst pose dropped both sticks on exactly their
+captured spots. The sticks (`Stick_High`, item 57) carry `destroyAfter`
+60 s / 20 m: after a minute they go whenever the player is 20 m away.
+
 ### What the drawn shape and the collider are (bridge, 2026-10-15, T-0296)
 
 **Pool rocks.** A scene rock `Nature_Spawned/Rock05_<n>` is drawn by a
