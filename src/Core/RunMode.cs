@@ -192,12 +192,7 @@ namespace ForestOverlay.Core
         {
             if (!Active) { _practice.SetRunText(null, false); return; }
             string text = "RUN MODE - attempt " + Attempt + (Label.Length > 0 ? " (" + Label + ")" : "") + (Category == null ? "" : " v" + Category.Version);
-            // The newest action's reason first (T-0323); a session flag (ModAPI, mods) only when nothing else; the Runs tab lists all.
-            if (_flags.Count > 0)
-            {
-                int show = _flags.Count > _sessionFlags ? _flags.Count - 1 : 0;
-                text += " - NOT VALID: " + _flags[show] + (_flags.Count > 1 ? " (+" + (_flags.Count - 1) + " more, Runs tab)" : "");
-            }
+            text = HudLines.RunLine(text, _flags, _sessionFlags); // T-0323
             _practice.SetRunText(text, _flags.Count > 0);
         }
     }

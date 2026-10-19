@@ -309,6 +309,21 @@ namespace ForestOverlay.Data
             return rest.Length == 0 ? ModApiFlag : ModApiFlag + "\n" + rest;
         }
 
+        /// Run mode's HUD line (T-0323). Flags before sessionFlags came with
+        /// the session (ModAPI, other mods); the newest later flag is the
+        /// action the runner just caused and is named first, ModAPI after it.
+        public static string RunLine(string head, System.Collections.Generic.IList<string> flags, int sessionFlags)
+        {
+            if (flags == null || flags.Count == 0) return head;
+            bool modApi = flags.Contains(AttemptFormat.ModApiFlag);
+            int show = flags.Count > sessionFlags ? flags.Count - 1 : 0;
+            string why = flags[show];
+            int named = 1;
+            if (modApi && why != AttemptFormat.ModApiFlag) { why += ", " + AttemptFormat.ModApiFlag; named = 2; }
+            string more = flags.Count > named ? " (+" + (flags.Count - named) + " more, Runs tab)" : "";
+            return head + " - NOT VALID: " + why + more;
+        }
+
         /// The update check's message; compact drops the version an
         /// up-to-date install already shows in the title.
         public static string Update(string message, bool compact)
