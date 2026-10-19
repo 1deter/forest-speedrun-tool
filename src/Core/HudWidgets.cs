@@ -87,7 +87,7 @@ namespace ForestOverlay.Core
             try
             {
                 // The runner's HUD font (T-0339), else Arial.
-                _valueFont = FontPick.Get(_valueFontName, ValueRenders[0]);
+                _valueFont = FontPick.Get("widget-value", _valueFontName, ValueRenders[0]);
                 if (_valueFont == null) _valueFont = Font.CreateDynamicFontFromOSFont("Arial", ValueRenders[0]);
                 if (_valueFont != null) _valueFont.hideFlags = HideFlags.HideAndDontSave;
             }
@@ -291,7 +291,7 @@ namespace ForestOverlay.Core
             s = new ScaleStyles();
             s.Label = UiKit.Style(GUI.skin.label);
             s.Label.fontSize = Mathf.RoundToInt(LabelBase);
-            Font labelFont = FontPick.Get(_valueFontName, 14);
+            Font labelFont = FontPick.Get("widget-label", _valueFontName, 14);
             if (labelFont != null) s.Label.font = labelFont;
             s.Label.normal.textColor = UiKit.DimColour;
             s.Label.padding = new RectOffset(0, 0, 0, 0);

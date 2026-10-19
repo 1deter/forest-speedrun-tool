@@ -417,6 +417,10 @@ namespace ForestOverlay.Core
 
         public static string WindowFont { get { return _windowFont; } }
 
+        /// The game skin's own font size, what a font of the runner's is made
+        /// at so Default and a chosen font draw at the same size.
+        public static int BaseFontSize { get { Ensure(); return _baseFontSize; } }
+
         public static void SetWindowFont(string name)
         {
             _windowFont = name ?? "";
@@ -431,7 +435,7 @@ namespace ForestOverlay.Core
                 _baseFont = _skin.font;
                 if (_baseFont != null && _baseFont.fontSize > 0) _baseFontSize = _baseFont.fontSize;
             }
-            Font f = FontPick.Get(_windowFont, _baseFontSize);
+            Font f = FontPick.Get("window", _windowFont, _baseFontSize);
             _skin.font = f != null ? f : _baseFont;
             CrispText.SkinFontSize = -1;
         }

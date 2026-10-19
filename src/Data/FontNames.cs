@@ -18,6 +18,14 @@ namespace ForestOverlay.Data
             return null;
         }
 
+        /// What a saved config value means: the installed font it names (the
+        /// installed spelling), else "" = the default. A font that is gone, a
+        /// blank or null all fall back to the default.
+        public static string Resolve(string[] names, string saved)
+        {
+            return Find(names, saved) ?? "";
+        }
+
         /// The next choice in the ring: default, names[0] ... names[n-1], default.
         /// A current name not in the list counts as the default.
         public static string Step(string[] names, string current, int direction)

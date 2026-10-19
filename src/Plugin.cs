@@ -408,7 +408,7 @@ namespace ForestOverlay
             _hudLabelStyle.fontSize = px;
             _warnStyle.fontSize = px;
             // The HUD's own font (T-0339); null = the skin's.
-            Font f = FontPick.Get(s.FontName, 14);
+            Font f = FontPick.Get("hud", s.FontName, UiKit.BaseFontSize);
             _hudLabelStyle.font = f;
             _warnStyle.font = f;
         }
