@@ -3645,7 +3645,18 @@ withdrew it ten minutes later. Never skip a screen camera mid-frame.
   mask 2: 0.261 vs 0.214). Cave 6: 3.44 ms/frame, MainCamNew 0.68,
   ParticleCam 0.25 +0.05, Camera_HUD 0.30, ActionIconCamera 0.25,
   Sunshine 0.29 every other frame; 111 layer-1 renderers loaded, 0 in
-  view.
+  view. **Drawing layer 1 in the main camera instead** (T-0198, bridge,
+  2026-10-19, v0.24.364): the component sits on MainCamNew (deferred,
+  HDR, mask -134218019 = layers 1, 5, 9, 27 out; `ParticleLayers` 2)
+  between SunshinePostprocess / WaterEngine and the underwater /
+  post-processing effects. `enabled` false + bit 1 OR'd into the mask:
+  nothing turns it back on, the Sun stays Soft, the lighter flame and a
+  building ghost look the same and a ghost behind a log stays hidden in
+  both; 10 s windows 6.04 / 5.62 / 6.06 / 5.73 ms a frame on the surface
+  (~0.37 ms), 4.10 vs 3.79 in Cave 6. Writers of MainCamNew's mask (IL):
+  the drag-away death cutscene (saves, sets its own ~10 s, puts it
+  back), the VR pause menu, PlayMaker `SetCameraCullingMask`; our
+  CaveSurfaceOff clears bit 26 - change single bits, never assign.
 - **Far shadow** (0.29 ms): re-rendered every main-camera OnPreCull
   (`refresh` 1) along the sun's direction, which moves every frame - a
   skip would change the picture.
