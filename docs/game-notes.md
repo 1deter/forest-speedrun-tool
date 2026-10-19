@@ -236,6 +236,15 @@ the direct Rewired read stay 0. Real OS input (`scripts/sendinput.py`)
 reaches all of them. Look scale in that test: about 69 degrees of yaw per
 1000 SendInput counts at the save's sensitivity.
 
+`ReInput.mapping.Actions` lists **53 actions** (bridge, 2026-10-19,
+T-0344; in mapping order `MenuToggle` first, `Jump` index 5, `ItemSlot1`
+27); polling each by id on `Input.player` (`GetButton(int)` /
+`GetNegativeButton(int)`, no patch) is how to record what was held. A
+bridge `hold` reaches only the patched `TheForest.Utils.Input` reads, so
+a poll sees it only through `Game/GameActions.Held`, which ORs in the
+bridge's injected state (bridge: `Held(5, 1)` false, after `hold Jump`
+true; `hold ItemSlot1` -> `Held(27, 1)` true).
+
 ### Who performed an input: the reader, and the player's FSM (probe build + bridge, 2026-10-16, T-0361)
 
 The game acts on an action where it **reads** it: about 180 call sites of
@@ -437,6 +446,35 @@ LiveSplit autosplitter filters them as `id < 29 || id > 311 || id == 302`
   coroutine; plus `CoopSharableStorageProxy.RefreshStorage` (co-op
   storage, not the player). `Game/ItemCounter` postfixes all but the last
   to know when to re-read.
+
+### The backpack's 1-4 quick-select slots (IL + bridge, 2026-10-19, T-0344)
+
+- `PlayerInventory._quickSelectItemIds` (`int[4]`, getter
+  `QuickSelectItemIds`) is what keys 1-4 equip: slot i = the item id on
+  key i+1, `0` (from `Awake`) or `-1` (a slot emptied when its item moved
+  to another) = empty. The keys are the Rewired actions in
+  `_quickSelectButtons` = `ItemSlot1` .. `ItemSlot4`;
+  `PlayerInventory.CheckQuickSelect` reads `Input.GetButtonDown` of a slot's
+  action only while its id is > 0 and owned (bridge: `ItemSlot2` was read
+  0 times until slot 2 held an item, 1802 times after), and only in the
+  World view, not swimming / on a rope / raft / sitting / attacking /
+  building.
+- The player sets a slot by dropping an item on the backpack's mat in the
+  inventory: `TheForest.UI.QuickSelectCombine.SetItemAsQuickSlot(slot)` on
+  `INVENTORY/BackPackVisuals/Renderers/BackPack` (`_isCraft` false; the
+  `BackPackCraft` one is the crafting mat) writes `_combiningItemId` into
+  the slot. Other writers are element stores, not field writes (so
+  `ilscan writes` misses them): `CheckQuickSelectAutoAdd` (an equipped /
+  added weapon into the first empty slot), `QuickSelectCombine`
+  `OnEnable` / `OnDisable` / `Combine`, MP `PlayerRespawnMP.Respawn`;
+  `Awake` / `SetQuickSelectItemIds` replace the array. Read it through
+  `LocalPlayer.Inventory` each time (poll the 4 ints; nothing to hook).
+- Bridge proof (Slot 1, v0.24.374): slot 1 = 80 (Axe Plane) as saved;
+  `set <BackPack> QuickSelectCombine._combiningItemId 53` +
+  `call ... SetItemAsQuickSlot 2` -> `_quickSelectItemIds[2]` = 53;
+  `press ItemSlot3` -> `RightHand._itemId` 53 (Rock), `press ItemSlot1` ->
+  80. The bridge's `set` cannot write an array element; `SetItemAsQuickSlot`
+  is the way to change a slot. Names: `ItemDatabase.ItemById(id)._name`.
 
 ### Item names
 
