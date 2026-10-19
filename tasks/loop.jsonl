@@ -360,3 +360,7 @@
 {"at": "2026-10-19T04:56:20", "event": "chain-stop", "chain": "C-0002", "reason": "the driver's own context: the orchestrator's context is 251k (over 250k) - hand off and end this session; the next run starts in a fresh one"}
 {"at": "2026-10-19T05:47:01", "event": "chain-begin", "chain": "C-0003", "target": null, "bridge": true, "by": "main", "pool": 32}
 {"at": "2026-10-19T05:47:03", "event": "chain-dispatch", "chain": "C-0003", "kind": "run"}
+{"at": "2026-10-19T05:48:59", "event": "begin", "run": "R-0029", "max_rounds": 5, "bridge": true, "by": "main", "unattended": true, "chain": "C-0003", "target": null}
+{"at": "2026-10-19T05:49:06", "event": "round", "run": "R-0029", "round": 1, "task": "T-0346", "reviews_before": 0}
+{"at": "2026-10-19T05:50:07", "event": "end", "run": "R-0029", "round": 1, "task": "T-0346", "status": "wontfix", "progress": true, "parked": false, "summary": "T-0346 closed wontfix, no code change: the weekly cleanup (2026-10-14) flagged HudBuilder.LabelAt as unused, but T-0338 (be0b6507, 2026-10-15) started calling it for the splits panel's docked HUD rows (PracticeRunModule.Splits.cs:1004), and scripts/audit.py no longer reports it. Nothing left.", "tier": "normal", "route": "-/-/-"}
+{"at": "2026-10-19T05:50:07", "event": "round", "run": "R-0029", "round": 2, "task": "T-0347", "reviews_before": 0}
