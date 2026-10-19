@@ -358,3 +358,5 @@
 {"at": "2026-10-19T04:54:43", "event": "end", "run": "R-0028", "round": 5, "task": "T-0344", "status": "todo", "progress": false, "parked": true, "summary": "T-0344 (gameplay recorder, a tester's ask) parked: spots' runs already record and replay in freecam (T-0369), so the author picks what is new (spot-free Record / Done, keys on playback, values along the replay bar) and whether it is before or after v1. No code changed.", "tier": "normal", "route": "-/-/-"}
 {"at": "2026-10-19T04:54:44", "event": "stop", "run": "R-0028", "reason": "5 rounds done (the run's limit)"}
 {"at": "2026-10-19T04:56:20", "event": "chain-stop", "chain": "C-0002", "reason": "the driver's own context: the orchestrator's context is 251k (over 250k) - hand off and end this session; the next run starts in a fresh one"}
+{"at": "2026-10-19T05:47:01", "event": "chain-begin", "chain": "C-0003", "target": null, "bridge": true, "by": "main", "pool": 32}
+{"at": "2026-10-19T05:47:03", "event": "chain-dispatch", "chain": "C-0003", "kind": "run"}
