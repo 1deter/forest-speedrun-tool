@@ -415,8 +415,10 @@ nothing would have stopped a "done".
   (L8). *Check:* `tasks.py set T-x confirmed` without evidence fails.
 - 7b. A **Stop hook** (runs when a turn ends) checks the clean-state list
   (L12, T): uncommitted changes, a version bump without a pushed tag,
-  tasks left `in-progress` with no note, and (heuristic) a changelog
-  claim with a number and no measurement (gotcha 44). It prints what is
+  tasks left `in-progress` with no note, (heuristic) a changelog
+  claim with a number and no measurement (gotcha 44), and a CLAUDE.md
+  handoff whose **Next:** says to answer a task that no longer asks
+  anything (T-0439; session-start shows it as a problem too). It prints what is
   unfinished, so the model sees it before it stops. *Check:* end a turn
   with a dirty tree and see the warning.
 - 7c. For releases: a release is not announced until the asset URL

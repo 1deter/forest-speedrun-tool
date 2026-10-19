@@ -240,6 +240,35 @@ class StopFindings(unittest.TestCase):
         finally:
             shutil.rmtree(d)
 
+    HANDOFF = ("# x\n\n## Where we are (replaced at each handoff)\n\n"
+               "- **run A:** done. **Next:** answer T-0001 / T-0002 /\n  T-0003; the chain's next run.\n\n"
+               "- **run B:** done. **Next:** answered 2026-10-19 (below).\n\n"
+               "- **Standing:** answer T-0004 is not a Next line.\n\n"
+               "## Where everything else lives\n\n**Next:** answer T-0005\n")
+
+    def test_stale_handoff(self):
+        tasks = {"T-0001": {"status": "todo", "question": "which?", "needs": "author-decision"},
+                 "T-0002": {"status": "todo", "question": None, "needs": "none"},           # answered
+                 "T-0003": {"status": "wontfix", "question": "left over", "needs": "none"},  # closed
+                 "T-0004": {"status": "done"}, "T-0005": {"status": "done"}}
+        # wrapped ids are joined; 'answered' is no ask; only Next lines inside Where we are count
+        self.assertEqual(S.stale_handoff(self.HANDOFF, tasks), ["T-0002", "T-0003"])
+        tasks["T-0002"]["question"] = "back"
+        tasks["T-0003"]["status"] = "todo"
+        self.assertEqual(S.stale_handoff(self.HANDOFF.replace("\n", "\r\n"), tasks), [])
+        self.assertEqual(S.stale_handoff(self.HANDOFF, {}), [])   # no task file: no opinion
+        self.assertEqual(S.stale_handoff("no section", tasks), [])
+
+    def test_unknown_id_is_stale(self):
+        self.assertEqual(S.stale_handoff(self.HANDOFF, {"T-0001": {"status": "todo", "question": "q"}}),
+                         ["T-0002", "T-0003"])
+
+    def test_stale_finding(self):
+        out = S.findings("r", [], None, None, None, [], [], [], ["T-0152", "T-0153"])
+        self.assertEqual(len(out), 1)
+        self.assertIn("answer T-0152, T-0153", out[0])
+        self.assertIn("Where we are", out[0])
+
     def test_unreviewed_finding_names_the_checker(self):
         out = S.findings("r", [], None, None, None, [], [], ["T-0009"])
         self.assertEqual(len(out), 1)

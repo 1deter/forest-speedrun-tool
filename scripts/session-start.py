@@ -51,6 +51,8 @@ sys.dont_write_bytecode = True   # a report must not leave __pycache__ for clean
 import cleanup  # noqa: E402
 import lint  # noqa: E402
 import tasks as T  # noqa: E402
+sys.path.insert(0, os.path.join(HERE, "hooks"))
+import stop as stop_hook  # noqa: E402
 
 ROOT = cleanup.ROOT
 REPO = "1deter/forest-speedrun-tool"
@@ -522,6 +524,13 @@ def report(force_local=False):
         if parked:
             lines.append("  parked questions for the author: " + ", ".join(t["id"] for t in parked)
                          + " (`tasks.py list --needs author-decision`)")
+        try:
+            with open(os.path.join(ROOT, "CLAUDE.md"), encoding="utf-8-sig") as f:
+                stale = stop_hook.stale_handoff(f.read(), {t["id"]: t for t in ts})
+            if stale:
+                problems.append(stop_hook.handoff_finding(stale))
+        except OSError:
+            pass
         nxt = T.pick_next(ts)
         nxt_b = T.pick_next(ts, bridge=True)
         if nxt:

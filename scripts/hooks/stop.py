@@ -6,7 +6,8 @@
 - a csproj version with no tag, or a tag not pushed (a bump left half-done),
 - tasks in progress with no running note (tasks.py note) for the next session,
 - a checker task with a commit not yet pushed and no accept review (docs/harness.md 7d),
-- a changelog line not yet pushed that claims a number with no measurement (gotcha 44).
+- a changelog line not yet pushed that claims a number with no measurement (gotcha 44),
+- a CLAUDE.md handoff whose **Next:** says to answer a task that no longer asks anything (T-0439).
 
 With anything to say it blocks the stop once: the model reads the list and
 finishes or says why it stays (waiting on the author is a fine reason).
@@ -20,6 +21,8 @@ import subprocess
 import sys
 
 CLAIM = re.compile(r"\d+(\.\d+)?\s*(%|x\b|times\b|ms\b|fps\b|[KMG]B\b)|\bless garbage\b", re.I)
+ANSWER = re.compile(r"\banswer\s+(T-\d{4}(?:\s*(?:/|,|and|&)\s*T-\d{4})*)", re.I)
+WHERE = re.compile(r"^## Where we are[^\n]*\n(.*?)(?=^## |\Z)", re.M | re.S)
 
 
 def git(args, cwd, timeout=10):
@@ -92,6 +95,48 @@ def unreviewed_tasks(root, unpushed):
     return out
 
 
+def read_tasks(root):
+    """tasks/tasks.jsonl as {id: task}; {} when it cannot be read."""
+    out = {}
+    try:
+        with open(os.path.join(root, "tasks", "tasks.jsonl"), encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    t = json.loads(line)
+                    out[t["id"]] = t
+    except (OSError, ValueError, KeyError):
+        return {}
+    return out
+
+
+def stale_handoff(md, tasks):
+    """Ids a CLAUDE.md 'Where we are' entry's **Next:** says to answer that have no open question
+    (answered, closed or unknown) - the handoff went stale (T-0439)."""
+    m = WHERE.search(md.replace("\r\n", "\n"))
+    if not m or not tasks:
+        return []
+    out = []
+    for entry in re.split(r"\n\s*\n", m.group(1)):
+        i = entry.find("**Next:**")
+        if i < 0:
+            continue
+        for g in ANSWER.finditer(" ".join(entry[i:].split())):
+            for tid in re.findall(r"T-\d{4}", g.group(1)):
+                t = tasks.get(tid)
+                asks = t is not None and t.get("status") not in ("confirmed", "wontfix") and \
+                    (t.get("question") or t.get("needs") == "author-decision")
+                if not asks and tid not in out:
+                    out.append(tid)
+    return out
+
+
+def handoff_finding(stale):
+    return ("CLAUDE.md's handoff says to answer %s, which no longer ask%s anything - rewrite that **Next:** "
+            "line in *Where we are* (memory handoff-always-current)"
+            % (", ".join(stale), "s" if len(stale) == 1 else ""))
+
+
 def claims(diff):
     """Added changelog lines that carry a number like a measurement, unless they say it was measured."""
     out = []
@@ -103,7 +148,7 @@ def claims(diff):
     return out
 
 
-def findings(root, status, version, local_tag, remote_tag, tasks, claim_lines, unreviewed=()):
+def findings(root, status, version, local_tag, remote_tag, tasks, claim_lines, unreviewed=(), stale=()):
     """The list shown to the model; every input is already fetched, so it is testable."""
     out = []
     if status:
@@ -124,6 +169,8 @@ def findings(root, status, version, local_tag, remote_tag, tasks, claim_lines, u
     for c in claim_lines:
         out.append("changelog claims a number with no measurement (gotcha 44): \"%s\" - measure the released build, "
                    "or say what changed without the figure" % c[:120])
+    if stale:
+        out.append(handoff_finding(stale))
     return out
 
 
@@ -142,8 +189,13 @@ def collect(cwd):
             remote_tag = None if out is None else bool(out.strip())
     diff = try_git(["diff", upstream or "HEAD", "--", "CHANGELOG.md"], root) or ""
     unpushed = (try_git(["rev-list", "@{u}..HEAD"], root) or "").split() if upstream else []
+    try:
+        with open(os.path.join(root, "CLAUDE.md"), encoding="utf-8-sig") as f:
+            stale = stale_handoff(f.read(), read_tasks(root))
+    except OSError:
+        stale = []
     return findings(root, status, version, local_tag, remote_tag, unnoted_tasks(root), claims(diff),
-                    unreviewed_tasks(root, unpushed))
+                    unreviewed_tasks(root, unpushed), stale)
 
 
 def main():
