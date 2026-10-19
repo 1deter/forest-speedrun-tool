@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.372 - 2026-10-19
+
+- Settings > HUD has a font for the HUD and a separate font for the F2 window, picked from the fonts installed on your PC.
+- Step through fonts with < and >, or type a name and press Enter; default puts the game's own font back.
+
 ## v0.24.371 - 2026-10-19
 
 - Internal clean-up: an unused piece of paint code is removed; nothing changes in game.
