@@ -64,6 +64,8 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _prompt = new GUIContent("");
         private readonly GUIContent _status = new GUIContent("");
         private readonly GUIContent _waiting = new GUIContent("");
+        private GUIStyle _failStyle;   // _waiting in the warning colour when set-up failed
+        private bool _failed;
 
         private static KeyCode[] _keys;   // every keyboard KeyCode, polled while capturing
 
@@ -306,7 +308,11 @@ namespace ForestOverlay.Modules
                 if (clash.Length > 0) note += (note.Length > 0 ? "; " : "") + clash;
                 r.Note.text = note.Length > 0 ? char.ToUpper(note[0]) + note.Substring(1) + "." : "";
             }
-            _waiting.text = ExtraBindingMaps.Ready ? "" : "The game's controls: " + ExtraBindingMaps.Status + ".";
+            _failed = ExtraBindingMaps.Failed;
+            _waiting.text = _failed
+                ? "Extra bindings are not working: " + ExtraBindingMaps.Status + ". The game's own controls are unchanged. " +
+                  "Please send the report zip (the log has a 'Game controls:' line)."
+                : ExtraBindingMaps.Ready ? "" : "Waiting for the game's controls - the list fills in once they are loaded.";
         }
 
         private void BuildPicks()
@@ -353,7 +359,7 @@ namespace ForestOverlay.Modules
         {
             _drawnFrame = Time.frameCount;
             y += UiText.DrawDim(x, y, w, Intro) + 6f;
-            if (_waiting.text.Length > 0) y += UiText.Draw(x, y, w, _waiting) + 4f;
+            if (_waiting.text.Length > 0) y += DrawWaiting(x, y, w) + 4f;
 
             int remove = -1;
             int n = Mathf.Min(_rows.Count, _list.Count);
@@ -390,6 +396,14 @@ namespace ForestOverlay.Modules
             return y;
         }
 
+        private float DrawWaiting(float x, float y, float w)
+        {
+            if (!_failed) return UiText.DrawDim(x, y, w, _waiting);
+            if (_failStyle == null) _failStyle = UiKit.Style(UiText.Plain);
+            _failStyle.normal.textColor = UiKit.Warn;   // follows a theme change
+            return UiText.Draw(x, y, w, _waiting, _failStyle);
+        }
+
         private float DrawPicker(float x, float y, float w)
         {
             y += UiText.Draw(x, y, w, PickText) + 2f;
@@ -397,7 +411,7 @@ namespace ForestOverlay.Modules
             if (WinPx.Button(new Rect(x + w - 80f, y, 80f, 22f), CancelText)) { _picking = false; return y + 28f; }
             y += 28f;
 
-            if (_picks.Count == 0) return y + UiText.Draw(x, y, w, _waiting.text.Length > 0 ? _waiting : NoMatchText) + 4f;
+            if (_picks.Count == 0) return y + (_waiting.text.Length > 0 ? DrawWaiting(x, y, w) : UiText.Draw(x, y, w, NoMatchText)) + 4f;
             if (_filterShown == null) return y + PickRows * RowH + 6f;   // the list is built on the next Tick
             if (_shown.Count == 0) return y + UiText.DrawDim(x, y, w, NoMatchText) + 4f;
 

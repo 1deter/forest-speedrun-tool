@@ -51,7 +51,12 @@ namespace ForestOverlay.Game
         }
 
         /// "ready" or why the bindings cannot be applied (shown in Settings).
-        public static string Status = "waiting for the game's controls";
+        public const string WaitingStatus = "waiting for the game's controls";
+        public static string Status = WaitingStatus;
+
+        /// Set-up or applying failed: Status says why (Settings shows it in
+        /// the warning colour, the log has its "Game controls:" line).
+        public static bool Failed { get { return Status != "ready" && Status != WaitingStatus; } }
 
         /// Every game action, in Rewired's order; empty until Rewired is up.
         public static readonly List<ActionInfo> Actions = new List<ActionInfo>();
@@ -89,8 +94,8 @@ namespace ForestOverlay.Game
 
         // Reflection, found once.
         private static FieldInfo _playerField;
-        private static PropertyInfo _isReady, _controllers, _maps, _categoryId, _allMaps;
-        private static PropertyInfo _elId, _elActionId, _elKeyCode, _elModifiers, _elElement, _elRange, _elPole;
+        private static Member _isReady, _controllers, _maps, _categoryId, _allMaps;
+        private static Member _elId, _elActionId, _elKeyCode, _elModifiers, _elElement, _elRange, _elPole;
         private static MethodInfo _getAllMaps, _contains, _delete, _createKey, _createMouse;
         private static object _keyboardType, _mouseType, _poleNeg, _polePos, _typeAxis, _typeButton, _rangePos, _rangeNeg, _rangeFull, _noModifiers;
 
@@ -214,11 +219,38 @@ namespace ForestOverlay.Game
             Status = why;
         }
 
-        private static PropertyInfo Prop(Type t, string name)
+        /// A property or a field, read the same way: Rewired has both
+        /// (Player.controllers and ControllerHelper.maps are fields, the rest
+        /// properties - ILScan on Rewired_Core.dll, and live: v0.24.373 read
+        /// controllers as a property and set-up failed).
+        private sealed class Member
         {
-            PropertyInfo p = t != null ? t.GetProperty(name, Any) : null;
-            if (p == null) throw new MissingMemberException(t != null ? t.Name : "?", name);
-            return p;
+            private readonly PropertyInfo _p;
+            private readonly FieldInfo _f;
+            public readonly Type ValueType;
+
+            public Member(PropertyInfo p, FieldInfo f)
+            {
+                _p = p;
+                _f = f;
+                ValueType = p != null ? p.PropertyType : f.FieldType;
+            }
+
+            // Shaped like PropertyInfo.GetValue(target, index) so the call sites read the same.
+            public object GetValue(object target, object[] unused)
+            {
+                return _p != null ? _p.GetValue(target, null) : _f.GetValue(target);
+            }
+        }
+
+        private static Member Prop(Type t, string name)
+        {
+            if (t == null) throw new MissingMemberException("?", name);
+            PropertyInfo p = t.GetProperty(name, Any);
+            if (p != null && p.GetIndexParameters().Length == 0) return new Member(p, null);
+            FieldInfo f = t.GetField(name, Any);
+            if (f != null) return new Member(null, f);
+            throw new MissingMemberException(t.Name, name);
         }
 
         private static void Setup()
@@ -246,8 +278,8 @@ namespace ForestOverlay.Game
             if (actions == null) return;
 
             _controllers = Prop(_playerField.FieldType, "controllers");
-            _maps = Prop(_controllers.PropertyType, "maps");
-            _getAllMaps = _maps.PropertyType.GetMethod("GetAllMaps", new[] { ctrlType });
+            _maps = Prop(_controllers.ValueType, "maps");
+            _getAllMaps = _maps.ValueType.GetMethod("GetAllMaps", new[] { ctrlType });
             _categoryId = Prop(mapType, "categoryId");
             _allMaps = Prop(mapType, "AllMaps");
             _contains = mapType.GetMethod("ContainsElementMap", new[] { typeof(int) });
@@ -476,6 +508,7 @@ namespace ForestOverlay.Game
                     applied++;
                 }
                 _keptExpected = _kept.Count;
+                if (Status != "ready") { Status = "ready"; Version++; }   // an earlier apply error is over
                 Version++;
                 if (report && _log != null)
                     _log.LogInfo("Game controls: " + applied + " extra binding" + (applied == 1 ? "" : "s") + " applied" +
