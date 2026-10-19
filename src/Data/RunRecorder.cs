@@ -174,6 +174,10 @@ namespace ForestOverlay.Data
         /// recorded before it.
         public AnimTrack Anim;
 
+        /// The keys pressed (T-0344; see KeyTrack): recorder takes only;
+        /// null for timed runs.
+        public KeyTrack Keys;
+
         /// An item's count at time t: its last change at or before t, 0
         /// before its first.
         public int ItemCountAt(string name, float t)

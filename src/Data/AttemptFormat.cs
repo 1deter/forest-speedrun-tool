@@ -50,6 +50,8 @@ namespace ForestOverlay.Data
     //   af|<t>|<index>=<value>:<rate>|...   float parameters from t on
     //   ay|<t>|<yaw>|<rate>                 the body's yaw from t on
     //   ah|<t>|<id>|<id>|...                the equipment slot ids when they changed
+    //   k|<t>|+<key>|-<key>|...             keys pressed / let go (T-0344; recorder
+    //                                       takes only, Data/KeyTrack)
     //
     // Older readers skip lines they do not know, so e / b / l lines never
     // break an older plugin or the site.
@@ -216,6 +218,8 @@ namespace ForestOverlay.Data
                     sb.Append(NL);
                 }
             }
+
+            if (attempt.Keys != null) attempt.Keys.Write(sb, NL);
 
             return sb.ToString();
         }
@@ -412,6 +416,11 @@ namespace ForestOverlay.Data
                         ids[c - 2] = id;
                     }
                     a.Anim.AddHeld(P(p[1]), ids);
+                }
+                else if (p[0] == KeyTrack.Prefix && p.Length >= 3)
+                {
+                    if (a.Keys == null) a.Keys = new KeyTrack();
+                    a.Keys.Parse(p);
                 }
                 else if (p[0] == "s" && p.Length >= 6)
                 {
