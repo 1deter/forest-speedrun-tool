@@ -21,8 +21,8 @@ namespace ForestOverlay.Modules
     //
     // REPLAY CAMERA (Experimental, practice; locked in run mode as
     // "replaycam"): plays the comparison run - or the recorder's last
-    // recording (T-0344, PracticeRunModule.Recorder: no spot, no practice
-    // mode needed) - back on its own clock (pause,
+    // one of the recordings (T-0344, PracticeRunModule.Recordings: no spot,
+    // no practice mode needed) - back on its own clock (pause,
     // seek, 0.1x - 2x) and flies the game's own camera after the ghost -
     // through a second FreeCamBehaviour, the freecam's tested handling
     // (gotchas 56 / 58: no camera copied, none switched off; the gameplay
@@ -84,7 +84,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent CameraHeading = new GUIContent(
             "Replay camera - Experimental, a practice view (it holds you still while it plays):");
         private static readonly GUIContent CameraHelp = new GUIContent(
-            "Plays the comparison run back and follows its ghost (your own recording: Recorder, above). Close this window to use the keys: Space play / pause, " +
+            "Plays the comparison run back and follows its ghost (a recording of your own: Recordings, above). Close this window to use the keys: Space play / pause, " +
             "Left / Right 1 s back / on (Shift 5 s), , and . one frame while paused, Up / Down faster / slower, " +
             "1 chase, 2 first person, 3 trajectory, 4 free (V cycles), R from the start, Esc stops. " +
             "Free: W A S D fly, Q / E down / up, Shift faster, hold the right mouse button to look. " +
@@ -155,7 +155,7 @@ namespace ForestOverlay.Modules
             if (take)
             {
                 if (_take.State == RunRecorder.RunState.Running) { SetCamStatus("Recording - press Done first."); return; }
-                if (_takeAttempt == null || _takeAttempt.Samples.Count < 2) { SetCamStatus("No recording yet - press Record, play, then Done."); return; }
+                if (_watchRun == null || _watchRun.Samples.Count < 2) { SetCamStatus("That recording has no path to play."); return; }
             }
             else
             {
@@ -189,6 +189,7 @@ namespace ForestOverlay.Modules
             _nextCameraText = 0f;
             _splitsDirty = true;
             Ctx.Practice.Mark("replay camera");
+            StartReplayKeys(src);   // the input overlay plays the run's keys
             SetCamStatus("");
             Ctx.Log.LogInfo("Replay camera: on - " + (take ? "the recording" : "'" + _segment.Id + "' comparison run") + " of " + _clock.Duration.ToString("0.00") + " s, " +
                             src.Looks.Count + " look sample(s), " + src.Samples.Count + " position(s), view " +
@@ -203,6 +204,7 @@ namespace ForestOverlay.Modules
             if (!_camOn) return;
             _camOn = false;
             _watchTake = false;
+            GameActions.ReplayHeld = null;
             _barScrub = false;
             _replayCam.InputEnabled = false;
             _replayCam.LookOnRightMouse = false;
@@ -258,6 +260,7 @@ namespace ForestOverlay.Modules
                 _camSource = src;
                 _clock.Start(ReplayCamera.EndOf(src), _clock.T);
                 _camSnap = true;
+                StartReplayKeys(src);
             }
 
             bool panel = Host != null && Host.AnyPanelOpen();
@@ -274,6 +277,7 @@ namespace ForestOverlay.Modules
             float dt = Time.unscaledDeltaTime;
             if (!BarShowing) _barScrub = false;   // hidden mid-drag: never leave the clock held
             if (!_barScrub) _clock.Advance(dt);   // held still while the playhead is dragged
+            if (src.Keys != null) _keysCache.Seek(src.Keys, _clock.T);   // every frame: the input overlay reads it
 
             GhostPose g;
             if (!ReplayCamera.PoseAt(src, _clock.T, _ghostYaw, out g)) return;
@@ -430,8 +434,8 @@ namespace ForestOverlay.Modules
             Attempt src = Watched;
             if (src != null)
             {
-                _barStats.text = _valuesCache.Get(src, _clock.T, _valuesChosen, _valuesVersion);
-                _barKeys.text = src.Keys != null ? _keysCache.Get(src.Keys, _clock.T) : "";
+                _barStats.text = _valuesCache.Get(src, _clock.T, _valuesChosen, _valuesVersion, _itemNameFn);
+                _barKeys.text = src.Keys != null ? _keysCache.Text(src.Keys, _clock.T, _keyLabelFn) : "";
             }
             // The tab's line: only built while the tab shows it.
             if (!TabShowing) return;

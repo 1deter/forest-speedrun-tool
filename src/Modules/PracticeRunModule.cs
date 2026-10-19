@@ -284,8 +284,7 @@ namespace ForestOverlay.Modules
             map.Add("run.restartCheckpoint", KeyCode.None, "Restart from checkpoint (the last one used, else the latest)", RestartFromCheckpointKey);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
             map.Add("run.replayCamera", KeyCode.None, "Replay camera on / off (watch the comparison run)", ToggleReplayCamera);
-            map.Add("run.record", KeyCode.None, "Recorder: record / done", ToggleRecording);
-            map.Add("run.watchRecording", KeyCode.None, "Recorder: watch the last recording (replay camera)", ToggleWatchRecording);
+            map.Add("rec.toggle", KeyCode.None, "Recordings: record / done (no spot needed)", ToggleRecording);
         }
 
         public override void Shutdown()
@@ -1303,7 +1302,7 @@ namespace ForestOverlay.Modules
                 y += 30f;
             }
 
-            if (UiKit.Section(0f, ref y, cw, "runs.recorder", TextRecorder, RecorderSummary, TipRecorder, false))
+            if (UiKit.Section(0f, ref y, cw, "runs.recordings", TextRecordings, RecorderSummary, TipRecordings, false))
                 y = DrawRecorderSection(y, cw);
 
             if (UiKit.Section(0f, ref y, cw, "runs.replay", TextReplay, null, TipReplay, false))

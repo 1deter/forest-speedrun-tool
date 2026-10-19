@@ -43,6 +43,14 @@ namespace ForestOverlay.Game
 
         public static bool Ready { get { return Table != null && _mButton != null; } }
 
+        /// While the replay camera plays a run with recorded keys (T-0344):
+        /// asked first by Held - the run's (action, sign) held at the
+        /// playhead, false for an action the run did not record - so the
+        /// input overlay shows the replay. Null otherwise.
+        public static Func<int, int, bool> ReplayHeld;
+
+        public static bool ReplayActive { get { return ReplayHeld != null; } }
+
         /// Builds the table once Rewired has its data; tried again every few
         /// seconds until it works. Cheap when done.
         public static void Ensure(ManualLogSource log)
@@ -183,6 +191,7 @@ namespace ForestOverlay.Game
         public static bool Held(int action, int sign)
         {
             if (action < 0 || action >= _names.Length) return false;
+            if (ReplayHeld != null) return ReplayHeld(action, sign);
             TasInput.Mode mode = TasInput.Current;
             if (mode == TasInput.Mode.Blocking) return false;
             string name = _names[action];
@@ -199,6 +208,7 @@ namespace ForestOverlay.Game
         /// a replay's value while one runs. NaN when the action is not there.
         public static float Axis(string name)
         {
+            if (ReplayHeld != null) return 0f;   // a replay has no mouse track here: the box keeps still
             TasInput.Mode mode = TasInput.Current;
             if (mode == TasInput.Mode.Blocking) return 0f;
             if (mode == TasInput.Mode.Playing) return TasInput.ReplayAxis(name);

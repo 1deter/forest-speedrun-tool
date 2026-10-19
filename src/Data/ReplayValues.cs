@@ -7,34 +7,39 @@ namespace ForestOverlay.Data
 {
     // ------------------------------------------------------------------
     // Which recorded values the replay bar shows (T-0344; author,
-    // 2026-10-19: the runner's choice, default the site's Basic list).
+    // 2026-10-19: the runner's choice, default the site's Basic list plus
+    // the items on the backpack's 1-4 hotkeys).
     //
     // Basic is the website's attempt page preset (site Runs.ShownChannels
     // and app.js SHOWN, without the old item channels), the speed first as
-    // there; any other channel the run recorded can be ticked too. Labels
-    // and formats follow the site's: Fullness / Thirst are fractions shown
-    // as %, Battery %, body temperature in degrees C, Cold / IsLit yes /
-    // no, a whole number with no decimals, else one.
+    // there, then the quick slots; any other channel the run recorded can
+    // be ticked too. Labels and formats follow the site's: Fullness /
+    // Thirst are fractions shown as %, Battery %, body temperature in
+    // degrees C, Cold / IsLit yes / no, a whole number with no decimals,
+    // else one.
     //
     // A value is the run's last 5 Hz snapshot at or before the time (step,
-    // as Attempt.TryStateAt), the speed its last position sample. Pure;
-    // the bar asks the Cache from its throttled text refresh, never OnGUI.
+    // as Attempt.TryStateAt), the speed its last position sample, the
+    // slots their last change (Data/InputTracks). The setting `[Runs]
+    // ReplayValues` is a comma list; empty or "Basic" = the default, "none"
+    // = nothing. Pure; the bar asks the Cache from its throttled text
+    // refresh, never OnGUI.
     // ------------------------------------------------------------------
     public static class ReplayValues
     {
         public const string Speed = "Speed";
+        public const string QuickSlots = "Quick slots";
+        public const string BasicWord = "Basic";
+        public const string NoneWord = "none";
 
         /// The default list, in the order shown.
         public static readonly string[] Basic =
         {
             Speed, "Health", "Stamina", "Energy", "Fullness", "Thirst", "Armor", "ColdArmor",
-            "BatteryCharge", "BodyTemp", "Stealth", "Cold", "IsLit",
+            "BatteryCharge", "BodyTemp", "Stealth", "Cold", "IsLit", QuickSlots,
         };
 
-        public static string BasicConfig { get { return Join(Basic); } }
-
         public const string NotRecorded = "Values: not recorded in this run";
-        public const string NoneChosen = "";
 
         /// The words a runner reads for a value.
         public static string Label(string name)
@@ -86,12 +91,15 @@ namespace ForestOverlay.Data
 
         // --- the setting ------------------------------------------------------------
 
-        /// The setting's comma list as names (blank entries and repeats dropped).
+        /// The setting as names: empty or "Basic" = Basic, "none" = nothing,
+        /// else the comma list (blank entries and repeats dropped).
         public static List<string> Parse(string config)
         {
+            string c = config == null ? "" : config.Trim();
+            if (c.Length == 0 || string.Equals(c, BasicWord, StringComparison.OrdinalIgnoreCase)) return new List<string>(Basic);
             List<string> names = new List<string>();
-            if (string.IsNullOrEmpty(config)) return names;
-            string[] parts = config.Split(',');
+            if (string.Equals(c, NoneWord, StringComparison.OrdinalIgnoreCase)) return names;
+            string[] parts = c.Split(',');
             for (int i = 0; i < parts.Length; i++)
             {
                 string n = parts[i].Trim();
@@ -100,8 +108,16 @@ namespace ForestOverlay.Data
             return names;
         }
 
+        /// The names as the setting: "Basic" for the default, "none" for nothing.
         public static string Join(IList<string> names)
         {
+            if (names.Count == 0) return NoneWord;
+            if (names.Count == Basic.Length)
+            {
+                bool same = true;
+                for (int i = 0; i < Basic.Length && same; i++) same = names[i] == Basic[i];
+                if (same) return BasicWord;
+            }
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < names.Count; i++)
             {
@@ -112,7 +128,7 @@ namespace ForestOverlay.Data
         }
 
         /// What can be picked: Basic in its order, then every other channel
-        /// in `channels` (the player's recorded state) in its order.
+        /// in `channels` (the run's / the player's recorded state) in its order.
         public static List<string> Choices(string[] channels)
         {
             List<string> all = new List<string>(Basic);
@@ -141,15 +157,17 @@ namespace ForestOverlay.Data
         // --- the bar's line ---------------------------------------------------------
 
         /// "Speed 5.2 m/s   Health 80   Stamina 100 ..." at t, the chosen
-        /// values in their order. A value the run did not record is left
-        /// out; a run with no state at all says so when a state value is
-        /// chosen. "" for no run or nothing chosen.
-        public static string Line(Attempt run, float t, IList<string> chosen)
+        /// values in their order; the quick slots on a line of their own
+        /// after them (`itemName`: an id's name, null = ids). A value the
+        /// run did not record is left out; a run with no state at all says
+        /// so when a state value is chosen. "" for no run or nothing chosen.
+        public static string Line(Attempt run, float t, IList<string> chosen, Func<int, string> itemName)
         {
-            if (run == null || chosen == null || chosen.Count == 0) return NoneChosen;
+            if (run == null || chosen == null || chosen.Count == 0) return "";
             int st = ReplayStats.IndexAt(run.States, t);
             StringBuilder sb = new StringBuilder();
             bool wantsState = false;
+            string slots = null;
             for (int i = 0; i < chosen.Count; i++)
             {
                 string name = chosen[i];
@@ -160,6 +178,11 @@ namespace ForestOverlay.Data
                     Append(sb, Speed, v);
                     continue;
                 }
+                if (string.Equals(name, QuickSlots, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (run.QuickSlots != null) slots = run.QuickSlots.Text(run.QuickSlots.IndexAt(t), itemName);
+                    continue;
+                }
                 wantsState = true;
                 if (st < 0) continue;
                 int c = run.ChannelIndex(name);
@@ -168,7 +191,8 @@ namespace ForestOverlay.Data
                 Append(sb, run.Channels[c], values[c]);
             }
             if (wantsState && run.States.Count == 0)
-                return sb.Length > 0 ? NotRecorded + "   " + sb : NotRecorded;
+                sb.Insert(0, sb.Length > 0 ? NotRecorded + "   " : NotRecorded);
+            if (slots != null) sb.Append(sb.Length > 0 ? "\n" : "").Append(slots);
             return sb.ToString();
         }
 
@@ -178,24 +202,25 @@ namespace ForestOverlay.Data
             sb.Append(Label(name)).Append(' ').Append(Format(name, v));
         }
 
-        /// Line() kept until the run, the choice (its Version), the snapshot
-        /// or the position sample changes (the bar refreshes at 10 Hz, the
-        /// data steps at 5 Hz).
+        /// Line() kept until the run, the choice (its Version), the snapshot,
+        /// the position sample or the quick slots change (the bar refreshes
+        /// at 10 Hz, the data steps at 5 Hz).
         public sealed class Cache
         {
             private Attempt _run;
-            private int _version = -1, _state = -2, _sample = -2;
+            private int _version = -1, _state = -2, _sample = -2, _slots = -2;
             private string _text = "";
             public int Builds;
 
-            public string Get(Attempt run, float t, IList<string> chosen, int version)
+            public string Get(Attempt run, float t, IList<string> chosen, int version, Func<int, string> itemName)
             {
                 if (run == null) return "";
                 int st = ReplayStats.IndexAt(run.States, t);
                 int sa = ReplayStats.IndexAt(run.Samples, t);
-                if (ReferenceEquals(run, _run) && version == _version && st == _state && sa == _sample) return _text;
-                _run = run; _version = version; _state = st; _sample = sa;
-                _text = Line(run, t, chosen);
+                int qs = run.QuickSlots != null ? run.QuickSlots.IndexAt(t) : -1;
+                if (ReferenceEquals(run, _run) && version == _version && st == _state && sa == _sample && qs == _slots) return _text;
+                _run = run; _version = version; _state = st; _sample = sa; _slots = qs;
+                _text = Line(run, t, chosen, itemName);
                 Builds++;
                 return _text;
             }

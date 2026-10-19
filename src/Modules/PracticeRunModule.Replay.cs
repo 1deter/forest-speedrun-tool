@@ -64,10 +64,22 @@ namespace ForestOverlay.Modules
         private float _nextLabelPick;
         private GUIStyle _labelStyle, _labelShadow;
 
-        // Recording state.
-        private int _replayDeaths, _replayPauses;
-        private bool _replayPaused;
-        private float _replayPausedAt;
+        // Recording state, per recorder: the timed run's and a recording's (T-0344).
+        private sealed class WatchState
+        {
+            public int Deaths, Pauses;
+            public bool Paused;
+            public float PausedAt;
+
+            public void Sync()
+            {
+                Deaths = DeathHooks.Deaths;
+                Pauses = AuditWatch.PauseToggles;
+                Paused = AuditWatch.PauseOpen;
+                PausedAt = Time.unscaledTime;
+            }
+        }
+        private readonly WatchState _runWatch = new WatchState(), _takeWatch = new WatchState();
 
         private readonly GUIContent _replayText = new GUIContent("");
         private int _replayKeyEvents = -2, _replayKeyBuildings = -2, _replayKeyWatch = -1;
@@ -99,66 +111,79 @@ namespace ForestOverlay.Modules
         /// The clock just started (or resumed): the tracks start empty.
         private void ReplayRunStarted()
         {
-            BuildWatch.Reset();
-            _replayDeaths = DeathHooks.Deaths;
-            _replayPauses = AuditWatch.PauseToggles;
-            _replayPaused = AuditWatch.PauseOpen;
-            _replayPausedAt = Time.unscaledTime;
+            if (_take.State != RunRecorder.RunState.Running) BuildWatch.Reset();   // a recording going keeps its pending ones
+            _runWatch.Sync();
         }
 
         /// One of Ctx.Events as it is evaluated (before the occurrence
         /// gate: a companion name is the one that carries the detail).
         private void RecordReplayEvent(int at, Vector3 pos)
         {
-            if (_recorder.State != RunRecorder.RunState.Running) return;
+            RecordReplayEvent(_recorder, at, pos);
+        }
+
+        /// The same into `rec` (the timed run's recorder or a recording's).
+        private void RecordReplayEvent(RunRecorder rec, int at, Vector3 pos)
+        {
+            if (rec.State != RunRecorder.RunState.Running) return;
             string text;
             string detail = Ctx.Events.DetailAt(at);
             string kind = ReplayMarks.KindFor(Ctx.Events.NameAt(at), detail, out text);
             if (kind == null) return;
             if ((kind == WorldEvents.CaveEnter || kind == WorldEvents.CaveExit) && !string.IsNullOrEmpty(detail))
                 text = WorldEvents.CaveLabel(detail) ?? detail;
-            _recorder.RecordEvent(kind, text, pos);
+            rec.RecordEvent(kind, text, pos);
         }
 
         /// Every frame, before Tick's early returns: the sources that are
-        /// not Ctx.Events.
+        /// not Ctx.Events, into the timed run and a recording (T-0344).
         private void TickReplayRecording()
         {
             bool running = _recorder.State == RunRecorder.RunState.Running && _segment != null;
-            BuildWatch.Recording = running;
-            if (!running)
+            bool taking = _take.State == RunRecorder.RunState.Running;
+            BuildWatch.Recording = running || taking;
+            if (!running && !taking)
             {
                 BuildWatch.Pending.Clear();
-                _replayDeaths = DeathHooks.Deaths;
-                _replayPauses = AuditWatch.PauseToggles;
-                _replayPaused = AuditWatch.PauseOpen;
+                _runWatch.Sync();
+                _takeWatch.Sync();
                 return;
             }
 
             Vector3 pos = PlayerPosition();
-            for (int i = 0; i < BuildWatch.Pending.Count; i++) _recorder.RecordBuilding(BuildWatch.Pending[i]);
-            BuildWatch.Pending.Clear();
-
-            if (DeathHooks.Deaths != _replayDeaths)
+            for (int i = 0; i < BuildWatch.Pending.Count; i++)
             {
-                _replayDeaths = DeathHooks.Deaths;
-                _recorder.RecordEvent(RunAudit.Death, null, pos);
+                if (running) _recorder.RecordBuilding(BuildWatch.Pending[i]);
+                if (taking) _take.RecordBuilding(BuildWatch.Pending[i]);
+            }
+            BuildWatch.Pending.Clear();
+            WatchInto(_recorder, running, _runWatch, pos);
+            WatchInto(_take, taking, _takeWatch, pos);
+        }
+
+        private static void WatchInto(RunRecorder rec, bool on, WatchState w, Vector3 pos)
+        {
+            if (!on) { w.Sync(); return; }
+            if (DeathHooks.Deaths != w.Deaths)
+            {
+                w.Deaths = DeathHooks.Deaths;
+                rec.RecordEvent(RunAudit.Death, null, pos);
             }
 
-            if (AuditWatch.PauseToggles != _replayPauses)
+            if (AuditWatch.PauseToggles != w.Pauses)
             {
-                _replayPauses = AuditWatch.PauseToggles;
+                w.Pauses = AuditWatch.PauseToggles;
                 bool open = AuditWatch.PauseOpen;
-                if (open != _replayPaused)
+                if (open != w.Paused)
                 {
-                    _replayPaused = open;
+                    w.Paused = open;
                     if (open)
                     {
-                        _replayPausedAt = Time.unscaledTime;
-                        _recorder.RecordEvent(RunAudit.PauseOpen, null, pos);
+                        w.PausedAt = Time.unscaledTime;
+                        rec.RecordEvent(RunAudit.PauseOpen, null, pos);
                     }
                     else
-                        _recorder.RecordEvent(RunAudit.PauseClose, "open " + (Time.unscaledTime - _replayPausedAt).ToString("0.0") + " s", pos);
+                        rec.RecordEvent(RunAudit.PauseClose, "open " + (Time.unscaledTime - w.PausedAt).ToString("0.0") + " s", pos);
                 }
             }
         }
