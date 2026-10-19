@@ -161,6 +161,9 @@ namespace ForestOverlay.Game
     //    SnapshotsSpread); pickups last, the frame before the serialize.
     // 23. The game's separate particle camera off, ON by default (T-0198):
     //    the main camera draws layer 1 itself - Game/CameraTrim (6).
+    // 24-27. Four small garbage makers, exact (T-0203): the ocean's spectrum
+    //    key, the cave spawn sort, the terrain texture read, the fish spawn
+    //    check - Game/GarbagePatches.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -349,6 +352,23 @@ namespace ForestOverlay.Game
                 "with the same result as before (the same wreck at the same place). Skip both while a wreck at the same place " +
                 "keeps its path blocker; a wreck anywhere else, or the first one after a load, is recalculated as the game does.",
                 delegate { return WreckNav.Apply(_harmony, _log); }, WreckNav.Remove);
+            Add(config, "OceanReuseConditionKey", "Ocean: reuse the wave spectrum's key",
+                "Every second frame the ocean makes a new key object for its wave spectrum only to compare it with the one it has. " +
+                "While the wind, wave age and spectrum are unchanged, hand back the key it already made (~4 KB/s of garbage).",
+                delegate { return GarbagePatches.ApplyOcean(_harmony); }, delegate { GarbagePatches.RemoveOcean(_harmony); });
+            Add(config, "CaveSpawnSortNoClosure", "Caves: sort the enemy spawns without making objects",
+                "In caves the game sorts its enemy spawn points by distance to you many times a second, making two small objects " +
+                "each time. Do the same sort with one kept comparison (the same order; ~7 KB/s of garbage in caves).",
+                delegate { return GarbagePatches.ApplyCaveSort(_harmony); }, delegate { GarbagePatches.RemoveCaveSort(_harmony); });
+            Add(config, "TerrainTextureCache", "Terrain: remember the ground texture under each spot",
+                "Every physics step the game reads the terrain's texture weights under you (a new array each time) to pick the " +
+                "footstep and ground surface. Keep the answer for each 6.8 m cell of the terrain (~4 KB/s of garbage).",
+                delegate { return GarbagePatches.ApplyTerrain(_harmony); }, delegate { GarbagePatches.RemoveTerrain(_harmony); });
+            Add(config, "FishSpawnNoIdleCoroutine", "Fish: skip the spawn check's idle coroutine",
+                "Each fish pond checks every 4 s how far you are and, when nothing changes, ends. The game starts a coroutine for " +
+                "that check; do the check directly and start the coroutine only when fish spawn or go (~3 KB/s of garbage; single " +
+                "player only).",
+                delegate { return GarbagePatches.ApplyFish(_harmony); }, delegate { GarbagePatches.RemoveFish(_harmony); });
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);

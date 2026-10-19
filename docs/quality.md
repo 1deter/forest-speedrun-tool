@@ -184,7 +184,7 @@ builder, notice, settings, the reflection helpers.
 
 ### Performance and loads
 
-Paths: `src/Core/{PerfMonitor,StallWatch}.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PathPoolCleanup,PerfPatches,RenderProbe,RestoreGarbage,StaleSubscribers}.cs` `src/Data/{FrameTimeline,ProfileTable,StepBytes}.cs` `scripts/{launch-with-args,native-callers,sample-stacks,symbolize-crash}.py`
+Paths: `src/Core/{PerfMonitor,StallWatch}.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GarbagePatches,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PathPoolCleanup,PerfPatches,RenderProbe,RestoreGarbage,StaleSubscribers}.cs` `src/Data/{FrameTimeline,OceanKeyMemo,ProfileTable,StepBytes,TerrainCells}.cs` `scripts/{launch-with-args,native-callers,sample-stacks,symbolize-crash}.py`
 
 - Verification **B**: FrameTimeline, ProfileTable, LoadTimes tests; the
   `Perf` / `Frame` / `Load timing` lines read by hand; idle garbage and the

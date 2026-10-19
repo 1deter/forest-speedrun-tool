@@ -83,6 +83,9 @@
     <Compile Include="../../src/Data/StepBytes.cs" Link="Linked/StepBytes.cs" />
     <Compile Include="../../src/Data/PositionKey.cs" Link="Linked/PositionKey.cs" />
     <Compile Include="../../src/Data/KeptRead.cs" Link="Linked/KeptRead.cs" />
+    <Compile Include="../../src/Data/TerrainCells.cs" Link="Linked/TerrainCells.cs" />
+    <Compile Include="../../src/Data/OceanKeyMemo.cs" Link="Linked/OceanKeyMemo.cs" />
+    <Compile Include="../../src/Game/FastField.cs" Link="Linked/FastField.cs" />
     <Compile Include="../../src/Data/PaintSet.cs" Link="Linked/PaintSet.cs" />
     <Compile Include="../../src/Data/DepthMath.cs" Link="Linked/DepthMath.cs" />
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />

@@ -46,6 +46,30 @@ namespace ForestOverlay.Game
             return delegate(object o) { return (T)Unbox(f.GetValue(o), typeof(T)); };
         }
 
+        /// `(o, v) => ((Declaring)o).field = v`. Null when `f` is null or
+        /// static; T must be the field's type (or a reference type it
+        /// accepts). Falls back to FieldInfo.SetValue when emitting fails.
+        public static Action<object, T> InstanceSetter<T>(FieldInfo f)
+        {
+            if (f == null || f.IsStatic) return null;
+            if (f.FieldType == typeof(T) && !f.DeclaringType.IsValueType)
+            {
+                try
+                {
+                    DynamicMethod dm = new DynamicMethod("Set_" + f.Name, typeof(void), new[] { typeof(object), typeof(T) }, typeof(FastField).Module, true);
+                    ILGenerator il = dm.GetILGenerator();
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.Emit(OpCodes.Castclass, f.DeclaringType);
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Stfld, f);
+                    il.Emit(OpCodes.Ret);
+                    return (Action<object, T>)dm.CreateDelegate(typeof(Action<object, T>));
+                }
+                catch (Exception) { }
+            }
+            return delegate(object o, T v) { f.SetValue(o, v); };
+        }
+
         /// `() => Declaring.field` as T; null when `f` is null or not static.
         public static Func<T> Static<T>(FieldInfo f)
         {
