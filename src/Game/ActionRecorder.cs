@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using BepInEx.Logging;
 using ForestOverlay.Data;
 
@@ -16,8 +17,11 @@ namespace ForestOverlay.Game
     // The ends: every action but the look axes (Mouse X / Mouse Y - the
     // look is the run's `l|` track); an axis action with a negative default
     // binding as two ends (Data/InputActionTable.Ends). Read allocates
-    // nothing: at most two Held calls per action a frame, only while a run
-    // records.
+    // nothing: one GameActions.HeldAll a frame (the Rewired player looked
+    // up once, then one delegate call per end), only while a run records.
+    // It times itself (Stopwatch ticks, no allocation): MeanMicros is what
+    // a frame of reads cost since the last TakeMean - the recording's Done
+    // log line says it.
     // ------------------------------------------------------------------
     public static class ActionRecorder
     {
@@ -27,6 +31,8 @@ namespace ForestOverlay.Game
         private static InputActionTable _for;
         private static string[] _names = new string[0];
         private static int[] _actions = new int[0], _signs = new int[0];
+        private static long _ticks;
+        private static int _reads;
 
         /// The ends, or an empty array while the game's actions are not
         /// readable yet (asked again next frame).
@@ -51,8 +57,22 @@ namespace ForestOverlay.Game
         public static bool Read(bool[] held)
         {
             if (_for == null || !ReferenceEquals(GameActions.Table, _for) || held.Length != _actions.Length) return false;
-            for (int i = 0; i < held.Length; i++) held[i] = GameActions.Held(_actions[i], _signs[i]);
+            long start = Stopwatch.GetTimestamp();
+            GameActions.HeldAll(_actions, _signs, held);
+            _ticks += Stopwatch.GetTimestamp() - start;
+            _reads++;
             return true;
+        }
+
+        /// The mean cost of a frame's reads in microseconds since the last
+        /// call (NaN: none), and how many frames; the counters start over.
+        public static double TakeMean(out int frames)
+        {
+            frames = _reads;
+            double mean = _reads > 0 ? _ticks * 1e6 / Stopwatch.Frequency / _reads : double.NaN;
+            _ticks = 0;
+            _reads = 0;
+            return mean;
         }
     }
 }

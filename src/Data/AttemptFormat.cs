@@ -71,6 +71,30 @@ namespace ForestOverlay.Data
         /// is linked alone by the site).
         public const string ModsFlagPrefix = "Mods Detected: ";
 
+        /// The file name an attempt is saved under (Data/AttemptStore):
+        /// "20261019_140312_83.457.run" - its UTC start and its length.
+        public static string FileName(Attempt attempt)
+        {
+            return attempt.RecordedUtc.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + "_" +
+                   attempt.Duration.ToString("F3", CultureInfo.InvariantCulture) + ".run";
+        }
+
+        /// The start (UTC) and length read back from a FileName (a path's
+        /// folders are ignored): a list shows them without parsing the file
+        /// (T-0344). False for any other name.
+        public static bool TryParseFileName(string name, out DateTime utc, out float duration)
+        {
+            utc = default(DateTime);
+            duration = 0f;
+            if (string.IsNullOrEmpty(name)) return false;
+            int slash = Math.Max(name.LastIndexOf('/'), name.LastIndexOf('\\'));
+            if (slash >= 0) name = name.Substring(slash + 1);
+            if (!name.EndsWith(".run", StringComparison.OrdinalIgnoreCase) || name.Length < 21 || name[15] != '_') return false;
+            if (!DateTime.TryParseExact(name.Substring(0, 15), "yyyyMMdd_HHmmss", CultureInfo.InvariantCulture,
+                                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out utc)) return false;
+            return float.TryParse(name.Substring(16, name.Length - 20), NumberStyles.Float, CultureInfo.InvariantCulture, out duration);
+        }
+
         public static string Write(Attempt attempt)
         {
             StringBuilder sb = new StringBuilder();

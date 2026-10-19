@@ -202,24 +202,26 @@ namespace ForestOverlay.Data
             sb.Append(Label(name)).Append(' ').Append(Format(name, v));
         }
 
-        /// Line() kept until the run, the choice (its Version), the snapshot,
-        /// the position sample or the quick slots change (the bar refreshes
-        /// at 10 Hz, the data steps at 5 Hz).
+        /// Line() kept until the run, the choice (its `version`), the item
+        /// names (`names`: the caller moves it when names it could not give
+        /// may now be there - the item database read late), the snapshot, the
+        /// position sample or the quick slots change (the bar refreshes at
+        /// 10 Hz, the data steps at 5 Hz).
         public sealed class Cache
         {
             private Attempt _run;
-            private int _version = -1, _state = -2, _sample = -2, _slots = -2;
+            private int _version = -1, _names = -1, _state = -2, _sample = -2, _slots = -2;
             private string _text = "";
             public int Builds;
 
-            public string Get(Attempt run, float t, IList<string> chosen, int version, Func<int, string> itemName)
+            public string Get(Attempt run, float t, IList<string> chosen, int version, int names, Func<int, string> itemName)
             {
                 if (run == null) return "";
                 int st = ReplayStats.IndexAt(run.States, t);
                 int sa = ReplayStats.IndexAt(run.Samples, t);
                 int qs = run.QuickSlots != null ? run.QuickSlots.IndexAt(t) : -1;
-                if (ReferenceEquals(run, _run) && version == _version && st == _state && sa == _sample && qs == _slots) return _text;
-                _run = run; _version = version; _state = st; _sample = sa; _slots = qs;
+                if (ReferenceEquals(run, _run) && version == _version && names == _names && st == _state && sa == _sample && qs == _slots) return _text;
+                _run = run; _version = version; _names = names; _state = st; _sample = sa; _slots = qs;
                 _text = Line(run, t, chosen, itemName);
                 Builds++;
                 return _text;

@@ -434,7 +434,7 @@ namespace ForestOverlay.Modules
             Attempt src = Watched;
             if (src != null)
             {
-                _barStats.text = _valuesCache.Get(src, _clock.T, _valuesChosen, _valuesVersion, _itemNameFn);
+                _barStats.text = _valuesCache.Get(src, _clock.T, _valuesChosen, _valuesVersion, NamesVersion(), _itemNameFn);
                 _barKeys.text = src.Keys != null ? _keysCache.Text(src.Keys, _clock.T, _keyLabelFn) : "";
             }
             // The tab's line: only built while the tab shows it.
