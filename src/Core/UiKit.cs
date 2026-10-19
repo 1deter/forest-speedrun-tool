@@ -503,11 +503,6 @@ namespace ForestOverlay.Core
             return Open.TryGetValue(id, out v) ? v : defaultOpen;
         }
 
-        public static void SetOpen(string id, bool open)
-        {
-            Open[id] = open;
-        }
-
         /// A section header at (x, y): a click opens / closes it. Returns
         /// whether it is open; y moves past the header. `summary` (may be
         /// null) is a short dim state on the right ("off", "3 states") and
