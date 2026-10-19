@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.364 - 2026-10-19
+
+- Logs in the inventory: with logs stored you can equip the axe, the repair tool or any other right-hand item again.
+- Logs in the inventory: stored logs no longer drop into the world when you drink, eat, swim, use a rope or the glider.
+
 ## v0.24.363 - 2026-10-19
 
 - Run mode now checks the game's code as it runs in memory, not only the file on disk.
