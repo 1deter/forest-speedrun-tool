@@ -36,6 +36,7 @@ namespace ForestOverlay.Core
         private readonly PracticeState _practice;
 
         private readonly List<string> _flags = new List<string>();
+        private int _sessionFlags; // flags added at Begin (ModAPI, other mods): shown after an action's
         private readonly List<string> _used = new List<string>();
         private static readonly RunCategory Defaults = new RunCategory();
         private readonly Dictionary<string, float> _refusedAt = new Dictionary<string, float>();
@@ -105,6 +106,7 @@ namespace ForestOverlay.Core
             if (_practice.ModApi) Flag(RunReport.ModApiFlag);
             // And of one with other mods loaded (T-0308), naming them.
             if (_practice.Mods.Length > 0) Flag(ExternalMods.Flag(_practice.Mods));
+            _sessionFlags = _flags.Count;
             Rebuild();
         }
 
@@ -190,9 +192,7 @@ namespace ForestOverlay.Core
         {
             if (!Active) { _practice.SetRunText(null, false); return; }
             string text = "RUN MODE - attempt " + Attempt + (Label.Length > 0 ? " (" + Label + ")" : "") + (Category == null ? "" : " v" + Category.Version);
-            // The first reason on the HUD; the Runs tab lists them all.
-            if (_flags.Count > 0)
-                text += " - NOT VALID: " + _flags[0] + (_flags.Count > 1 ? " (+" + (_flags.Count - 1) + " more, Runs tab)" : "");
+            text = HudLines.RunLine(text, _flags, _sessionFlags); // T-0323
             _practice.SetRunText(text, _flags.Count > 0);
         }
     }
