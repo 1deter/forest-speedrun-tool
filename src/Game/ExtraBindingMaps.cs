@@ -78,11 +78,12 @@ namespace ForestOverlay.Game
         private static readonly Dictionary<int, ActionInfo> _byId = new Dictionary<int, ActionInfo>();
         private static readonly Dictionary<int, string> _categoryNames = new Dictionary<int, string>();
         private static readonly List<object> _scratchMaps = new List<object>();
+        private static readonly List<object> _attachMaps = new List<object>();   // the player's maps at the last attach
 
         private static ManualLogSource _log;
         private static string _harmonyId;
         private static Harmony _harmony;
-        private static bool _setup, _setupFailed, _attachedOnce, _busy, _pending;
+        private static bool _setup, _setupFailed, _busy, _pending, _pendingReport;
         private static int _depth, _keptExpected;
         private static float _nextTry, _nextHeal;
 
@@ -97,22 +98,21 @@ namespace ForestOverlay.Game
 
         /// The bindings to put in; applied now when the game is ready (else on
         /// the next Tick). `harmonyId` is the plugin's; the hooks go in the
-        /// first time there is something to hide.
-        public static void SetBindings(IList<ExtraBinding> list, ManualLogSource log, string harmonyId)
+        /// first time there is something to hide. `report`: log the "applied"
+        /// line (the start-up load; a runner's add / remove logs its own).
+        public static void SetBindings(IList<ExtraBinding> list, bool report, ManualLogSource log, string harmonyId)
         {
             _log = log;
             _harmonyId = harmonyId;
             _wanted.Clear();
             if (list != null) for (int i = 0; i < list.Count; i++) _wanted.Add(list[i]);
             _pending = true;
+            _pendingReport |= report;
             if (!_setup || _depth > 0 || _busy) return;
             try
             {
                 if (PlayerNow() == null) return;
-                bool first = !_attachedOnce;
-                Detach();
-                Attach(first);   // the start-up apply logs its line; a runner's add / remove has its own
-                _pending = false;
+                ApplyPending();
             }
             catch (Exception ex) { Fail("could not apply the bindings (" + ex.Message + ")"); }
         }
@@ -138,14 +138,7 @@ namespace ForestOverlay.Game
             {
                 object player = PlayerNow();
                 if (player == null) return;
-                if (_pending)
-                {
-                    bool first = !_attachedOnce;
-                    Detach();
-                    Attach(first);
-                    _pending = false;
-                    return;
-                }
+                if (_pending) { ApplyPending(); return; }
                 if (!Intact(player))
                 {
                     Detach();
@@ -153,6 +146,15 @@ namespace ForestOverlay.Game
                 }
             }
             catch (Exception ex) { Fail("could not apply the bindings (" + ex.Message + ")"); }
+        }
+
+        private static void ApplyPending()
+        {
+            bool report = _pendingReport && _wanted.Count > 0;
+            _pending = false;
+            _pendingReport = false;
+            Detach();
+            Attach(report);
         }
 
         /// Where a binding went ("Default", "Default, Inventory"), or why it
@@ -425,7 +427,7 @@ namespace ForestOverlay.Game
         /// around the game's map work does not.
         private static void Attach(bool report)
         {
-            if (_wanted.Count == 0) { _where.Clear(); _keptExpected = 0; Version++; return; }
+            if (_wanted.Count == 0) { _where.Clear(); _keptExpected = 0; _attachMaps.Clear(); Version++; return; }
             object player = PlayerNow();
             if (player == null) return;
             InstallHooks();
@@ -439,6 +441,9 @@ namespace ForestOverlay.Game
                 foreach (object m in Maps(player, _mouseType)) if (m != null) mouse.Add(m);
                 Collect(kb, catsOf);
                 Collect(mouse, catsOf);
+                _attachMaps.Clear();
+                _attachMaps.AddRange(kb);
+                _attachMaps.AddRange(mouse);
 
                 _where.Clear();
                 int applied = 0, failed = 0;
@@ -470,7 +475,6 @@ namespace ForestOverlay.Game
                     _where[b] = where;
                     applied++;
                 }
-                _attachedOnce = true;
                 _keptExpected = _kept.Count;
                 Version++;
                 if (report && _log != null)
@@ -527,19 +531,20 @@ namespace ForestOverlay.Game
             return true;
         }
 
-        /// Every kept element still in a map the player still has.
+        /// The player still has the same keyboard / mouse maps as at the last
+        /// attach (none replaced, none added: a map that was missing then may
+        /// hold a binding now), and each kept element is still in its map.
         private static bool Intact(object player)
         {
             if (_kept.Count != _keptExpected) return false;
-            if (_kept.Count == 0) return true;
             _scratchMaps.Clear();
-            foreach (object m in Maps(player, _keyboardType)) _scratchMaps.Add(m);
-            foreach (object m in Maps(player, _mouseType)) _scratchMaps.Add(m);
+            foreach (object m in Maps(player, _keyboardType)) if (m != null) _scratchMaps.Add(m);
+            foreach (object m in Maps(player, _mouseType)) if (m != null) _scratchMaps.Add(m);
+            if (_scratchMaps.Count != _attachMaps.Count) return false;
+            for (int i = 0; i < _scratchMaps.Count; i++)
+                if (!ReferenceEquals(_scratchMaps[i], _attachMaps[i])) return false;
             for (int i = 0; i < _kept.Count; i++)
-            {
-                if (!_scratchMaps.Contains(_kept[i].Map)) return false;
                 if (!(bool)_contains.Invoke(_kept[i].Map, new object[] { _kept[i].Id })) return false;
-            }
             return true;
         }
     }

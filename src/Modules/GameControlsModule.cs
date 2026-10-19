@@ -100,7 +100,7 @@ namespace ForestOverlay.Modules
             _list = ExtraBindings.Parse(_cfg.Value, KeyName, skipped);
             for (int i = 0; i < skipped.Count; i++)
                 Ctx.Log.LogWarning("Game controls: skipped '" + skipped[i] + "' in [Game controls] Bindings - not Action=Input with a key, Mouse0..Mouse6, WheelUp or WheelDown.");
-            ExtraBindingMaps.SetBindings(_list, Ctx.Log, OverlayPlugin.PluginGuid);
+            ExtraBindingMaps.SetBindings(_list, true, Ctx.Log, OverlayPlugin.PluginGuid);
             _rowsDirty = true;
         }
 
@@ -251,7 +251,7 @@ namespace ForestOverlay.Modules
             if (b == null) { _status.text = input + " cannot be bound."; return; }
             if (!ExtraBindings.AddUnique(_list, b)) { _status.text = text + " is there already."; return; }
             Save();
-            ExtraBindingMaps.SetBindings(_list, Ctx.Log, OverlayPlugin.PluginGuid);
+            ExtraBindingMaps.SetBindings(_list, false, Ctx.Log, OverlayPlugin.PluginGuid);
             string where = ExtraBindingMaps.Where(b) ?? "applied when the game's controls are ready";
             Ctx.Log.LogInfo("Game controls: added " + text + " [" + b.Token + "] (" + where + ").");
             string clash = ClashNote(b, InputKey(b));
@@ -266,7 +266,7 @@ namespace ForestOverlay.Modules
             string text = _rows.Count > i ? _rows[i].Text.text : b.Token;
             _list.RemoveAt(i);
             Save();
-            ExtraBindingMaps.SetBindings(_list, Ctx.Log, OverlayPlugin.PluginGuid);
+            ExtraBindingMaps.SetBindings(_list, false, Ctx.Log, OverlayPlugin.PluginGuid);
             Ctx.Log.LogInfo("Game controls: removed " + text + " [" + b.Token + "].");
             _status.text = "Removed: " + text + ".";
             _rowsDirty = true;
