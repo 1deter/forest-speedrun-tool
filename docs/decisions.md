@@ -43,6 +43,10 @@ v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
    published, when the listing starts); the moderators publishing the
    categories is outside our hands.
 
+**Also before v1** (author, 2026-10-19): the unheld P4 polish in the pool
+(input overlay / Edit HUD, run-line and checkpoint wording, savestate edge
+cases) - "p4 polish is before v1" - and custom fonts (T-0339).
+
 **After v1:** the bot and knowledge work (paused), T-0046 (maintainability,
 a lighter repo), T-0291 (a light build without the practice tools), T-0293
 (icons for the HUD flags, author 2026-10-11), T-0298 (the overlay built
