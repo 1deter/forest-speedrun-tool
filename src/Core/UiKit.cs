@@ -405,6 +405,35 @@ namespace ForestOverlay.Core
             _title = new GUIStyle(_skin.label);
             _title.fontStyle = FontStyle.Bold;
             _title.fontSize = 13;
+
+            ApplyWindowFont();
+        }
+
+        // The F2 window's font (T-0339): "" = the game's skin font. Set by
+        // Settings; applied to the skin, which every window style follows.
+        private static string _windowFont = "";
+        private static Font _baseFont;
+        private static int _baseFontSize = 14;
+
+        public static string WindowFont { get { return _windowFont; } }
+
+        public static void SetWindowFont(string name)
+        {
+            _windowFont = name ?? "";
+            if (_built) ApplyWindowFont();
+        }
+
+        private static void ApplyWindowFont()
+        {
+            if (_skin == null) return;
+            if (_baseFont == null)
+            {
+                _baseFont = _skin.font;
+                if (_baseFont != null && _baseFont.fontSize > 0) _baseFontSize = _baseFont.fontSize;
+            }
+            Font f = FontPick.Get(_windowFont, _baseFontSize);
+            _skin.font = f != null ? f : _baseFont;
+            CrispText.SkinFontSize = -1;
         }
 
         // --- styles --------------------------------------------------------------

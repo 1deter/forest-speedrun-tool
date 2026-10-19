@@ -21,6 +21,7 @@ namespace ForestOverlay.Core
         private readonly ConfigEntry<bool>[] _show = new ConfigEntry<bool>[HudLines.All.Length];
         private readonly ConfigEntry<bool> _compact;
         private readonly ConfigEntry<int> _textSize;
+        private readonly ConfigEntry<string> _font;
         private readonly ConfigEntry<float> _x, _y;
         private readonly ConfigEntry<string>[] _trend = new ConfigEntry<string>[3];   // by TrendState
         private readonly ConfigFile _config;
@@ -43,6 +44,8 @@ namespace ForestOverlay.Core
                 "The whole HUD: fewer words (shorter values, a short title).");
             _textSize = config.Bind("HUD", "TextSize", 0,
                 "Text size in px of the column of values and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). A value placed on its own has its own size.");
+            _font = config.Bind("HUD", "Font", "",
+                "Font of the HUD (the column of values, the warnings and the values placed on their own): the name of a font installed on the PC, empty = the default. Pick it in Settings > HUD.");
             _x = config.Bind("HUD", "X", DefaultX, "The column of values: position from the left, in pixels (drag it with Edit HUD on).");
             _y = config.Bind("HUD", "Y", DefaultY, "The column of values: position from the top, in pixels.");
             // The screen the saved positions and sizes were made at (T-0318). Set
@@ -228,6 +231,13 @@ namespace ForestOverlay.Core
         {
             get { return HudLines.TextSizes[HudLines.NearestSize(_textSize.Value)]; }
             set { if (_textSize.Value != value) { _textSize.Value = value; Version++; } }
+        }
+
+        /// An installed font's name, "" = the default look (T-0339).
+        public string FontName
+        {
+            get { return _font.Value ?? ""; }
+            set { if (_font.Value != value) { _font.Value = value; Version++; } }
         }
 
         public float X { get { return _x.Value; } }

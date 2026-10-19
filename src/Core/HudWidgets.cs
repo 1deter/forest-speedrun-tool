@@ -54,6 +54,7 @@ namespace ForestOverlay.Core
         private static readonly int[] ValueRenders = { 32, 64, 96 };
         private static Font _valueFont;
         private static bool _valueFontTried;
+        private static string _valueFontName = "";
 
         // Every printable ASCII glyph, asked of the values' font at each size in
         // use on every repaint (T-0301). A dynamic font keeps only the glyphs
@@ -85,7 +86,9 @@ namespace ForestOverlay.Core
             _valueFontTried = true;
             try
             {
-                _valueFont = Font.CreateDynamicFontFromOSFont("Arial", ValueRenders[0]);
+                // The runner's HUD font (T-0339), else Arial.
+                _valueFont = FontPick.Get(_valueFontName, ValueRenders[0]);
+                if (_valueFont == null) _valueFont = Font.CreateDynamicFontFromOSFont("Arial", ValueRenders[0]);
                 if (_valueFont != null) _valueFont.hideFlags = HideFlags.HideAndDontSave;
             }
             catch (Exception ex)
@@ -288,6 +291,8 @@ namespace ForestOverlay.Core
             s = new ScaleStyles();
             s.Label = UiKit.Style(GUI.skin.label);
             s.Label.fontSize = Mathf.RoundToInt(LabelBase);
+            Font labelFont = FontPick.Get(_valueFontName, 14);
+            if (labelFont != null) s.Label.font = labelFont;
             s.Label.normal.textColor = UiKit.DimColour;
             s.Label.padding = new RectOffset(0, 0, 0, 0);
             s.Label.wordWrap = false;
@@ -391,6 +396,15 @@ namespace ForestOverlay.Core
         private void DrawWidget(int i, int line, HudBuilder hud, Rect blocked, Event e)
         {
             HudWidgetLayout w = _layout.Widgets[i];
+            string wantFont = _settings != null ? _settings.FontName : "";
+            if (wantFont != _valueFontName)
+            {
+                // The HUD font changed: the values' styles are made again.
+                _valueFontName = wantFont;
+                _valueFont = null;
+                _valueFontTried = false;
+                _styles.Clear();
+            }
             ScaleStyles st = StylesFor(w.Scale);
             if (e != null && e.type == EventType.Repaint && _valueFont != null && st.Value.font == _valueFont)
                 _valueFont.RequestCharactersInTexture(KeptGlyphs, st.Value.fontSize, FontStyle.Bold);

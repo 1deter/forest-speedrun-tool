@@ -157,6 +157,11 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _sizeText = new GUIContent("");
         private readonly GUIContent _placeText = new GUIContent("");
         private int _sizeShown = -1;
+        private BepInEx.Configuration.ConfigEntry<string> _windowFontCfg;
+        private string _hudFontEdit, _windowFontEdit;   // the typed text, until it names an installed font
+        private string _fontMessage = "";
+        private static readonly GUIContent FontTip = new GUIContent(
+            "A font installed on this PC, by name. Step through them with < and >, or type a name and press Enter. Default is the game's own.");
         private float _placeShownX = float.NaN, _placeShownY = float.NaN;
 
         public override void Initialise(ModuleContext ctx)
@@ -166,6 +171,9 @@ namespace ForestOverlay.Modules
             _theme = ctx.Config.Bind("Window", "Theme", UiPalette.Default.Id,
                 "The window's colours: site, black, warm, translucent, bluegrey, catppuccin-mocha, catppuccin-macchiato or catppuccin-frappe.");
             UiKit.Apply(UiPalette.Find(_theme.Value));
+            _windowFontCfg = ctx.Config.Bind("Window", "Font", "",
+                "Font of the F2 window: the name of a font installed on the PC, empty = the default. Pick it in Settings > HUD.");
+            UiKit.SetWindowFont(_windowFontCfg.Value);
             int n = UiPalette.All.Length;
             _themeNames = new GUIContent[n];
             _themeTips = new GUIContent[n];
@@ -455,6 +463,54 @@ namespace ForestOverlay.Modules
             return y + promptH + 4f;
         }
 
+        // A font row (T-0339): the name typed in a field, < and > through the
+        // installed fonts, default. One click or Enter = one config write.
+        private float DrawFontRow(float y, float cw, string label, string current, HudSettings hudSettings)
+        {
+            bool hud = label[0] == 'H';
+            string edit = hud ? _hudFontEdit : _windowFontEdit;
+            if (edit == null) edit = current;
+            WinPx.Label(new Rect(4, y, 90, 22), label, _labelStyle);
+            UiKit.Hint(new Rect(4, y, 90, 22), FontTip);
+            string[] names = FontPick.Installed();
+            float fieldW = Mathf.Max(80f, cw - 8f - 96f - 142f);
+            string typed = WinPx.TextField(new Rect(96, y, fieldW, 22), edit);
+            if (typed != edit)
+            {
+                edit = typed;
+                _fontMessage = "";
+            }
+            Event e = Event.current;
+            bool enter = e != null && e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
+                         && edit != current;
+            float x = 96 + fieldW + 4;
+            string pick = null;
+            if (WinPx.Button(new Rect(x, y, 30, 22), "<")) pick = FontNames.Step(names, current, -1);
+            if (WinPx.Button(new Rect(x + 34, y, 30, 22), ">")) pick = FontNames.Step(names, current, +1);
+            if (WinPx.Button(new Rect(x + 68, y, 70, 22), "default")) pick = "";
+            if (enter)
+            {
+                string found = FontNames.Find(names, edit);
+                if (found != null) pick = found;
+                else if (edit.Trim().Length == 0) pick = "";
+                else _fontMessage = "No installed font is named \"" + edit.Trim() + "\".";
+            }
+            if (pick != null)
+            {
+                if (hud) hudSettings.FontName = pick;
+                else
+                {
+                    _windowFontCfg.Value = pick;
+                    UiKit.SetWindowFont(pick);
+                }
+                edit = pick;
+                _fontMessage = "";
+                Ctx.Log.LogInfo("Font: " + label + " " + (pick.Length == 0 ? "default" : pick));
+            }
+            if (hud) _hudFontEdit = edit; else _windowFontEdit = edit;
+            return y + 26f;
+        }
+
         // --- the HUD values -------------------------------------------
         // Every line with a tick box and what it shows (Data/HudLines);
         // the honest-labelling lines are listed as "always shown". Each
@@ -503,6 +559,10 @@ namespace ForestOverlay.Modules
             if (WinPx.Button(new Rect(202, y, 30, 22), "+")) s.TextSize = HudLines.StepTextSize(s.TextSize, +1);
             if (WinPx.Button(new Rect(236, y, 70, 22), "default")) s.TextSize = 0;
             y += 26f;
+
+            y = DrawFontRow(y, cw, "HUD font", s.FontName, s);
+            y = DrawFontRow(y, cw, "Window font", UiKit.WindowFont, s);
+            if (_fontMessage.Length > 0) y += UiText.Draw(4, y, cw - 8, _fontMessage) + 2f;
 
             float placeH = Mathf.Max(22f, UiText.Draw(4, y, cw - 8, _placeText));
             UiKit.Hint(new Rect(4, y, cw - 8, placeH), PlaceTip);

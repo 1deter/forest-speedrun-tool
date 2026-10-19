@@ -165,7 +165,7 @@ the Map tab.
 
 ### Plugin core and UI
 
-Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CrispText,CursorController,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText,WinPx}.cs` `src/Modules/{MainWindowModule,SettingsModule,InputOverlayModule}.cs` `src/Game/{FastField,ActionReaders,GameActions,GameBridge,GameInput,GameMessageLines,PlayerRef}.cs` `src/Data/{FolderStamp,KeyText,KeyGroups,HudTrend,HudLayout,ActionFunctions,InputActions,InputLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,TextOutline,TrailClip,CometPath,UiPalette,UiScale,GameLinesState}.cs` `ForestOverlay.csproj`
+Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CrispText,CursorController,FontPick,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText,WinPx}.cs` `src/Modules/{MainWindowModule,SettingsModule,InputOverlayModule}.cs` `src/Game/{FastField,ActionReaders,GameActions,GameBridge,GameInput,GameMessageLines,PlayerRef}.cs` `src/Data/{FolderStamp,FontNames,KeyText,KeyGroups,HudTrend,HudLayout,ActionFunctions,InputActions,InputLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,TextOutline,TrailClip,CometPath,UiPalette,UiScale,GameLinesState}.cs` `ForestOverlay.csproj`
 
 The module host, window and tabs, hotkeys, cursor, input block, HUD
 builder, notice, settings, the reflection helpers.

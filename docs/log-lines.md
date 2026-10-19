@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-251 prefixes from 868 log calls.
+252 prefixes from 869 log calls.
 
 ## `ActionReaders`
 
@@ -552,6 +552,13 @@ Meaning: The player controller is not in the scene yet; binding retries.
 Written by GameBridge.cs; warning.
 
 - warning `FirstPersonCharacter not found yet - will keep retrying.`
+
+## `Font`
+
+Meaning: The runner picked a font in Settings > HUD: which one (HUD font or Window font) and the installed font name, or default.
+Written by SettingsModule.cs; info.
+
+- info `Font: <label> <..>`
 
 ## `ForestOverlay`
 

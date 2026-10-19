@@ -407,6 +407,10 @@ namespace ForestOverlay
             int px = s.TextSize;
             _hudLabelStyle.fontSize = px;
             _warnStyle.fontSize = px;
+            // The HUD's own font (T-0339); null = the skin's.
+            Font f = FontPick.Get(s.FontName, 14);
+            _hudLabelStyle.font = f;
+            _warnStyle.font = f;
         }
 
         // The HUD (T-0018): every ticked value, in the COLUMN at the HUD
