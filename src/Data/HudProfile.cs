@@ -101,7 +101,6 @@ namespace ForestOverlay.Data
         }
 
         public int Count { get { return _keys.Count; } }
-        public string KeyAt(int i) { return _keys[i]; }
         public string ValueAt(int i) { return _values[i]; }
 
         /// The stored value of "Section.Key", or null when the file has none.
