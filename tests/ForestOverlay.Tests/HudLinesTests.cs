@@ -12,9 +12,12 @@ namespace ForestOverlay.Tests
             string M = AttemptFormat.ModApiFlag;
             Assert.Equal("H", HudLines.RunLine("H", new List<string>(), 0));
             Assert.Equal("H - NOT VALID: ModAPI Detected", HudLines.RunLine("H", new List<string> { M }, 1));
-            Assert.Equal("H - NOT VALID: tp, ModAPI Detected", HudLines.RunLine("H", new List<string> { M, "tp" }, 1));
-            Assert.Equal("H - NOT VALID: b, ModAPI Detected (+1 more, Runs tab)", HudLines.RunLine("H", new List<string> { M, "a", "b" }, 1));
+            Assert.Equal("H - NOT VALID: tp, ModAPI", HudLines.RunLine("H", new List<string> { M, "tp" }, 1));
+            Assert.Equal("H - NOT VALID: b, ModAPI (+1 more, Runs tab)", HudLines.RunLine("H", new List<string> { M, "a", "b" }, 1));
             Assert.Equal("H - NOT VALID: b (+1 more, Runs tab)", HudLines.RunLine("H", new List<string> { "a", "b" }, 0));
+            Assert.Equal("H - NOT VALID: Mods, ModAPI", HudLines.RunLine("H", new List<string> { "Mods", M }, 2));
+            Assert.Equal("H - NOT VALID: tp, ModAPI (+1 more, Runs tab)", HudLines.RunLine("H", new List<string> { M, "Mods", "tp" }, 2));
+            Assert.Equal("H - NOT VALID: tp (+1 more, Runs tab)", HudLines.RunLine("H", new List<string> { "Mods", "tp" }, 1));
         }
 
         [Fact]
