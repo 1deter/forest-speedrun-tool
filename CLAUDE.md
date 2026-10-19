@@ -157,6 +157,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-19 (run R-0026, chain C-0002, unattended):** 5 of 5
+  confirmed. T-0430 (the flaky pre-push script test: atomic_write's
+  os.replace retries vs a busy reader; 20 of 20 after), T-0120 (a poly
+  zone fires only inside its outline), T-0121 (a stored log repairs a
+  collapsed part), v0.24.364 T-0431 (with logs stored right-hand items
+  equip and forced drops keep the store: Mono inlined the getters, the
+  readers are transpiled; gotcha 122), T-0433 (a real pickup still
+  stores). Parked: T-0432 (stored log into a collapsed part with empty
+  hands?). **Next:** answer T-0432; the chain's next run.
+
 - **2026-10-19 (run R-0025, chain C-0002, unattended):** 5 of 5
   confirmed in game. v0.24.359 T-0425 (a Quick load puts back a kept
   animal's health, hurt skin, poison), v0.24.360 T-0421 (input overlay:
@@ -178,16 +188,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   (Remove / re-add per-action tiles), T-0423 (old files' drop age),
   T-0424 (creatures burning at the capture). Filed: T-0422, T-0425,
   T-0426. **Next:** answer the parked questions; the chain's next run.
-
-- **2026-10-18 (run R-0023, chain C-0002, unattended):** 4 of 5
-  confirmed in game. v0.24.352 T-0366 (HUD values Passengers found and
-  Loads, the ASL Var Viewer's missing two; dockable), v0.24.353 T-0410
-  (the finished run's line kept until the next start, toggle), v0.24.354
-  T-0416 (a Quick load removes thrown bombs / flares / molotovs and puts
-  rolled copies back), v0.24.355 T-0417 (labels for HUD values new to an
-  old profile). Parked: T-0409 (does 'yes' mean the lean 1b / 2a / 3a?).
-  Filed: T-0418, T-0419 (restore follow-ups), T-0420 (tasks.py --verify).
-  **Next:** answer T-0409; the chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

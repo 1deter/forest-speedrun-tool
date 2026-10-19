@@ -32,7 +32,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 |---|---|---|---|---|---|---|---|
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0422, T-0423, T-0424, T-0426, T-0429 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | T-0365 | 2026-10-18 |
-| Practice | C | A | C | A | B | T-0046, T-0350, T-0352 | 2026-10-15 |
+| Practice | C | A | C | A | B | T-0046, T-0350, T-0352, T-0432 | 2026-10-19 |
 | Run mode | B | A | A | A | B | T-0243, T-0413 | 2026-10-19 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
 | Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-16 |
@@ -45,7 +45,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | B | A | A | A | B | T-0207, T-0209 | 2026-10-08 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-14 |
-| Harness | B | A | B | A | B | T-0016, T-0311 | 2026-10-16 |
+| Harness | B | A | B | A | B | T-0016, T-0311 | 2026-10-19 |
 
 Lowest first: Savestates, Practice, Site maps and 3D world, Knowledge (C).
 

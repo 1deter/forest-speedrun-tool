@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (run R-0026 handoff)
+
+- **2026-10-18 (run R-0023, chain C-0002, unattended):** 4 of 5
+  confirmed in game. v0.24.352 T-0366 (HUD values Passengers found and
+  Loads, the ASL Var Viewer's missing two; dockable), v0.24.353 T-0410
+  (the finished run's line kept until the next start, toggle), v0.24.354
+  T-0416 (a Quick load removes thrown bombs / flares / molotovs and puts
+  rolled copies back), v0.24.355 T-0417 (labels for HUD values new to an
+  old profile). Parked: T-0409 (does 'yes' mean the lean 1b / 2a / 3a?).
+  Filed: T-0418, T-0419 (restore follow-ups), T-0420 (tasks.py --verify).
+  **Next:** answer T-0409; the chain's next run.
+
 ## Moved out 2026-10-19 (run R-0025 handoff)
 
 - **2026-10-18 (run R-0022, chain C-0002, unattended):** 5 of 5
