@@ -36,7 +36,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Run mode | B | A | A | A | B | T-0243, T-0413 | 2026-10-19 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
 | Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0346, T-0347, T-0348, T-0349, T-0356, T-0357 | 2026-10-16 |
-| Performance and loads | B | B | B | A | B | T-0048 | 2026-10-18 |
+| Performance and loads | B | B | B | A | B | T-0048 | 2026-10-19 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |
 | Bridge, e2e and QA | B | A | B | B | A | T-0394 | 2026-10-18 |
@@ -190,8 +190,9 @@ Paths: `src/Core/{PerfMonitor,StallWatch}.cs` `src/Game/{AllocationTracker,Camer
   `Perf` / `Frame` / `Load timing` lines read by hand; idle garbage and the
   load leak confirmed (v0.23.3-7, v0.24.244); the e2e `launch` journey
   loads but measures nothing; the post-load heap A/B (T-0034) confirmed
-  live 2026-10-18.
-- Legibility **B**: `PerfPatches.cs` 1,128 (over 1,000 since T-0072 /
+  live 2026-10-18; T-0198 (ParticleCam) and T-0203 (four garbage
+  patches) A/B-measured and confirmed live 2026-10-19.
+- Legibility **B**: `PerfPatches.cs` 1,159 (over 1,000 since T-0072 /
   T-0277), `MemoryCensus.cs` 765; all seven performance gotchas are
   judgement.
 - Stability **A**.

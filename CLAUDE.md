@@ -179,15 +179,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   turtles, trap rabbits). No parked questions. **Next:** the
   chain's next run.
 
-- **2026-10-18 (run R-0024, chain C-0002, unattended):** 4 of 5
-  confirmed in game. T-0420 (tasks.py keeps a repeated --verify),
-  v0.24.356 T-0409 (one input-overlay tile per game action, 1b/2a/3a),
-  v0.24.357 T-0418 (a Quick load re-makes dropped copies the game
-  despawned; despawn timers resume as at the capture), v0.24.358 T-0419
-  (a Quick load puts out fire lit since the capture). Parked: T-0421
-  (Remove / re-add per-action tiles), T-0423 (old files' drop age),
-  T-0424 (creatures burning at the capture). Filed: T-0422, T-0425,
-  T-0426. **Next:** answer the parked questions; the chain's next run.
+- **2026-10-19 (run R-0027, chain C-0002, unattended):** 3 of 5
+  confirmed. v0.24.365 T-0198 (particles drawn by the main camera,
+  ParticleCam off: ~0.25-0.37 ms a frame, on by default), v0.24.366
+  T-0203 (four exact garbage patches: ocean key, cave sort, terrain
+  texture, idle fish spawn; 70 -> 42 KB/s), T-0206 (Megan's stomps cut
+  her cooldown; the artifact never reaches the boss; game-notes only,
+  card held: T-0435). Parked: T-0152 (close it, checkpoints to T-0224?),
+  T-0153 (which settings a spot locks, when, where). Filed: T-0434,
+  T-0435. **Next:** answer T-0152 / T-0153 / T-0432; the chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

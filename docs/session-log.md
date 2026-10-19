@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (run R-0027 handoff)
+
+- **2026-10-18 (run R-0024, chain C-0002, unattended):** 4 of 5
+  confirmed in game. T-0420 (tasks.py keeps a repeated --verify),
+  v0.24.356 T-0409 (one input-overlay tile per game action, 1b/2a/3a),
+  v0.24.357 T-0418 (a Quick load re-makes dropped copies the game
+  despawned; despawn timers resume as at the capture), v0.24.358 T-0419
+  (a Quick load puts out fire lit since the capture). Parked: T-0421
+  (Remove / re-add per-action tiles), T-0423 (old files' drop age),
+  T-0424 (creatures burning at the capture). Filed: T-0422, T-0425,
+  T-0426. **Next:** answer the parked questions; the chain's next run.
+
 ## Moved out 2026-10-19 (run R-0026 handoff)
 
 - **2026-10-18 (run R-0023, chain C-0002, unattended):** 4 of 5
