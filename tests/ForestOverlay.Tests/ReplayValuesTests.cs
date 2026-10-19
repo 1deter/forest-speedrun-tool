@@ -121,12 +121,46 @@ namespace ForestOverlay.Tests
             Attempt a = Run();
             ReplayValues.Cache c = new ReplayValues.Cache();
             string[] chosen = { "Health" };
-            c.Get(a, 1.1f, chosen, 1, null); c.Get(a, 1.2f, chosen, 1, null); c.Get(a, 1.9f, chosen, 1, null);
+            c.Get(a, 1.1f, chosen, 1, 0, null); c.Get(a, 1.2f, chosen, 1, 0, null); c.Get(a, 1.9f, chosen, 1, 0, null);
             Assert.Equal(1, c.Builds);
-            Assert.Equal("Health 60", c.Get(a, 2.1f, chosen, 1, null));
+            Assert.Equal("Health 60", c.Get(a, 2.1f, chosen, 1, 0, null));
             Assert.Equal(2, c.Builds);
-            c.Get(a, 2.1f, new[] { "Stamina" }, 2, null);
+            c.Get(a, 2.1f, new[] { "Stamina" }, 2, 0, null);
             Assert.Equal(3, c.Builds);
+        }
+
+        [Fact]
+        public void CacheRebuildsWhenTheNamesMove()
+        {
+            Attempt a = Run();
+            a.QuickSlots = new QuickSlotTrack();
+            a.QuickSlots.Add(0f, new[] { 53, 0, 0, 0 });
+            ReplayValues.Cache c = new ReplayValues.Cache();
+            string[] chosen = { ReplayValues.QuickSlots };
+            bool ready = false;
+            System.Func<int, string> name = id => ready ? "Rock" : null;
+            Assert.Equal("Slots: 1 #53  2 -  3 -  4 -", c.Get(a, 1f, chosen, 1, 0, name));
+            ready = true;
+            Assert.Equal("Slots: 1 #53  2 -  3 -  4 -", c.Get(a, 1f, chosen, 1, 0, name));   // same key: kept
+            Assert.Equal("Slots: 1 Rock  2 -  3 -  4 -", c.Get(a, 1f, chosen, 1, 1, name));  // the names moved
+        }
+
+        [Fact]
+        public void FileNamesCarryTheDateAndLength()
+        {
+            Attempt a = new Attempt();
+            a.RecordedUtc = new System.DateTime(2026, 10, 19, 14, 3, 12, System.DateTimeKind.Utc);
+            a.Duration = 83.4567f;
+            string name = AttemptFormat.FileName(a);
+            Assert.Equal("20261019_140312_83.457.run", name);
+            System.DateTime utc;
+            float d;
+            Assert.True(AttemptFormat.TryParseFileName(@"C:\x\runs\recordings\" + name, out utc, out d));
+            Assert.Equal(a.RecordedUtc, utc);
+            Assert.Equal(System.DateTimeKind.Utc, utc.Kind);
+            Assert.Equal(83.457f, d, 3);
+            Assert.False(AttemptFormat.TryParseFileName("notes.txt", out utc, out d));
+            Assert.False(AttemptFormat.TryParseFileName("2026x019_140312_1.000.run", out utc, out d));
         }
     }
 }

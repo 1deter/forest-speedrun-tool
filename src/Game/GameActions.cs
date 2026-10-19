@@ -204,6 +204,36 @@ namespace ForestOverlay.Game
             return InputInject.State.TryAxis(name, frame, now, out v) && (sign > 0 ? v > 0.1f : v < -0.1f);
         }
 
+        /// Held for many (action, sign) pairs at once (the recorder's
+        /// frame, T-0344): the same answers as Held, the Rewired player
+        /// looked up once for the lot instead of once per pair. No allocation.
+        public static void HeldAll(int[] actions, int[] signs, bool[] into)
+        {
+            int n = into.Length;
+            if (ReplayHeld != null)
+            {
+                for (int i = 0; i < n; i++) into[i] = actions[i] >= 0 && actions[i] < _names.Length && ReplayHeld(actions[i], signs[i]);
+                return;
+            }
+            TasInput.Mode mode = TasInput.Current;
+            if (mode == TasInput.Mode.Blocking) { for (int i = 0; i < n; i++) into[i] = false; return; }
+            bool bound = mode != TasInput.Mode.Playing && BindPlayer();
+            bool injected = InputInject.State.Any;
+            int frame = Time.frameCount;
+            float now = Time.realtimeSinceStartup, v;
+            for (int i = 0; i < n; i++)
+            {
+                int action = actions[i], sign = signs[i];
+                if (action < 0 || action >= _names.Length) { into[i] = false; continue; }
+                string name = _names[action];
+                if (mode == TasInput.Mode.Playing) { into[i] = TasInput.ReplayHeld(name, sign); continue; }
+                if (bound && (sign > 0 ? _button(_ids[action]) : _negative(_ids[action]))) { into[i] = true; continue; }
+                if (!injected) { into[i] = false; continue; }
+                into[i] = (sign > 0 && InputInject.State.Held(name, frame, now)) ||
+                          (InputInject.State.TryAxis(name, frame, now, out v) && (sign > 0 ? v > 0.1f : v < -0.1f));
+            }
+        }
+
         /// An axis action by name ("Mouse X"), the same numbers as Unity's in play;
         /// a replay's value while one runs. NaN when the action is not there.
         public static float Axis(string name)

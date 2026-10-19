@@ -1514,16 +1514,16 @@ Written by DeathModule.cs; warning.
 
 ## `Recording`
 
-Meaning: The Runs tab's recordings (T-0344): Record (where it started), Done (why it stopped, length, positions, state samples, interactions, key and quick-slot changes, saved or not), Watch, Remove, how many are on file at launch, and the runner's pick of the replay bar's values.
+Meaning: The Runs tab's recordings (T-0344): Record (where it started), Done (why it stopped, length, positions, state samples, interactions, key and quick-slot changes, saved or not, what a frame of action reads cost in microseconds), Watch, Remove, how many are on file at launch, and the runner's pick of the replay bar's values.
 Written by PracticeRunModule.Recordings.cs; info.
 
-- info `Recording: <_recs.Count> recording(s) on file.`
+- info `Recording: <_recFiles.Count> recording(s) on file.`
 - info `Recording: done (<why>) - <..> s, <a.Samples.Count> position(s), <a.States.Count> state sample(s), <a.Events.Count> interaction(s), <keys> key change(s), <..> quick-slot change(s), <..>.`
-- info `Recording: removed the one made <..>`
+- info `Recording: removed <..>`
 - info `Recording: replay bar values <what> (<_valuesChosen.Count> shown).`
 - info `Recording: started at (<..>, <..>, <..>).`
 - info `Recording: stopped (<why>) - too short, nothing kept.`
-- info `Recording: watching the one made <..>.`
+- info `Recording: watching <..>.`
 
 ## `Reload save on death`
 

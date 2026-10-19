@@ -19,10 +19,13 @@ namespace ForestOverlay.Modules
     // readers; the spot recorder gets the inputs and the quick slots too.
     //
     // Saved by AttemptStore under `runs/recordings/` (never uploaded, never
-    // a run mode attempt), listed in the Runs tab to watch (the replay
-    // camera: chase / first person / trajectory / free, the bar) or remove.
-    // Refused while a timed run is running. Practice labelled
-    // (Ctx.Practice.Mark), gated only as the replay camera is (rule 12).
+    // a run mode attempt), listed in the Runs tab by file - the date and
+    // length come from the file name, a file is read only when it is
+    // watched (one kept in memory) - to watch (the replay camera: chase /
+    // first person / trajectory / free, the bar) or remove. Refused while a
+    // timed run is running. Practice labelled and locked in run mode as the
+    // replay camera is (its feature `replaycam`, mark "replay camera:
+    // recording"; rule 12: no other gate).
     //
     // The bar's values (Data/ReplayValues) are the runner's pick for every
     // replay: `[Runs] ReplayValues`, default Basic (the site's list + speed
@@ -35,9 +38,10 @@ namespace ForestOverlay.Modules
 
         private readonly RunRecorder _take = new RunRecorder();
         private ItemCounter _takeItems;
-        private readonly List<Attempt> _recs = new List<Attempt>();
-        private readonly List<string> _recFiles = new List<string>();
+        private readonly List<string> _recFiles = new List<string>();   // oldest first
         private readonly List<GUIContent> _recRows = new List<GUIContent>();
+        private Attempt _recLoaded;     // the one recording read into memory
+        private string _recLoadedFile;
         private Attempt _watchRun;      // the recording the replay camera plays
         private bool _watchTake;        // the replay camera plays _watchRun (only while _camOn)
         private bool _camAskedTake;     // the camera's messages go under the recordings' buttons
@@ -57,6 +61,9 @@ namespace ForestOverlay.Modules
         private Func<string, string> _keyLabelFn;
         private Func<int, int, bool> _replayHeldFn;
         private readonly Dictionary<int, string> _itemNames = new Dictionary<int, string>();
+        private int _namesVersion;      // moves when a name the bar could not give may be there now
+        private bool _namesMissing;
+        private float _namesRetryAt;
         private int[] _replayEndOf = new int[0];   // (action * 2 + negative) -> the watched run's end, -1 none
 
         // The value chooser.
@@ -131,6 +138,8 @@ namespace ForestOverlay.Modules
         public void ToggleRecording()
         {
             if (_take.State == RunRecorder.RunState.Running) { FinishTake("Done"); return; }
+            // Locked in run mode as the replay camera is: its mark would flag the attempt.
+            if (Ctx.Run.Refuse("replaycam", "a recording")) { SetTakeStatus(Ctx.Run.RefusedText("Recording")); return; }
             if (_camOn) { SetTakeStatus("The replay camera is on - stop watching first."); return; }
             if (_recorder.State == RunRecorder.RunState.Running) { SetTakeStatus("A timed run is going - finish or abort it first."); return; }
             if (!Ctx.Player.Found) { SetTakeStatus("No player yet - load a game first."); return; }
@@ -143,9 +152,11 @@ namespace ForestOverlay.Modules
             _takeWatch.Sync();
             _takeEventsSeen = Ctx.Events.Count;
             Vector3 pos = PlayerPosition();
+            int before;
+            ActionRecorder.TakeMean(out before);   // the Done line's read cost: this recording's frames
             _take.Arm(pos, RecordingsAnchor);
             _take.ForceStart(pos);
-            Ctx.Practice.Mark("recording");
+            Ctx.Practice.Mark("replay camera: recording");
             SetTakeStatus("Recording - press Done (Runs tab, Recordings) to stop.");
             Ctx.Log.LogInfo("Recording: started at (" + pos.x.ToString("0.0") + ", " + pos.y.ToString("0.0") + ", " + pos.z.ToString("0.0") + ").");
         }
@@ -161,27 +172,47 @@ namespace ForestOverlay.Modules
             }
             a.AnchorLabel = RecordingsAnchor;
             bool saved = _store.Save(a);
-            _recs.Add(a);
-            _recFiles.Add(_store.FileFor(a));
+            string file = _store.FileFor(a);
+            _recFiles.Add(file);
+            _recLoaded = a;                 // the newest stays in memory: watched next, most likely
+            _recLoadedFile = file;
             RebuildRecRows();
             int keys = a.Keys != null ? a.Keys.Changes.Count : 0;
+            int frames;
+            double readUs = ActionRecorder.TakeMean(out frames);
             SetTakeStatus("Recorded " + Format(a.Duration) + (why == "Done" ? "" : " (stopped: " + why + ")") +
                           (saved ? " - Watch it in the list." : " - it could not be saved (see the log); watch it before you quit."));
             Ctx.Log.LogInfo("Recording: done (" + why + ") - " + a.Duration.ToString("0.00") + " s, " + a.Samples.Count + " position(s), " +
                             a.States.Count + " state sample(s), " + a.Events.Count + " interaction(s), " + keys + " key change(s), " +
-                            (a.QuickSlots != null ? a.QuickSlots.Samples.Count : 0) + " quick-slot change(s), " + (saved ? "saved" : "NOT saved") + ".");
+                            (a.QuickSlots != null ? a.QuickSlots.Samples.Count : 0) + " quick-slot change(s), " + (saved ? "saved" : "NOT saved") +
+                            (frames > 0 ? "; action reads " + readUs.ToString("0.0") + " us a frame over " + frames + " frame(s)" : "; the game's actions were not readable") + ".");
             _takeShownState = -1;
         }
 
         /// Watch recording `i` (the list's button), or stop watching it.
         private void WatchRecording(int i)
         {
-            if (_camOn && _watchTake && ReferenceEquals(_watchRun, _recs[i])) { EndReplayCamera("turned off"); return; }
+            string file = _recFiles[i];
+            if (_camOn && _watchTake && file == _recLoadedFile) { EndReplayCamera("turned off"); return; }
             if (_camOn) EndReplayCamera("another run picked");
-            _watchRun = _recs[i];
+            if (file != _recLoadedFile)
+            {
+                // Read now, on the click: one recording in memory at a time.
+                Attempt a = _store.LoadFile(file);
+                if (a == null) { SetTakeStatus("That recording could not be read (see the log)."); return; }
+                _recLoaded = a;
+                _recLoadedFile = file;
+            }
+            _watchRun = _recLoaded;
             StartReplayCamera(true);
-            if (_camOn) Ctx.Log.LogInfo("Recording: watching the one made " + _watchRun.RecordedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") + ".");
+            if (_camOn) Ctx.Log.LogInfo("Recording: watching " + System.IO.Path.GetFileName(file) + ".");
             else _watchRun = null;
+        }
+
+        /// Watching recording `i` now.
+        private bool WatchingFile(int i)
+        {
+            return _camOn && _watchTake && _recFiles[i] == _recLoadedFile;
         }
 
         private void RemoveRecording(int i)
@@ -194,14 +225,14 @@ namespace ForestOverlay.Modules
                 return;
             }
             _removeArmed = -1;
-            Attempt a = _recs[i];
-            if (_camOn && _watchTake && ReferenceEquals(_watchRun, a)) EndReplayCamera("its recording was removed");
-            bool ok = _store.DeleteFile(_recFiles[i]);
-            _recs.RemoveAt(i);
+            string file = _recFiles[i];
+            if (WatchingFile(i)) EndReplayCamera("its recording was removed");
+            if (file == _recLoadedFile) { _recLoaded = null; _recLoadedFile = null; }
+            bool ok = _store.DeleteFile(file);
             _recFiles.RemoveAt(i);
             RebuildRecRows();
             SetTakeStatus(ok ? "Recording removed." : "The file could not be removed (see the log); it is gone from the list until the next launch.");
-            Ctx.Log.LogInfo("Recording: removed the one made " + a.RecordedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") + (ok ? "." : " - its file could not be deleted."));
+            Ctx.Log.LogInfo("Recording: removed " + System.IO.Path.GetFileName(file) + (ok ? "." : " - its file could not be deleted."));
             _takeShownState = -1;
         }
 
@@ -240,7 +271,7 @@ namespace ForestOverlay.Modules
         private void RefreshTakeText()
         {
             bool rec = _take.State == RunRecorder.RunState.Running;
-            int state = rec ? -2 : _recs.Count;
+            int state = rec ? -2 : _recFiles.Count;
             if (state == _takeShownState && !(rec && Time.unscaledTime >= _nextTakeText)) return;
             _takeShownState = state;
             _nextTakeText = Time.unscaledTime + 0.5f;
@@ -250,25 +281,32 @@ namespace ForestOverlay.Modules
                 _takeInfo.text = "Recording: " + ClockText.Clock(_take.Elapsed);
                 return;
             }
-            _recorderSummary.text = _recs.Count > 0 ? _recs.Count.ToString() : "";
-            _takeInfo.text = _recs.Count == 0 ? "No recordings yet." : "";
+            _recorderSummary.text = _recFiles.Count > 0 ? _recFiles.Count.ToString() : "";
+            _takeInfo.text = _recFiles.Count == 0 ? "No recordings yet." : "";
         }
 
         // --- the files -------------------------------------------------------------
 
+        /// The list by file only: nothing is parsed at launch.
         private void LoadRecordings()
         {
-            _recs.Clear();
-            _recs.AddRange(_store.LoadAll(RecordingsAnchor, _recFiles));
+            _recFiles.Clear();
+            _recFiles.AddRange(_store.ListFiles(RecordingsAnchor));
             RebuildRecRows();
-            if (_recs.Count > 0) Ctx.Log.LogInfo("Recording: " + _recs.Count + " recording(s) on file.");
+            if (_recFiles.Count > 0) Ctx.Log.LogInfo("Recording: " + _recFiles.Count + " recording(s) on file.");
         }
 
         private void RebuildRecRows()
         {
             _recRows.Clear();
-            for (int i = 0; i < _recs.Count; i++)
-                _recRows.Add(new GUIContent(_recs[i].RecordedUtc.ToLocalTime().ToString("d MMM HH:mm:ss") + "   " + Format(_recs[i].Duration)));
+            for (int i = 0; i < _recFiles.Count; i++)
+            {
+                DateTime utc;
+                float duration;
+                _recRows.Add(new GUIContent(AttemptFormat.TryParseFileName(_recFiles[i], out utc, out duration)
+                    ? utc.ToLocalTime().ToString("d MMM HH:mm:ss") + "   " + Format(duration)
+                    : System.IO.Path.GetFileName(_recFiles[i])));
+            }
         }
 
         // --- the bar's lookups -----------------------------------------------------
@@ -279,7 +317,22 @@ namespace ForestOverlay.Modules
             if (_itemNames.TryGetValue(id, out n)) return n;
             n = Ctx.Inventory.NameForId(id);
             if (!string.IsNullOrEmpty(n) && Ctx.Inventory.CatalogReady) _itemNames[id] = n;   // keep once the database is read
+            else _namesMissing = true;   // shown as "#id" for now: asked again (NamesVersion)
             return n;
+        }
+
+        /// The values cache's names key: moves (at most once a second) after a
+        /// name could not be given, so "#53" turns into "Rock" once the item
+        /// database is read.
+        private int NamesVersion()
+        {
+            if (_namesMissing && Time.unscaledTime >= _namesRetryAt)
+            {
+                _namesMissing = false;
+                _namesRetryAt = Time.unscaledTime + 1f;
+                _namesVersion++;
+            }
+            return _namesVersion;
         }
 
         private static string KeyLabel(string end)
@@ -331,30 +384,30 @@ namespace ForestOverlay.Modules
             float viewTop = _pageScroll.y, viewBottom = _pageScroll.y + _tabViewH;
             float bw = 70f, gap = 4f;
             float textW = Mathf.Max(80f, w - 2f * (bw + gap));
-            for (int k = 0; k < _recs.Count; k++)
+            for (int k = 0; k < _recFiles.Count; k++)
             {
-                int i = _recs.Count - 1 - k;
+                int i = _recFiles.Count - 1 - k;
                 float ry = y + k * RecRowH;
                 if (ry + RecRowH < viewTop || ry > viewBottom) continue;
                 WinPx.Label(new Rect(0, ry + 2f, textW, 20), _recRows[i]);
-                bool watching = _camOn && _watchTake && ReferenceEquals(_watchRun, _recs[i]);
+                bool watching = WatchingFile(i);
                 if (WinPx.Button(new Rect(textW + gap, ry, bw, 22), watching ? "Stop" : "Watch")) { WatchRecording(i); break; }
                 bool armed = _removeArmed == i && Time.unscaledTime <= _removeArmedUntil;
                 if (WinPx.Button(new Rect(textW + gap + bw + gap, ry, bw, 22), armed ? "Sure?" : "Remove")) { RemoveRecording(i); break; }
             }
-            y += _recs.Count * RecRowH;
+            y += _recFiles.Count * RecRowH;
             return y + 6f;
         }
 
         // --- the Runs tab: the bar's values --------------------------------------------
 
         /// The choices: Basic, then every other channel the player's state
-        /// has (or the newest recording's, before a game is loaded). Rebuilt
-        /// only when that channel list is another one.
+        /// has (or the recording in memory's, before a game is loaded).
+        /// Rebuilt only when that channel list is another one.
         private void RefreshChoices()
         {
             string[] ch = Ctx.PlayerState.Channels;
-            if ((ch == null || ch.Length == 0) && _recs.Count > 0) ch = _recs[_recs.Count - 1].Channels;
+            if ((ch == null || ch.Length == 0) && _recLoaded != null) ch = _recLoaded.Channels;
             if (ReferenceEquals(ch, _choicesFor) && _choiceOn.Length == _choices.Count) return;
             _choicesFor = ch;
             _choices = ReplayValues.Choices(ch);

@@ -133,37 +133,34 @@ namespace ForestOverlay.Data
         /// The file Save writes the attempt to.
         public string FileFor(Attempt attempt)
         {
-            string name = attempt.RecordedUtc.ToString("yyyyMMdd_HHmmss") + "_" +
-                          attempt.Duration.ToString("F3", CultureInfo.InvariantCulture) + ".run";
-            return Path.Combine(FolderFor(attempt.AnchorLabel), name);
+            return Path.Combine(FolderFor(attempt.AnchorLabel), AttemptFormat.FileName(attempt));
         }
 
-        /// Every attempt of the anchor with its file (`files`, cleared first,
-        /// index-aligned), oldest first - for a list whose rows can be removed
-        /// (the recorder's recordings, T-0344).
-        public List<Attempt> LoadAll(string anchorLabel, List<string> files)
+        /// The anchor's .run files, oldest first (the names start with the
+        /// time), none read - a list that parses one only when it is
+        /// opened (the recorder's recordings, T-0344).
+        public List<string> ListFiles(string anchorLabel)
         {
-            files.Clear();
-            List<Attempt> result = new List<Attempt>();
+            List<string> files = new List<string>();
             try
             {
                 string dir = FolderFor(anchorLabel);
-                if (!Directory.Exists(dir)) return result;
+                if (!Directory.Exists(dir)) return files;
                 string[] paths = Directory.GetFiles(dir, "*.run");
-                Array.Sort(paths, StringComparer.Ordinal);   // the names start with the time
-                for (int i = 0; i < paths.Length; i++)
-                {
-                    Attempt a = Load(paths[i]);
-                    if (a == null) continue;
-                    result.Add(a);
-                    files.Add(paths[i]);
-                }
+                Array.Sort(paths, StringComparer.Ordinal);
+                files.AddRange(paths);
             }
             catch (Exception ex)
             {
                 _log.LogWarning("Could not list attempts: " + ex.Message);
             }
-            return result;
+            return files;
+        }
+
+        /// One .run file read, or null (logged) when it cannot be.
+        public Attempt LoadFile(string path)
+        {
+            return Load(path);
         }
 
         /// Deletes one attempt's file; false (logged) when it could not.
