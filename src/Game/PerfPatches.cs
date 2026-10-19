@@ -159,6 +159,8 @@ namespace ForestOverlay.Game
     //    the serialize (~15 scene searches, ~0.14 s) run over several
     //    frames, ~4 ms of work or one step a frame (SavestateModule
     //    SnapshotsSpread); pickups last, the frame before the serialize.
+    // 23. The game's separate particle camera off, ON by default (T-0198):
+    //    the main camera draws layer 1 itself - Game/CameraTrim (6).
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -286,6 +288,15 @@ namespace ForestOverlay.Game
                 _cameras.ApplyCaveSurface, _cameras.RemoveCaveSurface, true);
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, the ground and distant trees outside the mouth " +
                                             "are not drawn. Saves ~0.25 ms a frame in caves.";
+            Add(config, "ParticlesInMainCamera", "Particles: draw them in the main camera",
+                "Visual only: the game draws flames, sheens, building ghosts, blood, rain and waterfalls with a second camera of its " +
+                "own, a separate render every frame. Switch that camera off and let the main camera draw them. They may look a " +
+                "little different (drawn before the sun's light-scatter effect). Saves ~0.3-0.4 ms a frame here. Off = the game's " +
+                "own drawing.",
+                _cameras.ApplyParticles, _cameras.RemoveParticles, true);
+            _fixes[_fixes.Count - 1].Flag = "particles in main camera";
+            _fixes[_fixes.Count - 1].Note = "Changes the picture a little: flames, rain and other particles are drawn by the main " +
+                                            "camera, before the sun's light-scatter effect. Saves ~0.3-0.4 ms a frame.";
             // 15 was physics at 30 Hz: removed (author, 2026-10-02 - maks found
             // it changes the game's physics noticeably). ClearPhysics30 undoes
             // it once for anyone who had it on.

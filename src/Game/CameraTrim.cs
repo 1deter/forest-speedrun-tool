@@ -112,6 +112,19 @@ namespace ForestOverlay.Game
     //    Not in the endgame (IsInCaves is true in the lab, whose exits and
     //    endings show the outside). The billboards are found once per load
     //    (GameObject.Find, ~4 ms), not per entry.
+    //
+    // 6. Changes the picture a little, ON by default (T-0198): the game's
+    //    separate particle camera off. `OffScreenParticleCamera` on
+    //    MainCamNew re-renders the camera's `ParticleLayers` (layer 1,
+    //    TransparentFX) in a render of its own (0.3-0.37 ms a frame, surface
+    //    and Cave 6, tasks/notes/T-0198.md). Here the component is off and
+    //    layer 1 goes back into the main camera's mask (only that bit is
+    //    OR-ed: CaveSurfaceOff clears another). The one look difference: the
+    //    particles are drawn before SunshinePostprocess / WaterEngine instead
+    //    of after. Sun / Moon shadows are left at Soft, the state the
+    //    component leaves them in every frame. Nothing else in the game
+    //    switches the component; only the drag-away cutscene writes the mask
+    //    (the bit is put back each frame).
     // ------------------------------------------------------------------
     public sealed class CameraTrim
     {
@@ -133,6 +146,7 @@ namespace ForestOverlay.Game
         public bool SunOn { get; private set; }
         public bool CaveGrassOn { get; private set; }
         public bool CaveSurfaceOn { get; private set; }
+        public bool ParticlesOn { get; private set; }
 
         private Camera _grassOff;
         private Camera _grassBend;      // the controller's camera, when _grassOff was switched off
@@ -160,6 +174,13 @@ namespace ForestOverlay.Game
         private Camera _cutMainLast;                // the main camera of the last search (none found stays none until a new one)
         private bool _surfaceCut;
         private float _nextSurfaceScan;
+        private Type _pcamType;
+        private FieldInfo _pcamLayers, _pcamLights, _mainCamField;
+        private Camera _pcamCam;                    // the main camera cut now
+        private Behaviour _pcamComp;                // its OffScreenParticleCamera
+        private int _pcamBits;
+        private bool _pcamAdded;                    // we OR-ed bits in that were missing
+        private int _pcamRefusedId;
 
         public CameraTrim(ManualLogSource log, Harmony harmony)
         {
@@ -406,10 +427,99 @@ namespace ForestOverlay.Game
                          ", " + _billboardsOff.Count + " tree billboards).");
         }
 
+        public string ApplyParticles()
+        {
+            _pcamType = GameBridge.FindGameType("OffScreenParticleCamera");
+            if (_pcamType == null) return "OffScreenParticleCamera not found";
+            const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            _pcamLayers = _pcamType.GetField("ParticleLayers", all);
+            _pcamLights = _pcamType.GetField("ShadowCastingLights", all);
+            Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            _mainCamField = lp != null ? lp.GetField("MainCam", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+            if (_pcamLayers == null || _pcamLayers.FieldType != typeof(LayerMask) || _pcamLights == null ||
+                _pcamLights.FieldType != typeof(Light[]) || _mainCamField == null || _mainCamField.FieldType != typeof(Camera))
+                return "OffScreenParticleCamera's ParticleLayers / ShadowCastingLights or LocalPlayer.MainCam not found";
+            if (!typeof(Behaviour).IsAssignableFrom(_pcamType)) return "OffScreenParticleCamera is not a Behaviour";
+            _pcamRefusedId = 0;
+            ParticlesOn = true;
+            return "";
+        }
+
+        public void RemoveParticles()
+        {
+            ParticlesOn = false;
+            ReleaseParticles("switch off");
+        }
+
+        private void ReleaseParticles(string why)
+        {
+            if (_pcamCam == null && _pcamComp == null) return;
+            if (_pcamCam != null && _pcamAdded) _pcamCam.cullingMask &= ~_pcamBits;
+            if (_pcamComp != null) _pcamComp.enabled = true;
+            _log.LogInfo("Performance: particle camera back on (" + why + ").");
+            _pcamCam = null;
+            _pcamComp = null;
+            _pcamAdded = false;
+        }
+
+        // Every frame, before the cameras render.
+        private void TickParticles()
+        {
+            Camera cam = _mainCamField.GetValue(null) as Camera;
+            if (cam == null) return;
+            if (cam != _pcamCam)
+            {
+                // A new main camera (a load): the old cut went with the old one.
+                _pcamCam = null;
+                _pcamComp = null;
+                _pcamAdded = false;
+                int id = cam.GetInstanceID();
+                if (id == _pcamRefusedId) return;
+                Behaviour comp = cam.GetComponent(_pcamType) as Behaviour;
+                if (comp == null || !comp.enabled)
+                {
+                    _pcamRefusedId = id;
+                    _log.LogInfo("Performance: particle camera left on - " + (comp == null ? "none on the main camera" : "already off") + ".");
+                    return;
+                }
+                _pcamBits = ((LayerMask)_pcamLayers.GetValue(comp)).value;
+                Light[] lights = _pcamLights.GetValue(comp) as Light[];
+                if (lights != null)
+                    for (int i = 0; i < lights.Length; i++)
+                        if (lights[i] != null) lights[i].shadows = LightShadows.Soft;
+                comp.enabled = false;
+                _pcamCam = cam;
+                _pcamComp = comp;
+                _log.LogInfo("Performance: particle camera off, the main camera draws its layers (mask bits " + _pcamBits + ").");
+            }
+            else if (_pcamComp == null || _pcamComp.enabled)
+            {
+                // The component is gone, or the game switched it on again: left to it.
+                _pcamRefusedId = cam.GetInstanceID();
+                ReleaseParticles("the game switched it on again - left to it");
+                return;
+            }
+            if ((cam.cullingMask & _pcamBits) != _pcamBits)
+            {
+                cam.cullingMask |= _pcamBits;
+                _pcamAdded = true;
+            }
+        }
+
         /// Once a frame; looks for the cameras every 2 s (a load brings
         /// new ones).
         public void Tick()
         {
+            if (ParticlesOn)
+            {
+                try { TickParticles(); }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("Performance: particles in the main camera failed: " + ex.Message);
+                    try { ReleaseParticles("error"); } catch (Exception) { }
+                    ParticlesOn = false;
+                }
+            }
             if (CaveSurfaceOn)
             {
                 try { TickCaveSurface(); }

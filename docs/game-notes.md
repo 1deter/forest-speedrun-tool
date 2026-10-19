@@ -3623,7 +3623,9 @@ withdrew it ten minutes later. Never skip a screen camera mid-frame.
   (`LayerContents 1`: 18 renderers on the surface, 2 in view) - so it
   nearly always has something to draw; not worth a skip. Also: it sets
   the Sun's and Moon's shadows to None and back to **Soft** every frame,
-  whatever they were. **No skip is safe** (T-0030, 2026-10-08, v0.24.254,
+  whatever they were. The component can be **switched off** with layer 1
+  OR-ed into MainCamNew's mask instead (T-0198, plugin switch
+  `ParticlesInMainCamera`; tasks/notes/T-0198.md). **No skip is safe** (T-0030, 2026-10-08, v0.24.254,
   bridge + the game files): an offline census (UnityPy, every level /
   sharedassets / resources / AssetBundles file) finds ~4.7k renderers on
   layer 1 in ~200 kinds - the player's held lighter / flare / torch /
