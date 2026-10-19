@@ -2,6 +2,15 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (R-0030 handoff)
+
+- **2026-10-19 (run R-0028, chain C-0002, unattended):** 1 of 5
+  confirmed. v0.24.367 T-0323 (the run line names the newest flag, the
+  short ModAPI after it). T-0300 held after v1 (decisions.md). Parked:
+  T-0339 (custom fonts), T-0343 (in-game rebinds), T-0344 (gameplay
+  recorder vs the replay camera) - each asks now or after v1.
+  **Next:** answered 2026-10-19 (below).
+
 ## Moved out 2026-10-19 (author session handoff)
 
 - **2026-10-19 (run R-0027, chain C-0002, unattended):** 3 of 5

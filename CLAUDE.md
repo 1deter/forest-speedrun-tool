@@ -157,13 +157,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-19 (run R-0028, chain C-0002, unattended):** 1 of 5
-  confirmed. v0.24.367 T-0323 (the run line names the newest flag, the
-  short ModAPI after it). T-0300 held after v1 (decisions.md). Parked:
-  T-0339 (custom fonts), T-0343 (in-game rebinds), T-0344 (gameplay
-  recorder vs the replay camera) - each asks now or after v1.
-  **Next:** answered 2026-10-19 (below).
-
 - **2026-10-19 (run R-0029, chain C-0003, unattended):** 5 of 5
   closed: the 2026-10-14 cleanup's unused members. T-0346 wontfix
   (stale: T-0338 uses LabelAt), v0.24.368..371 T-0347..T-0350 (one
@@ -177,6 +170,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   replay values), T-0437 (inventory / book FPS cheat, flagged), T-0438
   (always-on lines above the game's). Nothing parked.
   **Next:** the chain's next run (`tasks.py next`).
+
+- **2026-10-19 (run R-0030, author started, the loop):** 5 of 5
+  confirmed, each with a checker accept, smoke PASS and forest-tester in
+  game: v0.24.372 T-0339 (HUD / F2 window fonts from installed fonts),
+  v0.24.374 T-0343 (Settings > Game controls: any action on an extra
+  key / mouse button / wheel; .373 failed live - Rewired fields),
+  v0.24.375 T-0344 (Recorder, replay keys / 1-4 slots / chosen values,
+  free view on 4), v0.24.376 T-0352 (paint on far rocks), v0.24.377
+  T-0356 (input overlay Tiles fold, Sure? on x, Add input). Filed:
+  T-0440, T-0441, forest-ux T-0442..T-0447. Parked for the author:
+  T-0446, T-0447 (input overlay layout); open: extra bindings in menus?
+  **Next:** a fresh session for the next run (`tasks.py next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
