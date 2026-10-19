@@ -372,3 +372,4 @@
 {"at": "2026-10-19T06:10:36", "event": "round", "run": "R-0029", "round": 5, "task": "T-0350", "reviews_before": 0}
 {"at": "2026-10-19T06:17:35", "event": "end", "run": "R-0029", "round": 5, "task": "T-0350", "status": "confirmed", "progress": true, "parked": false, "summary": "v0.24.371 T-0350: the unused PaintSet.StrokeOpen is removed (1 line, forest-dev). Proved by plugin tests 1546/1546, site tests 133/133, lint, forest-checker accept, the post-release smoke PASS 2/2 (tests/e2e/reports/20261019-061637.smoke.md) and the site deploy live. The 2026-10-14 cleanup's cs-unused tasks are all closed; audit.py still lists InputActions.ActionCount (no task yet, the next cleanup files it).", "tier": "easy", "route": "forest-dev/sonnet/low"}
 {"at": "2026-10-19T06:17:35", "event": "stop", "run": "R-0029", "reason": "5 rounds done (the run's limit)"}
+{"at": "2026-10-19T06:19:00", "event": "chain-dispatch", "chain": "C-0003", "kind": "run"}
