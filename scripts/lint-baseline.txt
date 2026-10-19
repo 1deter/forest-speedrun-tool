@@ -48,6 +48,7 @@ label20	src/Modules/PracticeRunModule.Lines.cs	WinPx.Label(new Rect(x + 130f + s
 label20	src/Modules/PracticeRunModule.Lines.cs	WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineWidthText);
 label20	src/Modules/PracticeRunModule.LiveSplit.cs	WinPx.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);
 label20	src/Modules/PracticeRunModule.LiveSplit.cs	WinPx.Label(new Rect(x + 102, y, cw - 102, 20), _lssFileText);
+label20	src/Modules/PracticeRunModule.Recordings.cs	WinPx.Label(new Rect(0, ry + 2f, textW, 20), _recRows[i]);
 label20	src/Modules/PracticeRunModule.Site.cs	WinPx.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
 label20	src/Modules/UpdateModule.cs	WinPx.Label(new Rect(12, y, w - 24, 20), _notesHeading);
 moveto	src/Game/EndgameLoader.cs	player.MoveTo(_holdAt, _holdRotation);

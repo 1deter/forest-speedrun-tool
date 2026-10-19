@@ -10,7 +10,9 @@ namespace ForestOverlay.Modules
     // of the screen with no F2 window open. The replay time / duration,
     // play or paused, the speed and the view in a line; a timeline with
     // the playhead, a tall tick at each checkpoint the watched run reached
-    // and a small one at each recorded interaction; buttons to play /
+    // and a small one at each recorded interaction; the values the runner
+    // picked (Data/ReplayValues, default the site's Basic) and, for a
+    // recording, the keys held (Data/KeyTrack) - T-0344; buttons to play /
     // pause, step 1 s, change the speed and the view; a key hint. The
     // mouse is free while it shows (WantsMouse; the player is held anyway):
     // a click or drag on the timeline seeks. The keys keep working, Esc /
@@ -24,12 +26,16 @@ namespace ForestOverlay.Modules
         private bool _barScrub;
         private float _barH = 130f;
         private readonly GUIContent _barInfo = new GUIContent("");
-        // The watched run's health / stamina / speed at the playhead (T-0386).
+        // The watched run's chosen values at the playhead (T-0386, T-0344).
         private readonly GUIContent _barStats = new GUIContent("");
-        private readonly ReplayStats.Cache _statsCache = new ReplayStats.Cache();
+        private readonly ReplayValues.Cache _valuesCache = new ReplayValues.Cache();
+        // A recording's keys held at the playhead (T-0344).
+        private readonly GUIContent _barKeys = new GUIContent("");
+        private readonly KeyTrack.Cache _keysCache = new KeyTrack.Cache();
         private static readonly GUIContent BarHint = new GUIContent(
             "Click or drag the timeline to seek. Keys: Space play / pause, Left / Right 1 s (Shift 5 s), " +
-            "Up / Down speed, 1 2 3 or V view, R from the start, Esc stops.");
+            "Up / Down speed, 1 2 3 4 or V view, R from the start, Esc stops. " +
+            "Free view: W A S D fly, Q / E down / up, hold the right mouse button to look.");
 
         private static readonly Color BarTrack = new Color(1f, 1f, 1f, 0.16f);
         private static readonly Color BarPlayed = new Color(0.35f, 0.75f, 1f, 0.9f);
@@ -40,7 +46,7 @@ namespace ForestOverlay.Modules
         /// and no F2 window is open: the window owns the screen then.
         private bool BarShowing
         {
-            get { return _camOn && _reference != null && Host != null && Host.UiVisible && !Host.AnyPanelOpen(); }
+            get { return _camOn && Watched != null && Host != null && Host.UiVisible && !Host.AnyPanelOpen(); }
         }
 
         /// From DrawScreen, inside the scaled matrix.
@@ -69,6 +75,7 @@ namespace ForestOverlay.Modules
             float cy = y + BarPad;
             cy += UiText.Draw(left, cy, inner, _barInfo);
             if (_barStats.text.Length > 0) cy += UiText.Draw(left, cy, inner, _barStats);
+            if (_barKeys.text.Length > 0) cy += UiText.Draw(left, cy, inner, _barKeys);
 
             DrawTimeline(new Rect(left, cy + 2f, inner, TimelineH), e);
             cy += TimelineH + 8f;
@@ -89,6 +96,7 @@ namespace ForestOverlay.Modules
             if (UiKit.Toggle(BarSlot(ref bx, ref cy, 76f, left, right), v == ReplayView.Chase, " chase")) v = ReplayView.Chase;
             if (UiKit.Toggle(BarSlot(ref bx, ref cy, 112f, left, right), v == ReplayView.FirstPerson, " first person")) v = ReplayView.FirstPerson;
             if (UiKit.Toggle(BarSlot(ref bx, ref cy, 104f, left, right), v == ReplayView.Trajectory, " trajectory")) v = ReplayView.Trajectory;
+            if (UiKit.Toggle(BarSlot(ref bx, ref cy, 64f, left, right), v == ReplayView.Free, " free")) v = ReplayView.Free;
             if (v != _camView) SetView(v);
             cy += BarLine + 2f;
 
@@ -120,6 +128,7 @@ namespace ForestOverlay.Modules
         private void DrawTimeline(Rect r, Event e)
         {
             float duration = Mathf.Max(0.01f, _clock.Duration);
+            Attempt src = Watched;
 
             // Input first, so a click lands where the playhead is drawn after.
             Rect hit = new Rect(r.x - 6f, r.y - 2f, r.width + 12f, r.height + 4f);
@@ -157,17 +166,17 @@ namespace ForestOverlay.Modules
             {
                 GUI.color = BarEvent;
                 float lastCol = float.NaN;
-                for (int i = 0; i < _reference.Events.Count; i++)
+                for (int i = 0; i < src.Events.Count; i++)
                 {
-                    float col = Mathf.Round(ReplayBar.PixelOf(_reference.Events[i].T, duration, r.x, r.width));
+                    float col = Mathf.Round(ReplayBar.PixelOf(src.Events[i].T, duration, r.x, r.width));
                     if (col == lastCol) continue;
                     lastCol = col;
                     WinPx.DrawTexture(new Rect(col, mid - 5f, 1f, 10f), white);
                 }
             }
 
-            // Checkpoints the watched run reached (its end is the timeline's end).
-            float[] cps = ReplayBar.TickTimes(_reference.Splits, SplitRows);
+            // Checkpoints the watched run reached (its end is the timeline's end); a recording has none.
+            float[] cps = _watchTake ? null : ReplayBar.TickTimes(src.Splits, SplitRows);
             if (cps != null)
             {
                 GUI.color = BarCheckpoint;

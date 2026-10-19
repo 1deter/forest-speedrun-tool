@@ -353,11 +353,14 @@ namespace ForestOverlay.Modules
             // The open window turns the game's maps off: Edit HUD lights from the keys.
             bool useActions = GameInput && GameActions.Ready && !editing;
             float now = Time.unscaledTime, dt = Time.unscaledDeltaTime;
-            bool live = editing || !Cursor.visible;
+            // A replay with recorded keys (T-0344) plays through GameActions: the
+            // tiles show it although the replay bar frees the cursor.
+            bool replay = useActions && GameActions.ReplayActive;
+            bool live = editing || !Cursor.visible || replay;
             if (_capturing) CaptureKey();
 
             _mouseMoved = false;
-            float scroll = live ? Input.mouseScrollDelta.y : 0f;
+            float scroll = live && !replay ? Input.mouseScrollDelta.y : 0f;
             for (int i = 0; i < _states.Count; i++)
             {
                 TileState s = _states[i];
@@ -651,7 +654,7 @@ namespace ForestOverlay.Modules
             if (!editing) FinishResize();   // Edit HUD closed mid-drag: keep the size reached
             // A menu's cursor hides the tiles, all but the Esc tile while it is lit: the press that
             // opened the pause menu shows over it (T-0391).
-            bool menuOnly = !editing && Cursor.visible;
+            bool menuOnly = !editing && Cursor.visible && !(GameInput && GameActions.Ready && GameActions.ReplayActive);
             if (menuOnly) { _drag = -1; if (!MenuLit()) return; }
             if (!editing) _drag = -1;
 

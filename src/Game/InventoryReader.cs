@@ -510,6 +510,44 @@ namespace ForestOverlay.Game
         private Func<object, int> _viewIdGet;
         private bool _slotsTried;
 
+        /// The items on the backpack's 1-4 hotkeys (T-0344, docs/game-notes.md
+        /// *quick-select slots*): `_quickSelectItemIds`, 4 ids, <= 0 empty.
+        /// Re-reads LocalPlayer.Inventory and the array every call (a load
+        /// replaces both; the writers are element stores, nothing to hook).
+        /// False (all 0) with no player or no field. No allocation.
+        public bool QuickSlotIds(int[] into)
+        {
+            if (into == null) return false;
+            for (int i = 0; i < into.Length; i++) into[i] = 0;
+            Resolve();
+            if (_inventory == null) return false;
+            try
+            {
+                if (_quickGet == null || _quickType != _inventoryType)
+                {
+                    _quickType = _inventoryType;
+                    FieldInfo f = _inventoryType.GetField("_quickSelectItemIds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (f == null)
+                    {
+                        if (!_quickTold) { _quickTold = true; _log.LogWarning("Inventory: _quickSelectItemIds not found - runs record no quick slots."); }
+                        _quickGet = null;
+                        return false;
+                    }
+                    _quickGet = FastField.Instance<object>(f);
+                }
+                int[] ids = _quickGet(_inventory) as int[];
+                if (ids == null) return false;
+                int n = Math.Min(ids.Length, into.Length);
+                for (int i = 0; i < n; i++) into[i] = ids[i];
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
+
+        private Func<object, object> _quickGet;
+        private Type _quickType;
+        private bool _quickTold;
+
         // Equipped ids explain the "x0" entries: an item that is currently
         // held reads amount 0 in _possessedItems, which looks like a ghost
         // until you can see it is in a slot. Read from the live slots

@@ -127,6 +127,38 @@ namespace ForestOverlay.Data
             return a < b;   // equal rank keeps the map's order
         }
 
+        /// The action has a default binding on its negative end: an axis
+        /// action a key drives both ways (Vertical: W and S).
+        public bool HasNegative(int action)
+        {
+            for (int i = 0; i < _rows.Count; i++)
+                if (_rows[i].Action == action && _rows[i].Sign < 0) return true;
+            return false;
+        }
+
+        /// The recorder's action ends (T-0344, Data/InputTracks): every
+        /// action but those named in `skip`, in index order - a button as
+        /// its name, an action with a negative binding as "Name+" and
+        /// "Name-". `actions` / `signs` are filled alongside (cleared first).
+        public string[] Ends(string[] skip, List<int> actions, List<int> signs)
+        {
+            actions.Clear();
+            signs.Clear();
+            List<string> ends = new List<string>();
+            for (int a = 0; a < _names.Count; a++)
+            {
+                string n = _names[a];
+                if (string.IsNullOrEmpty(n) || (skip != null && Array.IndexOf(skip, n) >= 0)) continue;
+                if (HasNegative(a))
+                {
+                    ends.Add(n + "+"); actions.Add(a); signs.Add(1);
+                    ends.Add(n + "-"); actions.Add(a); signs.Add(-1);
+                }
+                else { ends.Add(n); actions.Add(a); signs.Add(1); }
+            }
+            return ends.ToArray();
+        }
+
         /// What a tile says for an action: Vertical / Horizontal by direction, a short word
         /// for the long names, otherwise the game's own name.
         public static string Label(string action, int sign)

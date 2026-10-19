@@ -25,6 +25,7 @@
     <Compile Include="../../tests/ForestOverlay.Tests/UnityShim.cs" Link="Linked/UnityShim.cs" />
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/AnimTrack.cs" Link="Linked/AnimTrack.cs" />
+    <Compile Include="../../src/Data/InputTracks.cs" Link="Linked/InputTracks.cs" />
     <Compile Include="../../src/Data/LoadTimes.cs" Link="Linked/LoadTimes.cs" />
     <Compile Include="../../src/Data/AttemptFormat.cs" Link="Linked/AttemptFormat.cs" />
     <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />

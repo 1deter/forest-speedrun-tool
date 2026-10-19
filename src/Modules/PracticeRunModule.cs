@@ -210,6 +210,7 @@ namespace ForestOverlay.Modules
             InitCheckpoints(ctx);
             InitReplay(ctx);
             InitCamera(ctx);
+            InitRecorder(ctx);   // after the camera: it shares the look and arms readers
         }
 
         private RunUploadModule _upload;
@@ -283,11 +284,13 @@ namespace ForestOverlay.Modules
             map.Add("run.restartCheckpoint", KeyCode.None, "Restart from checkpoint (the last one used, else the latest)", RestartFromCheckpointKey);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
             map.Add("run.replayCamera", KeyCode.None, "Replay camera on / off (watch the comparison run)", ToggleReplayCamera);
+            map.Add("rec.toggle", KeyCode.None, "Recordings: record / done (no spot needed)", ToggleRecording);
         }
 
         public override void Shutdown()
         {
             if (_camOn) EndReplayCamera("shutdown");
+            ShutdownRecorder();
             if (_lineHost != null) Object.Destroy(_lineHost);
             ItemCounter.Uninstall();
             ShutdownReplay();
@@ -522,6 +525,7 @@ namespace ForestOverlay.Modules
             }
 
             TickReplayRecording();
+            TickTake();
 
             if (_segment != null && SceneManager.GetActiveScene().buildIndex != _armedScene) LeaveLevel();
             if (_armSource == ArmSource.RunMode && !Ctx.Run.Active) RunModeEnded();
@@ -1019,16 +1023,19 @@ namespace ForestOverlay.Modules
             bool running = _recorder.State == RunRecorder.RunState.Running;
             bool ghostOn = _camOn || (_ghostCfg.Value && running);
             if (running && _doneLine.Count > 0) _doneLine.Clear();   // before the Show return: a run started with lines hidden
-            _lines.Show = (_showLines || ghostOn) && Enabled &&
-                          (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
+            // A recording being watched (T-0344) is drawn wherever it was made,
+            // practice mode or not: its line is the one the camera follows.
+            _lines.Show = _watchTake || ((_showLines || ghostOn) && Enabled &&
+                          (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment)));
             if (!_lines.Show) return;
 
-            if (!ReferenceEquals(_lineSource, _reference))
+            Attempt lineRef = Watched;
+            if (!ReferenceEquals(_lineSource, lineRef))
             {
-                _lineSource = _reference;
+                _lineSource = lineRef;
                 _ghostHint = 0;
                 _referenceLine.Clear();
-                if (_reference != null) _referenceLine.Sync(_reference.Samples);
+                if (lineRef != null) _referenceLine.Sync(lineRef.Samples);
             }
             _lines.ReferenceLine = _referenceLine.Points;
             _lines.ReferenceStart = 0;
@@ -1068,17 +1075,19 @@ namespace ForestOverlay.Modules
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;
             _lines.CurrentCount = _currentLine.Count;
-            if (_currentLine.Count == 0 && !running && _showLines && _keepDoneCfg.Value && _doneLine.Count > 0)
+            if (_currentLine.Count == 0 && !running && _showLines && _keepDoneCfg.Value && _doneLine.Count > 0 && !_watchTake)
             {
                 _lines.CurrentLine = _doneLine.Points;
                 _lines.CurrentCount = _doneLine.Count;
             }
             _lines.FailedLine = _failedLine.Points;
-            _lines.FailedCount = _showLines && _keepFailedCfg.Value ? _failedLine.Count : 0;
-            UpdateLineMarks();
+            _lines.FailedCount = _showLines && _keepFailedCfg.Value && !_watchTake ? _failedLine.Count : 0;
+            // The segment's checkpoint marks belong to the comparison run, not to a recording.
+            if (_watchTake) ClearLineMarks();
+            else UpdateLineMarks();
 
             _lines.HasGhost = false;
-            if (_reference != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
+            if (lineRef != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
             else if (_reference != null && ghostOn)
             {
                 Vector3 ghost;
@@ -1110,6 +1119,7 @@ namespace ForestOverlay.Modules
         public override void ContributeHud(HudBuilder hud)
         {
             if (_camOn && _camHud.Length > 0) hud.Pair("Replay", _camHud);
+            if (_take.State == RunRecorder.RunState.Running) hud.Pair("Recording", TakeClock());
             if (!Timing) return;
 
             if (_segment == null)
@@ -1243,6 +1253,7 @@ namespace ForestOverlay.Modules
             // the advanced ones are closed behind a header (docs/ui-redesign.md).
             const float top = 90f;
             float viewH = _tabH - top - 4f;
+            _tabViewH = viewH;   // the value chooser draws only its rows in view
             bool scrolls = _pageH > viewH;
             float cw = scrolls ? w - 20f : w;
             _pageScroll = WinPx.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
@@ -1291,11 +1302,15 @@ namespace ForestOverlay.Modules
                 y += 30f;
             }
 
+            if (UiKit.Section(0f, ref y, cw, "runs.recordings", TextRecordings, RecorderSummary, TipRecordings, false))
+                y = DrawRecorderSection(y, cw);
+
             if (UiKit.Section(0f, ref y, cw, "runs.replay", TextReplay, null, TipReplay, false))
             {
                 y = DrawGhostOptions(y, cw);
                 y = DrawReplayOptions(y, cw);
                 y = DrawCameraSection(y, cw);
+                y = DrawValueChooser(y, cw);
             }
 
             bool uploadOpen = _upload != null && UiKit.Section(0f, ref y, cw, "runs.upload", TextUpload, null, TipUpload, false);

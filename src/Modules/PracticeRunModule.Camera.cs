@@ -20,7 +20,9 @@ namespace ForestOverlay.Modules
     // or, for older runs, the way it moved.
     //
     // REPLAY CAMERA (Experimental, practice; locked in run mode as
-    // "replaycam"): plays the comparison run back on its own clock (pause,
+    // "replaycam"): plays the comparison run - or the recorder's last
+    // one of the recordings (T-0344, PracticeRunModule.Recordings: no spot,
+    // no practice mode needed) - back on its own clock (pause,
     // seek, 0.1x - 2x) and flies the game's own camera after the ghost -
     // through a second FreeCamBehaviour, the freecam's tested handling
     // (gotchas 56 / 58: no camera copied, none switched off; the gameplay
@@ -30,6 +32,8 @@ namespace ForestOverlay.Modules
     //                 with no look track: where it moved, level)
     //   trajectory    side-on, framing the next 4 / last 2 s of the path,
     //                 the framed stretch drawn white - for boosts / ziplines
+    //   free          the runner flies it (W A S D, Q / E, Shift / Ctrl,
+    //                 the right mouse button held to look; T-0344)
     // The player is held while it is on (HoldsPlayer: LockView + the game's
     // input map, gotcha 1). It ends on Esc, its key, the tab's button, F9
     // off, run mode, a new run starting, or the camera torn down by a load.
@@ -80,9 +84,10 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent CameraHeading = new GUIContent(
             "Replay camera - Experimental, a practice view (it holds you still while it plays):");
         private static readonly GUIContent CameraHelp = new GUIContent(
-            "Plays the comparison run back and follows its ghost. Close this window to use the keys: Space play / pause, " +
+            "Plays the comparison run back and follows its ghost (a recording of your own: Recordings, above). Close this window to use the keys: Space play / pause, " +
             "Left / Right 1 s back / on (Shift 5 s), , and . one frame while paused, Up / Down faster / slower, " +
-            "1 chase, 2 first person, 3 trajectory (V cycles), R from the start, Esc stops. " +
+            "1 chase, 2 first person, 3 trajectory, 4 free (V cycles), R from the start, Esc stops. " +
+            "Free: W A S D fly, Q / E down / up, Shift faster, hold the right mouse button to look. " +
             "First person shows where the runner looked, with their arms and held item, for runs recorded from this version on; older runs face where they moved.");
 
         public override bool HoldsPlayer { get { return _camOn; } }
@@ -139,41 +144,55 @@ namespace ForestOverlay.Modules
         public void ToggleReplayCamera()
         {
             if (_camOn) { EndReplayCamera("turned off"); return; }
-            StartReplayCamera();
+            StartReplayCamera(false);
         }
 
-        private void StartReplayCamera()
+        /// `take`: the recorder's last recording, else the comparison run.
+        private void StartReplayCamera(bool take)
         {
+            _camAskedTake = take;   // where its messages show
             if (Ctx.Run.Refuse("replaycam", "the replay camera")) { SetCamStatus(Ctx.Run.RefusedText("The replay camera")); return; }
-            if (!Enabled) { SetCamStatus("Practice mode is off - turn it on (F9) and Go to a timed segment with a finished run."); return; }
-            if (_segment == null) { SetCamStatus("No timed segment - Go to one in the Practice tab first."); return; }
-            if (_reference == null || _reference.Samples.Count < 2) { SetCamStatus("No comparison run to watch - finish a run of this segment first (or pick another Compare to)."); return; }
+            if (take)
+            {
+                if (_take.State == RunRecorder.RunState.Running) { SetCamStatus("Recording - press Done first."); return; }
+                if (_watchRun == null || _watchRun.Samples.Count < 2) { SetCamStatus("That recording has no path to play."); return; }
+            }
+            else
+            {
+                if (!Enabled) { SetCamStatus("Practice mode is off - turn it on (F9) and Go to a timed segment with a finished run."); return; }
+                if (_segment == null) { SetCamStatus("No timed segment - Go to one in the Practice tab first."); return; }
+                if (_reference == null || _reference.Samples.Count < 2) { SetCamStatus("No comparison run to watch - finish a run of this segment first (or pick another Compare to)."); return; }
+            }
             if (_recorder.State == RunRecorder.RunState.Running) { SetCamStatus("A run is going - finish or abort it first."); return; }
             if (!Ctx.Player.Found) { SetCamStatus("No player yet."); return; }
             Camera cam = Camera.main;
             if (cam == null) { SetCamStatus("No main camera."); return; }
             // The arms' copy is made before the camera is flown (its offset from the head is read off the live view camera).
+            _watchTake = take;
             _armsFailed = false;
             if (_camView == ReplayView.FirstPerson) EnsureArms();
             if (!_replayCam.Begin(cam))
             {
+                _watchTake = false;
                 DestroyArms();
                 SetCamStatus("Replay camera: " + _replayCam.LastReport + " - switch it off first.");
                 return;
             }
             _replayCam.InputEnabled = false;
 
+            Attempt src = Watched;
             _camOn = true;
-            _camSource = _reference;
-            _clock.Start(ReplayCamera.EndOf(_reference), 0f);
-            _ghostYaw = ReplayCamera.HeadingAt(_reference, 0f, 0f);
+            _camSource = src;
+            _clock.Start(ReplayCamera.EndOf(src), 0f);
+            _ghostYaw = ReplayCamera.HeadingAt(src, 0f, 0f);
             _camSnap = true;
             _nextCameraText = 0f;
             _splitsDirty = true;
             Ctx.Practice.Mark("replay camera");
+            StartReplayKeys(src);   // the input overlay plays the run's keys
             SetCamStatus("");
-            Ctx.Log.LogInfo("Replay camera: on - '" + _segment.Id + "' comparison run of " + _clock.Duration.ToString("0.00") + " s, " +
-                            _reference.Looks.Count + " look sample(s), " + _reference.Samples.Count + " position(s), view " +
+            Ctx.Log.LogInfo("Replay camera: on - " + (take ? "the recording" : "'" + _segment.Id + "' comparison run") + " of " + _clock.Duration.ToString("0.00") + " s, " +
+                            src.Looks.Count + " look sample(s), " + src.Samples.Count + " position(s), view " +
                             ReplayCamera.Label(_camView) + ". " + _replayCam.LastReport + ".");
             if (Host == null || !Host.AnyPanelOpen())
                 Ctx.Notice.Show("Replay camera: click the bar at the bottom, or Space play / pause, Left / Right seek, Esc stops.", 7f);
@@ -184,7 +203,11 @@ namespace ForestOverlay.Modules
         {
             if (!_camOn) return;
             _camOn = false;
+            _watchTake = false;
+            GameActions.ReplayHeld = null;
             _barScrub = false;
+            _replayCam.InputEnabled = false;
+            _replayCam.LookOnRightMouse = false;
             _replayCam.End();
             DestroyArms();
             _camSource = null;
@@ -195,14 +218,24 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Replay camera: off - " + why + ", at " + _clock.T.ToString("0.00") + " s.");
         }
 
+        /// Under the button that was clicked: the recorder's Watch, else the camera section's.
         private void SetCamStatus(string text)
         {
-            if (text != _camStatusText.text) _camStatusText.text = text;
+            GUIContent c = _camAskedTake ? _takeStatus : _camStatusText;
+            if (text != c.text) c.text = text;
         }
 
         private void SetView(ReplayView v)
         {
             if (v == _camView) return;
+            // Out of the free view: the next view flies from where the runner left the camera.
+            if (_camView == ReplayView.Free && _replayCam.Camera != null)
+            {
+                Transform t = _replayCam.Camera.transform;
+                _camPose.Position = t.position;
+                _camPose.Pitch = ReplayCamera.Wrap180(t.eulerAngles.x);
+                _camPose.Yaw = t.eulerAngles.y;
+            }
             _camView = v;
             _camSnap = v == ReplayView.FirstPerson;   // the others fly there
             Ctx.Log.LogInfo("Replay camera: view " + ReplayCamera.Label(v) + ".");
@@ -215,31 +248,39 @@ namespace ForestOverlay.Modules
         {
             if (!_camOn) return;
             if (!_replayCam.Active) { EndReplayCamera("the camera changed (a load)"); return; }
-            if (!Enabled) { EndReplayCamera("practice mode off"); return; }
+            if (!_watchTake && !Enabled) { EndReplayCamera("practice mode off"); return; }
             if (Ctx.Run.Active && Ctx.Run.Locks("replaycam")) { EndReplayCamera("run mode"); return; }
             if (_recorder.State == RunRecorder.RunState.Running) { EndReplayCamera("a run started"); return; }
-            if (!Ctx.Player.Found || _segment == null) { EndReplayCamera("no player / segment"); return; }
-            if (_reference == null || _reference.Samples.Count < 2) { EndReplayCamera("no comparison run"); return; }
-            if (!ReferenceEquals(_camSource, _reference))
+            if (!Ctx.Player.Found || (!_watchTake && _segment == null)) { EndReplayCamera("no player / segment"); return; }
+            Attempt src = Watched;
+            if (src == null || src.Samples.Count < 2) { EndReplayCamera(_watchTake ? "no recording" : "no comparison run"); return; }
+            if (!ReferenceEquals(_camSource, src))
             {
                 // Compare to changed: the new run, from the same time.
-                _camSource = _reference;
-                _clock.Start(ReplayCamera.EndOf(_reference), _clock.T);
+                _camSource = src;
+                _clock.Start(ReplayCamera.EndOf(src), _clock.T);
                 _camSnap = true;
+                StartReplayKeys(src);
             }
 
-            if (Host == null || !Host.AnyPanelOpen())
+            bool panel = Host != null && Host.AnyPanelOpen();
+            if (!panel)
             {
                 if (Input.GetKeyDown(KeyCode.Escape)) { EndReplayCamera("Esc"); return; }
                 ReadCameraKeys();
             }
+            // The free view flies on the runner's keys - not while the window takes them.
+            bool free = _camView == ReplayView.Free;
+            _replayCam.InputEnabled = free && !panel;
+            _replayCam.LookOnRightMouse = free;
 
             float dt = Time.unscaledDeltaTime;
             if (!BarShowing) _barScrub = false;   // hidden mid-drag: never leave the clock held
             if (!_barScrub) _clock.Advance(dt);   // held still while the playhead is dragged
+            if (src.Keys != null) _keysCache.Seek(src.Keys, _clock.T);   // every frame: the input overlay reads it
 
             GhostPose g;
-            if (!ReplayCamera.PoseAt(_reference, _clock.T, _ghostYaw, out g)) return;
+            if (!ReplayCamera.PoseAt(src, _clock.T, _ghostYaw, out g)) return;
             _ghostYaw = g.Yaw;
 
             Camera cam = _replayCam.Camera;
@@ -254,10 +295,14 @@ namespace ForestOverlay.Modules
                     if (TickArms(g, ref target)) rate = 0f;
                     break;
                 case ReplayView.Trajectory:
-                    target = ReplayCamera.Trajectory(_reference, _clock.T, ReplayCamera.TrajectoryBack, ReplayCamera.TrajectoryAhead,
+                    target = ReplayCamera.Trajectory(src, _clock.T, ReplayCamera.TrajectoryBack, ReplayCamera.TrajectoryAhead,
                                                      cam != null ? cam.fieldOfView : 60f, cam != null ? cam.aspect : 16f / 9f,
                                                      g.Yaw, _lines.PathWindow, out window);
                     rate = ReplayCamera.TrajectoryRate;
+                    break;
+                case ReplayView.Free:
+                    target = _camPose;   // the runner flies it (FreeCamBehaviour)
+                    rate = 0f;
                     break;
                 default:
                     target = ReplayCamera.Chase(g);
@@ -267,9 +312,12 @@ namespace ForestOverlay.Modules
             if (_camView != ReplayView.FirstPerson && _arms != null) _arms.Show(false);
             _lines.PathCount = window;
 
-            _camPose = _camSnap ? target : ReplayCamera.Smooth(_camPose, target, rate, dt);
+            if (!free)
+            {
+                _camPose = _camSnap ? target : ReplayCamera.Smooth(_camPose, target, rate, dt);
+                _replayCam.Place(_camPose.Position, _camPose.Pitch, _camPose.Yaw);
+            }
             _camSnap = false;
-            _replayCam.Place(_camPose.Position, _camPose.Pitch, _camPose.Yaw);
 
             UpdateLines();
             UpdateReplay();
@@ -283,7 +331,8 @@ namespace ForestOverlay.Modules
         /// view is the plain first person, and the Runs tab says why).
         private bool EnsureArms()
         {
-            if (_reference == null || _reference.Anim == null || !_reference.Anim.HasPose) return false;
+            Attempt src = Watched;
+            if (src == null || src.Anim == null || !src.Anim.HasPose) return false;
             if (_arms != null && !_arms.Alive) { _arms = null; _armsFailed = false; _armsFor = null; }   // a load took it
             if (_arms == null)
             {
@@ -297,13 +346,13 @@ namespace ForestOverlay.Modules
                     Ctx.Log.LogWarning("Replay camera: arms not shown - " + why + ".");
                     return false;
                 }
-                Ctx.Log.LogInfo("Replay camera: arms replica ready (" + _reference.Anim.LayerKeys.Count + " layer keys, " +
-                                _reference.Anim.HeldChanges.Count + " held changes).");
+                Ctx.Log.LogInfo("Replay camera: arms replica ready (" + src.Anim.LayerKeys.Count + " layer keys, " +
+                                src.Anim.HeldChanges.Count + " held changes).");
                 _armsFor = null;
             }
-            if (!ReferenceEquals(_armsFor, _reference))
+            if (!ReferenceEquals(_armsFor, src))
             {
-                AnimTrack an = _reference.Anim;
+                AnimTrack an = src.Anim;
                 _armsHashes = new int[an.Floats.Length];
                 for (int i = 0; i < _armsHashes.Length; i++) _armsHashes[i] = Animator.StringToHash(an.Floats[i]);
                 _poseLayers = new AnimLayerState[an.Layers];
@@ -312,7 +361,7 @@ namespace ForestOverlay.Modules
                 an.AllHeldIds(ids);
                 _arms.Prepare(ids);   // one hitch now, not mid-replay
                 _armsHeldIdx = -2;
-                _armsFor = _reference;
+                _armsFor = src;
             }
             return true;
         }
@@ -323,7 +372,7 @@ namespace ForestOverlay.Modules
             // A run without arms (another comparison run picked mid-replay) or a
             // copy that could not be made: the replica must not stay up at its last pose.
             if (!EnsureArms()) { if (_arms != null) _arms.Show(false); return false; }
-            AnimTrack an = _reference.Anim;
+            AnimTrack an = Watched.Anim;
             float yaw;
             if (!an.PoseAt(_clock.T, _poseLayers, _poseFloats, out yaw)) { _arms.Show(false); return false; }
             _arms.Show(true);
@@ -360,7 +409,8 @@ namespace ForestOverlay.Modules
             if (Input.GetKeyDown(KeyCode.Alpha1)) SetView(ReplayView.Chase);
             if (Input.GetKeyDown(KeyCode.Alpha2)) SetView(ReplayView.FirstPerson);
             if (Input.GetKeyDown(KeyCode.Alpha3)) SetView(ReplayView.Trajectory);
-            if (Input.GetKeyDown(KeyCode.V)) SetView((ReplayView)(((int)_camView + 1) % 3));
+            if (Input.GetKeyDown(KeyCode.Alpha4)) SetView(ReplayView.Free);
+            if (Input.GetKeyDown(KeyCode.V)) SetView((ReplayView)(((int)_camView + 1) % 4));
             if (Input.GetKeyDown(KeyCode.R)) { _clock.Seek(-_clock.Duration); _clock.Paused = false; _camSnap = true; }
         }
 
@@ -380,12 +430,17 @@ namespace ForestOverlay.Modules
                            (_clock.Paused ? (_clock.AtEnd ? "  (end - Space plays again)" : "  paused") : "");
             }
             _camHud = ReplayCamera.Label(_camView) + "  " + ClockText.Clock(_clock.T) + _camTail;
-            _barInfo.text = "Watching the comparison run:  " + _camHud;
-            if (_reference != null) _barStats.text = _statsCache.Get(_reference, _clock.T);
+            _barInfo.text = (_watchTake ? "Watching your recording:  " : "Watching the comparison run:  ") + _camHud;
+            Attempt src = Watched;
+            if (src != null)
+            {
+                _barStats.text = _valuesCache.Get(src, _clock.T, _valuesChosen, _valuesVersion, _itemNameFn);
+                _barKeys.text = src.Keys != null ? _keysCache.Text(src.Keys, _clock.T, _keyLabelFn) : "";
+            }
             // The tab's line: only built while the tab shows it.
             if (!TabShowing) return;
             _camTimeText.text = "Watching: " + _camHud +
-                                (_reference != null && _reference.Looks.Count == 0 && _camView == ReplayView.FirstPerson
+                                (src != null && src.Looks.Count == 0 && _camView == ReplayView.FirstPerson
                                     ? " - this run has no recorded look: the view faces where it moved." : "");
         }
 
@@ -400,7 +455,7 @@ namespace ForestOverlay.Modules
         private void SetGhost(float t, Vector3 position, bool exact)
         {
             GhostPose g;
-            bool pose = ReplayCamera.PoseAt(_reference, t, _ghostYaw, out g);
+            bool pose = ReplayCamera.PoseAt(Watched, t, _ghostYaw, out g);
             if (pose) _ghostYaw = g.Yaw;
             _lines.GhostPosition = exact && pose ? g.P : position;
             _lines.HasGhost = !(_camOn && _camView == ReplayView.FirstPerson);
@@ -427,23 +482,12 @@ namespace ForestOverlay.Modules
             if (WinPx.Button(new Rect(0, y, 200, 22), _camOn ? "Stop watching" : "Watch the comparison run")) ToggleReplayCamera();
             y += 26f;
 
-            WinPx.Label(new Rect(0, y, 50, 20), "View:");
-            bool oneRow = w >= 420f;
-            float x = 54f;
-            ReplayView v = _camView;
-            if (UiKit.Toggle(new Rect(x, y, 70, 20), v == ReplayView.Chase, " chase")) v = ReplayView.Chase;
-            x += 74f;
-            if (!oneRow) { y += 20f; x = 54f; }
-            if (UiKit.Toggle(new Rect(x, y, 110, 20), v == ReplayView.FirstPerson, " first person")) v = ReplayView.FirstPerson;
-            x += 114f;
-            if (!oneRow) { y += 20f; x = 54f; }
-            if (UiKit.Toggle(new Rect(x, y, 100, 20), v == ReplayView.Trajectory, " trajectory")) v = ReplayView.Trajectory;
-            if (v != _camView) SetView(v);
-            y += 24f;
+            y = DrawViewChoice(y, w);
 
-            if (_reference != null && _reference.Samples.Count >= 2)
+            Attempt src = Watched;
+            if (src != null && src.Samples.Count >= 2)
             {
-                bool recorded = _reference.Anim != null && _reference.Anim.HasPose;
+                bool recorded = src.Anim != null && src.Anim.HasPose;
                 y += UiText.Draw(0, y, w, !recorded ? ArmsOlderText : (_armsFailed ? _armsFailText : ArmsRecordedText));
             }
 
@@ -467,6 +511,20 @@ namespace ForestOverlay.Modules
             if (_camStatusText.text.Length > 0) y += UiText.Draw(0, y, w, _camStatusText);
             y += UiText.Draw(0, y, w, CameraHelp);
             return y + 6f;
+        }
+
+        /// "View: chase / first person / trajectory / free", wrapping on a narrow tab.
+        private float DrawViewChoice(float y, float w)
+        {
+            WinPx.Label(new Rect(0, y, 50, 20), "View:");
+            float bx = 54f, cy = y;
+            ReplayView v = _camView;
+            if (UiKit.Toggle(BarSlot(ref bx, ref cy, 70f, 54f, w), v == ReplayView.Chase, " chase")) v = ReplayView.Chase;
+            if (UiKit.Toggle(BarSlot(ref bx, ref cy, 110f, 54f, w), v == ReplayView.FirstPerson, " first person")) v = ReplayView.FirstPerson;
+            if (UiKit.Toggle(BarSlot(ref bx, ref cy, 100f, 54f, w), v == ReplayView.Trajectory, " trajectory")) v = ReplayView.Trajectory;
+            if (UiKit.Toggle(BarSlot(ref bx, ref cy, 64f, 54f, w), v == ReplayView.Free, " free")) v = ReplayView.Free;
+            if (v != _camView) SetView(v);
+            return cy + 26f;
         }
     }
 }

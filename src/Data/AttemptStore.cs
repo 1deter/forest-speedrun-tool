@@ -46,11 +46,7 @@ namespace ForestOverlay.Data
             {
                 string dir = FolderFor(attempt.AnchorLabel);
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                string name = attempt.RecordedUtc.ToString("yyyyMMdd_HHmmss") + "_" +
-                              attempt.Duration.ToString("F3", CultureInfo.InvariantCulture) + ".run";
-
-                File.WriteAllText(Path.Combine(dir, name), AttemptFormat.Write(attempt), Encoding.UTF8);
+                File.WriteAllText(FileFor(attempt), AttemptFormat.Write(attempt), Encoding.UTF8);
                 return true;
             }
             catch (Exception ex)
@@ -132,6 +128,57 @@ namespace ForestOverlay.Data
                 File.AppendAllText(Path.Combine(dir, "unfinished.txt"), attempt.Write() + "\n");
             }
             catch (Exception ex) { _log.LogWarning("Could not keep the unfinished attempt: " + ex.Message); }
+        }
+
+        /// The file Save writes the attempt to.
+        public string FileFor(Attempt attempt)
+        {
+            string name = attempt.RecordedUtc.ToString("yyyyMMdd_HHmmss") + "_" +
+                          attempt.Duration.ToString("F3", CultureInfo.InvariantCulture) + ".run";
+            return Path.Combine(FolderFor(attempt.AnchorLabel), name);
+        }
+
+        /// Every attempt of the anchor with its file (`files`, cleared first,
+        /// index-aligned), oldest first - for a list whose rows can be removed
+        /// (the recorder's recordings, T-0344).
+        public List<Attempt> LoadAll(string anchorLabel, List<string> files)
+        {
+            files.Clear();
+            List<Attempt> result = new List<Attempt>();
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                if (!Directory.Exists(dir)) return result;
+                string[] paths = Directory.GetFiles(dir, "*.run");
+                Array.Sort(paths, StringComparer.Ordinal);   // the names start with the time
+                for (int i = 0; i < paths.Length; i++)
+                {
+                    Attempt a = Load(paths[i]);
+                    if (a == null) continue;
+                    result.Add(a);
+                    files.Add(paths[i]);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Could not list attempts: " + ex.Message);
+            }
+            return result;
+        }
+
+        /// Deletes one attempt's file; false (logged) when it could not.
+        public bool DeleteFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Could not delete " + Path.GetFileName(path) + ": " + ex.Message);
+                return false;
+            }
         }
 
         public List<Attempt> LoadAll(string anchorLabel)

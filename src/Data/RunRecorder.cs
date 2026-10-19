@@ -174,6 +174,14 @@ namespace ForestOverlay.Data
         /// recorded before it.
         public AnimTrack Anim;
 
+        /// The game's actions held, as changes (T-0344; see KeyTrack). Null
+        /// for runs recorded before it (or when the actions were not readable).
+        public KeyTrack Keys;
+
+        /// The items on the backpack's 1-4 hotkeys (T-0344; see
+        /// QuickSlotTrack). Null for runs recorded before it.
+        public QuickSlotTrack QuickSlots;
+
         /// An item's count at time t: its last change at or before t, 0
         /// before its first.
         public int ItemCountAt(string name, float t)
@@ -465,6 +473,23 @@ namespace ForestOverlay.Data
         public Func<AnimSnapshot, bool, bool> AnimSource;
         private readonly AnimSnapshot _animSnap = new AnimSnapshot();
 
+        /// The input ends' names (KeyTrack.Names), asked when a run begins and
+        /// every frame after until it answers (the actions bind late); null or
+        /// empty = not yet. T-0344.
+        public Func<string[]> InputNames;
+
+        /// Asked every frame of a running run: fill "held" per end (the
+        /// array is InputNames' length, reused) and return true; false = not
+        /// readable this frame. Every frame, so a one-frame press is kept.
+        public Func<bool[], bool> InputSource;
+        private bool[] _held = new bool[0], _heldLast = new bool[0];
+
+        /// Asked on the state cadence: fill the four quick-slot item ids and
+        /// return true; false = not readable now (no player). Kept when they
+        /// differ from the last. T-0344.
+        public Func<int[], bool> QuickSlotSource;
+        private readonly int[] _slots = new int[QuickSlotTrack.Slots];
+
         /// A run keeps at most this many events / buildings: a long run
         /// cutting trees all the way must not grow the file without end.
         public const int MaxEvents = 2000;
@@ -517,6 +542,7 @@ namespace ForestOverlay.Data
 
             bool due = Elapsed >= _nextSampleTime;
             SampleAnim(due);
+            SampleInput();
             if (!due) return;
             _nextSampleTime = Elapsed + SampleInterval;
 
@@ -542,6 +568,34 @@ namespace ForestOverlay.Data
             if (floats) Current.Anim.AddFloats(Elapsed, _animSnap);
         }
 
+        private void SampleInput()
+        {
+            if (InputSource == null || Current == null) return;
+            if (Current.Keys == null)
+            {
+                string[] names = InputNames != null ? InputNames() : null;
+                if (names == null || names.Length == 0) return;
+                Current.Keys = new KeyTrack(names);
+                if (_held.Length != names.Length) { _held = new bool[names.Length]; _heldLast = new bool[names.Length]; }
+                else { Array.Clear(_held, 0, _held.Length); Array.Clear(_heldLast, 0, _heldLast.Length); }
+            }
+            if (_held.Length != Current.Keys.Names.Length) return;
+            if (!InputSource(_held)) return;
+            for (int i = 0; i < _held.Length; i++)
+            {
+                if (_held[i] == _heldLast[i]) continue;
+                _heldLast[i] = _held[i];
+                Current.Keys.Add(Elapsed, i, _held[i]);
+            }
+        }
+
+        private void SampleQuickSlots()
+        {
+            if (QuickSlotSource == null || !QuickSlotSource(_slots)) return;
+            if (Current.QuickSlots == null) Current.QuickSlots = new QuickSlotTrack();
+            Current.QuickSlots.Add(Elapsed, _slots);
+        }
+
         private void SampleLook()
         {
             if (LookSource == null) return;
@@ -556,6 +610,7 @@ namespace ForestOverlay.Data
             if (Elapsed < _nextStateTime) return;
             _nextStateTime = Elapsed + StateInterval;
             SampleItems();
+            SampleQuickSlots();
             if (state == null && StateSource != null) state = StateSource();
             if (state == null || state.Length == 0) return;
 

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-253 prefixes from 876 log calls.
+256 prefixes from 887 log calls.
 
 ## `ActionReaders`
 
@@ -20,6 +20,13 @@ Written by ActionReaders.cs; info / warning.
 - info `ActionReaders: <..>`
 - warning `ActionReaders: <ex>`
 - info `ActionReaders: unnamed reader <key>`
+
+## `ActionRecorder`
+
+Meaning: The game's actions a run records as its keys (T-0344): how many action ends each run and recording keeps (once, when the actions are first read).
+Written by ActionRecorder.cs; info.
+
+- info `ActionRecorder: <_names.Length> action end(s) recorded per run.`
 
 ## `Aerial capture`
 
@@ -293,6 +300,13 @@ Written by AttemptStore.cs; warning.
 
 - warning `Could not count the attempt: <ex.Message>`
 
+## `Could not delete`
+
+Meaning: A recording's file could not be removed (Runs tab, Recordings, Remove): the file and the reason; the list drops it until the next launch.
+Written by AttemptStore.cs; warning.
+
+- warning `Could not delete <..>: <ex.Message>`
+
 ## `Could not keep the checkpoint practice segment`
 
 Meaning: Saving a checkpoint practice segment's attempt failed.
@@ -312,7 +326,7 @@ Written by AttemptStore.cs; warning.
 Meaning: Listing a spot's stored attempts failed.
 Written by AttemptStore.cs; warning.
 
-- warning `Could not list attempts: <ex.Message>`
+- warning `Could not list attempts: <ex.Message>` (x2)
 
 ## `Could not read`
 
@@ -814,6 +828,7 @@ Written by TypeExplorer.cs; info.
 Meaning: The live equipment slots could not be read (a game update renamed them): replays record no held items.
 Written by InventoryReader.cs; warning.
 
+- warning `Inventory: _quickSelectItemIds not found - runs record no quick slots.`
 - warning `Inventory: equipment slots not found - replays record no held items.`
 
 ## `Inventory full`
@@ -1497,6 +1512,19 @@ Written by DeathModule.cs; warning.
 
 - warning `Quick-load without the menu failed (<err>) - using the menu<note>.`
 
+## `Recording`
+
+Meaning: The Runs tab's recordings (T-0344): Record (where it started), Done (why it stopped, length, positions, state samples, interactions, key and quick-slot changes, saved or not), Watch, Remove, how many are on file at launch, and the runner's pick of the replay bar's values.
+Written by PracticeRunModule.Recordings.cs; info.
+
+- info `Recording: <_recs.Count> recording(s) on file.`
+- info `Recording: done (<why>) - <..> s, <a.Samples.Count> position(s), <a.States.Count> state sample(s), <a.Events.Count> interaction(s), <keys> key change(s), <..> quick-slot change(s), <..>.`
+- info `Recording: removed the one made <..>`
+- info `Recording: replay bar values <what> (<_valuesChosen.Count> shown).`
+- info `Recording: started at (<..>, <..>, <..>).`
+- info `Recording: stopped (<why>) - too short, nothing kept.`
+- info `Recording: watching the one made <..>.`
+
 ## `Reload save on death`
 
 Meaning: Reload save on death: the slot reloaded in place and how long it took.
@@ -1535,9 +1563,9 @@ Meaning: The replay camera: on (which run, how many samples), off and why, or a 
 Written by PracticeRunModule.Camera.cs, PracticeRunModule.ReplayBar.cs; info / warning.
 
 - warning `Replay camera: arms not shown - <why>.`
-- info `Replay camera: arms replica ready (<_reference.Anim.LayerKeys.Count> layer keys, <_reference.Anim.HeldChanges.Count> held changes).`
+- info `Replay camera: arms replica ready (<src.Anim.LayerKeys.Count> layer keys, <src.Anim.HeldChanges.Count> held changes).`
 - info `Replay camera: off - <why>, at <..> s.`
-- info `Replay camera: on - '<_segment.Id>' comparison run of <..> s, <_reference.Looks.Count> look sample(s), <_reference.Samples.Count> position(s), view <..>. <_replayCam.LastReport>.`
+- info `Replay camera: on - <..> of <..> s, <src.Looks.Count> look sample(s), <src.Samples.Count> position(s), view <..>. <_replayCam.LastReport>.`
 - info `Replay camera: view <..>.`
 - info `Replay camera: bar <..> at <..> s.`
 - info `Replay camera: bar seek to <..> s.`

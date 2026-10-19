@@ -607,6 +607,10 @@ namespace ForestOverlay.Game
         /// pointing at buttons and the keys are typing into fields.
         public bool InputEnabled = true;
 
+        /// The mouse turns the view only while the right button is held: the
+        /// replay camera's free view, whose bar keeps the cursor for clicks.
+        public bool LookOnRightMouse;
+
         public bool Active { get { return _camera != null; } }
 
         /// The flown camera, or null when freecam is off. Debug drawing
@@ -727,9 +731,12 @@ namespace ForestOverlay.Game
                 if (_camera == null) return;
                 if (!InputEnabled) return;
 
-                _yaw += Input.GetAxis("Mouse X") * LookSensitivity;
-                _pitch -= Input.GetAxis("Mouse Y") * LookSensitivity;
-                _pitch = Mathf.Clamp(_pitch, -89f, 89f);
+                if (!LookOnRightMouse || Input.GetMouseButton(1))
+                {
+                    _yaw += Input.GetAxis("Mouse X") * LookSensitivity;
+                    _pitch -= Input.GetAxis("Mouse Y") * LookSensitivity;
+                    _pitch = Mathf.Clamp(_pitch, -89f, 89f);
+                }
 
                 float speed = Speed;
                 if (Input.GetKey(KeyCode.LeftShift)) speed *= FastMultiplier;

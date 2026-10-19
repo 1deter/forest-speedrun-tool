@@ -50,6 +50,9 @@ namespace ForestOverlay.Data
     //   af|<t>|<index>=<value>:<rate>|...   float parameters from t on
     //   ay|<t>|<yaw>|<rate>                 the body's yaw from t on
     //   ah|<t>|<id>|<id>|...                the equipment slot ids when they changed
+    //   keys|<end>|<end>|...                the game's action ends (T-0344, Data/InputTracks):
+    //   kc|<t>|<i>=<0|1>|...                the ends that went down (1) / up (0) at t
+    //   qs|<t>|<id1>|<id2>|<id3>|<id4>      the backpack's 1-4 hotkey items when they changed
     //
     // Older readers skip lines they do not know, so e / b / l lines never
     // break an older plugin or the site.
@@ -216,6 +219,9 @@ namespace ForestOverlay.Data
                     sb.Append(NL);
                 }
             }
+
+            if (attempt.Keys != null) attempt.Keys.Write(sb, NL);
+            if (attempt.QuickSlots != null) attempt.QuickSlots.Write(sb, NL);
 
             return sb.ToString();
         }
@@ -413,6 +419,13 @@ namespace ForestOverlay.Data
                     }
                     a.Anim.AddHeld(P(p[1]), ids);
                 }
+                else if (p[0] == KeyTrack.HeaderPrefix) a.Keys = KeyTrack.FromHeader(p);
+                else if (p[0] == KeyTrack.ChangePrefix && a.Keys != null) a.Keys.ParseChange(p);
+                else if (p[0] == QuickSlotTrack.Prefix)
+                {
+                    if (a.QuickSlots == null) a.QuickSlots = new QuickSlotTrack();
+                    a.QuickSlots.Parse(p);
+                }
                 else if (p[0] == "s" && p.Length >= 6)
                 {
                     RunSample s;
@@ -455,7 +468,9 @@ namespace ForestOverlay.Data
                                    StartsAt(runText, s, "e|") || StartsAt(runText, s, "b|") ||
                                    StartsAt(runText, s, "l|") || StartsAt(runText, s, "anim") ||
                                    StartsAt(runText, s, "ak|") || StartsAt(runText, s, "af|") ||
-                                   StartsAt(runText, s, "ay|") || StartsAt(runText, s, "ah|")))
+                                   StartsAt(runText, s, "ay|") || StartsAt(runText, s, "ah|") ||
+                                   StartsAt(runText, s, "keys|") || StartsAt(runText, s, "kc|") ||
+                                   StartsAt(runText, s, "qs|")))
                     insert = at;
                 at = next;
             }

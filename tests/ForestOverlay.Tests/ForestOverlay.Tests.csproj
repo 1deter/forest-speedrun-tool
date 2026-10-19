@@ -41,6 +41,8 @@
     <Compile Include="../../src/Data/CometPath.cs" Link="Linked/CometPath.cs" />
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/AnimTrack.cs" Link="Linked/AnimTrack.cs" />
+    <Compile Include="../../src/Data/InputTracks.cs" Link="Linked/InputTracks.cs" />
+    <Compile Include="../../src/Data/ReplayValues.cs" Link="Linked/ReplayValues.cs" />
     <Compile Include="../../src/Data/ReplayStats.cs" Link="Linked/ReplayStats.cs" />
     <Compile Include="../../src/Data/RibbonPath.cs" Link="Linked/RibbonPath.cs" />
     <Compile Include="../../src/Data/SpeedRamp.cs" Link="Linked/SpeedRamp.cs" />
