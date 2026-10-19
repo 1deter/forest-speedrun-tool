@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.366 - 2026-10-19
+
+- Four more small sources of the game's garbage in play are patched, each its own Settings > Performance switch (on by default): the ocean's wave key, the cave enemy-spawn sort, the ground-texture read under you, and idle fish spawners. The game behaves the same; about 10 KB/s less garbage on the surface (70 -> 42 KB/s in the measured window).
+
 ## v0.24.365 - 2026-10-19
 
 - Flames, sparks, sheens, building ghosts and rain are drawn by the main camera instead of a second one: about 0.25-0.37 ms a frame faster on the author's machine (measured). They may look very slightly different; Settings > Performance > "Particles: draw them in the main camera" turns it off.
