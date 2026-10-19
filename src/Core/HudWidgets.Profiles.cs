@@ -38,8 +38,6 @@ namespace ForestOverlay.Core
         private GUIContent[] _nameTexts = new GUIContent[0];
         private bool _loaded, _applying, _dirty;
 
-        public string ActiveProfile { get { return _activeCfg.Value; } }
-
         /// A setting that belongs to the HUD profile. `apply` (may be null)
         /// sets it when a profile is switched in, for an owner that caches
         /// its value; otherwise the entry is set directly.
