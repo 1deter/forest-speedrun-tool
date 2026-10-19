@@ -32,10 +32,10 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 |---|---|---|---|---|---|---|---|
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0422, T-0423, T-0424, T-0426, T-0429 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | T-0365 | 2026-10-18 |
-| Practice | C | A | C | A | B | T-0046, T-0350, T-0352, T-0432 | 2026-10-19 |
+| Practice | C | A | C | A | B | T-0046, T-0352, T-0432 | 2026-10-19 |
 | Run mode | B | A | A | A | B | T-0243, T-0413 | 2026-10-19 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
-| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0356, T-0357 | 2026-10-16 |
+| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0356, T-0357 | 2026-10-19 |
 | Performance and loads | B | B | B | A | B | T-0048 | 2026-10-19 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |
@@ -125,8 +125,7 @@ sharing and community packs, the gameplay mods ("ON NOW").
   parity (T-0041); paint's known limits (gotcha 110: far pool rocks
   T-0352, the 8 % cut band's trade, old strokes on rock spheres vanish,
   +2.2 ms a frame while painting - accepted by the author 2026-10-15);
-  the death default (T-0316); an unused member in
-  PaintSet (T-0350). Released, not yet confirmed: paint (T-0219), Keep
+  the death default (T-0316). Released, not yet confirmed: paint (T-0219), Keep
   loaded (T-0212), the Import view (T-0254, T-0307).
 
 ### Run mode

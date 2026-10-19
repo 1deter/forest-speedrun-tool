@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (run R-0029 handoff)
+
+- **2026-10-19 (run R-0026, chain C-0002, unattended):** 5 of 5
+  confirmed. T-0430 (the flaky pre-push script test: atomic_write's
+  os.replace retries vs a busy reader; 20 of 20 after), T-0120 (a poly
+  zone fires only inside its outline), T-0121 (a stored log repairs a
+  collapsed part), v0.24.364 T-0431 (with logs stored right-hand items
+  equip and forced drops keep the store: Mono inlined the getters, the
+  readers are transpiled; gotcha 122), T-0433 (a real pickup still
+  stores). Parked: T-0432 (stored log into a collapsed part with empty
+  hands?). **Next:** answer T-0432; the chain's next run.
+
 ## Moved out 2026-10-19 (run R-0028 handoff)
 
 - **2026-10-19 (run R-0025, chain C-0002, unattended):** 5 of 5
