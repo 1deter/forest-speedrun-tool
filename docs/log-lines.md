@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-253 prefixes from 876 log calls.
+254 prefixes from 883 log calls.
 
 ## `ActionReaders`
 
@@ -1497,6 +1497,19 @@ Written by DeathModule.cs; warning.
 
 - warning `Quick-load without the menu failed (<err>) - using the menu<note>.`
 
+## `Recorder`
+
+Meaning: The Runs tab's recorder (T-0344): a recording started (where) and done (why it stopped, how long, how many positions / state samples / key changes, saved or not), the last recording read back at launch, and the runner's pick of the replay bar's values.
+Written by PracticeRunModule.Recorder.cs; info / warning.
+
+- warning `Recorder: could not read the last recording - <ex.Message>`
+- warning `Recorder: could not save the recording - <ex.Message>`
+- info `Recorder: done (<why>) - <..> s, <a.Samples.Count> position(s), <a.States.Count> state sample(s), <keys> key change(s)<..>, <saved>.`
+- info `Recorder: last recording read back (<..> s).`
+- info `Recorder: recording from (<..>, <..>, <..>).`
+- info `Recorder: replay bar values <what> (<_valuesChosen.Count> shown).`
+- info `Recorder: stopped (<why>) - too short, nothing kept.`
+
 ## `Reload save on death`
 
 Meaning: Reload save on death: the slot reloaded in place and how long it took.
@@ -1535,9 +1548,9 @@ Meaning: The replay camera: on (which run, how many samples), off and why, or a 
 Written by PracticeRunModule.Camera.cs, PracticeRunModule.ReplayBar.cs; info / warning.
 
 - warning `Replay camera: arms not shown - <why>.`
-- info `Replay camera: arms replica ready (<_reference.Anim.LayerKeys.Count> layer keys, <_reference.Anim.HeldChanges.Count> held changes).`
+- info `Replay camera: arms replica ready (<src.Anim.LayerKeys.Count> layer keys, <src.Anim.HeldChanges.Count> held changes).`
 - info `Replay camera: off - <why>, at <..> s.`
-- info `Replay camera: on - '<_segment.Id>' comparison run of <..> s, <_reference.Looks.Count> look sample(s), <_reference.Samples.Count> position(s), view <..>. <_replayCam.LastReport>.`
+- info `Replay camera: on - <..> of <..> s, <src.Looks.Count> look sample(s), <src.Samples.Count> position(s), view <..>. <_replayCam.LastReport>.`
 - info `Replay camera: view <..>.`
 - info `Replay camera: bar <..> at <..> s.`
 - info `Replay camera: bar seek to <..> s.`

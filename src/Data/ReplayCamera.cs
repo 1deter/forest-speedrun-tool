@@ -37,7 +37,9 @@ namespace ForestOverlay.Data
         public float Yaw;
     }
 
-    public enum ReplayView { Chase, FirstPerson, Trajectory }
+    /// Free (T-0344): the runner flies the camera (W A S D, Q / E, the right
+    /// mouse button held to look) while the replay plays.
+    public enum ReplayView { Chase, FirstPerson, Trajectory, Free }
 
     public static class ReplayCamera
     {
@@ -359,6 +361,7 @@ namespace ForestOverlay.Data
             {
                 case ReplayView.FirstPerson: return "first person";
                 case ReplayView.Trajectory: return "trajectory";
+                case ReplayView.Free: return "free";
                 default: return "chase";
             }
         }

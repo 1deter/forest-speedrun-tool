@@ -169,17 +169,19 @@ namespace ForestOverlay.Modules
         {
             if (_replay == null) return;
             bool wanted = _replayBuildingsCfg.Value || _replayMarkersCfg.Value;
-            bool visible = wanted && Enabled && _reference != null &&
-                           (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
+            // The recording while it is watched (T-0344), else the comparison run.
+            Attempt src = Watched;
+            bool visible = wanted && src != null &&
+                           (_watchTake || (Enabled && (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment))));
             if (!visible) { ClearReplay(); return; }
 
-            if (!ReferenceEquals(_replaySource, _reference))
+            if (!ReferenceEquals(_replaySource, src))
             {
-                _replaySource = _reference;
-                _replay.SetSource(_reference);
-                int n = _reference.Events.Count;
+                _replaySource = src;
+                _replay.SetSource(src);
+                int n = src.Events.Count;
                 if (_markerLabels.Length < n) _markerLabels = new string[n];
-                for (int i = 0; i < n; i++) _markerLabels[i] = ReplayMarks.Label(_reference.Events[i]);
+                for (int i = 0; i < n; i++) _markerLabels[i] = ReplayMarks.Label(src.Events[i]);
                 _labelCount = 0;
                 _pickedCount = -1;
                 _nextLabelPick = 0f;
@@ -189,7 +191,7 @@ namespace ForestOverlay.Modules
             bool running = _recorder.State == RunRecorder.RunState.Running || _camOn;
             float upTo = ReplayMarks.ShownUpTo(running, _camOn ? _clock.T : _recorder.Elapsed);
             _replay.UpTo = upTo;
-            _replay.MarkersPassed = running ? ReplayMarks.UpTo(_reference.Events, upTo) : int.MaxValue;
+            _replay.MarkersPassed = running ? ReplayMarks.UpTo(src.Events, upTo) : int.MaxValue;
             _replay.ShowBuildings = _replayBuildingsCfg.Value;
             _replay.ShowMarkers = _replayMarkersCfg.Value;
             _replay.Opacity = ReplayOpacity;
@@ -200,17 +202,17 @@ namespace ForestOverlay.Modules
 
             Camera cam = DrawTarget.View();
             Vector3 viewer = cam != null ? cam.transform.position : PlayerPosition();
-            int count = ReplayMarks.Nearest(_reference.Events, _reference.Events.Count, viewer, ReplayMarks.LabelRadius, _labelIdx, _labelDist);
+            int count = ReplayMarks.Nearest(src.Events, src.Events.Count, viewer, ReplayMarks.LabelRadius, _labelIdx, _labelDist);
             if (SamePick(count)) return;
 
-            int groups = ReplayLabels.Group(_reference.Events, _labelIdx, count, ReplayLabels.SameSpot, _groupOf, _groupFirst);
+            int groups = ReplayLabels.Group(src.Events, _labelIdx, count, ReplayLabels.SameSpot, _groupOf, _groupFirst);
             for (int g = 0; g < groups; g++)
             {
                 int lines, longest;
                 _labelText[g].text = ReplayLabels.Text(_markerLabels, _labelIdx, _groupOf, count, g, ReplayLabels.MaxLines, out lines, out longest);
                 _labelW[g] = ReplayLabels.Width(longest);
                 _labelH[g] = ReplayLabels.Height(lines);
-                Vector3 p = _reference.Events[_labelIdx[_groupFirst[g]]].P;
+                Vector3 p = src.Events[_labelIdx[_groupFirst[g]]].P;
                 _labelPos[g] = new Vector3(p.x, p.y + ReplayBehaviour.MarkerHeight + 0.4f, p.z);
             }
             _labelCount = groups;

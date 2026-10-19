@@ -497,7 +497,7 @@ namespace ForestOverlay.Modules
             bool running = _recorder.State == RunRecorder.RunState.Running;
             // Watching the comparison run, the panel shows ITS splits as its
             // clock reaches them (author, 2026-10-16), as a live run would.
-            bool watching = _camOn && _reference != null;
+            bool watching = WatchingComparison;
             if (!_splitsDirty && !((running || watching) && Time.unscaledTime >= _nextSplitText)) return;
             if (!_splitsDirty && !HudEditing && !PanelShowing) return;
             _splitsDirty = false;
@@ -635,7 +635,7 @@ namespace ForestOverlay.Modules
         /// LiveSplit keeps it until a reset; else 0.
         private float TimerSeconds(bool running)
         {
-            if (_camOn) return _clock.T;   // watching a replay: its time (author, 2026-10-16)
+            if (WatchingComparison) return _clock.T;   // watching a replay: its time (author, 2026-10-16)
             if (running) return _recorder.Elapsed;
             int n = _times.Length;
             return n > 0 && !float.IsNaN(_times[n - 1]) ? _times[n - 1] : 0f;
@@ -1056,7 +1056,7 @@ namespace ForestOverlay.Modules
             if (visible < _shownRows)
             {
                 // Watching a replay, the watched run's rows (not the live run's).
-                float[] focusTimes = _camOn && _reference != null && _watchTimes.Length >= _shownRows ? _watchTimes : _times;
+                float[] focusTimes = WatchingComparison && _watchTimes.Length >= _shownRows ? _watchTimes : _times;
                 int focus = ReplayBar.FocusRow(_rowCurrent, focusTimes, _shownRows);
                 start = Mathf.Clamp(focus - (visible - 2), 0, _shownRows - visible);
             }
