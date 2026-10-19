@@ -1039,7 +1039,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent AddKeyText = new GUIContent("Add input");
         private static readonly GUIContent AddKeyWaiting = new GUIContent("Press an input...");
         private static readonly GUIContent AddKeyTip = new GUIContent(
-            "Press any key, a mouse button 3-7 or turn the wheel and it becomes a tile. Esc cancels. M1 and M2 have their own buttons (a click here would be taken as the press).");
+            "Press any key, a mouse button 3-7 or turn the wheel and it becomes a tile. Esc cancels. M1 and M2 are not taken here (a click would be the press): a removed M1 or M2 has its own add button.");
         private static readonly GUIContent AddMouseBoxText = new GUIContent("+ Mouse box");
         private static readonly GUIContent AddMouseBoxTip = new GUIContent("The mouse's movement as a fading trail (style: Comet or Box, set above).");
         private static readonly GUIContent TilesTitle = new GUIContent("Tiles");
