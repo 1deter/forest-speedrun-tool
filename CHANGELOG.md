@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.367 - 2026-10-19
+
+- In a run mode attempt played with ModAPI, the HUD's run line now names what you just did that made the attempt not valid, with ModAPI after it, instead of only ModAPI Detected.
+
 ## v0.24.366 - 2026-10-19
 
 - Four more small sources of the game's garbage in play are patched, each its own Settings > Performance switch (on by default): the ocean's wave key, the cave enemy-spawn sort, the ground-texture read under you, and idle fish spawners. The game behaves the same; about 10 KB/s less garbage on the surface (70 -> 42 KB/s in the measured window).
