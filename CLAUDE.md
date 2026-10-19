@@ -167,18 +167,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   stores). Parked: T-0432 (stored log into a collapsed part with empty
   hands?). **Next:** answer T-0432; the chain's next run.
 
-- **2026-10-19 (run R-0025, chain C-0002, unattended):** 5 of 5
-  confirmed in game. v0.24.359 T-0425 (a Quick load puts back a kept
-  animal's health, hurt skin, poison), v0.24.360 T-0421 (input overlay:
-  Remove names a key's action tiles, Add puts removed ones back),
-  v0.24.361 T-0428 (animals killed since come back, spawned since go,
-  the rest moved back, spawn limits reset), v0.24.362 T-0066 (an
-  other-world Quick load removes pickups taken before the capture;
-  story-spot pickups stay gone), v0.24.363 T-0111 (run mode hashes the
-  loaded Assembly-CSharp image). Filed: T-0428, T-0429 (birds, fish,
-  turtles, trap rabbits). No parked questions. **Next:** the
-  chain's next run.
-
 - **2026-10-19 (run R-0027, chain C-0002, unattended):** 3 of 5
   confirmed. v0.24.365 T-0198 (particles drawn by the main camera,
   ParticleCam off: ~0.25-0.37 ms a frame, on by default), v0.24.366
@@ -188,6 +176,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   card held: T-0435). Parked: T-0152 (close it, checkpoints to T-0224?),
   T-0153 (which settings a spot locks, when, where). Filed: T-0434,
   T-0435. **Next:** answer T-0152 / T-0153 / T-0432; the chain's next run.
+
+- **2026-10-19 (run R-0028, chain C-0002, unattended):** 1 of 5
+  confirmed. v0.24.367 T-0323 (the run line names the newest flag, the
+  short ModAPI after it). T-0300 held after v1 (decisions.md). Parked:
+  T-0339 (custom fonts), T-0343 (in-game rebinds), T-0344 (gameplay
+  recorder vs the replay camera) - each asks now or after v1.
+  **Next:** answer T-0152 / T-0153 / T-0432 / T-0339 / T-0343 / T-0344;
+  the chain's next run.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

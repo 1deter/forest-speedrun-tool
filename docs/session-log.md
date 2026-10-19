@@ -2,6 +2,20 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (run R-0028 handoff)
+
+- **2026-10-19 (run R-0025, chain C-0002, unattended):** 5 of 5
+  confirmed in game. v0.24.359 T-0425 (a Quick load puts back a kept
+  animal's health, hurt skin, poison), v0.24.360 T-0421 (input overlay:
+  Remove names a key's action tiles, Add puts removed ones back),
+  v0.24.361 T-0428 (animals killed since come back, spawned since go,
+  the rest moved back, spawn limits reset), v0.24.362 T-0066 (an
+  other-world Quick load removes pickups taken before the capture;
+  story-spot pickups stay gone), v0.24.363 T-0111 (run mode hashes the
+  loaded Assembly-CSharp image). Filed: T-0428, T-0429 (birds, fish,
+  turtles, trap rabbits). No parked questions. **Next:** the
+  chain's next run.
+
 ## Moved out 2026-10-19 (run R-0027 handoff)
 
 - **2026-10-18 (run R-0024, chain C-0002, unattended):** 4 of 5
