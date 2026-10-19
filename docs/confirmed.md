@@ -145,6 +145,8 @@ cap refuses with a notice, the axe equips with a full store (only with the axe a
 `RemoveItem(78)` takes from the store, off puts 2 back in the arms and
 drops the rest, Quick and Full load give back the captured count.
 
+Logs in the inventory, real pickup after T-0431 (v0.24.364, T-0433, bridge 2026-10-19): FakeDrop 78 spawns a log pickup, `PickUp.Collect` stores it (stack PickUp.MainEffect -> AddItemNF -> Lift; 'stored 0 -> 1' ... '4 -> 5', HUD 2 / 5 and 5 / 5); at the cap 'stored full at 5, refused', notice 'Logs: the inventory holds 5 - full', the log stays on the ground (shot t0433-cap).
+
 Freecam with the game's lighting (v0.24.136, bridge, released build):
 the flown view keeps fog, shadows and post-processing (screenshots on /
 flown / outside / off); `PlayerCamLocation.PlayerLoc` and the Grabber
