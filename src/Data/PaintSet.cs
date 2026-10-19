@@ -58,7 +58,6 @@ namespace ForestOverlay.Data
         public int Count { get { return _dots.Count; } }
         public PaintDot this[int i] { get { return _dots[i]; } }
         public bool Full { get { return _dots.Count >= MaxDots; } }
-        public bool StrokeOpen { get { return _stroke >= 0; } }
 
         /// Dots in the open stroke (for its log line when it ends).
         public int OpenCount { get { return _stroke >= 0 ? _dots.Count - _openStart : 0; } }
