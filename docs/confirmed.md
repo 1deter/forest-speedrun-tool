@@ -472,3 +472,4 @@ Confirmed 2026-10-19 (game, bridge, release v0.24.365): **T-0198 particles in th
 Confirmed 2026-10-19 (game, bridge, main build 45d7d4e7, version still v0.24.365, unreleased): **T-0203 four garbage switches (OceanReuseConditionKey, CaveSpawnSortNoClosure, TerrainTextureCache, FishSpawnNoIdleCoroutine): each logs "on", toggles off/on live; 30 s on the surface 70 -> 42 KB/s total, UnifiedSpectrumConditionKey 3.5, Single[,,] 3.7, spawnFish iterator 2.2 + Coroutine 0.6 KB/s gone; cave sort Comparison 142/s gone (300 forced calls); ground texture at 10 places, cave spawn order (30 samples of 87), key hash / cache count and fish spawn/despawn near pondFishSpawner identical on vs off**. bridge 2026-10-19.
 
 - T-0203 four garbage Performance switches load on in the released v0.24.366, terrain texture index unchanged (bridge 2026-10-19)
+- Run mode HUD run line names the newest flag, then (+N more) (T-0323, v0.24.367, bridge 2026-10-19; ModAPI path unit tests only)
