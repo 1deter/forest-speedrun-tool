@@ -1528,8 +1528,56 @@ player in god mode, polled 6x a second for her distance:
   next cycle `findHomePoint` -> `runForward` (7 s, or `targetDist` < 24).
 - Megan's hits on the player, god mode off: 100 -> 72 -> 44 -> 16 -> 1
   (the last stand) -> dead 2.2 s later (`Death (BossWake, Automatic)`).
-- `coolDown` lasted 0.37-0.81 s (85; its `Wait` is 0.8 s) - what cuts it
-  short is not known.
+- `coolDown` lasted 0.37-0.81 s (85; its `Wait` is 0.8 s) - cut short by
+  her stomps, below (T-0206).
+
+**Checked live 2026-10-19 (T-0206, bridge, `ruben-megan` Full load, Normal,
+v0.24.366, god mode, the player standing still).** Method as above, plus
+the log entry's `Action` (`null` = an event from outside the FSM's own
+actions) and `FrameCount`.
+- **What cuts `coolDown` short: her stomp colliders.** Three
+  `fatCreepyCharger` hit boxes (`weaponLeftLegStomper`,
+  `weaponRightLegStomper`, `weaponHeadStomper` under `girl_base`) are
+  switched on for 0.5 s by her Mecanim events `enableStompLeftLeg` /
+  `enableStompRightLeg` / `enableStompHead` (`creepyAnimEvents`; 7 animator
+  states of `girlController` carry them, read from
+  `MecanimEventManager.eventDataSources[19]`). `fatCreepyCharger.OnTriggerEnter`
+  on the player's `playerHitDetect` sends the player `Explosion 8` +
+  `lookAtExplosion` and **`pmCombat.SendEvent("toWander")`** - the only
+  `toWander` literal in Assembly-CSharp (`ilscan strings`). `toWander` is a
+  global transition (-> `randomIdle`), so it ends whatever she is in. The
+  attack states' `Wait` (1.2-2 s) is shorter than their clips (2-5 s), so a
+  stomp often lands after the FSM has already moved on to `coolDown`.
+  Evidence: 150 s with the stompers, 29 `coolDown`s, 3 short (0.077 /
+  0.216 / 0.788 s), all ended by `toWander` with `Action` null, all after
+  `doLongAttack` (3 of its 5); the same external `toWander` also ended
+  `doCloseStomp` (2), `coolDown 3` (1) and `doLongAttack` (1). Then the
+  three stomper objects destroyed: 249 s, 51 `coolDown`s (11 after
+  `doLongAttack`), **0 short, 0 external `toWander`**. Positive check:
+  `call <weaponLeftLegStomper> fatCreepyCharger.OnTriggerEnter
+  <playerHitDetect>` logged `EVENT: toWander` (`Action` null) on that frame
+  and she left `setToPlayer` for `randomIdle`. No `AnimationEvent` on any of
+  her 54 clips. So after a stomp-type attack hits you, her next cycle starts
+  at once (up to 0.8 s sooner).
+- **The artifact never reaches the boss.** `artifactBallEffectSetup.sendEnemyState`
+  (the placed artifact, every 5 s) messages only `MutantControler`'s
+  `activeCannibals`, `activeInstantSpawnedCannibals`, `activeBabies`,
+  `activeWorms` (attract: beyond 30 m; repel: within `repelRange`). In the
+  fight `activeCannibals` / `activeInstantSpawnedCannibals` were empty (the
+  boss is scene-placed, not spawned by a `spawnMutants`), and her
+  `mutantTypeSetup.inCave` is true, which `onArtifactAttract` /
+  `onArtifactRepel` return on: calling `onArtifactRepel` on her left
+  `toRepelArtifact` false. Forced (`inCave` set false): `toRepelArtifact`
+  true -> next `moveToPlayer` -> `repelArtifact` -> `findPointAwayFromArtifact`
+  picked a surface point (-405, 163, 704) -> `isPathValid` `noValidPath` ->
+  `findWaypoint` loop, 206 times in 8 s, standing still - not reachable in
+  play. **The overworld Megan** (post-game: `setupCreepySpawn`, after
+  `ExitedEndgame`, 15% per creepy spawn, at most every 3 days) is spawned by
+  a `spawnMutants`, so the artifact does reach her [code, not live]: repel
+  is taken at `moveToPlayer` / `moveAroundWorld` (a point 250-500 m away,
+  more than 100 deg off the artifact's direction); attract (`findArtifact`
+  -> `setToClosestArtifact`, walk to it) only at `moveAroundWorld`, i.e.
+  when she is wandering (player beyond 90 m / 105 m).
 
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
