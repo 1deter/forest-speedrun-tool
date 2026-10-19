@@ -470,3 +470,5 @@ Confirmed 2026-10-19 (game, bridge, build 1a95cd78, v0.24.364 base, unreleased):
 Confirmed 2026-10-19 (game, bridge, release v0.24.365): **T-0198 particles in the main camera on the release: on by default, mask -134218019 -> -134218017, ParticleCam off, lighter flame draws; switch off -> component on, mask restored; back on**. bridge 2026-10-19.
 
 Confirmed 2026-10-19 (game, bridge, main build 45d7d4e7, version still v0.24.365, unreleased): **T-0203 four garbage switches (OceanReuseConditionKey, CaveSpawnSortNoClosure, TerrainTextureCache, FishSpawnNoIdleCoroutine): each logs "on", toggles off/on live; 30 s on the surface 70 -> 42 KB/s total, UnifiedSpectrumConditionKey 3.5, Single[,,] 3.7, spawnFish iterator 2.2 + Coroutine 0.6 KB/s gone; cave sort Comparison 142/s gone (300 forced calls); ground texture at 10 places, cave spawn order (30 samples of 87), key hash / cache count and fish spawn/despawn near pondFishSpawner identical on vs off**. bridge 2026-10-19.
+
+- T-0203 four garbage Performance switches load on in the released v0.24.366, terrain texture index unchanged (bridge 2026-10-19)
