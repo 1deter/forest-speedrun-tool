@@ -2,6 +2,18 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-19 (author session handoff)
+
+- **2026-10-19 (run R-0027, chain C-0002, unattended):** 3 of 5
+  confirmed. v0.24.365 T-0198 (particles drawn by the main camera,
+  ParticleCam off: ~0.25-0.37 ms a frame, on by default), v0.24.366
+  T-0203 (four exact garbage patches: ocean key, cave sort, terrain
+  texture, idle fish spawn; 70 -> 42 KB/s), T-0206 (Megan's stomps cut
+  her cooldown; the artifact never reaches the boss; game-notes only,
+  card held: T-0435). Parked: T-0152 (close it, checkpoints to T-0224?),
+  T-0153 (which settings a spot locks, when, where). Filed: T-0434,
+  T-0435. **Next:** answer T-0152 / T-0153 / T-0432; the chain's next run.
+
 ## Moved out 2026-10-19 (run R-0029 handoff)
 
 - **2026-10-19 (run R-0026, chain C-0002, unattended):** 5 of 5

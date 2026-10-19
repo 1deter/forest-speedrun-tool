@@ -157,30 +157,26 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-19 (run R-0027, chain C-0002, unattended):** 3 of 5
-  confirmed. v0.24.365 T-0198 (particles drawn by the main camera,
-  ParticleCam off: ~0.25-0.37 ms a frame, on by default), v0.24.366
-  T-0203 (four exact garbage patches: ocean key, cave sort, terrain
-  texture, idle fish spawn; 70 -> 42 KB/s), T-0206 (Megan's stomps cut
-  her cooldown; the artifact never reaches the boss; game-notes only,
-  card held: T-0435). Parked: T-0152 (close it, checkpoints to T-0224?),
-  T-0153 (which settings a spot locks, when, where). Filed: T-0434,
-  T-0435. **Next:** answer T-0152 / T-0153 / T-0432; the chain's next run.
-
 - **2026-10-19 (run R-0028, chain C-0002, unattended):** 1 of 5
   confirmed. v0.24.367 T-0323 (the run line names the newest flag, the
   short ModAPI after it). T-0300 held after v1 (decisions.md). Parked:
   T-0339 (custom fonts), T-0343 (in-game rebinds), T-0344 (gameplay
   recorder vs the replay camera) - each asks now or after v1.
-  **Next:** answer T-0152 / T-0153 / T-0432 / T-0339 / T-0343 / T-0344;
-  the chain's next run.
+  **Next:** answered 2026-10-19 (below).
 
 - **2026-10-19 (run R-0029, chain C-0003, unattended):** 5 of 5
   closed: the 2026-10-14 cleanup's unused members. T-0346 wontfix
   (stale: T-0338 uses LabelAt), v0.24.368..371 T-0347..T-0350 (one
   unused member each removed; smoke PASS each). No parked questions.
-  **Next:** answer T-0152 / T-0153 / T-0432 / T-0339 / T-0343 / T-0344;
-  the chain's next run.
+
+- **2026-10-19 (author session, v1 scope):** every parked question
+  answered (decisions.md *What v1.0 is*): the P4 polish is before v1;
+  T-0152 / T-0153 closed; T-0339 (installed fonts, HUD + F2 apart),
+  T-0343 (rebinds in Settings, any action, allowed in runs), T-0344
+  (recorder, all three), T-0432 (yes) before v1; filed T-0436 (site
+  replay values), T-0437 (inventory / book FPS cheat, flagged), T-0438
+  (always-on lines above the game's). Nothing parked.
+  **Next:** the chain's next run (`tasks.py next`).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
