@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.376 - 2026-10-19
+
+- Paint aimed at a rock about 30 m away now lands on the rock, not on the ground behind it.
+
 ## v0.24.375 - 2026-10-19
 
 - Runs tab: a Recorder - Record, play anything (no spot needed), Done, then watch it in the replay camera; each recording can be watched or removed.
