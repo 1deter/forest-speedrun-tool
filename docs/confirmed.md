@@ -474,3 +474,4 @@ Confirmed 2026-10-19 (game, bridge, main build 45d7d4e7, version still v0.24.365
 - T-0203 four garbage Performance switches load on in the released v0.24.366, terrain texture index unchanged (bridge 2026-10-19)
 - Run mode HUD run line names the newest flag, then (+N more) (T-0323, v0.24.367, bridge 2026-10-19; ModAPI path unit tests only)
 - Custom HUD / window fonts apply live from installed PC fonts, a missing name falls back to default with one warning (T-0339, v0.24.372, bridge 2026-10-19; survive a game restart; the < > / Enter clicks not driven)
+- Extra game bindings (any action on a key / mouse button / wheel): wheel and J jump, Space and the HUD hint unchanged, survive LoadAllMaps / SaveAllMaps (registry diff clean), Mouse3 crouch, removal, restart, run mode, TAS replay exact (T-0343, v0.24.374, bridge 2026-10-19; the Options > Controls screen itself not opened)
