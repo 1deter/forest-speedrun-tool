@@ -45,7 +45,14 @@ v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
 
 **Also before v1** (author, 2026-10-19): the unheld P4 polish in the pool
 (input overlay / Edit HUD, run-line and checkpoint wording, savestate edge
-cases) - "p4 polish is before v1" - and custom fonts (T-0339).
+cases) - "p4 polish is before v1" - and custom fonts (T-0339: installed
+PC fonts, HUD and F2 window chosen apart), input rebinds (T-0343: in the
+overlay's Settings, any action to any input, allowed in run mode with no
+flag - "an alternative to macro software"), the gameplay recorder (T-0344,
+T-0436), the inventory / book frame-rate cheat (T-0437, flagged) and the
+always-on lines above the game's messages (T-0438). Dropped: per-spot
+settings rules (T-0153 - a practice spot should not limit practice; run
+spots already have run mode's per-category rules).
 
 **After v1:** the bot and knowledge work (paused), T-0046 (maintainability,
 a lighter repo), T-0291 (a light build without the practice tools), T-0293
@@ -447,7 +454,8 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   (T-0324). Details (author, 2026-10-15): where the game hides its grid
   (inventory open, its HUD off, cutscenes / sleep) the lines fall back to
   overlay text in the same spot, so a recording always shows them; ours
-  sit lowest in the stack, the game's passing messages above; no "ON
+  sit at the top of the stack, the game's passing messages under them
+  (author, 2026-10-19, T-0438; was lowest); no "ON
   NOW" title line, but higher contrast than the game's plain yellow so
   they are clearly visible - if that turns out a gimmick or still hard to
   see, something else; the input overlay's default moves out of the
