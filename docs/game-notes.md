@@ -2134,11 +2134,18 @@ false, radius 0.96 x scale 2.7 = ~2.6 m, plus `UnderfootSurface`); the
 **Mid** view (at ~30 m) has the same sphere as a **trigger**, so a rock
 that far has no solid collider at all - a raycast through its middle hit
 the ground 15 m behind it. The sphere is not the rock's shape either:
-paint on it floated off the rock and sank into it.
+paint on it floated off the rock and sank into it. The `collision` child
+is layer 0 `Default`, tag **`jumpObject`** (bridge 2026-10-19, T-0352:
+radius 0.98 x lossy scale 2.67; `GameObject.FindGameObjectsWithTag
+jumpObject` near (436, 78, 0) gave only the rocks' `collision` / `jumpPos`
+children; the game's own code also tags fences `jumpObject`).
+`Physics.OverlapSphere(<drawn rock point>, 1.2, ..., Collide)` finds the
+trigger where `Ignore` finds nothing.
 
 **Bushes.** `Pool_Bushes/GreenBush_High(Clone)` (layer 12 `treeSmall`, tag
 `SmallTree`, `BushDamage`, `touchBendingCollisionGS`) carries a trigger
-`SphereCollider` on its root; the Mid view had none within 1.2 m.
+`SphereCollider` on its root (tag `SmallTree`, not `jumpObject`); the
+Mid view had none within 1.2 m.
 
 **Cave walls far off.** Arriving in Cave 6 from the surface, its back
 wall seen from 29 m is a coarser mesh: +-17 cm off the full mesh along

@@ -67,6 +67,13 @@ namespace ForestOverlay.Game
         private const float ProbeSlack = 1.5f, ProbeSlackShare = 0.05f;
         /// ... or this close to some collider (a rock's sphere sits within ~1 m of the rock).
         private const float NearCollider = 1.2f;
+        /// A pooled rock's view seen from ~30 m (Pool_Rocks/Rock05_NoMossMid,
+        /// child `collision`) has its sphere as a trigger, so no solid
+        /// collider is near the drawn rock; that trigger is tagged
+        /// jumpObject, a bush's (GreenBush_High root) SmallTree (bridge
+        /// 2026-10-19, T-0352). Only a trigger with this tag counts.
+        private const string RockTriggerTag = "jumpObject";
+        private static readonly Collider[] Nearby = new Collider[32];
         /// A mesh / terrain collider this close to the drawn surface is taken
         /// instead of it: metres, or a share of the distance if more.
         private const float SnapSlack = 0.3f, SnapSlackShare = 0.03f;
@@ -127,8 +134,9 @@ namespace ForestOverlay.Game
         // --- aiming ---------------------------------------------------------
 
         /// The surface under the crosshair (the middle of the player's view),
-        /// up to `range` m. Triggers, the player's own layer and Ignore
-        /// Raycast are skipped. The drawn surface (Game/SurfaceProbe) when
+        /// up to `range` m. Triggers (but a far rock's trigger sphere counts
+        /// as near the drawn rock: NearRockTrigger), the player's own layer
+        /// and Ignore Raycast are skipped. The drawn surface (Game/SurfaceProbe) when
         /// it agrees with the collider the ray hits, else the collider: a
         /// leaf or a bush far in front of it is not painted on. Where the
         /// collider is the terrain, or a mesh at least SnapFrom away, and
@@ -170,9 +178,11 @@ namespace ForestOverlay.Game
                         return true;
                     }
                     // Or a collider close by: the crosshair on a rock's edge
-                    // misses its smaller sphere and hits the ground behind.
+                    // misses its smaller sphere and hits the ground behind
+                    // (a far rock's sphere is a trigger: NearRockTrigger).
                     if (!hitAny || off <= ProbeSlack + ProbeSlackShare * dist
-                        || Physics.CheckSphere(sp, NearCollider, mask, QueryTriggerInteraction.Ignore))
+                        || Physics.CheckSphere(sp, NearCollider, mask, QueryTriggerInteraction.Ignore)
+                        || NearRockTrigger(sp, mask))
                     {
                         point = sp;
                         normal = sn;
@@ -195,6 +205,21 @@ namespace ForestOverlay.Game
             normal = hit.normal;
             LastFrom = AimSource.Collider;
             return true;
+        }
+
+        /// A pooled rock's trigger sphere (RockTriggerTag) within NearCollider
+        /// of `p`. No allocation: a fixed buffer, cleared after.
+        private static bool NearRockTrigger(Vector3 p, int mask)
+        {
+            int n = Physics.OverlapSphereNonAlloc(p, NearCollider, Nearby, mask, QueryTriggerInteraction.Collide);
+            bool found = false;
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = Nearby[i];
+                if (!found && c != null && c.isTrigger && c.CompareTag(RockTriggerTag)) found = true;
+                Nearby[i] = null;
+            }
+            return found;
         }
 
         public enum AimSource { Collider, Surface, SurfaceCollider }
