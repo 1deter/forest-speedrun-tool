@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.368 - 2026-10-19
+
+- Internal clean-up: an unused piece of HUD profile code is removed; nothing changes in game.
+
 ## v0.24.367 - 2026-10-19
 
 - In a run mode attempt played with ModAPI, the HUD's run line now names what you just did that made the attempt not valid, with ModAPI after it, instead of only ModAPI Detected.
