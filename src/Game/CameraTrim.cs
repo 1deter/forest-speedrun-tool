@@ -147,6 +147,8 @@ namespace ForestOverlay.Game
         public bool CaveGrassOn { get; private set; }
         public bool CaveSurfaceOn { get; private set; }
         public bool ParticlesOn { get; private set; }
+        /// The mask bits the particle cut keeps on the main camera (0 = no cut); read by DeathSequence.
+        public static int CutBits { get; private set; }
 
         private Camera _grassOff;
         private Camera _grassBend;      // the controller's camera, when _grassOff was switched off
@@ -179,7 +181,7 @@ namespace ForestOverlay.Game
         private Camera _pcamCam;                    // the main camera cut now
         private Behaviour _pcamComp;                // its OffScreenParticleCamera
         private int _pcamBits;
-        private bool _pcamAdded;                    // we OR-ed bits in that were missing
+        private int _pcamAdded;                     // the bits we OR-ed in that were missing
         private int _pcamRefusedId;
 
         public CameraTrim(ManualLogSource log, Harmony harmony)
@@ -454,12 +456,27 @@ namespace ForestOverlay.Game
         private void ReleaseParticles(string why)
         {
             if (_pcamCam == null && _pcamComp == null) return;
-            if (_pcamCam != null && _pcamAdded) _pcamCam.cullingMask &= ~_pcamBits;
+            int before = _pcamCam != null ? _pcamCam.cullingMask : 0;
+            if (_pcamCam != null) _pcamCam.cullingMask &= ~_pcamAdded;
             if (_pcamComp != null) _pcamComp.enabled = true;
-            _log.LogInfo("Performance: particle camera back on (" + why + ").");
+            _log.LogInfo("Performance: particle camera back on (" + why + "); mask " + before + " -> " +
+                         (_pcamCam != null ? _pcamCam.cullingMask : 0) + " (cleared " + _pcamAdded + "); sun shadows " +
+                         ShadowModes(_pcamComp) + ".");
             _pcamCam = null;
             _pcamComp = null;
-            _pcamAdded = false;
+            _pcamAdded = 0;
+            CutBits = 0;
+        }
+
+        // "Sun=Soft, Moon=Soft" for the component's shadow-casting lights.
+        private string ShadowModes(Behaviour comp)
+        {
+            Light[] lights = comp != null ? _pcamLights.GetValue(comp) as Light[] : null;
+            if (lights == null) return "?";
+            string s = "";
+            for (int i = 0; i < lights.Length; i++)
+                if (lights[i] != null) s += (s.Length > 0 ? ", " : "") + lights[i].name + "=" + lights[i].shadows;
+            return s;
         }
 
         // Every frame, before the cameras render.
@@ -472,7 +489,8 @@ namespace ForestOverlay.Game
                 // A new main camera (a load): the old cut went with the old one.
                 _pcamCam = null;
                 _pcamComp = null;
-                _pcamAdded = false;
+                _pcamAdded = 0;
+                CutBits = 0;
                 int id = cam.GetInstanceID();
                 if (id == _pcamRefusedId) return;
                 Behaviour comp = cam.GetComponent(_pcamType) as Behaviour;
@@ -483,6 +501,8 @@ namespace ForestOverlay.Game
                     return;
                 }
                 _pcamBits = ((LayerMask)_pcamLayers.GetValue(comp)).value;
+                string shadowsBefore = ShadowModes(comp);
+                int maskBefore = cam.cullingMask;
                 Light[] lights = _pcamLights.GetValue(comp) as Light[];
                 if (lights != null)
                     for (int i = 0; i < lights.Length; i++)
@@ -490,7 +510,15 @@ namespace ForestOverlay.Game
                 comp.enabled = false;
                 _pcamCam = cam;
                 _pcamComp = comp;
-                _log.LogInfo("Performance: particle camera off, the main camera draws its layers (mask bits " + _pcamBits + ").");
+                CutBits = _pcamBits;
+                int missing = _pcamBits & ~cam.cullingMask;
+                if (missing != 0)
+                {
+                    cam.cullingMask |= missing;
+                    _pcamAdded |= missing;
+                }
+                _log.LogInfo("Performance: particle camera off, the main camera draws its layers (mask bits " + _pcamBits + "); mask " +
+                             maskBefore + " -> " + cam.cullingMask + "; sun shadows " + shadowsBefore + " -> " + ShadowModes(comp) + ".");
             }
             else if (_pcamComp == null || _pcamComp.enabled)
             {
@@ -499,10 +527,11 @@ namespace ForestOverlay.Game
                 ReleaseParticles("the game switched it on again - left to it");
                 return;
             }
-            if ((cam.cullingMask & _pcamBits) != _pcamBits)
+            int absent = _pcamBits & ~cam.cullingMask;
+            if (absent != 0)
             {
-                cam.cullingMask |= _pcamBits;
-                _pcamAdded = true;
+                cam.cullingMask |= absent;
+                _pcamAdded |= absent;
             }
         }
 
