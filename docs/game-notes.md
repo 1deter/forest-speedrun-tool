@@ -180,6 +180,42 @@ enabled), Space still read `GetButton("Jump")` True (the Menu map binds
 Space to Jump) and W read `Vertical` 0. `Player` has `GetButton(int)`,
 `GetNegativeButton(int)`, `GetAxisRaw(int)` by id as well.
 
+**Adding a binding at runtime (bridge + SendInput, 2026-10-19, T-0343,
+v0.24.372).** The live maps of `Input.player`: keyboard maps in
+categories Default 0 (layout **1**, 30 elements on the author's install,
+the only one enabled in play), Menu 2 (Esc, Space = Jump), Inventory 3
+(Esc, G, 1-4, Tab, F, V), Book 4 (Esc, Tab, F); no Chat keyboard map.
+Mouse maps (layout 0): Default 0 (6), Menu 2 (wheel = ScrollY 47, X / Y),
+Inventory 3 (left 36, right 37, X / Y), Book 4 (left 58, X / Y).
+`ReInput.mapping.MapCategories`: only Default is `userAssignable` - the
+only category the game saves, loads and clears. Mouse element ids
+(`ReInput.controllers.Mouse.ElementIdentifiers`): 0 Mouse Horizontal, 1
+Mouse Vertical, 2 Mouse Wheel (Axis), 3 Left, 4 Right, 5 "Mouse Button
+3" (middle), 6 "Mouse Button 4", 7 "Mouse Button 5", 8, 9 (Buttons).
+`ControllerMap.CreateElementMap(9, Positive, 2, Axis, Positive, false)`
+on the Default mouse map made **one wheel notch up (SendInput +120) jump**
+(y 78.48 -> 81.45 -> 78.48); with it deleted the same notch did nothing.
+`CreateElementMap(9, Positive, J, None)` on the Default keyboard map:
+J jumped. `(9, Positive, 6, Button, Full, false)`: the mouse back side
+button (SendInput XBUTTON1, Unity `Mouse3`) jumped. Element map ids are
+unique and increasing (918.. keyboard, 1015.. mouse), a new one is
+appended last. **What the game does with an added element**:
+`InputMappingIcons.RefreshMappings` (run by every `ForceRefreshState`)
+lets the last element per action win, so the HUD's key hint for Jump
+(`KeyboardMappings[8]`) read "J" until the J element was deleted, then
+"Space". `InputMapping.LoadAllMaps` (`InputMappingButtonManager.OnEnable`
+/ `OnDisable` = opening / closing the Controls menu, `InitControllers`,
+a pad connecting) replaced the Default keyboard and mouse map objects
+(new element ids) and the added J was gone. From IL: `SaveAllMaps`
+(the Controls menu's Save) writes every element of the Default maps to
+PlayerPrefs; `InputMappingButton.GetElementMap` lists every keyboard /
+mouse element of the action and a rebind there deletes all of them;
+`LoadAllMaps`' `UpdateActionElementRelationships` rewrites a non-Default
+keyboard element that shares an element and action with a Default one
+(keeping its id). Nothing was written to `HKCU\Software\SKS\TheForest`
+by adding / deleting elements (export diffed: only Unity's session
+timers changed).
+
 ### Mouse and keys as Unity sees them (bridge + SendInput, 2026-10-15, T-0302)
 
 Rewired runs with `ReInput.configuration.windowsStandalonePrimaryInputSource
