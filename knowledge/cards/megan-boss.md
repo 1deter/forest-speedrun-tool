@@ -1,13 +1,13 @@
 ---
 id: megan-boss
 title: Megan's boss fight (how her AI works)
-aliases: megan, megan fight, spear strat, spin attack, spin chance, megan boss, boss fight, final boss, girl boss, girl mutant, spider megan, megan ai, megan attacks, megan babies, boss babies, baby spawn, megan health, kill megan, bombing megan, megan stagger, girlMutant, megan dodge, megan damage, empty health bar, health bar empty
+aliases: megan, megan fight, spear strat, spin attack, spin chance, megan boss, boss fight, final boss, girl boss, girl mutant, spider megan, megan ai, megan attacks, megan babies, boss babies, baby spawn, megan health, kill megan, bombing megan, megan stagger, girlMutant, megan dodge, megan damage, empty health bar, health bar empty, megan cooldown, megan stomp, megan artifact, artifact megan
 tags: endgame, boss, ai, combat
 confidence: live
-checked: 2026-10-08
-sources: docs/fsm/megan-action_combatFSM.txt (exported 2026-10-03, ruben-megan, Normal); decompiled girlMutantAiManager, creepyAnimatorControl, creepyAnimEvents, EnemyHealth, enemyWeaponMelee, spawnMutants, mutantTypeSetup, PlayerStats; PlayMaker.dll; bridge 2026-10-03 and 2026-10-08 (T-0044, game-notes "Megan's boss AI"); game-notes "Deaths"
+checked: 2026-10-19
+sources: docs/fsm/megan-action_combatFSM.txt (exported 2026-10-03, ruben-megan, Normal); decompiled girlMutantAiManager, creepyAnimatorControl, creepyAnimEvents, EnemyHealth, enemyWeaponMelee, spawnMutants, mutantTypeSetup, PlayerStats; PlayMaker.dll; bridge 2026-10-03 and 2026-10-08 (T-0044, game-notes "Megan's boss AI"); bridge 2026-10-19 (T-0206: stomps and the cooldown, the artifact); bridge 2026-10-19 (T-0206: stomps and the cooldown, the artifact); game-notes "Deaths"
 related: endgame-splits, deaths-and-revives, lab-skip, knockback-sources
-code: girlMutantAiManager.setAiParams, girlMutantAiManager.setInitialWeightParams, girlMutantAiManager.setupHealthParams, creepyAnimatorControl.activateGirlMutant, creepyAnimEvents.birthLeft, EnemyHealth.Explosion, EnemyHealth.HitReal, EnemyHealth.HitFire, enemyWeaponMelee, mutantTypeSetup.removeFromSpawn, spawnMutants.updateSpawnConditions, PlayerStats.hitFromEnemy, PlayerStats.RechargeHealth
+code: girlMutantAiManager.setAiParams, girlMutantAiManager.setInitialWeightParams, girlMutantAiManager.setupHealthParams, creepyAnimatorControl.activateGirlMutant, creepyAnimEvents.birthLeft, EnemyHealth.Explosion, EnemyHealth.HitReal, EnemyHealth.HitFire, enemyWeaponMelee, mutantTypeSetup.removeFromSpawn, spawnMutants.updateSpawnConditions, PlayerStats.hitFromEnemy, PlayerStats.RechargeHealth, fatCreepyCharger.OnTriggerEnter, creepyAnimEvents.enableStompLeftLeg, artifactBallEffectSetup.sendEnemyState, mutantTypeSetup.onArtifactRepel, mutantSearchFunctions.findPointAwayFromArtifact
 ---
 
 # Megan's boss fight (how her AI works)
@@ -45,7 +45,15 @@ One cycle, in the FSM's own state names [live: the transition log]:
    `chooseAction` (below).
 3. Attack path: `checkTurns` (turns first if you are more than 135° behind
    her) -> `chanceToDodge` -> `chooseAttack`.
-4. After the attack: a cooldown (up to 0.8 s), then back to step 1.
+4. After the attack: a cooldown of 0.8 s, then back to step 1. **Her
+   stomps cut it short**: when one of her three stomp hit boxes (two legs
+   and the head, each live for 0.5 s of a stomping animation) touches
+   you, it knocks you back and restarts her cycle at once. Her attack
+   animations run longer than the state machine waits for them, so a
+   stomp often lands during the cooldown: live, 3 of 5 cooldowns after a
+   long attack ended early (after 0.08-0.79 s); with the stomp hit boxes
+   removed, 0 of 51 [live]. So a stomp that hits you brings her next
+   attack up to 0.8 s sooner.
 
 `chooseAttack` picks **by distance to her target**, nothing else [live: 130
 picks, each in its band within the timing of the poll]:
@@ -213,6 +221,20 @@ boss room they **do not** die with Megan (three alive 36 s after) [live].
   health**, 1.25x size and 1.1x animation speed. Only there does her death
   kill her babies through `killAllBossBabies` [code].
 
+## The artifact
+
+- **The artifact does nothing to the boss fight Megan.** A placed artifact
+  only signals enemies the game spawned (cannibals, babies, worms); the
+  boss is placed in the room, and she also counts as "in a cave", which
+  makes her ignore the signal [live: the spawned-enemy lists were empty in
+  the fight; a repel signal sent to her straight changed nothing]. Her
+  babies are spawned, so it can reach them [code].
+- **The overworld Megan** (after you have finished the game, she can
+  spawn in the world, at most once every 3 days) does react [code, not
+  checked live]: on **repel** she walks off to a point 250-500 m away from
+  the artifact; **attract** only pulls her while she is wandering (you are
+  beyond about 90-105 m), then she walks to the artifact.
+
 ## Evidence
 
 - FSM export: `docs/fsm/megan-action_combatFSM.txt` (94 states), plus
@@ -229,5 +251,7 @@ boss room they **do not** die with Megan (three alive 36 s after) [live].
 
 - How long a full fight takes with each strategy (within 35 m vs bombs).
 - Melee weapon damage to her by weapon (the thrown spear's 40 is read).
-- The artifact: her FSM has `toRepelArtifact` / `toAttractArtifact`
-  branches (`repelArtifact`, `findArtifact`) that this card does not cover.
+- The overworld Megan with an artifact, live (needs a post-game save and
+  her spawn).
+- Which of her attacks stomp (7 animator states carry the stomp events;
+  live the early ends followed the long attack and the close stomp).

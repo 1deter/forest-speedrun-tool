@@ -64,6 +64,7 @@ you are not turned [code].
 | **Large swinging rock trap** (`trapHit.registerTrapHit`) | the rock moving faster than **11 m/s** sends `Explosion(-1)` to whatever it hits, the player included | works for boosting (author, 2026-10-04: slower to build and less versatile than a small bomb trap) |
 | **Thrown rocks** (`thrownRockDamage`) | a rock moving at **7.2 m/s or more** whose 2 m hit sphere reaches you | enemies' thrown rocks and the projectiles of the player-built **multi-thrower** - see below [live] |
 | **Fat creepy's charge** (`fatCreepyCharger`) | its charge hitting the player | not a setup you control [code] |
+| **Megan's stomps** (the same `fatCreepyCharger`, three hit boxes) | a stomp landing on you: `Explosion(8)` | the boss fight only; it also restarts her attack cycle (megan-boss) [code + live] |
 | Co-op | the server's explosion event | |
 
 **Not a knockback source: melee.** `enemyWeaponMelee` sends `Explosion` to
