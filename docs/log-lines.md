@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 887 log calls.
+256 prefixes from 886 log calls.
 
 ## `ActionReaders`
 
@@ -811,7 +811,6 @@ Written by InputOverlayModule.cs; info / warning.
 - info `Inputs: tile <..>`
 - info `Inputs: tile <..> moved to (<..>, <..>).`
 - info `Inputs: tile <..> resized by dragging to <..>.`
-- info `Inputs: tile <..> scaled to <..>.`
 - info `Inputs: tile <key> added.`
 - info `Inputs: tile <key> got <back> action tile(s) back.`
 - info `Inputs: tile <key><..> removed.`

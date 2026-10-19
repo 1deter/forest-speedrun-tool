@@ -494,9 +494,16 @@ namespace ForestOverlay.Modules
             return v;
         }
 
-        /// "+ Key": the next key pressed becomes a tile.
+        /// "Add input": the next key, mouse button or wheel step becomes a tile.
         private void CaptureKey()
         {
+            if (Input.mouseScrollDelta.y != 0f)
+            {
+                _capturing = false;
+                Host.Hotkeys.ReleaseCapture();
+                AddTile(InputLayout.WheelKey);
+                return;
+            }
             if (!Input.anyKeyDown) return;
             for (int i = 0; i < AllKeys.Length; i++)
             {
@@ -574,15 +581,6 @@ namespace ForestOverlay.Modules
             s.Tile.Shown = shown;
             Commit();
             Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(s.Tile) + (shown ? " shown." : " hidden."));
-        }
-
-        private void SetScale(TileState s, float scale)
-        {
-            float v = InputLayout.ClampScale(Mathf.Round(scale * 4f) / 4f);
-            if (v == s.Tile.Scale) return;
-            s.Tile.Scale = v;
-            Commit();
-            Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(s.Tile) + " scaled to " + v.ToString("0.##") + ".");
         }
 
         private void ResetLayout()
@@ -1038,27 +1036,25 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent OnlyPressedText = new GUIContent("Only while pressed");
         private static readonly GUIContent OnlyPressedAbout = new GUIContent(
             "A key or button tile is drawn only while it is held, exactly as pressed, and not at all otherwise. The mouse is drawn on frames it moves (the Comet also while its tail is still fading) and the wheel only on frames it scrolls. This window still shows every tile so you can place them.");
-        private static readonly GUIContent AddKeyText = new GUIContent("+ Key");
-        private static readonly GUIContent AddKeyWaiting = new GUIContent("Press a key...");
+        private static readonly GUIContent AddKeyText = new GUIContent("Add input");
+        private static readonly GUIContent AddKeyWaiting = new GUIContent("Press an input...");
         private static readonly GUIContent AddKeyTip = new GUIContent(
-            "Press any key or mouse button 3-7 and it becomes a tile. Esc cancels. M1 and M2 are in the buttons below (a click here would be taken as the press).");
+            "Press any key, a mouse button 3-7 or turn the wheel and it becomes a tile. Esc cancels. M1 and M2 have their own buttons (a click here would be taken as the press).");
         private static readonly GUIContent AddMouseBoxText = new GUIContent("+ Mouse box");
         private static readonly GUIContent AddMouseBoxTip = new GUIContent("The mouse's movement as a fading trail (style: Comet or Box, set above).");
-        private static readonly GUIContent AddWheelText = new GUIContent("+ Wheel");
-        private static readonly GUIContent AddWheelTip = new GUIContent("A tile that lights when you scroll.");
+        private static readonly GUIContent TilesTitle = new GUIContent("Tiles");
+        private static readonly GUIContent RemoveSureText = new GUIContent("Sure?");
         private static readonly GUIContent AddM1Text = new GUIContent("+ M1");
         private static readonly GUIContent AddM2Text = new GUIContent("+ M2");
         private static readonly GUIContent ResetText = new GUIContent("Default layout");
         private static readonly GUIContent ResetSureText = new GUIContent("Sure?");
         private static readonly GUIContent ResetTip = new GUIContent("WASD, Shift, Space, Ctrl, M1, M2 and the mouse box, back where they started.");
         private static readonly GUIContent RemoveText = new GUIContent("x");
-        private static readonly GUIContent RemoveTip = new GUIContent("Remove this tile (hide it instead to keep its place).");
-        private static readonly GUIContent SmallerText = new GUIContent("-");
-        private static readonly GUIContent BiggerText = new GUIContent("+");
+        private static readonly GUIContent RemoveTip = new GUIContent("Remove this tile: click twice (hide it instead to keep its place).");
         private static readonly GUIContent BrokenText = new GUIContent(
             "The game gave no mouse movement, so the mouse box stays still.");
-        private readonly GUIContent[] _scaleTexts = new GUIContent[(int)(InputLayout.MaxScale * 4f) + 1];
-        private GUIStyle _centred;
+        private TileState _removeSure;   // the row whose x was clicked once: the next click removes it
+        private float _removeSureUntil;
 
         public override float DrawHudEditor(float y, float w)
         {
@@ -1086,33 +1082,8 @@ namespace ForestOverlay.Modules
             y += 24f;
             y += UiText.Draw(indent, y, w - indent, OnlyPressedAbout, UiKit.HintStyle) + 4f;
 
-            if (_centred == null)
-            {
-                _centred = UiKit.Style(GUI.skin.label);
-                _centred.alignment = TextAnchor.MiddleCenter;
-            }
-            _removeAt = -1;
-            for (int i = 0; i < _states.Count; i++) y = DrawTileRow(i, y, w);
-            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
-            _removeAt = -1;
-
-            // Add buttons, flowing left to right.
-            float x = 0f;
-            float keyW = Mathf.Max(90f, WinPx.CalcSize(GUI.skin.button, AddKeyWaiting).x + 8f, WinPx.CalcSize(GUI.skin.button, AddKeyText).x + 8f);
-            Rect keyR = new Rect(x, y, keyW, 24f);
-            if (UiKit.Toggle(keyR, _capturing, _capturing ? AddKeyWaiting : AddKeyText, GUI.skin.button) != _capturing)
-            {
-                _capturing = !_capturing;
-                if (_capturing) Host.Hotkeys.HoldCapture(); else Host.Hotkeys.ReleaseCapture();
-                SetStatus(_capturing ? "Press the key to add. Esc cancels." : "");
-            }
-            UiKit.Hint(keyR, AddKeyTip);
-            x += keyW + 6f;
-            y = AddButton(ref x, y, w, AddM1Text, null, "Mouse0");
-            y = AddButton(ref x, y, w, AddM2Text, null, "Mouse1");
-            y = AddButton(ref x, y, w, AddWheelText, AddWheelTip, InputLayout.WheelKey);
-            y = AddButton(ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
-            y += 28f;
+            if (UiKit.Section(indent, ref y, w - indent, "hud.inputtiles", TilesTitle, false))
+                y = DrawTiles(indent, y, w - indent);
             if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;
 
             bool armed = _resetArmed && Time.unscaledTime <= _resetUntil;
@@ -1126,6 +1097,31 @@ namespace ForestOverlay.Modules
             y += 30f;
             if (_axisBroken) y += UiText.Draw(0f, y, w, BrokenText, UiKit.HintStyle) + 2f;
             return y + 8f;
+        }
+
+        private float DrawTiles(float x0, float y, float w)
+        {
+            _removeAt = -1;
+            for (int i = 0; i < _states.Count; i++) y = DrawTileRow(x0, i, y, w);
+            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
+            _removeAt = -1;
+
+            // Add controls, flowing left to right; one that is already present is not drawn.
+            float x = 0f;
+            float keyW = Mathf.Max(90f, WinPx.CalcSize(GUI.skin.button, AddKeyWaiting).x + 8f, WinPx.CalcSize(GUI.skin.button, AddKeyText).x + 8f);
+            Rect keyR = new Rect(x0 + x, y, keyW, 24f);
+            if (UiKit.Toggle(keyR, _capturing, _capturing ? AddKeyWaiting : AddKeyText, GUI.skin.button) != _capturing)
+            {
+                _capturing = !_capturing;
+                if (_capturing) Host.Hotkeys.HoldCapture(); else Host.Hotkeys.ReleaseCapture();
+                SetStatus(_capturing ? "Press a key, a mouse button or turn the wheel. Esc cancels." : "");
+            }
+            UiKit.Hint(keyR, AddKeyTip);
+            x += keyW + 6f;
+            if (_layout.Find("Mouse0") == null) y = AddButton(x0, ref x, y, w, AddM1Text, null, "Mouse0");
+            if (_layout.Find("Mouse1") == null) y = AddButton(x0, ref x, y, w, AddM2Text, null, "Mouse1");
+            if (_layout.Find(InputLayout.MouseKey) == null) y = AddButton(x0, ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
+            return y + 30f;
         }
 
         private static readonly GUIContent StyleTitle = new GUIContent("Mouse");
@@ -1195,48 +1191,36 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Inputs: source " + (source == SourceRaw ? "raw input" : "game input"));
         }
 
-        private float AddButton(ref float x, float y, float w, GUIContent text, GUIContent tip, string key)
+        private float AddButton(float x0, ref float x, float y, float w, GUIContent text, GUIContent tip, string key)
         {
             float bw = Mathf.Max(80f, WinPx.CalcSize(GUI.skin.button, text).x + 8f);   // as wide as its words, disabled or not
             if (x + bw > w && x > 0f) { x = 0f; y += 28f; }
-            bool present = _layout.Find(key) != null;
-            Rect r = new Rect(x, y, bw, 24f);
-            GUI.enabled = !present;
+            Rect r = new Rect(x0 + x, y, bw, 24f);
             if (WinPx.Button(r, text)) AddTile(key);
-            GUI.enabled = true;
             if (tip != null) UiKit.Hint(r, tip);
             x += bw + 6f;
             return y;
         }
 
-        // [shown] name ........ [-] 1x [+] [x]
-        private float DrawTileRow(int i, float y, float w)
+        // [shown] name ........ [x]  (a second click on the x removes; the corner square resizes)
+        private float DrawTileRow(float x0, int i, float y, float w)
         {
             TileState s = _states[i];
             if (s.Skip) return y;   // a per-action tile not shown now (raw input)
-            const float step = 26f, scaleW = 40f, gap = 4f;
+            const float removeW = 46f, gap = 4f;
             float h = 22f;
-            float x = w - step;
-            Rect removeR = new Rect(x, y, step, h);
-            if (WinPx.Button(removeR, RemoveText)) _removeAt = i;
+            bool sure = ReferenceEquals(_removeSure, s) && Time.unscaledTime <= _removeSureUntil;
+            Rect removeR = new Rect(x0 + w - removeW, y, removeW, h);
+            if (WinPx.Button(removeR, sure ? RemoveSureText : RemoveText))
+            {
+                if (sure) { _removeSure = null; _removeAt = i; }
+                else { _removeSure = s; _removeSureUntil = Time.unscaledTime + 4f; }
+            }
             UiKit.Hint(removeR, RemoveTip);
-            x -= gap + step;
-            if (WinPx.Button(new Rect(x, y, step, h), BiggerText)) SetScale(s, s.Tile.Scale + 0.25f);
-            x -= scaleW;
-            WinPx.Label(new Rect(x, y, scaleW, h), ScaleText(s.Tile.Scale), _centred);
-            x -= step;
-            if (WinPx.Button(new Rect(x, y, step, h), SmallerText)) SetScale(s, s.Tile.Scale - 0.25f);
-            Rect nameR = new Rect(0f, y, Mathf.Max(40f, x - gap), h);
+            Rect nameR = new Rect(x0, y, Mathf.Max(40f, w - removeW - gap), h);
             bool shown = UiKit.Toggle(nameR, s.Tile.Shown, s.Name);
             if (shown != s.Tile.Shown) SetShown(s, shown);
             return y + 26f;
-        }
-
-        private GUIContent ScaleText(float scale)
-        {
-            int k = Mathf.Clamp(Mathf.RoundToInt(scale * 4f), 0, _scaleTexts.Length - 1);
-            if (_scaleTexts[k] == null) _scaleTexts[k] = new GUIContent((k / 4f).ToString("0.##") + "x");
-            return _scaleTexts[k];
         }
     }
 }
