@@ -74,6 +74,9 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TextKeys = new GUIContent("Keys");
         private static readonly GUIContent TipKeys = new GUIContent(
             "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
+        private static readonly GUIContent TextGameControls = new GUIContent("Game controls");
+        private static readonly GUIContent TipGameControls = new GUIContent(
+            "Extra keys, mouse buttons or wheel directions for the game's own actions, beside the game's bindings.");
         private static readonly GUIContent TextHud = new GUIContent("HUD");
         private static readonly GUIContent TipHud = new GUIContent(
             "The values on screen: the HUD layout editor, the whole HUD's look and which values show.");
@@ -285,6 +288,12 @@ namespace ForestOverlay.Modules
             EnsureStyles();
             HotkeyMap map = Host.Hotkeys;
 
+            // A game-controls capture takes its press before any control
+            // below sees it (the wheel would scroll the page, a click press
+            // a button).
+            GameControlsModule capture = Host.Find<GameControlsModule>();
+            if (capture != null) capture.CaptureEvents();
+
             // One page of folds (T-0226, author 2026-10-08: "a settings tab
             // with folds ... clear and easy to navigate").
             Rect area = new Rect(0, 0, _tabW, _tabH);
@@ -303,6 +312,10 @@ namespace ForestOverlay.Modules
                 y = DrawKeys(y, w, map);
             else if (map.AwaitingRebind != null && !KeyGroups.IsDeveloper(map.AwaitingRebind.Id))
                 map.AwaitingRebind = null;   // a closed fold never keeps a capture armed
+
+            GameControlsModule controls = Host.Find<GameControlsModule>();
+            if (controls != null && UiKit.Section(0f, ref y, w, "settings.gamecontrols", TextGameControls, null, TipGameControls, false))
+                y = controls.DrawSettings(12f, y, w - 24f) + 6f;
 
             if (UiKit.Section(0f, ref y, w, "settings.hud", TextHud, null, TipHud, false))
                 y = DrawHudSettings(y, w);

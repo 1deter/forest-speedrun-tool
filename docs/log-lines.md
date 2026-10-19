@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-252 prefixes from 870 log calls.
+253 prefixes from 876 log calls.
 
 ## `ActionReaders`
 
@@ -596,6 +596,18 @@ Written by FullCapacityWatch.cs; warning.
 
 - warning `FullCapacityWatch: <ex.Message>`
 - warning `FullCapacityWatch: HudGui.ToggleFullCapacityHud not found - "can't carry any more" is not logged.`
+
+## `Game controls`
+
+Meaning: The runner's extra game bindings (Settings > Game controls, T-0343): one added / removed, how many were put into the game's Rewired maps (at start-up and when re-applied after the maps were replaced), a config entry skipped, or why they cannot be applied.
+Written by ExtraBindingMaps.cs, GameControlsModule.cs; info / warning.
+
+- info `Game controls: <applied> extra binding<..> applied<..>.`
+- warning `Game controls: <why>`
+- warning `Game controls: only <n> of <of> of the game's map calls found - the game's Controls menu may list or save the extra bindings.`
+- info `Game controls: added <text> [<b.Token>] (<where>).`
+- info `Game controls: removed <text> [<b.Token>].`
+- warning `Game controls: skipped '<..>' in [Game controls] Bindings - not Action=Input with a key, Mouse0..Mouse6, WheelUp or WheelDown.`
 
 ## `Game event`
 
