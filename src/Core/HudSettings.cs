@@ -236,9 +236,19 @@ namespace ForestOverlay.Core
         /// An installed font's name, "" = the default look (T-0339).
         public string FontName
         {
-            get { return _font.Value ?? ""; }
+            get
+            {
+                string raw = _font.Value ?? "";
+                if (raw != _fontRaw)
+                {
+                    _fontRaw = raw;
+                    _fontResolved = FontPick.Resolved(raw);   // a font that is gone: the default, one warning
+                }
+                return _fontResolved;
+            }
             set { if (_font.Value != value) { _font.Value = value; Version++; } }
         }
+        private string _fontRaw, _fontResolved = "";
 
         public float X { get { return _x.Value; } }
         public float Y { get { return _y.Value; } }

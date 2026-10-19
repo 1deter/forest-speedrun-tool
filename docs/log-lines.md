@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-252 prefixes from 869 log calls.
+252 prefixes from 870 log calls.
 
 ## `ActionReaders`
 
@@ -556,8 +556,9 @@ Written by GameBridge.cs; warning.
 ## `Font`
 
 Meaning: The runner picked a font in Settings > HUD: which one (HUD font or Window font) and the installed font name, or default.
-Written by SettingsModule.cs; info.
+Written by FontPick.cs, SettingsModule.cs; info / warning.
 
+- warning `Font: <..> is not installed - using the default font.`
 - info `Font: <label> <..>`
 
 ## `ForestOverlay`

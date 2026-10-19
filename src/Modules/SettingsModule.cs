@@ -173,7 +173,8 @@ namespace ForestOverlay.Modules
             UiKit.Apply(UiPalette.Find(_theme.Value));
             _windowFontCfg = ctx.Config.Bind("Window", "Font", "",
                 "Font of the F2 window: the name of a font installed on the PC, empty = the default. Pick it in Settings > HUD.");
-            UiKit.SetWindowFont(_windowFontCfg.Value);
+            FontPick.Log = ctx.Log;
+            UiKit.SetWindowFont(FontPick.Resolved(_windowFontCfg.Value));
             int n = UiPalette.All.Length;
             _themeNames = new GUIContent[n];
             _themeTips = new GUIContent[n];
@@ -465,24 +466,27 @@ namespace ForestOverlay.Modules
 
         // A font row (T-0339): the name typed in a field, < and > through the
         // installed fonts, default. One click or Enter = one config write.
-        private float DrawFontRow(float y, float cw, string label, string current, HudSettings hudSettings)
+        private float DrawFontRow(float y, float cw, string label, string current, bool hud, HudSettings hudSettings)
         {
-            bool hud = label[0] == 'H';
             string edit = hud ? _hudFontEdit : _windowFontEdit;
             if (edit == null) edit = current;
             WinPx.Label(new Rect(4, y, 90, 22), label, _labelStyle);
             UiKit.Hint(new Rect(4, y, 90, 22), FontTip);
             string[] names = FontPick.Installed();
             float fieldW = Mathf.Max(80f, cw - 8f - 96f - 142f);
+            // Enter is read BEFORE the field runs (it can eat the event), and
+            // only while this field has the focus.
+            string control = hud ? "fontHud" : "fontWindow";
+            Event e = Event.current;
+            bool enter = e != null && e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
+                         && GUI.GetNameOfFocusedControl() == control && edit != current;
+            GUI.SetNextControlName(control);
             string typed = WinPx.TextField(new Rect(96, y, fieldW, 22), edit);
             if (typed != edit)
             {
                 edit = typed;
                 _fontMessage = "";
             }
-            Event e = Event.current;
-            bool enter = e != null && e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
-                         && edit != current;
             float x = 96 + fieldW + 4;
             string pick = null;
             if (WinPx.Button(new Rect(x, y, 30, 22), "<")) pick = FontNames.Step(names, current, -1);
@@ -560,8 +564,8 @@ namespace ForestOverlay.Modules
             if (WinPx.Button(new Rect(236, y, 70, 22), "default")) s.TextSize = 0;
             y += 26f;
 
-            y = DrawFontRow(y, cw, "HUD font", s.FontName, s);
-            y = DrawFontRow(y, cw, "Window font", UiKit.WindowFont, s);
+            y = DrawFontRow(y, cw, "HUD font", s.FontName, true, s);
+            y = DrawFontRow(y, cw, "Window font", UiKit.WindowFont, false, s);
             if (_fontMessage.Length > 0) y += UiText.Draw(4, y, cw - 8, _fontMessage) + 2f;
 
             float placeH = Mathf.Max(22f, UiText.Draw(4, y, cw - 8, _placeText));
