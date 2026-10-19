@@ -87,7 +87,9 @@ explorer, TAS, QA; drawn by Settings, T-0263) - each fold drawn by the
 module that owns it (T-0226). Settings is one page of folds: Keys, HUD,
 Performance, Loads and savestates; its key list and HUD values sit under
 short headings (`Data/KeyGroups`, `HudLines.HeadingAt`, T-0263). **One setting, one feature** (T-0253): Settings > HUD
-puts the HUD-wide options (compact, text size, position) above the values
+puts the HUD-wide options (compact, text size, position, the HUD and F2
+window fonts - `[HUD] Font` / `[Window] Font`, installed PC fonts,
+`Core/FontPick` + `Data/FontNames`, T-0339) above the values
 (T-0018: no info box - a column of values, placed values, orange flags); Runs keeps the run lines' options under *Run lines* (shown
 only while on; your own line is hidden while a run is going unless
 `[Runs] RunLineOwnLive` is on, T-0393) and the ghost's switch + an opacity for the ghost and replay
