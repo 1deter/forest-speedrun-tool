@@ -460,3 +460,5 @@ Confirmed 2026-10-18 (game, bridge, v0.24.349): **a segment with check = event r
 - T-0066 v0.24.362: capture removes the story-spot tape the reload brought back ("removed 1 story-spot pickup(s) ... TapeSticky x1"), Quick load same; after a title load a Quick load logs "pickups - removed 2 ... (Pot x1, TapeSticky x1)", pot/tape gone from the world, left only Rock x1 (greeble noise) (bridge 2026-10-18)
 - Run mode hashes the loaded Assembly-CSharp image (known Steam build 3fcb3958d5c6); file changed on disk leaves the loaded hash (v0.24.363, bridge 2026-10-19)
 - T-0120 v0.24.363: poly checkpoint (L shape) fires only inside the outline (checkpoint 1/1 at both inside points), not in the bounding box's empty notch or outside it (bridge 2026-10-19)
+
+Logs in the inventory, arm reads emptied (v0.24.364, T-0431, bridge 2026-10-19): mod switched on after load, 2 logs stored: axe and repair tool equip (True), HideAllEquiped keeps the store (no stored 2 -> 1 line), repair takes 2 -> 1 and CalcMissingRepairLogs 0, off gives 2 back and Equip 80 is False (vanilla); log line 'on, cap 5 ... 20 holder / repair reads redirected, 33 arm reads emptied', no warnings.
