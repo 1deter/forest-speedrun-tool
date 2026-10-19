@@ -464,3 +464,5 @@ Confirmed 2026-10-18 (game, bridge, v0.24.349): **a segment with check = event r
 - T-0120 v0.24.363: poly checkpoint (L shape) fires only inside the outline (checkpoint 1/1 at both inside points), not in the bounding box's empty notch or outside it (bridge 2026-10-19)
 
 Logs in the inventory, arm reads emptied (v0.24.364, T-0431, bridge 2026-10-19): mod switched on after load, 2 logs stored: axe and repair tool equip (True), HideAllEquiped keeps the store (no stored 2 -> 1 line), repair takes 2 -> 1 and CalcMissingRepairLogs 0, off gives 2 back and Equip 80 is False (vanilla); log line 'on, cap 5 ... 20 holder / repair reads redirected, 33 arm reads emptied', no warnings.
+
+Confirmed 2026-10-19 (game, bridge, build 1a95cd78, v0.24.364 base, unreleased): **particles in the main camera (T-0198): ParticleCam off + layer 1 OR-ed into the mask only; flare, lighter, fire still draw; switch off restores the mask / ParticleCam / Sun+Moon shadows (logged before/after); Cave 6 keeps bit 26 off; Full load re-applies once; a Quick load during the drag-away puts the mask back (frame gain ~0.25-0.34 ms, noisy)**. bridge 2026-10-19.
