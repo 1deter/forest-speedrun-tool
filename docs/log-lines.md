@@ -1285,9 +1285,9 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / 
 - info `Performance: grass-bending camera back on (<why>).`
 - warning `Performance: grass-bending camera in caves failed: <ex.Message>`
 - info `Performance: grass-bending camera off in the cave (<cam.name>).`
-- info `Performance: particle camera back on (<why>).`
+- info `Performance: particle camera back on (<why>); mask <before> -> <..> (cleared <_pcamAdded>); sun shadows <..>.`
 - info `Performance: particle camera left on - <..>.`
-- info `Performance: particle camera off, the main camera draws its layers (mask bits <_pcamBits>).`
+- info `Performance: particle camera off, the main camera draws its layers (mask bits <_pcamBits>); mask <maskBefore> -> <cam.cullingMask>; sun shadows <shadowsBefore> -> <..>.`
 - warning `Performance: particles in the main camera failed: <ex.Message>`
 - info `Performance: sun shadows (Sunshine) rendered every second frame.`
 - info `Performance: sun shadows back to every frame (switch off).`

@@ -322,7 +322,11 @@ namespace ForestOverlay.Game
             if (cam != null && _haveCam)
             {
                 object dragMask = stats != null ? Get(stats, "dragAwayCullingMask") : null;
-                if (dragMask is LayerMask && cam.cullingMask == ((LayerMask)dragMask).value) cam.cullingMask = _cullingMask;
+                // The particle cut OR-s its layer into the mask every frame, the
+                // drag-away's included: compare without those bits, keep them.
+                int cut = CameraTrim.CutBits;
+                if (dragMask is LayerMask && (cam.cullingMask & ~cut) == (((LayerMask)dragMask).value & ~cut))
+                    cam.cullingMask = _cullingMask | cut;
                 if (cam.farClipPlane == WakeFar && cam.nearClipPlane == WakeNear)
                 {
                     cam.nearClipPlane = _near;
