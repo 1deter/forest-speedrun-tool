@@ -3222,6 +3222,37 @@ restart loop is (below). Per source:
   3.2 KB/s (36/s).
 - In caves `mutantController.sortCaveSpawnsByDistance`: a closure + a
   `Comparison<GameObject>` each call, 7.5 KB/s (60/s).
+- **What makes the four removable without changing the game** (T-0203,
+  IL + bridge, 2026-10-19, v0.24.365, Slot 1 surface). Ocean: the key
+  from `NewSpectrumConditionKey` (one caller, `CreateConditions`) is only
+  looked up / compared (`m_conditionCache.ContainsKey` / `Remove`, `!=
+  m_conditions[0].Key`), never stored - a condition makes its own `Key`;
+  keys are immutable (private setters) and `==` is by value after a
+  `ReferenceEquals` shortcut. Live: `spectrumType` UNIFIED, `windSpeed`
+  15, `waveAge` 0.64, `m_ocean.windDir` 290, `numberOfGrids` 4, size 64
+  (`MEDIUM_64_GPU`); `windSpeed` is written only by the ctor, `Update`
+  and Ceto's `GUIDisplay`, `windDir` only by `GUIDisplay`. Cave sort: the
+  `RemoveAll` predicate is already cached in a static
+  (`<>f__am$cache0`); only the `c__AnonStoreyB` closure (holding
+  `target`) and the `Comparison` are new each call. Terrain:
+  `TerrainHelper` (firstpass) reads one alphamap cell (`terrainData.
+  GetAlphamaps(x, z, 1, 1)`) and returns the heaviest layer;
+  `MainTerrain` is the only terrain, 3500 x 3500 m, alphamap 512 x 512 x
+  8 layers (a cell is 6.84 m); `TerrainData.SetAlphamaps` is called only
+  by firstpass `CraterMaker` and UnityScript `terraincomposer_save`, and
+  neither is in the scene (nothing references `alphamapTextures`).
+  Callers: the player's `getTerrainSurface` (every fixed step), the
+  footstep / land sounds of the player and enemies, `Digger`. Fish:
+  `doSpawnCreatures` (only from `callSpawnCreatures`) is the one
+  `StartCoroutine("spawnFish")`; nothing stops it by name (only
+  `OnDisable`'s `StopAllCoroutines`). Its first segment ends in its
+  final `yield return null` (nothing after it) unless it spawns (player
+  within `fishSpawnDist` 30 m and not `fishSpawned`) or despawns; the
+  far case writes `fishPlayerDist`, `fishSpawned = false`,
+  `allFish.Clear()`, `totalFish = 0`; `getClosestPlayer` writes only
+  `closestDist` / `closestPlayer` (the same values on a second call).
+  Live, the nearest spawner (`pondFishSpawner`, 221 m): `fishAmount` 8,
+  every other amount 0, not spawned, `allFish` empty.
 - Ours: the 100% tab's book reader threw 21 `InvalidCastException`s a
   second (3.4 KB/s with their stack traces; fixed T-0033, gotcha 101);
   the bridge's input injection 5 KB/s while it holds a key (fixed).
