@@ -84,7 +84,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent CameraHeading = new GUIContent(
             "Replay camera - Experimental, a practice view (it holds you still while it plays):");
         private static readonly GUIContent CameraHelp = new GUIContent(
-            "Plays the comparison run back and follows its ghost. Close this window to use the keys: Space play / pause, " +
+            "Plays the comparison run back and follows its ghost (your own recording: Recorder, above). Close this window to use the keys: Space play / pause, " +
             "Left / Right 1 s back / on (Shift 5 s), , and . one frame while paused, Up / Down faster / slower, " +
             "1 chase, 2 first person, 3 trajectory, 4 free (V cycles), R from the start, Esc stops. " +
             "Free: W A S D fly, Q / E down / up, Shift faster, hold the right mouse button to look. " +
