@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.365 - 2026-10-19
+
+- Flames, sparks, sheens, building ghosts and rain are drawn by the main camera instead of a second one: about 0.25-0.37 ms a frame faster on the author's machine (measured). They may look very slightly different; Settings > Performance > "Particles: draw them in the main camera" turns it off.
+
 ## v0.24.364 - 2026-10-19
 
 - Logs in the inventory: with logs stored you can equip the axe, the repair tool or any other right-hand item again.
