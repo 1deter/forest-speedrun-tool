@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.375 - 2026-10-19
+
+- Runs tab: a Recorder - Record, play anything (no spot needed), Done, then watch it in the replay camera; each recording can be watched or removed.
+- The replay bar shows the keys you pressed, the items on your 1-4 hotkeys and the values you pick (Ghost and replay; the website's list by default).
+- The replay camera has a free view (key 4) you fly with W A S D.
+
 ## v0.24.374 - 2026-10-19
 
 - Settings > Game controls now works: extra bindings were not applied in v0.24.373.
