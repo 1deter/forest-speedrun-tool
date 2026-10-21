@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.385 - 2026-10-21
+
+- Input overlay, Add input: scrolling the list while it waits for a key no longer adds a Mouse wheel tile.
+- Input overlay, Edit HUD: the add-row message clears after you hide, move or resize a tile or close Edit HUD, and the + Key tip no longer covers it while waiting.
+
 ## v0.24.384 - 2026-10-21
 
 - The overlay's always-on lines (ON NOW, practice marker, run mode, test bridge) now sit at the top of the game's bottom-left messages, with item pickups below them.
