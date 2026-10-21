@@ -111,6 +111,32 @@ namespace ForestOverlay.Tests
             Assert.False(c.Due(120, 123, 91, false));
         }
 
+        private static ulong Sig(params int[] identities)
+        {
+            ulong s = ModCounts.EmptySignature;
+            foreach (int id in identities) s = ModCounts.FoldAssembly(s, id);
+            return s;
+        }
+
+        [Fact]
+        public void TheAssemblySignatureSeesASwapUnderTheSameCount()
+        {
+            // Live v0.24.399: Assembly.Load(bytes) under a loaded name swapped
+            // the domain's entry - 51 assemblies before and after.
+            ulong before = Sig(11, 22, 33, 44);
+            Assert.NotEqual(before, Sig(11, 22, 99, 44));      // one swapped, same count
+            Assert.NotEqual(before, Sig(11, 22, 33, 44, 55));  // one added
+            Assert.NotEqual(before, Sig(11, 22, 33));          // one gone
+            Assert.Equal(before, Sig(44, 33, 22, 11));         // the order does not count
+            Assert.NotEqual(Sig(0), Sig());                    // an identity of 0 still counts
+            Assert.NotEqual(Sig(-1), Sig(1));
+
+            var c = new ModCounts();
+            Assert.True(c.Due(119, 122, before, false));
+            Assert.False(c.Due(119, 122, Sig(44, 33, 22, 11), false));
+            Assert.True(c.Due(119, 122, Sig(11, 22, 99, 44), false));
+        }
+
         [Fact]
         public void AddedNamesWhatTurnedUp()
         {

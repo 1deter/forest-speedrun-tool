@@ -51,7 +51,7 @@ namespace ForestOverlay.Game
             // one-shot Assembly.Load(bytes) raised no event (live, v0.24.398).
             bool loaded = _loaded;
             _loaded = false;
-            if (!_counts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblyCount(), loaded)) return;
+            if (!_counts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblySignature(), loaded)) return;
             Look();
         }
 
