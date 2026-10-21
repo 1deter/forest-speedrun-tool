@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.401 - 2026-10-21
+
+- Run mode now notices when already-loaded code is swapped for a copy loaded from memory, and logs what changed.
+
 ## v0.24.400 - 2026-10-21
 
 - Run mode now catches code loaded from memory even when it replaces something already loaded under the same name.
