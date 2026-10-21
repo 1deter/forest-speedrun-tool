@@ -96,7 +96,7 @@ namespace ForestOverlay.Modules
             _lineBySpeedCfg = ctx.Config.Bind("Runs", "RunLineBySpeed", false,
                 "Colour the comparison line along its length by the speed it was run at (green fast, amber, red slow) instead of one colour.");
             _markFieldsCfg = ctx.Config.Bind("Runs", "RunLineCheckpoints", MarkSpec.Default,
-                "What the comparison line's checkpoint markers show: off, dot (dots only), or comma-separated label fields: time, delta, segment, speed, ch:<stat> (e.g. ch:Health), item:<item> (e.g. item:Soda).");
+                "What the comparison line's checkpoint dots show: off, dot (dots only), or comma-separated label fields: time, delta, segment, speed, ch:<stat> (e.g. ch:Health), item:<item> (e.g. item:Soda).");
             // v0.24.316-333's default moves to the new one once (T-0400);
             // the marker keeps a later "time,delta" chosen by hand.
             ConfigEntry<bool> moved = ctx.Config.Bind("Runs", "RunLineCheckpointsMoved", false,
@@ -154,7 +154,7 @@ namespace ForestOverlay.Modules
         }
 
         private static readonly GUIContent TipMarks = new GUIContent(
-            "What the comparison line's checkpoint markers show: nothing, only the dots, or the dots with a label of the fields you pick.");
+            "What the comparison line's checkpoint dots show: nothing, only the dots, or the dots with a label of the fields you pick.");
         private static readonly GUIContent TipMarkTime = new GUIContent("The comparison run's time at the checkpoint.");
         private static readonly GUIContent TipMarkDelta = new GUIContent("Your time against it, once your run is past the checkpoint (green ahead, red behind).");
         private static readonly GUIContent TipMarkSegment = new GUIContent("How long the comparison run took from the checkpoint before to this one.");
