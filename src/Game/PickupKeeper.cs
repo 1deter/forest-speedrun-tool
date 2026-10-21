@@ -928,24 +928,48 @@ namespace ForestOverlay.Game
             if (poses != null)
             {
                 List<int> remake = DroppedPoses.ToRemake(poses, present);
-                for (int i = 0; i < remake.Count; i++)
-                {
-                    DroppedPoses.Pose p = poses[remake[i]];
-                    GameObject copy = null;
-                    try { copy = RemakeCopy(p); }
-                    catch (Exception ex) { _log.LogWarning("PickupKeeper: could not make item " + p.Item + " again: " + ex.Message); }
-                    if (copy == null) continue;
-                    Remade rm = new Remade();
-                    rm.Copy = copy;
-                    rm.CapturedId = remake[i];
-                    RemadeFrom[copy.GetInstanceID()] = rm;
-                    NoteTimer(copy, p);
-                    int had;
-                    res.RemadeCounts.TryGetValue(p.Item, out had);
-                    res.RemadeCounts[p.Item] = had + 1;
-                    res.Remade++;
-                }
+                RemakeAll(poses, remake, res);
             }
+            return res;
+        }
+
+        private static void RemakeAll(Dictionary<int, DroppedPoses.Pose> poses, List<int> remake, MirrorResult res)
+        {
+            for (int i = 0; i < remake.Count; i++)
+            {
+                DroppedPoses.Pose p = poses[remake[i]];
+                GameObject copy = null;
+                try { copy = RemakeCopy(p); }
+                catch (Exception ex) { _log.LogWarning("PickupKeeper: could not make item " + p.Item + " again: " + ex.Message); }
+                if (copy == null) continue;
+                Remade rm = new Remade();
+                rm.Copy = copy;
+                rm.CapturedId = remake[i];
+                RemadeFrom[copy.GetInstanceID()] = rm;
+                NoteTimer(copy, p);
+                int had;
+                res.RemadeCounts.TryGetValue(p.Item, out had);
+                res.RemadeCounts[p.Item] = had + 1;
+                res.Remade++;
+            }
+        }
+
+        /// T-0422: after a Full load every runtime copy is gone with the
+        /// scene; make each captured `p` pose again (no world check: the
+        /// poses are positions). Call ResumeTimers a frame later.
+        public static MirrorResult RemakeAfterLoad(string dropped)
+        {
+            MirrorResult res = new MirrorResult();
+            TimerCopies.Clear();
+            TimerPoses.Clear();
+            TimerSeen.Clear();
+            if (string.IsNullOrEmpty(dropped)) return res;
+            List<int> gone = new List<int>();
+            foreach (KeyValuePair<int, Remade> kv in RemadeFrom) if (kv.Value.Copy == null) gone.Add(kv.Key);
+            for (int i = 0; i < gone.Count; i++) RemadeFrom.Remove(gone[i]);
+            Dictionary<int, DroppedPoses.Pose> poses = DroppedPoses.Parse(dropped);
+            if (poses == null || poses.Count == 0) return res;
+            RemakeAll(poses, DroppedPoses.ToRemake(poses, null), res);
             return res;
         }
 

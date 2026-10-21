@@ -1893,6 +1893,32 @@ namespace ForestOverlay.Modules
             SetupHold.Release();
         }
 
+        /// T-0422: a Full load clears the dropped copies with the scene; make
+        /// the captured ones again at their poses, timers resumed a frame on.
+        private void RemakeDropped(SavestateFile f)
+        {
+            if (f == null || string.IsNullOrEmpty(f.Dropped)) return;
+            try
+            {
+                PickupKeeper.MirrorResult m = PickupKeeper.RemakeAfterLoad(f.Dropped);
+                if (m.Remade <= 0) return;
+                StringBuilder sb = new StringBuilder();
+                foreach (KeyValuePair<int, int> kv in m.RemadeCounts)
+                    sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
+                Ctx.Log.LogInfo("Savestate after the load: re-made " + m.Remade + " copy(ies) the load cleared (" + sb + ").");
+                Ctx.Runner.StartCoroutine(ResumeDroppedTimers());
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate after the load: re-making dropped copies failed: " + ex.Message); }
+        }
+
+        private IEnumerator ResumeDroppedTimers()
+        {
+            yield return null; // the copies' own Start schedules its 60 s first
+            int n = 0;
+            try { n = PickupKeeper.ResumeTimers(true); } catch (Exception) { }
+            if (n > 0) Ctx.Log.LogInfo("Savestate after the load: despawn timers set as at the capture " + n + ".");
+        }
+
         /// "In game" comes before the world has finished loading: the
         /// streamed cave props and a force-loaded endgame load for seconds
         /// more, and the restart's teleport dropped the runner into the lab
@@ -1945,6 +1971,7 @@ namespace ForestOverlay.Modules
                             (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") +
                             (rope.Length > 0 ? " | " + rope : "") + ".");
             RemoveTakenPickups(f, false);
+            RemakeDropped(f);
             Ctx.Runner.StartCoroutine(RemoveLatePickups(f));
             // A load regrows every bush; the ones cut at capture go again.
             string again = f != null ? _nature.ApplyCuts(f.CutBushes) : "";
