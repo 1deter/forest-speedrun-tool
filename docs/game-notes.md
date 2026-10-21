@@ -2594,6 +2594,26 @@ re-armed at 4 s under `timeScale` 0.25, a rock was still there 9 s
 (real) later and gone by 21 s. A copy made by `Instantiate` was already
 invoking when it was next listed (its `Start` had run).
 
+**Dropped copies across a Full load (bridge, 2026-10-21, T-0422,
+v0.24.392).** The `Stick_Dynamic` / `Rock_Dynamic` prefabs carry no
+`UniqueIdentifier` or `StoreInformation` (Stick: `MeshFilter`,
+`MeshRenderer`, `BoxCollider`, `Rigidbody`, `destroyAfter`, `rockSound`,
+`FixRackPosition`; Rock the same less the renderer and rack fix, plus
+`PhysicsSfx`), so the game's save never holds them: a stick and a rock
+dropped at (428, 78, -4) and captured (`dropped` line `...@p,t4.06`) were
+gone after `restore t422a load` (`find _Dynamic` 0). `Object.Instantiate(
+prefab, captured pos, captured rot)` on the frame after the restore's done
+callback (the end of the Full load's hold, ~1 s after "in game") made both
+at their captured positions (to the 0.01 m listed); they still lay there
+12 s later (past `RemoveLatePickups`' 10 s), `IsInvoking destroyMe` True a
+few frames on; `CancelInvoke` + `InvokeRepeating destroyMe 8 10` with the
+player 30 m off: there at +5 s, gone by +11 s. **The world key changes with
+a Full load** (`NatureKeeper.WorldKey` `18ff7ac5-2026110` at the capture,
+`18ff7ac5-2543666` after), so a later Quick load of the same capture is
+"another world" (threshold 0): it removed two hand-made copies at the
+captured poses (`removed 2 item(s) made since the capture (Stick x1, Rock
+x1)`) and made none again.
+
 **Live animals sit at the scene root too (bridge, 2026-10-18, T-0415).**
 `AnimalSpawnController` spawns from `PoolManager.Pools["creatures"]`
 (`Pooling/Pool_Creatures`, `dontReparent` true), so `rabbitGo(Clone)00n`
