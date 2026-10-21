@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -44,6 +44,8 @@ namespace ForestOverlay.Modules
         private SavestateModule _savestates;
         private bool _runSpeedFlagged, _runSpeedWarned;   // the run / swim speed flag is once per attempt; the missing-field warning once
         private readonly TimeScaleWatch _timeScale = new TimeScaleWatch();   // the time scale episodes of this attempt
+        private readonly ClockWatch _clockWatch = new ClockWatch();   // game time ahead of real time (T-0414 F1)
+        private bool _captureFlagged, _moveFlagged, _moveWarned;   // capture frame rate / movement constants: once per attempt
         private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
         private bool _loaded;               // last frame: in a loaded game
         private bool _attemptOpen;          // an attempt is running (not reset yet)
@@ -124,6 +126,20 @@ namespace ForestOverlay.Modules
                 string speed = _timeScale.Frame(scale, excused, zeroOk, Time.unscaledDeltaTime, out speedEnd);
                 if (speed != null) Ctx.Run.Flag(speed);
                 if (speedEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedEnd);
+                // The game clock against real time (T-0414 F1): only while the
+                // time scale reads 1 or less - a plain 2 is the time-scale
+                // watch's one flag, not two.
+                string clockEnd;
+                string clock = _clockWatch.Frame(Time.deltaTime, Time.unscaledDeltaTime, scale, excused || scale > 1f, out clockEnd);
+                if (clock != null) Ctx.Run.Flag(clock);
+                if (clockEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + clockEnd);
+                // Time.captureFramerate has no game writer (F2).
+                if (!_captureFlagged)
+                {
+                    string cap = SpeedCheck.CaptureRateFlag(Time.captureFramerate);
+                    if (cap != null) { _captureFlagged = true; Ctx.Run.Flag(cap); }
+                }
+                if (!excused && !_moveFlagged) CheckMovement();
                 // The player's run / swim speed (_speedyrun writes 60 / 20): first time per attempt.
                 if (!excused && !_runSpeedFlagged)
                 {
@@ -145,6 +161,25 @@ namespace ForestOverlay.Modules
             TickCategories();
             RebuildText();
             RebuildCategoryText();
+        }
+
+        // The player's movement constants and the physics settings (T-0414
+        // F3, D1): first time per attempt.
+        private void CheckMovement()
+        {
+            float walk, strafe, crouch, jump, gravity;
+            if (SpeedRead.TryReadMovement(out walk, out strafe, out crouch, out jump, out gravity))
+            {
+                Vector3 g = Physics.gravity;
+                string mv = SpeedCheck.MovementFlag(walk, strafe, crouch, jump, gravity, g.x, g.y, g.z,
+                                                    Time.fixedDeltaTime, _report != null && _report.Multiplayer);   // read at the start: no reflection a frame
+                if (mv != null) { _moveFlagged = true; Ctx.Run.Flag(mv); }
+            }
+            else if (SpeedRead.MovementMissing && !_moveWarned)
+            {
+                _moveWarned = true;
+                Ctx.Log.LogWarning("Run mode: the player's movement fields were not found - that watch is off.");
+            }
         }
 
         private void OnGameLoaded()
@@ -232,7 +267,10 @@ namespace ForestOverlay.Modules
             ResetMoves();
             ResetAudit();
             _timeScale.Reset();
+            _clockWatch.Reset();
             _runSpeedFlagged = false;
+            _captureFlagged = false;
+            _moveFlagged = false;
             _attemptOpen = true;
 
             _report = new RunReport();
@@ -269,6 +307,8 @@ namespace ForestOverlay.Modules
             FlushAudit();   // items / bursts still being merged, likewise
             string speedLeft = _timeScale.End();   // a speed change still running when the attempt ends
             if (speedLeft != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedLeft);
+            string clockLeft = _clockWatch.End();
+            if (clockLeft != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + clockLeft);
             _attemptOpen = false;
             Ctx.Run.Reset();
             CheckCategoriesSoon();   // a new version is ready for the next attempt
