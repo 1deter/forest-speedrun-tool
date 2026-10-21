@@ -118,11 +118,16 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void APassedCheckpointLingersInTheAheadWindow()
+        public void TheLastPassedCheckpointIsTheOneToKeep()
         {
-            Assert.False(CheckpointMarks.Shown(8f, true, 10f, 15f));
-            Assert.True(CheckpointMarks.Shown(8f, true, 10f, 15f, 4f));
-            Assert.False(CheckpointMarks.Shown(5f, true, 10f, 15f, 4f));
+            float nan = float.NaN;
+            // 3 checkpoints + the end (4 markers), your run has 4 rows.
+            Assert.Equal(-1, CheckpointMarks.LastPassed(4, new float[] { nan, nan, nan, nan }));
+            Assert.Equal(0, CheckpointMarks.LastPassed(4, new float[] { 9f, nan, nan, nan }));
+            // Behind the reference: passed in your own time, whatever the comparison clock says.
+            Assert.Equal(1, CheckpointMarks.LastPassed(4, new float[] { 9f, 30f, nan, nan }));
+            Assert.Equal(3, CheckpointMarks.LastPassed(4, new float[] { 9f, 30f, 50f, 70f }));
+            Assert.Equal(-1, CheckpointMarks.LastPassed(4, null));
         }
 
         [Fact]

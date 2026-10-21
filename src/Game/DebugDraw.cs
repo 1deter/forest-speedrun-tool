@@ -913,7 +913,8 @@ namespace ForestOverlay.Game
         public int PathCount;
 
         /// Checkpoint markers on the comparison line (T-0371): where its run
-        /// reached each split and its end. A dot with a dark ring each;
+        /// reached each split and its end. A dot with a dark ring each
+        /// (drawn by the module as GUI discs, T-0384);
         /// MarkerOn false = not shown (outside the ahead-only stretch).
         public readonly Vector3[] MarkerPos = new Vector3[ForestOverlay.Data.CheckpointMarks.Max];
         public readonly bool[] MarkerOn = new bool[ForestOverlay.Data.CheckpointMarks.Max];
@@ -952,7 +953,7 @@ namespace ForestOverlay.Game
 
         private Material _material;
 
-        private static readonly Color ReferenceColour = new Color(0.35f, 0.75f, 1f, 0.9f);
+        public static readonly Color ReferenceColour = new Color(0.35f, 0.75f, 1f, 0.9f);
         private static readonly Color CurrentColour = new Color(1f, 0.95f, 0.35f, 0.9f);
         private static readonly Color GhostColour = new Color(1f, 0.35f, 0.75f, 1f);
         private static readonly Color FailedColour = new Color(1f, 0.3f, 0.25f, 0.75f);
@@ -981,7 +982,6 @@ namespace ForestOverlay.Game
         private readonly RibbonPath _path = new RibbonPath();
         private readonly RibbonMesh _ribbon = new RibbonMesh();
         private readonly Vector3[] _marker = new Vector3[10];
-        private readonly Vector3[] _dot = new Vector3[2];
         /// What the last frame drew (bridge: perf and "why nothing").
         public int LastPoints, LastVertices, LastMeshes;
 
@@ -1066,9 +1066,6 @@ namespace ForestOverlay.Game
                     for (int i = 0; i < _marker.Length; i += 2) AddLine(_marker, i, i + 2, ghost);
                 }
             }
-            // Last: it changes the ribbons' offsets.
-            if (MarkerCount > 0 && ReferenceCount - ReferenceStart >= 2)
-                AddDots(t, k, scale, soft - edge, Faded(ReferenceColour, 1f));   // opaque: a dot's ribbons overlap, so any alpha shows the ring through (T-0384)
             _ribbon.End();
 
             // The same meshes, once or twice (T-0370); _Color scales the
@@ -1090,41 +1087,6 @@ namespace ForestOverlay.Game
             LastVertices = _ribbon.Vertices;
             LastMeshes = _ribbon.Meshes;
             DrawTarget.Record(start, _ribbon.Vertices);
-        }
-
-        /// The checkpoint dots (T-0371): each a round-ish blob of four
-        /// short ribbons across each other (up, right and both diagonals,
-        /// every one as long as it is wide - an octagon), the dark ring
-        /// first (all of them) and the line's colour over it. Same
-        /// ribbons, so the line's near clip, cull and fade apply.
-        private void AddDots(Transform cam, float k, float scale, float softPx, Color colour)
-        {
-            float[] o = _ribbon.Offsets;
-            float r = DotRadius * scale, ring = DotRing * scale, sf = Mathf.Max(0.5f, softPx);
-            Color dark = new Color(0f, 0f, 0f, colour.a);
-            Vector3 eye = cam.position, fwd = cam.forward, up = cam.up, right = cam.right;
-            for (int pass = 0; pass < 2; pass++)
-            {
-                float half = pass == 0 ? r + ring : r;
-                o[0] = -half - sf; o[1] = -half; o[2] = -half;
-                o[3] = half; o[4] = half; o[5] = half + sf;
-                Color c = pass == 0 ? dark : colour;
-                for (int i = 0; i < MarkerCount; i++)
-                {
-                    if (!MarkerOn[i]) continue;
-                    Vector3 p = MarkerPos[i];
-                    float depth = Vector3.Dot(p - eye, fwd);
-                    if (depth <= 0.1f) continue;
-                    float w = half * depth / k;   // the half width in metres here
-                    for (int d = 0; d < 4; d++)
-                    {
-                        Vector3 dir = d == 0 ? up : d == 1 ? right : d == 2 ? (up + right) * 0.7071f : (up - right) * 0.7071f;
-                        _dot[0] = p - dir * w;
-                        _dot[1] = p + dir * w;
-                        AddLine(_dot, 0, 2, c);
-                    }
-                }
-            }
         }
 
         private static Color Faded(Color c, float opacity)

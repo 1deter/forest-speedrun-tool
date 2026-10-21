@@ -48,7 +48,6 @@ namespace ForestOverlay.Modules
         private readonly bool[] _markHidden = new bool[CheckpointMarks.Max];
         private readonly float[] _markHiddenAt = new float[CheckpointMarks.Max];
         private const float HiddenEvery = 0.25f;
-        private const float PassedLinger = 4f;   // seconds a passed checkpoint stays in the ahead-only window
 
         /// From UpdateLines: the markers' places (when the comparison
         /// changes), which show, and their texts (when a delta, the
@@ -95,11 +94,14 @@ namespace ForestOverlay.Modules
             bool decimalsMoved = td * 10 + dd != _markDecimals;
             _markDecimals = td * 10 + dd;
 
+            // Ahead-only: the last checkpoint you passed stays until the next.
+            int lastPassed = windowed && !_camOn ? CheckpointMarks.LastPassed(_markCount, _times) : -1;
             for (int i = 0; i < _markCount; i++)
             {
                 // Off: no dots either (and so no labels).
                 _lines.MarkerOn[i] = spec.Mode != MarkSpec.Kind.Off
-                    && CheckpointMarks.Shown(_markT[i], windowed, from, from + LineAhead, PassedLinger);
+                    && (CheckpointMarks.Shown(_markT[i], windowed, from, from + LineAhead)
+                        || (i == lastPassed && CheckpointMarks.Shown(_markT[i], false, 0f, 0f)));
 
                 // Your delta, once your run is past this split (not while
                 // the replay camera plays: nobody is running then).
@@ -172,29 +174,9 @@ namespace ForestOverlay.Modules
                 if (!_lines.MarkerOn[i]) { _markHiddenAt[i] = float.NegativeInfinity; continue; }
                 // Nothing chosen has data at this checkpoint: no label.
                 if (_markText[i].text.Length == 0 && _markDText[i].text.Length == 0) continue;
-                float dist = (_lines.MarkerPos[i] - eye).magnitude;
-                float fade = CheckpointMarks.Fade(dist, RunLineBehaviour.DrawDistance, RunLineBehaviour.FadeShare);
-                if (fade <= 0.02f) continue;
-                Vector3 sp = cam.WorldToScreenPoint(_lines.MarkerPos[i]);
-                if (sp.z <= 0f || sp.x < -100f || sp.x > Screen.width + 100f || sp.y < -50f || sp.y > Screen.height + 50f) continue;
-
-                // Behind things: Hidden drops a label whose dot is behind
-                // scenery, Faint dims it, Drawn through shows it as ever.
-                float shade = 1f;
-                if (_lines.Behind != RunLineBehaviour.BehindThrough)
-                {
-                    float now = Time.unscaledTime;
-                    if (now - _markHiddenAt[i] >= HiddenEvery || now < _markHiddenAt[i])
-                    {
-                        _markHiddenAt[i] = now;
-                        _markHidden[i] = SightCheck.Blocked(eye, _lines.MarkerPos[i]);
-                    }
-                    if (_markHidden[i])
-                    {
-                        if (_lines.Behind == RunLineBehaviour.BehindHidden) continue;
-                        shade = RunLineBehaviour.FaintShare;
-                    }
-                }
+                float dist, fade, sx, sy;
+                if (!MarkInView(i, cam, eye, out dist, out fade, out sx, out sy)) continue;
+                Vector3 sp = new Vector3(sx, Screen.height - sy, 1f);
 
                 int at = n++;
                 while (at > 0 && _markDist[at - 1] > dist)
@@ -204,7 +186,7 @@ namespace ForestOverlay.Modules
                 }
                 _markOrder[at] = i;
                 _markDist[at] = dist;
-                _markFade[at] = fade * shade;
+                _markFade[at] = fade;
                 _markX[at] = sp.x;
                 _markH[at] = ReplayLabels.LineHeight;
                 _markTop[at] = Screen.height - sp.y - lift - ReplayLabels.LineHeight;
@@ -239,6 +221,95 @@ namespace ForestOverlay.Modules
                     DrawMarkPiece(x0 + tw + gap, _markTop[s], dw, _markH[s], _markDText[m], c, a);
                 }
             }
+        }
+
+        /// Is checkpoint `i` in view, and how strongly: its distance, the
+        /// fade (distance and behind-scenery) and its screen place (x, y down).
+        /// Hidden drops one whose dot is behind scenery, Faint dims it,
+        /// Drawn through shows it as ever (T-0370).
+        private bool MarkInView(int i, Camera cam, Vector3 eye, out float dist, out float fade, out float x, out float y)
+        {
+            x = y = 0f;
+            fade = 0f;
+            dist = (_lines.MarkerPos[i] - eye).magnitude;
+            fade = CheckpointMarks.Fade(dist, RunLineBehaviour.DrawDistance, RunLineBehaviour.FadeShare);
+            if (fade <= 0.02f) return false;
+            Vector3 sp = cam.WorldToScreenPoint(_lines.MarkerPos[i]);
+            if (sp.z <= 0f || sp.x < -100f || sp.x > Screen.width + 100f || sp.y < -50f || sp.y > Screen.height + 50f) return false;
+            if (_lines.Behind != RunLineBehaviour.BehindThrough)
+            {
+                float now = Time.unscaledTime;
+                if (now - _markHiddenAt[i] >= HiddenEvery || now < _markHiddenAt[i])
+                {
+                    _markHiddenAt[i] = now;
+                    _markHidden[i] = SightCheck.Blocked(eye, _lines.MarkerPos[i]);
+                }
+                if (_markHidden[i])
+                {
+                    if (_lines.Behind == RunLineBehaviour.BehindHidden) return false;
+                    fade *= RunLineBehaviour.FaintShare;
+                }
+            }
+            x = sp.x;
+            y = Screen.height - sp.y;
+            return true;
+        }
+
+        // The checkpoint dots: one textured disc each (a dark ring, a white
+        // centre tinted to the line's colour), so the alpha is even - the
+        // old four-ribbon dot blended denser in the middle (T-0384).
+        private static Texture2D _dotTex;
+        private const int DotTexSize = 32;
+
+        private static Texture2D DotTexture()
+        {
+            if (_dotTex != null) return _dotTex;
+            Texture2D t = new Texture2D(DotTexSize, DotTexSize, TextureFormat.ARGB32, false, true);
+            t.hideFlags = HideFlags.HideAndDontSave;
+            t.wrapMode = TextureWrapMode.Clamp;
+            t.filterMode = FilterMode.Bilinear;
+            float outer = DotTexSize * 0.5f;
+            float inner = outer * RunLineBehaviour.DotRadius / (RunLineBehaviour.DotRadius + RunLineBehaviour.DotRing);
+            float mid = (DotTexSize - 1) * 0.5f;
+            for (int y = 0; y < DotTexSize; y++)
+                for (int x = 0; x < DotTexSize; x++)
+                {
+                    float d = Mathf.Sqrt((x - mid) * (x - mid) + (y - mid) * (y - mid));
+                    float a = Mathf.Clamp01(outer - d + 0.5f);
+                    float c = Mathf.Clamp01(inner - d + 0.5f);
+                    t.SetPixel(x, y, new Color(c, c, c, a));
+                }
+            t.Apply();
+            _dotTex = t;
+            return t;
+        }
+
+        /// From DrawScreen: the dots under the labels. Repaint only.
+        private void DrawLineMarkDots()
+        {
+            if (_markCount == 0 || _lines == null || !_lines.Show) return;
+            if (MarkSettings.Mode == MarkSpec.Kind.Off) return;
+            if (_lines.ReferenceCount - _lines.ReferenceStart < 2 || _lines.ReferenceOpacity <= 0.01f) return;
+            Event e = Event.current;
+            if (e == null || e.type != EventType.Repaint) return;
+            Camera cam = DrawTarget.View();
+            if (cam == null) return;
+            Vector3 eye = cam.transform.position;
+            float size = 2f * (RunLineBehaviour.DotRadius + RunLineBehaviour.DotRing) * Screen.height / 1080f;
+            Texture2D tex = DotTexture();
+            Color keep = GUI.color;
+            Color tint = RunLineBehaviour.ReferenceColour;
+            float baseA = tint.a * Mathf.Clamp01(_lines.ReferenceOpacity);
+            for (int i = 0; i < _markCount; i++)
+            {
+                if (!_lines.MarkerOn[i]) continue;
+                float dist, fade, sx, sy;
+                if (!MarkInView(i, cam, eye, out dist, out fade, out sx, out sy)) continue;
+                tint.a = baseA * fade;
+                GUI.color = tint;
+                WinPx.DrawTexture(new Rect(sx - size * 0.5f, sy - size * 0.5f, size, size), tex);
+            }
+            GUI.color = keep;
         }
 
         private const float DeltaGap = 6f;
