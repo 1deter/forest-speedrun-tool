@@ -230,7 +230,7 @@ namespace ForestOverlay.Data
         /// another spot's and is not described (T-0401).
         public static string Status(MarkSpec spec, Attempt run, int markers, int splitCount, bool untimed = false)
         {
-            if (spec != null && spec.Mode == MarkSpec.Kind.Off) return "Checkpoint markers are off: no dots, no labels.";
+            if (spec != null && spec.Mode == MarkSpec.Kind.Off) return "Checkpoint dots are off: no dots, no labels.";
             if (untimed) return "This spot is not timed: no checkpoints to show.";
             if (run == null) return "No comparison run yet: its checkpoints show here once one is loaded.";
             if (markers == 0) return "The comparison run has no end time to mark.";
