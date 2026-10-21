@@ -54,7 +54,7 @@ namespace ForestOverlay.Modules
         private RunReport _report;
         private string _reportPath;
         private float _nextCheck;
-        private int _patchCount = -1;
+        private int _patchCount = -1, _detourCount = -1;
         private bool _reportDirty;
 
         private float _confirmUntil;        // End run mode: the second click's window
@@ -288,6 +288,7 @@ namespace ForestOverlay.Modules
             _report.Multiplayer = RunIntegrity.IsMultiplayer();
             RunIntegrity.Gather(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
             _patchCount = RunIntegrity.PatchedCount();
+            _detourCount = RunIntegrity.DetourCount();
             _reportPath = Path.Combine(Path.Combine(Ctx.ConfigDirectory, "run-reports"),
                                        "attempt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
             Watch();
@@ -352,9 +353,11 @@ namespace ForestOverlay.Modules
             }
 
             int patches = RunIntegrity.PatchedCount();
-            if (patches != _patchCount)
+            int detours = RunIntegrity.DetourCount();   // a MonoMod hook is no Harmony patch (T-0414 F6)
+            if (patches != _patchCount || detours != _detourCount)
             {
                 _patchCount = patches;
+                _detourCount = detours;
                 int foreign = _report.ForeignPatches.Count;
                 RunIntegrity.GatherPatches(_report, OverlayPlugin.PluginGuid);
                 if (_report.ForeignPatches.Count > foreign)

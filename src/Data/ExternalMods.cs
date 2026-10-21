@@ -50,13 +50,105 @@ namespace ForestOverlay.Data
             return s.Trim();
         }
 
-        /// "Type.Method (by owner)" -> "owner".
+        /// "Type.Method (by owner)" -> "owner"; "Type.Method (by owner, from
+        /// Assembly)" -> "owner"; "Type.Method (a detour, not Harmony:
+        /// Assembly)" -> "Assembly".
         public static string PatchOwner(string entry)
         {
             string s = Plain(entry);
+            if (!s.EndsWith(")", StringComparison.Ordinal)) return "";
+            const string detour = "(a detour, not Harmony: ";
+            int d = s.LastIndexOf(detour, StringComparison.Ordinal);
+            if (d >= 0) return s.Substring(d + detour.Length, s.Length - d - detour.Length - 1).Trim();
             int at = s.LastIndexOf("(by ", StringComparison.Ordinal);
-            if (at < 0 || !s.EndsWith(")", StringComparison.Ordinal)) return "";
-            return s.Substring(at + 4, s.Length - at - 5).Trim();
+            if (at < 0) return "";
+            string owner = s.Substring(at + 4, s.Length - at - 5);
+            int from = owner.LastIndexOf(", from ", StringComparison.Ordinal);
+            if (from >= 0) owner = owner.Substring(0, from);
+            return owner.Trim();
+        }
+
+        // ------------------------------------------------------------------
+        // Which loaded code is the game's or the platform's (T-0414 F7-F9).
+        // Live baseline on the author's clean install (BepInEx 5.4.23.5).
+
+        /// Assemblies with no file that the game and the platform load
+        /// themselves (both launches of the red team, T-0414).
+        public static readonly string[] KnownInMemory =
+        {
+            "Rewired_Windows", "Rewired_Config_Manager", "Rewired_Config_ManagerA", "MonoMod.Utils.GetManagedSizeHelper",
+        };
+
+        /// The *.dll files of a clean TheForest_Data/Managed (49).
+        public static readonly string[] ManagedFiles =
+        {
+            "AmplifyOcclusion.dll", "Assembly-CSharp-firstpass.dll", "Assembly-CSharp.dll", "Assembly-UnityScript-firstpass.dll",
+            "Assembly-UnityScript.dll", "AsyncBridge.dll", "BaseModLib.dll", "Boo.Lang.dll", "I18N.CJK.dll", "I18N.MidEast.dll",
+            "I18N.Other.dll", "I18N.Rare.dll", "I18N.West.dll", "I18N.dll", "Ionic.Zip.dll", "Mono.Data.Tds.dll", "Mono.Posix.dll",
+            "Mono.Security.dll", "Newtonsoft.Json.dll", "Pathfinding.ClipperLib.dll", "Pathfinding.Ionic.Zip.Reduced.dll",
+            "Pathfinding.JsonFx.dll", "Pathfinding.Poly2Tri.dll", "PlayMaker.dll", "RestSharp.dll", "Rewired_Core.dll",
+            "Rewired_Windows_Lib.dll", "SteamworksManaged.dll", "System.Configuration.dll", "System.Core.dll", "System.Data.dll",
+            "System.EnterpriseServices.dll", "System.Security.dll", "System.Threading.dll", "System.Transactions.dll",
+            "System.Xml.Linq.dll", "System.Xml.dll", "System.dll", "TheForest.Commons.dll", "TheForest.Modding.dll",
+            "UnityEngine.Networking.dll", "UnityEngine.UI.dll", "UnityEngine.dll", "UnityScript.Lang.dll", "bolt.dll",
+            "bolt.user.dll", "mscorlib.dll", "udpkit.common.dll", "udpkit.dll",
+        };
+
+        /// The *.dll files of BepInEx/core in a clean BepInEx 5.4.23.5.
+        public static readonly string[] CoreFiles =
+        {
+            "0Harmony.dll", "0Harmony20.dll", "BepInEx.dll", "BepInEx.Harmony.dll", "BepInEx.Preloader.dll", "HarmonyXInterop.dll",
+            "Mono.Cecil.dll", "Mono.Cecil.Mdb.dll", "Mono.Cecil.Pdb.dll", "Mono.Cecil.Rocks.dll", "MonoMod.RuntimeDetour.dll",
+            "MonoMod.Utils.dll",
+        };
+
+        /// Our patcher's file name; only the one directly in BepInEx/patchers is ours.
+        public const string UpdaterFile = "ForestOverlay.Updater.dll";
+
+        /// True for an assembly with no file that the game or the platform loads itself.
+        public static bool IsKnownInMemory(string name)
+        {
+            return Array.IndexOf(KnownInMemory, name) >= 0;
+        }
+
+        /// The report's line for code with no file.
+        public static string InMemoryEntry(string name)
+        {
+            return name + " (loaded from memory)";
+        }
+
+        /// True when `file` is one a clean install has directly in `managedDir`
+        /// or `coreDir` (paths compare without case and slash direction; a
+        /// subfolder or another name is not trusted).
+        public static bool IsTrustedFile(string file, string managedDir, string coreDir)
+        {
+            if (string.IsNullOrEmpty(file)) return false;
+            string f = Norm(file);
+            int slash = f.LastIndexOf('/');
+            if (slash < 0) return false;
+            string dir = f.Substring(0, slash), name = f.Substring(slash + 1);
+            if (!string.IsNullOrEmpty(managedDir) && dir == Norm(managedDir).TrimEnd('/')) return Has(ManagedFiles, name);
+            if (!string.IsNullOrEmpty(coreDir) && dir == Norm(coreDir).TrimEnd('/')) return Has(CoreFiles, name);
+            return false;
+        }
+
+        /// True for our own patcher: exactly `<patchersDir>/ForestOverlay.Updater.dll`.
+        public static bool IsOurPatcher(string file, string patchersDir)
+        {
+            if (string.IsNullOrEmpty(file) || string.IsNullOrEmpty(patchersDir)) return false;
+            return Norm(file) == Norm(patchersDir).TrimEnd('/') + "/" + UpdaterFile.ToLowerInvariant();
+        }
+
+        private static bool Has(string[] names, string lowerName)
+        {
+            for (int i = 0; i < names.Length; i++)
+                if (names[i].ToLowerInvariant() == lowerName) return true;
+            return false;
+        }
+
+        private static string Norm(string p)
+        {
+            return p.Replace('\\', '/').ToLowerInvariant();
         }
 
         private static string Plain(string s)

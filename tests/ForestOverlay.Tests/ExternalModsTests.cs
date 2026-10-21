@@ -94,5 +94,66 @@ namespace ForestOverlay.Tests
         {
             Assert.Equal("", AttemptFormat.Parse(AttemptFormat.Write(OneSample()).Split((char)10)).Mods);
         }
+
+        // ---- T-0414 F5-F9 ----
+
+        [Fact]
+        public void PatchOwnerReadsTheNewShapes()
+        {
+            Assert.Equal("redteam.cheat", ExternalMods.PatchOwner("ItemDatabase.ItemIdByName (by redteam.cheat)"));
+            Assert.Equal("com.deter.forestoverlay.cheat",
+                         ExternalMods.PatchOwner("ItemDatabase.ItemIdByName (by com.deter.forestoverlay.cheat, from RedTeamProbe)"));
+            Assert.Equal("code with no file", ExternalMods.PatchOwner("ItemDatabase.ItemIdByName (a detour, not Harmony: code with no file)"));
+            Assert.Equal("RedTeamProbe", ExternalMods.PatchOwner("ItemDatabase.ItemIdByName (a detour, not Harmony: RedTeamProbe)"));
+            Assert.Equal("", ExternalMods.PatchOwner("could not list the detours: x"));
+        }
+
+        [Fact]
+        public void TheKnownInMemoryFourAreSkippedOthersListed()
+        {
+            Assert.True(ExternalMods.IsKnownInMemory("Rewired_Windows"));
+            Assert.True(ExternalMods.IsKnownInMemory("Rewired_Config_Manager"));
+            Assert.True(ExternalMods.IsKnownInMemory("Rewired_Config_ManagerA"));
+            Assert.True(ExternalMods.IsKnownInMemory("MonoMod.Utils.GetManagedSizeHelper"));
+            Assert.False(ExternalMods.IsKnownInMemory("RedTeamProbe"));
+            Assert.False(ExternalMods.IsKnownInMemory("rewired_windows"));
+            Assert.Equal("RedTeamProbe (loaded from memory)", ExternalMods.InMemoryEntry("RedTeamProbe"));
+        }
+
+        private const string Managed = @"G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed";
+        private const string Core = @"G:\SteamLibrary\steamapps\common\The Forest\BepInEx\core";
+        private const string Patchers = @"G:\SteamLibrary\steamapps\common\The Forest\BepInEx\patchers";
+
+        [Fact]
+        public void ACleanInstallsFilesAreTrusted()
+        {
+            Assert.Equal(49, ExternalMods.ManagedFiles.Length);
+            Assert.True(ExternalMods.IsTrustedFile(Managed + @"\Assembly-CSharp.dll", Managed, Core));
+            Assert.True(ExternalMods.IsTrustedFile("g:/steamlibrary/steamapps/common/the forest/theforest_data/managed/unityengine.dll", Managed + "\\", Core));
+            Assert.True(ExternalMods.IsTrustedFile(Core + @"\0Harmony.dll", Managed, Core));
+            Assert.True(ExternalMods.IsTrustedFile(Core + @"\Mono.Cecil.Rocks.dll", Managed, Core));
+            Assert.True(ExternalMods.IsTrustedFile(Core + @"\MonoMod.RuntimeDetour.dll", Managed, Core));
+        }
+
+        [Fact]
+        public void AnyOtherFileInTheTrustedFoldersIsNot()
+        {
+            Assert.False(ExternalMods.IsTrustedFile(Managed + @"\RedTeamExtra.dll", Managed, Core));
+            Assert.False(ExternalMods.IsTrustedFile(Managed + @"\sub\Assembly-CSharp.dll", Managed, Core));
+            Assert.False(ExternalMods.IsTrustedFile(Core + @"\Cheat.dll", Managed, Core));
+            Assert.False(ExternalMods.IsTrustedFile(Core + @"\Assembly-CSharp.dll", Managed, Core));   // a Managed name in core
+            Assert.False(ExternalMods.IsTrustedFile(@"G:\Elsewhere\UnityEngine.dll", Managed, Core));
+            Assert.False(ExternalMods.IsTrustedFile("", Managed, Core));
+        }
+
+        [Fact]
+        public void OnlyOurPatchersOwnPathIsOurs()
+        {
+            Assert.True(ExternalMods.IsOurPatcher(Patchers + @"\ForestOverlay.Updater.dll", Patchers));
+            Assert.True(ExternalMods.IsOurPatcher("g:/steamlibrary/steamapps/common/the forest/bepinex/patchers/forestoverlay.updater.dll", Patchers + "\\"));
+            Assert.False(ExternalMods.IsOurPatcher(Patchers + @"\redteam\ForestOverlay.Updater.dll", Patchers));
+            Assert.False(ExternalMods.IsOurPatcher(@"G:\SteamLibrary\steamapps\common\The Forest\BepInEx\plugins\ForestOverlay.Updater.dll", Patchers));
+            Assert.False(ExternalMods.IsOurPatcher(Patchers + @"\RedTeamPatcher.dll", Patchers));
+        }
     }
 }
