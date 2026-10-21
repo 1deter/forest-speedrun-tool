@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.386 - 2026-10-21
+
+- Run lines: show more than one comparison line at once (PB, best segments, a site run), each in its own colour with a name tag.
+- Aim at a run line to see whose it is.
+
 ## v0.24.385 - 2026-10-21
 
 - Input overlay, Add input: scrolling the list while it waits for a key no longer adds a Mouse wheel tile.
