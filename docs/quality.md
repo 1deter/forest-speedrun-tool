@@ -132,7 +132,7 @@ sharing and community packs, the gameplay mods ("ON NOW").
 
 ### Run mode
 
-Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,ExternalModWatch,MoveWatch,RunIntegrity,SpeedRead}.cs` `src/Data/{SpeedCheck,AttemptChain,AttemptOwners,ExternalMods,MoveDetector,PlatformPatches,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `docs/run-mode.md`
+Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,ExternalModWatch,MoveWatch,RunIntegrity,SpeedRead}.cs` `src/Data/{SpeedCheck,AttemptChain,AttemptOwners,ExternalMods,MoveDetector,PlatformPatches,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `tools/RedTeamProbe/` `docs/run-mode.md`
 
 - Verification **A**: MoveDetector (36 + 21 physics), RunAudit,
   RunCategory, RunReport, AttemptChain, SpeedCheck; the e2e `runmode`
