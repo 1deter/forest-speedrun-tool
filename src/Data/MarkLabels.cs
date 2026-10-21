@@ -211,7 +211,7 @@ namespace ForestOverlay.Data
                     }
                 }
                 for (int c = 0; c < spec.Items.Count; c++)
-                    Add(ref sb, spec.Items[c] + " " + run.ItemCountAt(spec.Items[c], t).ToString(CultureInfo.InvariantCulture));
+                    Add(ref sb, ItemWords.Say(spec.Items[c]) + " " + run.ItemCountAt(spec.Items[c], t).ToString(CultureInfo.InvariantCulture));
             }
             return sb == null ? "" : sb.ToString();
         }

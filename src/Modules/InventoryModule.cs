@@ -472,7 +472,7 @@ namespace ForestOverlay.Modules
 
             for (int i = 0; i < stacks.Count; i++)
             {
-                string text = stacks[i].Name + "   x" + stacks[i].Amount +
+                string text = ItemWords.Say(stacks[i].Name) + "   x" + stacks[i].Amount +
                               "   (id " + stacks[i].Id + ")" +
                               (stacks[i].Equipped ? "   [equipped]" : "");
 
