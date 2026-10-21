@@ -623,7 +623,7 @@ namespace ForestOverlay.Modules
             }
         }
 
-        private const int LabelBase = 13;   // the label's size at scale 1
+        private const int LabelBase = 15;   // the label's size at scale 1
 
         // The label is one ratio to its tile at every size (T-0363).
         private void SizeLabels(TileState s)
