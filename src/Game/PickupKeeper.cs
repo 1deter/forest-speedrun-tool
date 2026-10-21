@@ -677,22 +677,24 @@ namespace ForestOverlay.Game
                 {
                     GameObject go = TimerCopies[i];
                     DroppedPoses.Pose p = TimerPoses[i];
-                    if (p.Timer == DroppedPoses.TimerKind.Unknown || go == null || !go.activeInHierarchy) continue;
+                    if (go == null || !go.activeInHierarchy) continue;
                     try
                     {
                         MonoBehaviour mb = go.GetComponent(_destroyAfterType) as MonoBehaviour;
                         if (mb == null || (bool)_useUnscaled.GetValue(mb)) continue;
                         mb.CancelInvoke(DestroyMe);
-                        if (p.Timer == DroppedPoses.TimerKind.Running)
+                        if (p.Timer != DroppedPoses.TimerKind.Stopped)
                         {
+                            // Unknown (file from before T-0418, T-0423): a fresh timer from now.
+                            float age = p.Timer == DroppedPoses.TimerKind.Running ? p.Age : 0f;
                             float time = (float)_destroyTime.GetValue(mb);
                             bool repeating = (float)_destroyDistance.GetValue(mb) > 0f;
-                            float next = DespawnTimer.NextCheck(p.Age, time, repeating);
+                            float next = DespawnTimer.NextCheck(age, time, repeating);
                             if (repeating) mb.InvokeRepeating(DestroyMe, next, DespawnTimer.Interval);
                             else mb.Invoke(DestroyMe, next);
                             TimerStart s;
                             s.Comp = mb;
-                            s.At = Time.time - p.Age;
+                            s.At = Time.time - age;
                             TimerStarts[mb.GetInstanceID()] = s;
                         }
                         n++;
