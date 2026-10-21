@@ -1114,12 +1114,7 @@ namespace ForestOverlay.Modules
 
         private float DrawTiles(float x0, float y, float w)
         {
-            _removeAt = -1;
-            for (int i = 0; i < _states.Count; i++) y = DrawTileRow(x0, i, y, w);
-            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
-            _removeAt = -1;
-
-            // Add controls, flowing left to right; one that is already present is not drawn.
+            // Add controls first, just under the fold header (not below 13+ rows), flowing left to right; one that is already present is not drawn.
             float x = 0f;
             float keyW = Mathf.Max(90f, WinPx.CalcSize(GUI.skin.button, AddKeyWaiting).x + 8f, WinPx.CalcSize(GUI.skin.button, AddKeyText).x + 8f);
             Rect keyR = new Rect(x0 + x, y, keyW, 24f);
@@ -1134,7 +1129,13 @@ namespace ForestOverlay.Modules
             if (_layout.Find("Mouse0") == null) y = AddButton(x0, ref x, y, w, AddM1Text, null, "Mouse0");
             if (_layout.Find("Mouse1") == null) y = AddButton(x0, ref x, y, w, AddM2Text, null, "Mouse1");
             if (_layout.Find(InputLayout.MouseKey) == null) y = AddButton(x0, ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
-            return y + 30f;
+            y += 30f;
+
+            _removeAt = -1;
+            for (int i = 0; i < _states.Count; i++) y = DrawTileRow(x0, i, y, w);
+            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
+            _removeAt = -1;
+            return y;
         }
 
         private static readonly GUIContent StyleTitle = new GUIContent("Mouse");
