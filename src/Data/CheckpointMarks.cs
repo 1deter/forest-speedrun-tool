@@ -34,6 +34,20 @@ namespace ForestOverlay.Data
             return !windowed || (t >= from && t <= to);
         }
 
+        /// The last marker your run has passed (it has a time in `times`), or
+        /// -1. In the ahead-only mode that one stays up until you pass the
+        /// next, so its delta can be read (T-0384).
+        public static int LastPassed(int count, float[] times)
+        {
+            int rows = times == null ? 0 : times.Length;
+            for (int i = count - 1; i >= 0; i--)
+            {
+                int row = Row(i, count, rows);
+                if (row >= 0 && !float.IsNaN(times[row])) return i;
+            }
+            return -1;
+        }
+
         /// Which row of your run's times marker `i` of `count` belongs to, or
         /// -1: the end is always your last row; a checkpoint only when both
         /// runs have the same rows.

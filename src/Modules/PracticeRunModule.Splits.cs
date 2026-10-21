@@ -746,6 +746,7 @@ namespace ForestOverlay.Modules
         public override void DrawScreen()
         {
             DrawReplayLabels();
+            DrawLineMarkDots();
             DrawLineMarkLabels();
             DrawExtraLineLabels();
             Matrix4x4 outer = Host.Hud.Settings.BeginScaled();

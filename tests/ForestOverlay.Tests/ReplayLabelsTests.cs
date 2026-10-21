@@ -103,6 +103,34 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void BoxesMoveUpPastFixedOnes()
+        {
+            float[] cx = { 100f };
+            float[] top = { 200f };
+            float[] w = { 100f };
+            float[] h = { 16f };
+            bool[] shown = { true };
+            float[] fx = { 110f }, ftop = { 195f }, fw = { 100f }, fh = { 16f };
+            bool[] fshown = { true };
+            ReplayLabels.Stack(cx, top, w, h, shown, 1, 2f, fx, ftop, fw, fh, fshown, 1);
+            Assert.Equal(195f - 16f - 2f, top[0]);
+            Assert.Equal(195f, ftop[0]);
+        }
+
+        [Fact]
+        public void TheLastPassedCheckpointIsTheOneToKeep()
+        {
+            float nan = float.NaN;
+            // 3 checkpoints + the end (4 markers), your run has 4 rows.
+            Assert.Equal(-1, CheckpointMarks.LastPassed(4, new float[] { nan, nan, nan, nan }));
+            Assert.Equal(0, CheckpointMarks.LastPassed(4, new float[] { 9f, nan, nan, nan }));
+            // Behind the reference: passed in your own time, whatever the comparison clock says.
+            Assert.Equal(1, CheckpointMarks.LastPassed(4, new float[] { 9f, 30f, nan, nan }));
+            Assert.Equal(3, CheckpointMarks.LastPassed(4, new float[] { 9f, 30f, 50f, 70f }));
+            Assert.Equal(-1, CheckpointMarks.LastPassed(4, null));
+        }
+
+        [Fact]
         public void StackingClearsEveryEarlierBox()
         {
             // Three at the same point: each ends above the one before.
