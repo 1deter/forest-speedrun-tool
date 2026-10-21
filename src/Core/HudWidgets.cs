@@ -828,7 +828,7 @@ namespace ForestOverlay.Core
 
             if (wl != null && wl.Free)
             {
-                Rect dockR = new Rect(cw - PanelW, ry - 4f, PanelW, h);
+                Rect dockR = new Rect(cw - PanelW, ry, PanelW, h);
                 if (WinPx.Button(dockR, PanelText)) Dock(i);
                 UiKit.Hint(dockR, PanelTip);
                 ry += RowH;
