@@ -409,3 +409,5 @@
 {"at": "2026-10-21T13:03:48", "event": "intervene", "run": "R-0032", "round": 5, "what": "author answered T-0423: fresh 60 s timer"}
 {"at": "2026-10-21T13:15:57", "event": "end", "run": "R-0032", "round": 5, "task": "T-0423", "status": "released", "progress": true, "parked": false, "summary": "T-0423 (author: fresh 60 s timer): in a pre-T-0418 savestate a put-back or re-made dropped copy gets a fresh despawn timer, untouched copies keep theirs, unreadable timers now tagged u and left alone (DespawnTimer.Decide, tested). Two checker revises (scope, comments), accepted; released v0.24.394, smoke PASS. In-game check (stripped age) not run yet - context cap.", "tier": "easy", "route": "forest-dev/sonnet/low"}
 {"at": "2026-10-21T13:16:01", "event": "stop", "run": "R-0032", "reason": "5 of 5 rounds done; context cap"}
+{"at": "2026-10-21T19:14:36", "event": "begin", "run": "R-0033", "max_rounds": 5, "bridge": true, "by": "main"}
+{"at": "2026-10-21T21:33:11", "event": "round", "run": "R-0033", "round": 1, "task": "T-0414", "reviews_before": 0}
