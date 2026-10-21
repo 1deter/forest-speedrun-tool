@@ -157,11 +157,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-19 (run R-0029, chain C-0003, unattended):** 5 of 5
-  closed: the 2026-10-14 cleanup's unused members. T-0346 wontfix
-  (stale: T-0338 uses LabelAt), v0.24.368..371 T-0347..T-0350 (one
-  unused member each removed; smoke PASS each). No parked questions.
-
 - **2026-10-19 (author session, v1 scope):** every parked question
   answered (decisions.md *What v1.0 is*): the P4 polish is before v1;
   T-0152 / T-0153 closed; T-0339 (installed fonts, HUD + F2 apart),
@@ -182,6 +177,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0440, T-0441, forest-ux T-0442..T-0447. Parked for the author:
   T-0446, T-0447 (input overlay layout); open: extra bindings in menus?
   **Next:** a fresh session for the next run (`tasks.py next`).
+
+- **2026-10-21 (run R-0031, author started, pipelined, then
+  unattended):** author: pipeline the loop (N+1 builds while N is
+  checked / released), merge only the task being released.
+  Confirmed in game: T-0442..T-0444, T-0446 (v0.24.378..379), T-0447
+  (.380), T-0357 (.381), T-0365 (.382). Released, smoke + tester
+  next: T-0373 (.383, Runs speed graph). Checker-accepted, each on
+  its own branch, release one at a time: T-0438
+  (worktree-agent-a6316d1a5cd068106), T-0445 (-a347e956864ae9821),
+  T-0376 (-af456516af50eb7b5, carries T-0445), T-0374
+  (-a3d87dcc23ef77f41). Built, unchecked, on main unpushed: T-0448
+  (e2e hygiene ignores the task file). Parked: T-0362 (overlay vs
+  run line placement). **Next:** Check T-0448, smoke + test v0.24.383,
+  then release the branches.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

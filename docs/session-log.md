@@ -2,6 +2,13 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-21 (R-0031 handoff)
+
+- **2026-10-19 (run R-0029, chain C-0003, unattended):** 5 of 5
+  closed: the 2026-10-14 cleanup's unused members. T-0346 wontfix
+  (stale: T-0338 uses LabelAt), v0.24.368..371 T-0347..T-0350 (one
+  unused member each removed; smoke PASS each). No parked questions.
+
 ## Moved out 2026-10-19 (R-0030 handoff)
 
 - **2026-10-19 (run R-0028, chain C-0002, unattended):** 1 of 5
