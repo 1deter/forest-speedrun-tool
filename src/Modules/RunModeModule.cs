@@ -129,10 +129,11 @@ namespace ForestOverlay.Modules
                 if (speed != null) Ctx.Run.Flag(speed);
                 if (speedEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedEnd);
                 // The game clock against real time (T-0414 F1): only while the
-                // time scale reads 1 or less - a plain 2 is the time-scale
+                // time scale reads 1 or less, and not the frame after one
+                // that did not (ClockWatch) - a plain 2 is the time-scale
                 // watch's one flag, not two.
                 string clockEnd;
-                string clock = _clockWatch.Frame(Time.deltaTime, Time.unscaledDeltaTime, scale, excused || scale > 1f, out clockEnd);
+                string clock = _clockWatch.Frame(Time.deltaTime, Time.unscaledDeltaTime, scale, excused, out clockEnd);
                 if (clock != null) Ctx.Run.Flag(clock);
                 if (clockEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + clockEnd);
                 // Time.captureFramerate has no game writer (F2).
