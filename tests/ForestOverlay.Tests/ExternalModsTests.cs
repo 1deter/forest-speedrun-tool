@@ -114,8 +114,40 @@ namespace ForestOverlay.Tests
         private static ulong Sig(params int[] identities)
         {
             ulong s = ModCounts.EmptySignature;
-            foreach (int id in identities) s = ModCounts.FoldAssembly(s, id);
+            foreach (int id in identities) s = ModCounts.FoldAssembly(s, id, @"G:\Game\Managed\A" + id + ".dll", id * 7);
             return s;
+        }
+
+        [Fact]
+        public void TheAssemblySignatureSeesTheSameObjectLosingItsFile()
+        {
+            // Live v0.24.400: Assembly.Load(bytes) under a loaded name kept the
+            // same object (identity unchanged, 51 entries) and emptied Location.
+            const string File = @"G:\SteamLibrary\steamapps\common\The Forest\BepInEx\plugins\RedTeamProbe.dll";
+            ulong other = ModCounts.FoldAssembly(ModCounts.EmptySignature, 11, @"G:\Game\Managed\UnityEngine.dll", 5);
+            ulong before = ModCounts.FoldAssembly(other, 4242, File, 77);
+            ulong after = ModCounts.FoldAssembly(other, 4242, "", 77);
+            Assert.NotEqual(before, after);
+            Assert.NotEqual(before, ModCounts.FoldAssembly(other, 4242, File, 78));   // another module version id
+            Assert.Equal(before, ModCounts.FoldAssembly(other, 4242, File, 77));
+            Assert.Equal(ModCounts.FoldAssembly(other, 4242, "", 77), ModCounts.FoldAssembly(other, 4242, null, 77));
+
+            var c = new ModCounts();
+            Assert.True(c.Due(119, 122, before, false));
+            Assert.False(c.Due(119, 122, before, false));
+            Assert.True(c.Due(119, 122, after, false));
+        }
+
+        [Fact]
+        public void TheCodeChangeTextNamesNewAndGoneEntries()
+        {
+            Assert.Null(ExternalMods.ChangeText(new[] { "a.dll" }, new[] { "a.dll" }));
+            Assert.Equal("other code loaded during the attempt: RedTeamProbe (loaded from memory)",
+                         ExternalMods.ChangeText(new[] { "a.dll" }, new[] { "a.dll", "RedTeamProbe (loaded from memory)" }));
+            Assert.Equal("other code changed during the attempt: now Extra (loaded from memory); no longer Extra.dll",
+                         ExternalMods.ChangeText(new[] { "Extra.dll" }, new[] { "Extra (loaded from memory)" }));
+            Assert.Equal("other code changed during the attempt: no longer Extra.dll",
+                         ExternalMods.ChangeText(new[] { "Extra.dll", "b.dll" }, new[] { "b.dll" }));
         }
 
         [Fact]

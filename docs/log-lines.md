@@ -1705,6 +1705,7 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - warning `Run mode: attempt not closed on shutdown: <ex.Message>`
 - info `Run mode: load <_loadsLogged> of <_attemptId>: <span.LengthMs> ms real time, <timed> ms of it on the timer (load-removed time).`
 - info `Run mode: '<s.Name>' (<s.RunCategory>) - starting a run.`
+- warning `Run mode: <codeChange>.`
 - warning `Run mode: another mod patched the game during the attempt: <..>.`
 - info `Run mode: attempt <Ctx.Run.Attempt> - <clockEnd>`
 - info `Run mode: attempt <Ctx.Run.Attempt> - <clockLeft>`
@@ -1713,7 +1714,6 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: attempt <Ctx.Run.Attempt> goes on after Reload save on death.`
 - info `Run mode: attempt <_report.Attempt> ended - <why>; <..>.`
 - info `Run mode: attempt <_report.Attempt> started (<_report.Started>) - practice locked; <..>.`
-- warning `Run mode: other code loaded during the attempt: <..>.`
 - warning `Run mode: report not written: <ex.Message>`
 - warning `Run mode: the player's movement fields were not found - that watch is off.`
 - warning `Run mode: the player's run / swim speed fields were not found - that watch is off.`

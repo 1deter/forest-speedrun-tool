@@ -385,9 +385,9 @@ namespace ForestOverlay.Modules
                 List<string> codeNow = new List<string>(_report.OtherCode);
                 codeNow.AddRange(_report.OtherPlugins);
                 codeNow.AddRange(_report.OtherPatchers);
-                List<string> newCode = ExternalMods.Added(codeBefore, codeNow);
-                if (newCode.Count > 0)
-                    Ctx.Log.LogWarning("Run mode: other code loaded during the attempt: " + string.Join(", ", newCode.ToArray()) + ".");
+                // A new entry, or one that went from its file to memory (T-0414).
+                string codeChange = ExternalMods.ChangeText(codeBefore, codeNow);
+                if (codeChange != null) Ctx.Log.LogWarning("Run mode: " + codeChange + ".");
                 _reportDirty = true;
             }
 
