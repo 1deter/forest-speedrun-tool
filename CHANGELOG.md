@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.387 - 2026-10-21
+
+- Input overlay, Edit HUD: dragging or hiding a tile, or clicking in the F2 window, no longer lights the M1 / M2 tiles.
+
 ## v0.24.386 - 2026-10-21
 
 - Run lines: show more than one comparison line at once (PB, best segments, a site run), each in its own colour with a name tag.
