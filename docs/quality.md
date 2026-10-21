@@ -33,7 +33,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0422, T-0423, T-0424, T-0426, T-0429 | 2026-10-18 |
 | Timed runs | B | A | B | A | B | | 2026-10-21 |
 | Practice | C | A | C | A | B | T-0046, T-0432 | 2026-10-19 |
-| Run mode | B | A | A | A | B | T-0243, T-0413 | 2026-10-19 |
+| Run mode | B | A | A | A | B | T-0243 | 2026-10-21 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
 | Plugin core and UI | B | B | A | A | B | T-0024, T-0302 | 2026-10-21 |
 | Performance and loads | B | B | B | A | B | T-0048 | 2026-10-19 |
@@ -133,8 +133,9 @@ sharing and community packs, the gameplay mods ("ON NOW").
 Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,ExternalModWatch,MoveWatch,RunIntegrity,SpeedRead}.cs` `src/Data/{SpeedCheck,AttemptChain,AttemptOwners,ExternalMods,MoveDetector,PlatformPatches,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `docs/run-mode.md`
 
 - Verification **A**: MoveDetector (36 + 21 physics), RunAudit,
-  RunCategory, RunReport, AttemptChain; the e2e `runmode` journey;
-  confirmed v0.24.241.
+  RunCategory, RunReport, AttemptChain, SpeedCheck; the e2e `runmode`
+  journey; confirmed v0.24.241; the run / swim speed flag (T-0413)
+  confirmed v0.24.392.
 - Legibility **A**: docs/run-mode.md; five partials, none over 450 lines;
   its gotchas carry checks.
 - Stability **A**.
