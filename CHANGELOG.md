@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.384 - 2026-10-21
+
+- The overlay's always-on lines (ON NOW, practice marker, run mode, test bridge) now sit at the top of the game's bottom-left messages, with item pickups below them.
+
 ## v0.24.383 - 2026-10-21
 
 - Runs tab has a new Speed graph: your speed over run time for the comparison run, your current run and the last unfinished run, in their line colours.
