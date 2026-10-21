@@ -1095,9 +1095,9 @@ namespace ForestOverlay.Modules
             }
             y += 28f;
 
-            if (UiKit.Section(indent, ref y, w - indent, "hud.inputtiles", TilesTitle, false))
-                y = DrawTiles(indent, y, w - indent);
-            if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;
+            bool tilesOpen = UiKit.Section(indent, ref y, w - indent, "hud.inputtiles", TilesTitle, false);
+            if (tilesOpen) y = DrawTiles(indent, y, w - indent);   // draws the status under the add buttons
+            if (!tilesOpen && _status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;
 
             bool armed = _resetArmed && Time.unscaledTime <= _resetUntil;
             Rect resetR = new Rect(0f, y, 120f, 24f);
@@ -1130,6 +1130,7 @@ namespace ForestOverlay.Modules
             if (_layout.Find("Mouse1") == null) y = AddButton(x0, ref x, y, w, AddM2Text, null, "Mouse1");
             if (_layout.Find(InputLayout.MouseKey) == null) y = AddButton(x0, ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
             y += 30f;
+            if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;   // under the clicked button
 
             _removeAt = -1;
             for (int i = 0; i < _states.Count; i++) y = DrawTileRow(x0, i, y, w);
