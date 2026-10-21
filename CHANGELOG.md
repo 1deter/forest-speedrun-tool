@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.398 - 2026-10-21
+
+- Run mode now flags a game clock running faster than real time, a locked capture frame rate, and changed movement or physics values (any physics rate but the default, Low quality physics included).
+- Run mode now lists cheat code it used to miss: MonoMod hooks, code loaded from memory, extra DLLs in the game or BepInEx folders, and a patch borrowing the overlay's ID.
+- A run spot's start state is checked against the one it names; start states are now named by SHA-256 (older spots still match).
+- Starting run mode by hand after practice flags the attempt, and the HUD says the run was not started from a category spot. The test bridge's teleport is refused in a run.
+
 ## v0.24.397 - 2026-10-21
 
 - Checkpoint label, Wrap lines: the delta now sits level with the first line.
