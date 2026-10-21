@@ -30,7 +30,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
-| Savestates | C | A | C | A | C | T-0046, T-0058, T-0423, T-0424, T-0426, T-0429, T-0450 | 2026-10-21 |
+| Savestates | C | A | C | A | C | T-0046, T-0058, T-0424, T-0426, T-0429, T-0450 | 2026-10-21 |
 | Timed runs | B | A | B | A | B | | 2026-10-21 |
 | Practice | C | A | C | A | B | T-0046, T-0432 | 2026-10-19 |
 | Run mode | B | A | A | A | B | T-0243 | 2026-10-21 |
