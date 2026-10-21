@@ -15,13 +15,24 @@ namespace ForestOverlay.Data
     // ------------------------------------------------------------------
     public static class InventoryFilter
     {
-        /// True when `name` contains `filter`, case ignored; an empty
-        /// filter keeps every name, a null name none.
+        /// True when `name` or its runner word (ItemWords, T-0407) contains
+        /// `filter`, case ignored; an empty filter keeps every name, a null
+        /// name none.
         public static bool Matches(string name, string filter)
         {
             if (string.IsNullOrEmpty(filter)) return true;
             if (name == null) return false;
-            return name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+            return At(name, filter) >= 0;
+        }
+
+        // Where `filter` is in the game's name, else in its runner word
+        // (a constant string: nothing allocated); -1 when in neither.
+        private static int At(string name, string filter)
+        {
+            int at = name.IndexOf(filter, StringComparison.OrdinalIgnoreCase);
+            if (at >= 0) return at;
+            string word = ItemWords.Say(name);
+            return ReferenceEquals(word, name) ? -1 : word.IndexOf(filter, StringComparison.OrdinalIgnoreCase);
         }
 
         /// Fills `into` with the indices into `catalog` of the names that
@@ -41,7 +52,7 @@ namespace ForestOverlay.Data
                 {
                     string name = catalog[i];
                     if (name == null) continue;
-                    int at = name.IndexOf(filter, StringComparison.OrdinalIgnoreCase);
+                    int at = At(name, filter);
                     if (at < 0 || (pass == 0) != (at == 0)) continue;
                     if (Contains(held, name, held == null ? 0 : held.Count)) continue;
                     if (AlreadyIn(catalog, into, name)) continue;

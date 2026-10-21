@@ -59,5 +59,18 @@ namespace ForestOverlay.Tests
             InventoryFilter.NotHeld(Catalog, null, "tape", idx);
             Assert.Equal(new List<int> { 7 }, idx);
         }
+
+        [Fact]
+        public void RunnerWordsMatchToo()   // T-0407: the rows show "Walkie talkie"
+        {
+            Assert.True(InventoryFilter.Matches("WalkyTalky", "walkie"));
+            Assert.True(InventoryFilter.Matches("SurvivalBook", "survival b"));
+            Assert.True(InventoryFilter.Matches("WalkyTalky", "walky"));
+            Assert.False(InventoryFilter.Matches("Axe", "walkie"));
+
+            List<int> idx = new List<int>();
+            InventoryFilter.NotHeld(new List<string> { "Axe", "WalkyTalky" }, null, "walkie", idx);
+            Assert.Equal(new List<int> { 1 }, idx);
+        }
     }
 }

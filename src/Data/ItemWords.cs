@@ -3,7 +3,7 @@ using System;
 namespace ForestOverlay.Data
 {
     /// Runner words for the few items the game names with a code name
-    /// (T-0407, demo: the words are the author's to change). Display only:
+    /// (T-0407, author 2026-10-21; 'Axe Plane' kept). Display only:
     /// saved label settings and run data keep the game's name.
     public static class ItemWords
     {

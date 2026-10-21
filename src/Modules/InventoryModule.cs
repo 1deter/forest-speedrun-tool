@@ -527,7 +527,7 @@ namespace ForestOverlay.Modules
             {
                 if (hide && !InventoryReader.IsRealItem(catalog[i].Id)) continue;
                 _catalogNames.Add(catalog[i].Name);
-                _catalogLabels.Add(new GUIContent(catalog[i].Name + "   x0   (id " + catalog[i].Id + ")"));
+                _catalogLabels.Add(new GUIContent(ItemWords.Say(catalog[i].Name) + "   x0   (id " + catalog[i].Id + ")"));
             }
         }
 
