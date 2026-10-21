@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.391 - 2026-10-21
+
+- Runs tab > Run options: the row for the comparison line's dots and labels is now called 'Checkpoint dots', apart from the 'Checkpoint states' saves.
+
 ## v0.24.390 - 2026-10-21
 
 - Run mode's long always-on line now wraps onto a second line instead of running under the input overlay's tiles.
