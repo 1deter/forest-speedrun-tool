@@ -56,7 +56,7 @@ namespace ForestOverlay.Modules
         private RunReport _report;
         private string _reportPath;
         private float _nextCheck;
-        private int _patchCount = -1, _detourCount = -1;
+        private ModCounts _modCounts = new ModCounts();   // when to gather the mods again (T-0414)
         private bool _reportDirty;
 
         private float _confirmUntil;        // End run mode: the second click's window
@@ -304,8 +304,8 @@ namespace ForestOverlay.Modules
             _report.Creative = RunIntegrity.IsCreative();
             _report.Multiplayer = RunIntegrity.IsMultiplayer();
             RunIntegrity.Gather(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
-            _patchCount = RunIntegrity.PatchedCount();
-            _detourCount = RunIntegrity.DetourCount();
+            _modCounts = new ModCounts();
+            _modCounts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblyCount(), false);
             _reportPath = Path.Combine(Path.Combine(Ctx.ConfigDirectory, "run-reports"),
                                        "attempt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
             Watch();
@@ -369,17 +369,25 @@ namespace ForestOverlay.Modules
                 _reportDirty = true;
             }
 
-            int patches = RunIntegrity.PatchedCount();
-            int detours = RunIntegrity.DetourCount();   // a MonoMod hook is no Harmony patch (T-0414 F6)
-            if (patches != _patchCount || detours != _detourCount)
+            // Patches, MonoMod detours (T-0414 F6) and loaded code: the
+            // report's lists themselves follow, not only the session's flag
+            // (live, v0.24.398: OtherCode stayed empty mid-attempt).
+            if (_modCounts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblyCount(), false))
             {
-                _patchCount = patches;
-                _detourCount = detours;
-                int foreign = _report.ForeignPatches.Count;
-                RunIntegrity.GatherPatches(_report, OverlayPlugin.PluginGuid);
-                if (_report.ForeignPatches.Count > foreign)
+                List<string> patchesBefore = new List<string>(_report.ForeignPatches);
+                List<string> codeBefore = new List<string>(_report.OtherCode);
+                codeBefore.AddRange(_report.OtherPlugins);
+                codeBefore.AddRange(_report.OtherPatchers);
+                RunIntegrity.GatherMods(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
+                if (ExternalMods.Added(patchesBefore, _report.ForeignPatches).Count > 0)
                     Ctx.Log.LogWarning("Run mode: another mod patched the game during the attempt: " +
                                        string.Join(", ", _report.ForeignPatches.ToArray()) + ".");
+                List<string> codeNow = new List<string>(_report.OtherCode);
+                codeNow.AddRange(_report.OtherPlugins);
+                codeNow.AddRange(_report.OtherPatchers);
+                List<string> newCode = ExternalMods.Added(codeBefore, codeNow);
+                if (newCode.Count > 0)
+                    Ctx.Log.LogWarning("Run mode: other code loaded during the attempt: " + string.Join(", ", newCode.ToArray()) + ".");
                 _reportDirty = true;
             }
 

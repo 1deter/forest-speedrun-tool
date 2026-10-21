@@ -162,6 +162,17 @@ namespace ForestOverlay.Data
             if (name.Length > 0 && !into.Contains(name)) into.Add(name);
         }
 
+        /// The entries of `after` not in `before` (in order): what turned up
+        /// since the last look, for the log line.
+        public static List<string> Added(IList<string> before, IList<string> after)
+        {
+            List<string> added = new List<string>();
+            if (after == null) return added;
+            for (int i = 0; i < after.Count; i++)
+                if ((before == null || !before.Contains(after[i])) && !added.Contains(after[i])) added.Add(after[i]);
+            return added;
+        }
+
         /// "A, B, C, D +2 more": the names for the HUD and the flag.
         public static string Join(IList<string> names)
         {
@@ -191,6 +202,31 @@ namespace ForestOverlay.Data
                 if (flags[i] != null && flags[i].StartsWith(FlagPrefix, StringComparison.Ordinal))
                     return flags[i].Substring(FlagPrefix.Length);
             return "";
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // When to gather the mods again (T-0414 live, v0.24.398): a one-shot
+    // Assembly.Load(bytes) raised no AssemblyLoad event the watch saw, so
+    // the loaded assemblies are counted too, beside the patched methods
+    // and MonoMod's detours. Game/ExternalModWatch and run mode's Watch
+    // each keep one.
+    // ------------------------------------------------------------------
+    public sealed class ModCounts
+    {
+        private bool _seen;
+        private int _patches, _detours, _assemblies;
+
+        /// True when a look is due: the first call, a load event, or any
+        /// count moved since the last call (the counts are remembered).
+        public bool Due(int patches, int detours, int assemblies, bool loadEvent)
+        {
+            bool due = !_seen || loadEvent || patches != _patches || detours != _detours || assemblies != _assemblies;
+            _seen = true;
+            _patches = patches;
+            _detours = detours;
+            _assemblies = assemblies;
+            return due;
         }
     }
 }
