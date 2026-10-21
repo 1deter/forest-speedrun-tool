@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.382 - 2026-10-21
+
+- Edit HUD: the In panel button under a placed value no longer sits cramped against the Text button.
+
 ## v0.24.381 - 2026-10-21
 
 - Input overlay: key labels are a bit bigger at the default size (15 pt), easier to read at a glance.
