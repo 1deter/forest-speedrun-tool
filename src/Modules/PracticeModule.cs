@@ -2945,9 +2945,7 @@ namespace ForestOverlay.Modules
                         if (error != null) state = "start state NOT imported (" + error + ")";
                         else
                         {
-                            string perr;
-                            SavestateFile f = SavestateFile.Parse(b.StartState, out perr);
-                            bool matches = incoming.StartState.Length == 0 || (f != null && Segment.HashText(f.Data) == incoming.StartState);
+                            bool matches = SegmentBundle.StateIsTheRoutes(incoming, b.StartState);   // SHA-256 or the old FNV-1a (T-0414)
                             state = matches ? "start state" : "start state (not the one the segment was timed from)";
                         }
                     }

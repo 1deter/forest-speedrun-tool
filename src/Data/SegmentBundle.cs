@@ -51,6 +51,18 @@ namespace ForestOverlay.Data
         /// .run texts, one per attempt.
         public readonly List<string> Attempts = new List<string>();
 
+        /// True when `stateText` (a .fosave) is the state the segment was
+        /// timed from - SHA-256 or, for a segment named before T-0414, the
+        /// old FNV-1a (Segment.StateMatches) - or the segment names none.
+        public static bool StateIsTheRoutes(Segment s, string stateText)
+        {
+            if (s == null || string.IsNullOrEmpty(s.StartState)) return true;
+            if (stateText == null) return false;
+            string error;
+            SavestateFile f = SavestateFile.Parse(stateText, out error);
+            return f != null && Segment.StateMatches(f.Data, s.StartState);
+        }
+
         public string Write()
         {
             StringBuilder sb = new StringBuilder(256 + (StartState != null ? StartState.Length : 0));
