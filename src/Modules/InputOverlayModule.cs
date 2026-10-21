@@ -602,10 +602,17 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Inputs: tile " + key + (act.Length > 0 ? " (" + act + ")" : "") + " removed.");
         }
 
+        private void ClearStatus()
+        {
+            if (_capturing || _status.text.Length == 0) return;   // the waiting line stays
+            SetStatus("");
+        }
+
         private void SetShown(TileState s, bool shown)
         {
             if (s.Tile.Shown == shown) return;
             s.Tile.Shown = shown;
+            ClearStatus();
             Commit();
             Ctx.Log.LogInfo("Inputs: tile " + InputLayout.TileName(s.Tile) + (shown ? " shown." : " hidden."));
         }
@@ -1010,9 +1017,10 @@ namespace ForestOverlay.Modules
                     {
                         TileState s = _states[i];
                         if (!s.Valid || !s.Rect.Contains(e.mousePosition)) continue;
-                        if (e.button == 0 && HandleHit(s.Rect).Contains(e.mousePosition)) { _resize = i; _resizeStartScale = s.Tile.Scale; _resizeStartMouse = e.mousePosition; e.Use(); return; }
+                        if (e.button == 0 && HandleHit(s.Rect).Contains(e.mousePosition)) { ClearStatus(); _resize = i; _resizeStartScale = s.Tile.Scale; _resizeStartMouse = e.mousePosition; e.Use(); return; }
                         if (e.button == 1) { SetShown(s, !s.Tile.Shown); e.Use(); return; }
                         if (e.button != 0) return;
+                        ClearStatus();
                         _drag = i;
                         _dragOffset = e.mousePosition - new Vector2(s.Rect.x, s.Rect.y);
                         e.Use();
@@ -1141,7 +1149,7 @@ namespace ForestOverlay.Modules
                 if (_capturing) Host.Hotkeys.HoldCapture(); else Host.Hotkeys.ReleaseCapture();
                 SetStatus(_capturing ? "Press a key, mouse button 3-7 or turn the wheel. Esc cancels." : "");
             }
-            UiKit.Hint(keyR, AddKeyTip);
+            if (!_capturing) UiKit.Hint(keyR, AddKeyTip);   // while waiting the tip would cover the message under the button
             x += keyW + 6f;
             if (_layout.Find("Mouse0") == null) y = AddButton(x0, ref x, y, w, AddM1Text, null, "Mouse0");
             if (_layout.Find("Mouse1") == null) y = AddButton(x0, ref x, y, w, AddM2Text, null, "Mouse1");
