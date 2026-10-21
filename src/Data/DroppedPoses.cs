@@ -11,16 +11,17 @@ namespace ForestOverlay.Data
     /// rolled since back. Format `id:item@x,y,z@qx,qy,qz,qw;...`, with an
     /// optional 4th segment of comma tags (T-0418): `p` (a copy of the item's
     /// own drop prefab, re-made when it is gone), `t<age>` (its despawn timer
-    /// ran, `age` game seconds old) or `s` (it has one, not running). Unknown
-    /// tags are ignored. Pure.
+    /// ran, `age` game seconds old), `s` (it has one, not running) or `u`
+    /// (not readable at the capture). Unknown tags are ignored. Pure.
     public static class DroppedPoses
     {
         /// What the capture knew of a copy's despawn timer.
         public enum TimerKind
         {
-            Unknown,        // no tag: a file from before T-0418, or no timer component
+            Unknown,        // no tag: a file from before T-0418
             Running,        // `t<age>`
-            Stopped         // `s`
+            Stopped,        // `s`
+            Unread          // `u`: a new file whose capture could not read it (T-0423)
         }
 
         public struct Pose
@@ -57,6 +58,7 @@ namespace ForestOverlay.Data
             string s = p.Remake ? "p" : "";
             if (p.Timer == TimerKind.Running) s += (s.Length > 0 ? "," : "") + "t" + F(p.Age);
             else if (p.Timer == TimerKind.Stopped) s += (s.Length > 0 ? "," : "") + "s";
+            else if (p.Timer == TimerKind.Unread) s += (s.Length > 0 ? "," : "") + "u";
             return s;
         }
 
@@ -67,6 +69,7 @@ namespace ForestOverlay.Data
             {
                 string t = tags[i].Trim();
                 if (t == "p") p.Remake = true;
+                else if (t == "u") { p.Timer = TimerKind.Unread; p.Age = 0f; }
                 else if (t == "s") { p.Timer = TimerKind.Stopped; p.Age = 0f; }
                 else if (t.Length > 1 && t[0] == 't')
                 {

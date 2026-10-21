@@ -102,6 +102,7 @@ namespace ForestOverlay.Game
         // ResumeTimers once the load is done.
         private static readonly List<GameObject> TimerCopies = new List<GameObject>();
         private static readonly List<DroppedPoses.Pose> TimerPoses = new List<DroppedPoses.Pose>();
+        private static readonly List<bool> TimerReshown = new List<bool>();
         private static readonly HashSet<int> TimerSeen = new HashSet<int>();
 
         // T-0418: the item's own drop prefab (Item._pickupPrefab, a Transform).
@@ -205,6 +206,7 @@ namespace ForestOverlay.Game
             RemadeFrom.Clear();
             TimerCopies.Clear();
             TimerPoses.Clear();
+            TimerReshown.Clear();
             TimerSeen.Clear();
         }
 
@@ -571,11 +573,11 @@ namespace ForestOverlay.Game
         }
 
         /// The root's despawn timer as the capture records it: running with
-        /// its age, stopped, or Unknown (no scaled-time timer, or no start
+        /// its age, stopped, or Unread (no scaled-time timer, or no start
         /// recorded).
         private static void ReadTimer(GameObject r, ref DroppedPoses.Pose p)
         {
-            p.Timer = DroppedPoses.TimerKind.Unknown;
+            p.Timer = DroppedPoses.TimerKind.Unread;
             if (_destroyAfterType == null || _useUnscaled == null) return;
             MonoBehaviour mb = r.GetComponent(_destroyAfterType) as MonoBehaviour;
             if (mb == null || (bool)_useUnscaled.GetValue(mb)) return;
@@ -634,11 +636,12 @@ namespace ForestOverlay.Game
             return poses.TryGetValue(via, out p);
         }
 
-        private static void NoteTimer(GameObject g, DroppedPoses.Pose p)
+        private static void NoteTimer(GameObject g, DroppedPoses.Pose p, bool reshown)
         {
             if (g == null || !TimerSeen.Add(g.GetInstanceID())) return;
             TimerCopies.Add(g);
             TimerPoses.Add(p);
+            TimerReshown.Add(reshown);
         }
 
         /// The copy made again at its captured pose, at rest (made there:
@@ -662,11 +665,12 @@ namespace ForestOverlay.Game
 
         /// After a Quick load (the pickups step done, so put-back copies are
         /// shown and re-made ones have run Start): every copy the last
-        /// MirrorRoots matched to the capture gets its despawn timer as it
-        /// stood then - resumed from its captured age, or none if none ran.
-        /// A pose with no timer tag (a file from before T-0418) is left as
-        /// the game has it. `apply` false (the load failed) only forgets
-        /// them. Returns how many were set.
+        /// MirrorRoots matched to the capture gets its timer by
+        /// DespawnTimer.Decide: `t<age>` resumes from the captured age, `s`
+        /// stops it; a file from before T-0418 (no tag at all) gives a fresh
+        /// timer to a copy put back or made again and leaves an untouched
+        /// one running; `u` (unreadable at the capture) is left. `apply`
+        /// false (the load failed) only forgets them. Returns how many were set.
         public static int ResumeTimers(bool apply)
         {
             int n = 0;
@@ -677,22 +681,25 @@ namespace ForestOverlay.Game
                 {
                     GameObject go = TimerCopies[i];
                     DroppedPoses.Pose p = TimerPoses[i];
-                    if (p.Timer == DroppedPoses.TimerKind.Unknown || go == null || !go.activeInHierarchy) continue;
+                    DespawnTimer.Plan plan = DespawnTimer.Decide(p.Timer, TimerReshown[i]);
+                    if (plan == DespawnTimer.Plan.Leave || go == null || !go.activeInHierarchy) continue;
                     try
                     {
                         MonoBehaviour mb = go.GetComponent(_destroyAfterType) as MonoBehaviour;
                         if (mb == null || (bool)_useUnscaled.GetValue(mb)) continue;
                         mb.CancelInvoke(DestroyMe);
-                        if (p.Timer == DroppedPoses.TimerKind.Running)
+                        if (plan != DespawnTimer.Plan.Stop)
                         {
+                            // Fresh (file from before T-0418, T-0423): from now.
+                            float age = plan == DespawnTimer.Plan.Resume ? p.Age : 0f;
                             float time = (float)_destroyTime.GetValue(mb);
                             bool repeating = (float)_destroyDistance.GetValue(mb) > 0f;
-                            float next = DespawnTimer.NextCheck(p.Age, time, repeating);
+                            float next = DespawnTimer.NextCheck(age, time, repeating);
                             if (repeating) mb.InvokeRepeating(DestroyMe, next, DespawnTimer.Interval);
                             else mb.Invoke(DestroyMe, next);
                             TimerStart s;
                             s.Comp = mb;
-                            s.At = Time.time - p.Age;
+                            s.At = Time.time - age;
                             TimerStarts[mb.GetInstanceID()] = s;
                         }
                         n++;
@@ -704,6 +711,7 @@ namespace ForestOverlay.Game
             {
                 TimerCopies.Clear();
                 TimerPoses.Clear();
+                TimerReshown.Clear();
                 TimerSeen.Clear();
             }
             return n;
@@ -751,7 +759,7 @@ namespace ForestOverlay.Game
                             Transform prefab = ItemPrefab(p.Item);
                             p.Remake = prefab != null && r.name == prefab.name + "(Clone)";
                         }
-                        try { ReadTimer(r, ref p); } catch (Exception) { p.Timer = DroppedPoses.TimerKind.Unknown; }
+                        try { ReadTimer(r, ref p); } catch (Exception) { p.Timer = DroppedPoses.TimerKind.Unread; }
                         list.Add(new KeyValuePair<int, DroppedPoses.Pose>(rid, p));
                     }
                 }
@@ -820,6 +828,7 @@ namespace ForestOverlay.Game
             MirrorResult res = new MirrorResult();
             TimerCopies.Clear();
             TimerPoses.Clear();
+            TimerReshown.Clear();
             TimerSeen.Clear();
             if (_destroyTarget == null || _itemId == null || _uniqueIdType == null) return res;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
@@ -883,7 +892,7 @@ namespace ForestOverlay.Game
                     if (poses != null && PoseOf(poses, r, out pose, out capturedId))
                     {
                         present.Add(capturedId);
-                        NoteTimer(r, pose);
+                        NoteTimer(r, pose, !r.activeInHierarchy);
                         if (r.activeInHierarchy && PutBack(r.transform, pose)) res.Moved++;
                         continue;
                     }
@@ -946,7 +955,7 @@ namespace ForestOverlay.Game
                 rm.Copy = copy;
                 rm.CapturedId = remake[i];
                 RemadeFrom[copy.GetInstanceID()] = rm;
-                NoteTimer(copy, p);
+                NoteTimer(copy, p, true);
                 int had;
                 res.RemadeCounts.TryGetValue(p.Item, out had);
                 res.RemadeCounts[p.Item] = had + 1;
@@ -962,6 +971,7 @@ namespace ForestOverlay.Game
             MirrorResult res = new MirrorResult();
             TimerCopies.Clear();
             TimerPoses.Clear();
+            TimerReshown.Clear();
             TimerSeen.Clear();
             if (string.IsNullOrEmpty(dropped)) return res;
             List<int> gone = new List<int>();

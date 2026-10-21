@@ -500,7 +500,7 @@ after a pickup, rolled and moved back, or untouched. It cancels the timer
 and, for `t`, starts it again from the captured age
 (`Data/DespawnTimer.NextCheck`: the first check at 60 s minus the age, then
 the 10 s steps). A copy with `s` keeps no timer, as at the capture. An entry
-with no timer tag (a file from before T-0418) is left as the game has it.
+with no timer tag at all (a file from before T-0418) gets a fresh timer from the restore if its copy was put back or made again (T-0423); an untouched one keeps its running timer. A `u` tag (a new file whose timer could not be read) is left as the game has it (`Data/DespawnTimer.Decide`).
 A put-back copy then has no timer, because hiding it cancelled the game's
 own. The module's restore line gains `, despawn timers set as at the
 capture N`. After a downgrade to v0.24.354-356, those plugins skip the
