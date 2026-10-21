@@ -512,7 +512,10 @@ namespace ForestOverlay.Modules
                 if (k == KeyCode.Mouse0 || k == KeyCode.Mouse1)
                 {
                     // the clicks that run this window: say so, keep waiting (T-0444)
-                    SetStatus("M1 and M2 cannot be added with Add input (the click is the press). Use + M1 / + M2 for them, or press another input. Esc cancels.");
+                    string which = k == KeyCode.Mouse0 ? "M1" : "M2";
+                    SetStatus(_layout.Find(k.ToString()) != null
+                        ? which + " is already a tile. Press another input, or Esc to cancel."
+                        : which + " cannot be added with Add input (the click is the press). Use + " + which + " beside it, or press another input. Esc cancels.");
                     continue;
                 }
                 _capturing = false;
