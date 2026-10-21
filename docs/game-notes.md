@@ -2857,6 +2857,35 @@ collider within `FireSpread` m. Who answers:
   `disableBurn` invoke is left to cancel).
 - An animal: `cancelFire()` + `CancelInvoke("cancelFire")`.
 
+**A creature's burn length, and lighting one again (bridge + IL,
+2026-10-22, v0.24.401, T-0424).** `EnemyHealth.Burn` picks the length as a
+local (`Random.Range(7, 14)`; 10 creepy_fat; 5 fireman / creepy_boss;
+`singeBurn` 4) and hands it only to `Invoke("disableBurn", num)` (`call
+MonoBehaviour::Invoke(string, float)`; `Burn` calls `singeBurn` unless
+`douseMult > 1`); both guard `HitFire` (2 s, then every 1 s) and
+`disableBurn` with `!IsInvoking`, so the end is fixed at the first light.
+Every lighter (molotov, flare, spread, weapons) reaches it by
+`SendMessage("Burn")`. Its copy in `spawnParticleController.burnDuration`
+(`num + 7`) is unreliable: `SendMessage` is not delivered while the
+cannibal's skeleton is inactive (far, or just rebuilt), and it read 0 / a
+stale value there. A sleeping cannibal hit by `Burn` dies (`HitReal` takes
+100 while `sleepBOOL`: 43 -> -56). An animal's burn is fixed: `HitFire` 3 s
+/ 3 s (5 + 1 a tick), `cancelFire` at 15 s; its `AnimalFireGo`
+`spawnParticleController` has `animal` True (the spawned fire is destroyed
+on disable; a cannibal's is left to its own timer). Lit again by hand,
+without `Hit` (live): a regular cannibal = each `Fire[i]` on +
+`setFireDuration(left + 7)`, `onFire`, `pmCombat` `onFireBool` true,
+`pmCombat.enabled = true`, `SendEvent("goToOnFire")` (a global transition
+to `burning`), `InvokeRepeating("HitFire", first, 1)`,
+`Invoke("disableBurn", left)` - state `burning`, damage ticking, out on
+time, also on a member the families' rebuild had just made; a creepy the
+same with `Animator.SetBool("onFireBool", true)` and `StartOnFireEvent()`
+instead of enabling the FSM; an animal = `Fire` on, `InvokeRepeating
+("HitFire", first, 3)`, `Invoke("cancelFire", left)`. Before T-0424 a
+Quick load put out a cannibal and a lizard burning at the capture
+(`fire: 1 put out (cannibal x1)` / `(animal x1)`; the rebuilt member not
+burning).
+
 **Streaming comes back by itself.** `ForcedUnload(bool)` on
 `GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
 `SceneUnloadInCave.Awake` registers `CheckInCave` with
