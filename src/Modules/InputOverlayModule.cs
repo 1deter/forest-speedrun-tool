@@ -359,6 +359,7 @@ namespace ForestOverlay.Modules
             bool live = editing || !Cursor.visible || replay;
             if (_capturing) CaptureKey();
 
+            TrackEditorClicks(editing);
             _mouseMoved = false;
             float scroll = live && !replay ? Input.mouseScrollDelta.y : 0f;
             for (int i = 0; i < _states.Count; i++)
@@ -377,6 +378,7 @@ namespace ForestOverlay.Modules
                             // Edit HUD (the window turns the game's maps off) lights from the key, except
                             // in game input a key with no game action, which never lights.
                             down = !s.Dead && Input.GetKey(s.Code);
+                            if (down && editing && ((s.Code == KeyCode.Mouse0 && _editorClick0) || (s.Code == KeyCode.Mouse1 && _editorClick1))) down = false;   // T-0378: a click that runs the editor is not an input
                             if (s.Count > 0) s.Label = s.Idle;
                         }
                         else if (s.Count > 0)
@@ -417,6 +419,34 @@ namespace ForestOverlay.Modules
             }
             if (HasShownMouseBox()) SampleMouse(live, now, useActions);
             if (_onlyPressed.Value && !editing && !_mouseMoved) _trailCount = 0;   // hidden while still: the old path never comes back
+        }
+
+        // T-0378: in Edit HUD a left / right press that lands on a tile or on the F2 window
+        // runs the editor (drag, resize, hide); it does not light M1 / M2 until released.
+        private bool _editorClick0, _editorClick1;
+
+        private void TrackEditorClicks(bool editing)
+        {
+            if (!editing) { _editorClick0 = _editorClick1 = false; return; }
+            bool d0 = Input.GetMouseButtonDown(0), d1 = Input.GetMouseButtonDown(1);
+            if (d0 || d1)
+            {
+                bool over = OverEditor();
+                if (d0) _editorClick0 = over;
+                if (d1) _editorClick1 = over;
+            }
+            if (!Input.GetMouseButton(0) && _drag < 0 && _resize < 0) _editorClick0 = false;
+            if (!Input.GetMouseButton(1)) _editorClick1 = false;
+        }
+
+        private bool OverEditor()
+        {
+            float f = Host.Hud.Settings.Ui.F;
+            Vector2 p = new Vector2(Input.mousePosition.x / f, (Screen.height - Input.mousePosition.y) / f);
+            for (int i = 0; i < _states.Count; i++)
+                if (_states[i].Valid && _states[i].Rect.Contains(p)) return true;
+            MainWindowModule main = Host.Find<MainWindowModule>();
+            return main != null && Host.Hud.Settings.Virtual(main.ScreenRect).Contains(p);
         }
 
         private bool HasShownMouseBox()
