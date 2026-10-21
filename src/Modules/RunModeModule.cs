@@ -242,7 +242,7 @@ namespace ForestOverlay.Modules
             if (cat == null) Ctx.Log.LogWarning("Run mode: the run spot's category '" + s.RunCategory + "' is not one of the site's " +
                                                 _categories.Count + " - the defaults apply (everything locked).");
             StartAttempt(from + ", " + RunIntegrity.Describe(), cat != null ? cat.Name : s.RunCategory);
-            string mismatch = RunStartCheck.StartStateFlag(_startHash, s.StartState);
+            string mismatch = RunStartCheck.StartStateFlag(_startHash, _savestates != null ? _savestates.LastStartStateLegacy : "", s.StartState);
             if (mismatch != null) Ctx.Run.Flag(mismatch);
         }
 

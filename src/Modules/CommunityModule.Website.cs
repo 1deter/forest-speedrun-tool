@@ -254,7 +254,7 @@ namespace ForestOverlay.Modules
                 {
                     string perr;
                     SavestateFile f = SavestateFile.Parse(siteState, out perr);
-                    if (f != null && Segment.HashText(f.Data) == incoming.StartState)
+                    if (f != null && Segment.StateMatches(f.Data, incoming.StartState))
                     {
                         string err = savestates.WriteStartStateText(incoming, siteState);
                         return err == null ? "start state" : "start state not written: " + err;
@@ -292,7 +292,7 @@ namespace ForestOverlay.Modules
                     {
                         string perr;
                         SavestateFile f = SavestateFile.Parse(have, out perr);
-                        if (hashed && f != null && Segment.HashText(f.Data) == s.StartState) return "start state";
+                        if (hashed && f != null && Segment.StateMatches(f.Data, s.StartState)) return "start state";
                         savestates.DeleteStartState(s);
                     }
                     return hashed ? "no start state on the website yet - restarts teleport only" : "";

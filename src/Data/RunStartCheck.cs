@@ -10,11 +10,16 @@ namespace ForestOverlay.Data
     {
         /// The flag text when the loaded start state is not the one the
         /// spot names; null when they match or the spot names none.
-        public static string StartStateFlag(string loaded, string named)
+        /// `loaded` is the SHA-256, `loadedLegacy` the old FNV-1a (T-0414
+        /// D4), read only for a spot that names one that way.
+        public static string StartStateFlag(string loaded, string loadedLegacy, string named)
         {
             if (string.IsNullOrEmpty(named) || loaded == named) return null;
+            bool legacy = Segment.IsLegacyStateHash(named);
+            if (legacy && loadedLegacy == named) return null;
+            string shown = legacy ? loadedLegacy : loaded;
             return "the run spot's start state is not the one the spot names (loaded " +
-                   (string.IsNullOrEmpty(loaded) ? "none" : loaded) + ", the spot names " + named + ")";
+                   (string.IsNullOrEmpty(shown) ? "none" : shown) + ", the spot names " + named + ")";
         }
 
         /// What the HUD's run line says after the label for a run started

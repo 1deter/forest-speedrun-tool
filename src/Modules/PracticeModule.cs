@@ -324,8 +324,46 @@ namespace ForestOverlay.Modules
             RebuildVisible();
         }
 
+        private bool _stateHashesChecked;
+
+        /// Once, on the first frame (the savestate module is ready by then):
+        /// the runner's own spots that name their start state the old way
+        /// (eight hex digits, FNV-1a) are named by SHA-256 instead (author,
+        /// 2026-10-21, T-0414 D4: re-hash existing spots). Only when the file
+        /// here is the state the old hash names; the route fingerprint
+        /// changes with it, as for a new start state. Community and website
+        /// spots are the site's and stay as they come.
+        private void RehashStartStates()
+        {
+            if (_savestates == null) return;
+            List<string> files = new List<string>();
+            for (int i = 0; i < _library.All.Count; i++)
+            {
+                Segment s = _library.All[i];
+                if (SegmentLibrary.IsCommunity(s) || !Segment.IsLegacyStateHash(s.StartState)) continue;
+                try
+                {
+                    string text = _savestates.ReadStartStateText(s);
+                    if (text == null) continue;
+                    string perr;
+                    SavestateFile f = SavestateFile.Parse(text, out perr);
+                    if (f == null || Segment.HashText(f.Data) != s.StartState) continue;   // not the state it names: the restore says so
+                    string oldRoute = s.RouteFingerprint();
+                    s.StartState = Segment.StateHash(f.Data);
+                    Ctx.Log.LogInfo("Practice: start state of '" + s.Id + "' named by SHA-256 now (" + s.StartState.Substring(0, 12) +
+                                    "...) - route " + oldRoute + " -> " + s.RouteFingerprint() + ".");
+                    string file = string.IsNullOrEmpty(s.SourceFile) ? SegmentLibrary.UserFileName : s.SourceFile;
+                    if (!files.Contains(file)) files.Add(file);
+                }
+                catch (Exception ex) { Ctx.Log.LogWarning("Practice: start state of '" + s.Id + "' not re-hashed: " + ex.Message); }
+            }
+            for (int i = 0; i < files.Count; i++)
+                if (!WriteFile(files[i])) Ctx.Log.LogWarning("Practice: " + files[i] + " not saved after re-hashing start states.");
+        }
+
         public override void Tick()
         {
+            if (!_stateHashesChecked) { _stateHashesChecked = true; RehashStartStates(); }
             // What the hands rest in, so a reset can cut an action back to it.
             AnimReset.Track();
             UpdatePreview();

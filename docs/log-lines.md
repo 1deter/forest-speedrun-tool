@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 896 log calls.
+256 prefixes from 899 log calls.
 
 ## `ActionReaders`
 
@@ -1440,6 +1440,7 @@ Written by PracticeModule.cs; info / warning.
 - info `Practice: '<s.Name>' had the id '<old>' of another entry - now '<s.Id>'.`
 - info `Practice: <..> '<incoming.Id>' from <..> (<what>).`
 - warning `Practice: <..> not importable: <error>` (x2)
+- warning `Practice: <..> not saved after re-hashing start states.`
 - info `Practice: LiveSplit file <file> -> '<s.Id>' (<s.Name>): start <..>, <..> splits, autosplit = <..>.`
 - warning `Practice: LiveSplit import of <e.Path> failed: <ex>`
 - info `Practice: autosave held back <..> - '<invalid.Id>' needs a spawn, or a start and an end.`
@@ -1453,6 +1454,8 @@ Written by PracticeModule.cs; info / warning.
 - info `Practice: exported '<s.Id>' to <path> (<what>).`
 - warning `Practice: import of <e.Path> failed: <ex>`
 - info `Practice: selected '<entry.Id>'<..> (<_unsaved.Count> unsaved).`
+- info `Practice: start state of '<s.Id>' named by SHA-256 now (<..>...) - route <oldRoute> -> <..>.`
+- warning `Practice: start state of '<s.Id>' not re-hashed: <ex.Message>`
 
 ## `PracticeRunModule`
 
