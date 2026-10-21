@@ -29,6 +29,9 @@ namespace ForestOverlay.Modules
         private readonly SplitColour[] _markColour = new SplitColour[CheckpointMarks.Max];
         private readonly float[] _markTW = new float[CheckpointMarks.Max];            // measured widths, < 0 = measure
         private readonly float[] _markDW = new float[CheckpointMarks.Max];
+        private readonly float[] _markFW = new float[CheckpointMarks.Max];            // width of the first row (the delta follows it)
+        private readonly int[] _markRows = new int[CheckpointMarks.Max];              // rows of text (wrap layout, T-0406)
+        private readonly GUIContent _markFirst = new GUIContent();
         private int _markDecimals = -1;
         private int _markSpecSeen = -1;   // the choice's version the texts were built for
 
@@ -188,14 +191,28 @@ namespace ForestOverlay.Modules
                 _markDist[at] = dist;
                 _markFade[at] = fade;
                 _markX[at] = sp.x;
-                _markH[at] = ReplayLabels.LineHeight;
-                _markTop[at] = Screen.height - sp.y - lift - ReplayLabels.LineHeight;
                 if (_markTW[i] < 0f)
                 {
-                    _markTW[i] = _markText[i].text.Length > 0 ? _markStyle.CalcSize(_markText[i]).x : 0f;
+                    string t = _markText[i].text;
+                    _markTW[i] = t.Length > 0 ? _markStyle.CalcSize(_markText[i]).x : 0f;
                     _markDW[i] = _markDText[i].text.Length > 0 ? _markStyle.CalcSize(_markDText[i]).x : 0f;
+                    // Wrap: the text has several rows; the delta follows the first.
+                    int nl = t.IndexOf('\n');
+                    _markRows[i] = 1;
+                    _markFW[i] = _markTW[i];
+                    if (nl >= 0)
+                    {
+                        for (int k = 0; k < t.Length; k++) if (t[k] == '\n') _markRows[i]++;
+                        _markFirst.text = t.Substring(0, nl);
+                        _markFW[i] = _markStyle.CalcSize(_markFirst).x;
+                    }
                 }
-                _markW[at] = _markTW[i] + (_markTW[i] > 0f && _markDW[i] > 0f ? DeltaGap : 0f) + _markDW[i] + ReplayLabels.Padding;
+                // A taller label grows upward from the dot, so its bottom row stays where one row sat.
+                float lh = ReplayLabels.Height(_markRows[i]);
+                _markH[at] = lh;
+                _markTop[at] = Screen.height - sp.y - lift - lh;
+                float fg = _markFW[i] > 0f && _markDW[i] > 0f ? DeltaGap : 0f;
+                _markW[at] = Mathf.Max(_markTW[i], _markFW[i] + fg + _markDW[i]) + ReplayLabels.Padding;
                 _markShown[at] = true;
             }
             if (n == 0) return;
@@ -211,14 +228,15 @@ namespace ForestOverlay.Modules
                 _markShadow.normal.textColor = new Color(0f, 0f, 0f, 0.85f * a);
                 // The time, then your delta right after it in the panel's colour;
                 // the pair centred on the dot, each piece wider than its text.
-                float tw = _markTW[m], dw = _markDW[m];
-                float gap = tw > 0f && dw > 0f ? DeltaGap : 0f;
-                float x0 = _markX[s] - (tw + gap + dw) * 0.5f;
+                // Wrap: the delta sits after the first row, the other rows under it.
+                float tw = _markTW[m], dw = _markDW[m], fw = _markFW[m];
+                float gap = fw > 0f && dw > 0f ? DeltaGap : 0f;
+                float x0 = _markX[s] - Mathf.Max(tw, fw + gap + dw) * 0.5f;
                 if (tw > 0f) DrawMarkPiece(x0, _markTop[s], tw, _markH[s], _markText[m], Color.white, a);
                 if (dw > 0f)
                 {
                     Color c = SplitPalette[(int)_markColour[m]];
-                    DrawMarkPiece(x0 + tw + gap, _markTop[s], dw, _markH[s], _markDText[m], c, a);
+                    DrawMarkPiece(x0 + fw + gap, _markTop[s], dw, ReplayLabels.LineHeight, _markDText[m], c, a);
                 }
             }
         }
