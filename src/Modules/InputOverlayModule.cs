@@ -509,7 +509,12 @@ namespace ForestOverlay.Modules
             {
                 KeyCode k = AllKeys[i];
                 if (!Input.GetKeyDown(k)) continue;
-                if (k == KeyCode.Mouse0 || k == KeyCode.Mouse1) continue;   // the clicks that run this window
+                if (k == KeyCode.Mouse0 || k == KeyCode.Mouse1)
+                {
+                    // the clicks that run this window: say so, keep waiting (T-0444)
+                    SetStatus("M1 and M2 cannot be added with Add input (the click is the press). Use + M1 / + M2 for them, or press another input. Esc cancels.");
+                    continue;
+                }
                 _capturing = false;
                 Host.Hotkeys.ReleaseCapture();
                 if (k == KeyCode.Escape) { SetStatus("Cancelled."); return; }
@@ -1117,7 +1122,7 @@ namespace ForestOverlay.Modules
             {
                 _capturing = !_capturing;
                 if (_capturing) Host.Hotkeys.HoldCapture(); else Host.Hotkeys.ReleaseCapture();
-                SetStatus(_capturing ? "Press a key, a mouse button or turn the wheel. Esc cancels." : "");
+                SetStatus(_capturing ? "Press a key, mouse button 3-7 or turn the wheel. Esc cancels." : "");
             }
             UiKit.Hint(keyR, AddKeyTip);
             x += keyW + 6f;
