@@ -70,7 +70,26 @@ namespace ForestOverlay.Data
             if (string.IsNullOrEmpty(text)) return;
             string[] parts = text.Split('\n');
             for (int i = 0; i < parts.Length; i++)
-                if (parts[i].Trim().Length > 0) _lines.Add(parts[i]);
+                if (parts[i].Trim().Length > 0) Wrap(parts[i].Trim());
+        }
+
+        /// A line longer than this many characters is split at a space into
+        /// more grid cells, so run mode's long line stays clear of the input
+        /// overlay's tiles (T-0362, 1920x1200: the 78-character line ran
+        /// under the Run tile; 44 characters reach about x 0.2 of the width).
+        public const int MaxLineChars = 44;
+
+        private void Wrap(string line)
+        {
+            while (line.Length > MaxLineChars)
+            {
+                int cut = line.LastIndexOf(' ', MaxLineChars);
+                if (cut < MaxLineChars / 2) cut = line.IndexOf(' ', MaxLineChars);
+                if (cut <= 0) break;
+                _lines.Add(line.Substring(0, cut));
+                line = line.Substring(cut + 1).TrimStart();
+            }
+            if (line.Length > 0) _lines.Add(line);
         }
 
         /// The game's grid shows them only when its members resolved and it
