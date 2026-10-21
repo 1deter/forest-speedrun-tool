@@ -111,7 +111,8 @@ namespace ForestOverlay.Data
             if (Off(physX, 0f, tol) || Off(physY, VanillaPhysicsGravityY, tol) || Off(physZ, 0f, tol))
                 parts = Add(parts, "physics gravity (" + Num(physX) + ", " + Num(physY) + ", " + Num(physZ) + ") (the game's (0, " + Num(VanillaPhysicsGravityY) + ", 0))");
             if (!multiplayer && Math.Abs(fixedDt - VanillaFixedDeltaTime) > 1e-5f)
-                parts = Add(parts, "physics rate " + Hz(fixedDt) + " Hz (the game's 60 Hz)");
+                parts = Add(parts, "physics rate " + Hz(fixedDt) + " Hz (the game's 60 Hz" +
+                                   (Math.Abs(fixedDt - 1f / 30f) <= 1e-5f ? "; 30 is its hidden Low quality physics setting" : "") + ")");
             return parts == null ? null : "the game's movement values were changed: " + parts;
         }
 

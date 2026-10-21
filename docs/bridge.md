@@ -43,7 +43,7 @@ inactive too, `max=N`, nearest first), `roots`, `types`, `members`
 `destroy` (mark practice; an `IEnumerator` method is started as a
 coroutine), and the overlay's own actions: `savestates`, `capture`,
 `restore <name> [load]` (wait until done), `spots`, `go`, `select`, `restart`
-(waits until idle), `tp`, `dump`, plus `wait` / `waitidle`; since
+(waits until idle), `tp` (refused in a run, like `go`: T-0414), `dump`, plus `wait` / `waitidle`; since
 v0.24.27-0.24.31 also `mark` (a magenta beacon through walls), `shot`
 (a screenshot into the bridge folder), `anim` / `anim watch N`
 (background) / `anim reset` (the player's animator); since v0.24.223-225

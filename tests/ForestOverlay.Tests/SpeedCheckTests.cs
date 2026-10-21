@@ -257,7 +257,8 @@ namespace ForestOverlay.Tests
         public void MovementFlagsAnyPhysicsRateButTheDefault()
         {
             Assert.Equal("the game's movement values were changed: physics rate 120 Hz (the game's 60 Hz)", Move(fixedDt: 0.00833f));
-            Assert.Equal("the game's movement values were changed: physics rate 30 Hz (the game's 60 Hz)", Move(fixedDt: 1f / 30f));   // D1
+            Assert.Equal("the game's movement values were changed: physics rate 30 Hz (the game's 60 Hz; 30 is its hidden Low quality physics setting)",
+                         Move(fixedDt: 1f / 30f));   // D1
             Assert.Null(Move(fixedDt: 1f / 30f, mp: true));
             Assert.Null(Move(fixedDt: 0.00833f, mp: true));
         }
