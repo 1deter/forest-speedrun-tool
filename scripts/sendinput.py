@@ -74,19 +74,15 @@ def _game_window():
     return found[0] if found else 0
 
 
-def bring_to_front():
-    # A plain SetForegroundWindow is refused from a background process: an
-    # Alt tap plus AttachThreadInput to the current foreground thread lets it.
-    hwnd = _game_window()
-    if not hwnd:
-        return False
+def _switch(hwnd, alt_tap):
     kernel32 = ctypes.WinDLL("kernel32")
     user32.ShowWindow(hwnd, 9)
     t_fg = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
     t_me = kernel32.GetCurrentThreadId()
     user32.AttachThreadInput(t_me, t_fg, True)
-    user32.keybd_event(0x12, 0, 0, 0)
-    user32.keybd_event(0x12, 0, KEYEVENTF_KEYUP, 0)
+    if alt_tap:
+        user32.keybd_event(0x12, 0, 0, 0)
+        user32.keybd_event(0x12, 0, KEYEVENTF_KEYUP, 0)
     user32.BringWindowToTop(hwnd)
     user32.SetForegroundWindow(hwnd)
     user32.AttachThreadInput(t_me, t_fg, False)
@@ -95,6 +91,22 @@ def bring_to_front():
             return True
         time.sleep(0.05)
     return False
+
+
+def bring_to_front():
+    # Already in front: send nothing (an Alt tap is a key the game and an
+    # armed Add input read, T-0449). Else the plain switch first; a background
+    # process is often refused it, so the Alt tap + AttachThreadInput is the
+    # fallback, said on stdout because the game may see that Alt.
+    hwnd = _game_window()
+    if not hwnd:
+        return False
+    if user32.GetForegroundWindow() == hwnd:
+        return True
+    if _switch(hwnd, False):
+        return True
+    print("sendinput: focus switch needed an Alt tap (the game may read it as a key)")
+    return _switch(hwnd, True)
 
 
 def mouse(dx, dy, data, flags):
