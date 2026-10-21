@@ -560,7 +560,10 @@ namespace ForestOverlay.Modules
             if (GameInput && GameActions.Ready) extra = _layout.SplitKey(t, GameActions.Table, ui.RefW, ui.RefH);
             if (extra > 0) { Commit(); Reload(); }
             else Commit();
-            SetStatus("Added " + InputLayout.LabelFor(key) + " at the bottom right of the screen: drag it where you want it.");
+            string added = "Added " + InputLayout.LabelFor(key) + " at the bottom right of the screen: drag it where you want it.";
+            if (GameInput && GameActions.Ready && GameActions.Table.Total(key) == 0)
+                added += " The game has no action on this key, so the tile stays dark under Game input; set Shows to Raw input to light it.";
+            SetStatus(added);
             Ctx.Log.LogInfo("Inputs: tile " + key + " added.");
         }
 
