@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.392 - 2026-10-21
+
+- Run mode now flags a raised run or swim speed (the debug console's speed-run cheat, or a mod), showing the speeds seen next to the game's 13.5 / 3.75.
+
 ## v0.24.391 - 2026-10-21
 
 - Runs tab > Run options: the row for the comparison line's dots and labels is now called 'Checkpoint dots', apart from the 'Checkpoint states' saves.
