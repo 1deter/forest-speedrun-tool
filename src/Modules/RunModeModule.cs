@@ -51,6 +51,8 @@ namespace ForestOverlay.Modules
         private bool _attemptOpen;          // an attempt is running (not reset yet)
         private bool _spotStarting;         // a run spot's Full load is under way
         private bool _byHand;               // run mode started with Start run mode
+        private bool _byHandClick;          // the attempt being started is the Start run mode click's (T-0414 D3)
+        private string _startHash = "";     // the start state the run spot really loaded (T-0414 F4)
         private RunReport _report;
         private string _reportPath;
         private float _nextCheck;
@@ -231,13 +233,17 @@ namespace ForestOverlay.Modules
             }
             _byHand = false;
             _runSpot = s;
+            // The state the spot really loaded, not the one it names (T-0414 F4).
+            _startHash = _savestates != null ? _savestates.LastStartStateHash : "";
             string from = s.RunCategory + " from '" + s.Name + "' (" +
                           (SegmentLibrary.IsCommunity(s) ? "community" : "own") + " spot " + s.Id +
-                          ", start state " + (s.StartState.Length > 0 ? s.StartState : "not hashed") + ")";
+                          ", start state " + (_startHash.Length > 0 ? _startHash : "not hashed") + ")";
             RunCategory cat = CategoryFor(s);
             if (cat == null) Ctx.Log.LogWarning("Run mode: the run spot's category '" + s.RunCategory + "' is not one of the site's " +
                                                 _categories.Count + " - the defaults apply (everything locked).");
             StartAttempt(from + ", " + RunIntegrity.Describe(), cat != null ? cat.Name : s.RunCategory);
+            string mismatch = RunStartCheck.StartStateFlag(_startHash, s.StartState);
+            if (mismatch != null) Ctx.Run.Flag(mismatch);
         }
 
         /// The fallback for a category with no run spot: run mode on now,
@@ -247,6 +253,7 @@ namespace ForestOverlay.Modules
             if (Ctx.Run.Active) return;
             if (!InLoadedGame()) { Ctx.Notice.Show("Run mode: load a game first.", 6f); return; }
             _byHand = true;
+            _byHandClick = true;   // practice before this click is a flag (D3)
             _runSpot = null;
             StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", ByHandLabel());
         }
@@ -263,7 +270,16 @@ namespace ForestOverlay.Modules
             string before = Ctx.Practice.Used ? Ctx.Practice.Reason : "";
             Ctx.Practice.Reset();   // an attempt starts clean; the report keeps what came before
             RunCategory cat = CategoryFor(_runSpot);
-            Ctx.Run.Begin(started, label, cat);
+            if (_runSpot == null) _startHash = "";
+            // A run by hand says on the HUD that it did not start from a
+            // category spot (author, 2026-10-21, T-0414 D3); the chain keeps the plain label.
+            Ctx.Run.Begin(started, _byHand ? RunStartCheck.ByHandLabel(label) : label, cat);
+            bool click = _byHandClick;
+            _byHandClick = false;
+            // Practice, then Start run mode: a savestate just before could
+            // start the run anywhere - a flag, not a note (D3).
+            string afterPractice = click ? RunStartCheck.ByHandAfterPracticeFlag(before) : null;
+            if (afterPractice != null) Ctx.Run.Flag(afterPractice);
             ResetMoves();
             ResetAudit();
             _timeScale.Reset();
@@ -298,7 +314,7 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " started (" + _report.Started + ") - practice locked; " +
                             _report.Summary() + ".");
             if (!Host.AnyPanelOpen())
-                Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + label + ") - practice features are locked. End run mode in the Runs tab to practise.", 7f);
+                Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + Ctx.Run.Label + ") - practice features are locked. End run mode in the Runs tab to practise.", 7f);
         }
 
         /// `reason`: the log's short word (reset, finished, title screen, ...).

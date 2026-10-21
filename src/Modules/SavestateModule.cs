@@ -2516,12 +2516,18 @@ namespace ForestOverlay.Modules
             RestoreStartState(s, false, done);
         }
 
+        /// The hash of the start state file the last RestoreStartState read
+        /// ("" when it could not read one) - run mode reports the state a
+        /// run spot really loaded, not the one it names (T-0414 F4).
+        public string LastStartStateHash = "";
+
         /// `runStart`: a run spot's restart (Modules/RunModeModule) - allowed
         /// in run mode, and always a Full load (author, 2026-10-02).
         public void RestoreStartState(Segment s, bool runStart, Action<string> done)
         {
             if (Busy) { done("a savestate action is still running"); return; }
             if (!runStart && RefusedInRun("restore", done)) return;
+            LastStartStateHash = "";
 
             RestoreGarbage.Begin();
             SavestateFile f;
@@ -2537,7 +2543,8 @@ namespace ForestOverlay.Modules
             // A shared segment names the state it was timed from; a file
             // that is not that state still restores, but its times will not
             // compare fairly - say so.
-            if (s.StartState.Length > 0 && Segment.HashText(f.Data) != s.StartState)
+            LastStartStateHash = Segment.HashText(f.Data);
+            if (s.StartState.Length > 0 && LastStartStateHash != s.StartState)
                 Ctx.Log.LogWarning("Savestate: the start state file of '" + s.Id + "' is not the one the segment expects (" +
                                    s.StartState + ") - recapture it to make it so.");
             RestoreGarbage.Mark("start state hash");
