@@ -98,6 +98,30 @@ namespace ForestOverlay.Tests
         // ---- T-0414 F5-F9 ----
 
         [Fact]
+        public void ALookIsDueFirstThenOnAnyChange()
+        {
+            var c = new ModCounts();
+            Assert.True(c.Due(119, 122, 90, false));    // the first look
+            Assert.False(c.Due(119, 122, 90, false));
+            Assert.True(c.Due(119, 122, 91, false));    // a one-shot Assembly.Load(bytes): no event, one more assembly (v0.24.398)
+            Assert.False(c.Due(119, 122, 91, false));
+            Assert.True(c.Due(120, 122, 91, false));    // a Harmony patch
+            Assert.True(c.Due(120, 123, 91, false));    // a MonoMod hook
+            Assert.True(c.Due(120, 123, 91, true));     // a load event
+            Assert.False(c.Due(120, 123, 91, false));
+        }
+
+        [Fact]
+        public void AddedNamesWhatTurnedUp()
+        {
+            Assert.Equal(new[] { "RedTeamProbe (loaded from memory)" },
+                         ExternalMods.Added(new[] { "a.dll" }, new[] { "a.dll", "RedTeamProbe (loaded from memory)" }));
+            Assert.Empty(ExternalMods.Added(new[] { "a.dll" }, new[] { "a.dll" }));
+            Assert.Equal(new[] { "a.dll" }, ExternalMods.Added(null, new[] { "a.dll", "a.dll" }));
+            Assert.Empty(ExternalMods.Added(new[] { "a.dll" }, null));
+        }
+
+        [Fact]
         public void PatchOwnerReadsTheNewShapes()
         {
             Assert.Equal("redteam.cheat", ExternalMods.PatchOwner("ItemDatabase.ItemIdByName (by redteam.cheat)"));

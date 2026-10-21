@@ -202,11 +202,41 @@ namespace ForestOverlay.Tests
             string end;
             Assert.Null(w.Frame(0.02f, 0.01f, 1f, true, out end));
             Assert.Null(w.End());
+            Assert.Null(w.Frame(0.01f, 0.01f, 1f, false, out end));   // the frame after: held too
             Assert.NotNull(w.Frame(0.02f, 0.01f, 1f, false, out end));
             Assert.Null(w.Frame(0.01f, 0.01f, 1f, true, out end));
             Assert.Null(end);
             Assert.Null(w.Frame(0.02f, 0.01f, 1f, false, out end));
             w.Reset();
+            Assert.Null(w.End());
+        }
+
+        [Fact]
+        public void ClockTimeScalePutBackToOneIsTheTimeScaleWatchsAlone()
+        {
+            // Live v0.24.398: timeScale 2, then 1 - the frame it reads 1 still
+            // ran at 2 (deltaTime is fixed at the frame's start).
+            var w = new ClockWatch();
+            string end;
+            Assert.Null(w.Frame(0.02f, 0.01f, 2f, false, out end));
+            Assert.Null(w.Frame(0.02f, 0.01f, 2f, false, out end));
+            Assert.Null(w.Frame(0.02f, 0.01f, 1f, false, out end));   // put back: ran at 2, reads 1
+            Assert.Null(w.Frame(0.01f, 0.01f, 1f, false, out end));
+            Assert.Null(w.End());
+            // A clock still ahead a frame later is a real episode.
+            Assert.Null(w.Frame(0.02f, 0.01f, 2f, false, out end));
+            Assert.Null(w.Frame(0.02f, 0.01f, 1f, false, out end));
+            Assert.NotNull(w.Frame(0.02f, 0.01f, 1f, false, out end));
+        }
+
+        [Fact]
+        public void ClockTheFrameAfterAFastForwardEndsIsHeld()
+        {
+            var w = new ClockWatch();
+            string end;
+            Assert.Null(w.Frame(0.1f, 0.01f, 10f, true, out end));    // the plugin's fast-forward (excused)
+            Assert.Null(w.Frame(0.1f, 0.01f, 1f, false, out end));    // it ended; this frame ran at 10
+            Assert.Null(w.Frame(0.01f, 0.01f, 1f, false, out end));
             Assert.Null(w.End());
         }
 

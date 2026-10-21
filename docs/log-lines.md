@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 899 log calls.
+256 prefixes from 900 log calls.
 
 ## `ActionReaders`
 
@@ -1713,6 +1713,7 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: attempt <Ctx.Run.Attempt> goes on after Reload save on death.`
 - info `Run mode: attempt <_report.Attempt> ended - <why>; <..>.`
 - info `Run mode: attempt <_report.Attempt> started (<_report.Started>) - practice locked; <..>.`
+- warning `Run mode: other code loaded during the attempt: <..>.`
 - warning `Run mode: report not written: <ex.Message>`
 - warning `Run mode: the player's movement fields were not found - that watch is off.`
 - warning `Run mode: the player's run / swim speed fields were not found - that watch is off.`

@@ -528,6 +528,14 @@ namespace ForestOverlay.Game
             catch (Exception) { return ""; }
         }
 
+        /// How many assemblies are loaded now (an Assembly.Load(bytes) raises
+        /// no AssemblyLoad event we see, T-0414) - one array, every second or few.
+        public static int AssemblyCount()
+        {
+            try { return AppDomain.CurrentDomain.GetAssemblies().Length; }
+            catch (Exception) { return -1; }
+        }
+
         /// How many methods are patched now - a cheap "did anything change".
         public static int PatchedCount()
         {

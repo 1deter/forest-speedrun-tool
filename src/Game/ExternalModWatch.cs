@@ -26,7 +26,7 @@ namespace ForestOverlay.Game
         private readonly List<string> _seen = new List<string>();
         private volatile bool _loaded = true;   // true: look at the first Tick
         private float _next;
-        private int _patchCount = -2, _detourCount = -2;
+        private readonly ModCounts _counts = new ModCounts();
 
         public ExternalModWatch(ManualLogSource log, PracticeState practice, string guid, string path)
         {
@@ -47,12 +47,11 @@ namespace ForestOverlay.Game
         {
             if (now < _next) return;
             _next = now + EverySeconds;
-            int patches = RunIntegrity.PatchedCount();
-            int detours = RunIntegrity.DetourCount();   // MonoMod hooks too (T-0414 F6)
-            if (!_loaded && patches == _patchCount && detours == _detourCount) return;
+            // MonoMod hooks (T-0414 F6) and the assembly count too: a
+            // one-shot Assembly.Load(bytes) raised no event (live, v0.24.398).
+            bool loaded = _loaded;
             _loaded = false;
-            _patchCount = patches;
-            _detourCount = detours;
+            if (!_counts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblyCount(), loaded)) return;
             Look();
         }
 

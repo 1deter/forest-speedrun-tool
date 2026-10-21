@@ -130,25 +130,32 @@ namespace ForestOverlay.Data
     /// ahead of real time (SpeedCheck.ClockAhead), shaped like
     /// TimeScaleWatch: the first frame ahead raises the flag, the first
     /// frame back (or the attempt's end) gives a line with the peak ratio
-    /// and the unscaled seconds. Excused frames (not loaded, a savestate
-    /// action, a cutscene fast-forward, a time scale above 1 that the
-    /// time-scale watch flags) start nothing and leave a running episode
-    /// as it was.
+    /// and the unscaled seconds. Held frames start nothing and leave a
+    /// running episode as it was: an excused one (not loaded, a savestate
+    /// action, a cutscene fast-forward), one whose time scale reads above
+    /// 1 (the time-scale watch's flag, not a second one), and the frame
+    /// after either - deltaTime is fixed at the frame's start, so the frame
+    /// a time scale is put back to 1 still ran at the old one (live,
+    /// v0.24.398: timeScale 2 then 1 gave "x2, time scale read 1").
     public sealed class ClockWatch
     {
         private bool _active;
         private float _peak;
         private float _seconds;
+        private bool _heldLast;   // the last frame was held: this one may still run at its scale
 
         /// A new attempt: nothing is remembered.
-        public void Reset() { _active = false; _peak = 0f; _seconds = 0f; }
+        public void Reset() { _active = false; _peak = 0f; _seconds = 0f; _heldLast = false; }
 
         /// One frame. Returns the flag text on an episode's first frame
         /// (else null); `ended` is the summary when one has just ended.
         public string Frame(float dt, float unscaledDt, float scale, bool excused, out string ended)
         {
             ended = null;
-            if (excused) return null;
+            bool held = excused || scale > 1f;
+            bool after = _heldLast;
+            _heldLast = held;
+            if (held || after) return null;
             if (!SpeedCheck.ClockAhead(dt, unscaledDt))
             {
                 ended = Close();
