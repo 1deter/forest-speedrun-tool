@@ -344,6 +344,9 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   Quick load to parity, keep Full load as the escape hatch. **Quick load
   is the preferred, default restore** (author, 2026-09-26): a runner's
   report about "savestates" means Quick load unless it says otherwise.
+  **Checkpoint dots** = the comparison line's dots / labels row in Run
+  options; **Checkpoint states** = the restart-from-here saves (author,
+  2026-10-16, T-0402: one word for one thing in the Runs tab).
 - **Decided:** a Quick load gives back the capture, not what a Full load
   does where the save is silent (author, 2026-09-25: "if a bush is cut
   and it was saved that way, then the savestate should respect that";
