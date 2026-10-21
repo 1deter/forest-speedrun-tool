@@ -164,6 +164,10 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipMarkItem = new GUIContent("How many of this item the comparison run held at the checkpoint.");
         private static readonly GUIContent TipMarkItems = new GUIContent("Item counts for the label: every item the comparison run held.");
 
+        private static readonly GUIContent TipMarkWrap = new GUIContent("Off: the label is one line. On: Line (time, delta, segment, speed), Stats and Items each get their own line.");
+        private static readonly GUIContent TipMarkJoinStats = new GUIContent("Put the stats on the line above instead of a line of their own.");
+        private static readonly GUIContent TipMarkJoinItems = new GUIContent("Put the item counts on the line above instead of a line of their own.");
+
         private MarkSpec MarkSettings
         {
             get
@@ -445,6 +449,20 @@ namespace ForestOverlay.Modules
                         y += viewH + 4f;
                     }
                 }
+                // Label layout (T-0406): one line, or a line per group; a group can join the one above.
+                float lcx = x0;
+                WinPx.Label(new Rect(x, y, 120, 20), "Label layout");
+                v = MarkFieldToggle(ref lcx, ref y, x0, right, 100f, sp.Wrap, " Wrap lines", TipMarkWrap);
+                if (v != sp.Wrap) { edit = MarkSpec.Parse(sp.Serialize()); edit.Wrap = v; }
+                if (sp.Wrap)
+                {
+                    v = MarkFieldToggle(ref lcx, ref y, x0, right, 168f, sp.JoinStats, " Stats join line above", TipMarkJoinStats);
+                    if (v != sp.JoinStats) { edit = MarkSpec.Parse(sp.Serialize()); edit.JoinStats = v; }
+                    v = MarkFieldToggle(ref lcx, ref y, x0, right, 168f, sp.JoinItems, " Items join line above", TipMarkJoinItems);
+                    if (v != sp.JoinItems) { edit = MarkSpec.Parse(sp.Serialize()); edit.JoinItems = v; }
+                }
+                y += 24f;
+
                 if (edit != null)
                 {
                     // At least one field: an empty label is "dots only".

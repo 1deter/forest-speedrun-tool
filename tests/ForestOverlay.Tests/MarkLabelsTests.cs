@@ -36,6 +36,34 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void WrapLayoutRowsJoinsAndOldSpecsReadAsOneLine()
+        {
+            string t = SplitTable.Time(2f, 3);
+            MarkSpec one = MarkSpec.Parse("time,speed,ch:Health,item:Soda");
+            Assert.False(one.Wrap);
+            Assert.Equal(t + "  1.0 m/s  Health 100  Soda 2", MarkLabels.LabelText(one, Run(), Times, 0, 3));
+
+            MarkSpec w = MarkSpec.Parse("time,speed,ch:Health,item:Soda,wrap");
+            Assert.True(w.Wrap);
+            Assert.Equal(t + "  1.0 m/s\nHealth 100\nSoda 2", MarkLabels.LabelText(w, Run(), Times, 0, 3));
+            Assert.Equal("time,speed,ch:Health,item:Soda,wrap", w.Serialize());
+
+            MarkSpec j = MarkSpec.Parse("time,speed,ch:Health,item:Soda,wrap,join:stats");
+            Assert.Equal(t + "  1.0 m/s  Health 100\nSoda 2", MarkLabels.LabelText(j, Run(), Times, 0, 3));
+            Assert.Equal("time,speed,ch:Health,item:Soda,wrap,join:stats", j.Serialize());
+
+            // An empty group takes no row; delta alone is the Line group.
+            MarkSpec e = MarkSpec.Parse("delta,item:Soda,wrap");
+            Assert.Equal("Soda 2", MarkLabels.LabelText(e, Run(), Times, 0, 3));
+            Assert.Equal(SplitTable.Delta(0.5f, 2), MarkLabels.DeltaText(e, 0.5f, 2));
+            // Items join the stats row that sits above (the Line group is empty).
+            MarkSpec ji = MarkSpec.Parse("ch:Health,item:Soda,wrap,join:items");
+            Assert.Equal("Health 100  Soda 2", MarkLabels.LabelText(ji, Run(), Times, 0, 3));
+            // Join flags do nothing off wrap and are not kept.
+            Assert.Equal("time", MarkSpec.Parse("time,join:stats").Serialize());
+        }
+
+        [Fact]
         public void OldDefaultStillParsesAsItsOwnChoice()
         {
             MarkSpec s = MarkSpec.Parse(MarkSpec.OldDefault);

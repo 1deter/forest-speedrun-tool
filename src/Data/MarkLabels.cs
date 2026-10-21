@@ -39,6 +39,14 @@ namespace ForestOverlay.Data
         public readonly List<string> Channels = new List<string> { "Health", "Stamina", "Armor" };
         public readonly List<string> Items = new List<string>();
 
+        /// Label layout (T-0406): false = one line (today's label); true =
+        /// each fixed group (Line: time / segment / speed, then Stats, then
+        /// Items) on its own line, unless it joins the line above. Delta is
+        /// part of the Line group and is drawn after the first line.
+        public bool Wrap, JoinStats, JoinItems;
+
+        public const string WrapToken = "wrap", JoinStatsToken = "join:stats", JoinItemsToken = "join:items";
+
         /// A channel in the runner's words ("BodyTemp" -> "Body temp").
         public static string StatName(string channel)
         {
@@ -85,6 +93,9 @@ namespace ForestOverlay.Data
                 else if (lower == "delta") { f.Delta = true; any = true; }
                 else if (lower == "segment") { f.Segment = true; any = true; }
                 else if (lower == "speed") { f.Speed = true; any = true; }
+                else if (lower == WrapToken) f.Wrap = true;
+                else if (lower == JoinStatsToken) f.JoinStats = true;
+                else if (lower == JoinItemsToken) f.JoinItems = true;
                 else if (lower.StartsWith(ChannelPrefix) && p.Length > ChannelPrefix.Length)
                 {
                     string name = p.Substring(ChannelPrefix.Length).Trim();
@@ -111,6 +122,12 @@ namespace ForestOverlay.Data
             for (int i = 0; i < Channels.Count; i++) sb.Append(ChannelPrefix).Append(Channels[i].Replace(",", "")).Append(',');
             for (int i = 0; i < Items.Count; i++) sb.Append(ItemPrefix).Append(Items[i].Replace(",", "")).Append(',');
             if (sb.Length == 0) return Default;   // no field = never saved by the UI; read as the default
+            if (Wrap)
+            {
+                sb.Append(WrapToken).Append(',');
+                if (JoinStats) sb.Append(JoinStatsToken).Append(',');
+                if (JoinItems) sb.Append(JoinItemsToken).Append(',');
+            }
             sb.Length--;
             return sb.ToString();
         }
@@ -175,7 +192,7 @@ namespace ForestOverlay.Data
             if (spec == null || !spec.Labels || times == null || i < 0 || i >= times.Length) return "";
             float t = times[i];
             if (!Real(t)) return "";
-            StringBuilder sb = null;
+            StringBuilder sb = null, stats = null, items = null;
             string s;
 
             if (spec.Time) Add(ref sb, SplitTable.Time(t, decimals));
@@ -207,13 +224,32 @@ namespace ForestOverlay.Data
                     {
                         if (v == 0f && MarkSpec.HiddenAtZero(run.Channels[ch])) continue;
                         s = MarkSpec.StatName(run.Channels[ch]) + " " + v.ToString("0.#", CultureInfo.InvariantCulture);
-                        Add(ref sb, s);
+                        Add(ref stats, s);
                     }
                 }
                 for (int c = 0; c < spec.Items.Count; c++)
-                    Add(ref sb, ItemWords.Say(spec.Items[c]) + " " + run.ItemCountAt(spec.Items[c], t).ToString(CultureInfo.InvariantCulture));
+                    Add(ref items, ItemWords.Say(spec.Items[c]) + " " + run.ItemCountAt(spec.Items[c], t).ToString(CultureInfo.InvariantCulture));
             }
-            return sb == null ? "" : sb.ToString();
+            return Rows(spec, sb, stats, items);
+        }
+
+        /// The groups as rows: one line joined by Gap (today's label), or, in
+        /// wrap, a row per non-empty group (newline between) - Stats and Items
+        /// share the row above when they join it. An empty group takes no row.
+        private static string Rows(MarkSpec spec, StringBuilder line, StringBuilder stats, StringBuilder items)
+        {
+            StringBuilder o = new StringBuilder(48);
+            AppendGroup(o, line, spec, false);
+            AppendGroup(o, stats, spec, spec.JoinStats);
+            AppendGroup(o, items, spec, spec.JoinItems);
+            return o.ToString();
+        }
+
+        private static void AppendGroup(StringBuilder o, StringBuilder g, MarkSpec spec, bool join)
+        {
+            if (g == null) return;
+            if (o.Length > 0) o.Append(!spec.Wrap || join ? Gap : "\n");
+            o.Append(g.ToString());
         }
 
         /// Your delta's text (drawn apart, in the splits panel's colour):
