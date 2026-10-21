@@ -187,7 +187,7 @@ namespace ForestOverlay.Modules
         {
             if (!c.Ok || c.Src == null || c.Src.Count == 0) return;
             GUI.color = colour;
-            int last = SpeedGraph.ColumnOf(c.Src[c.Src.Count - 1].T, _graphT, _graphCols);
+            int last = SpeedGraph.ColumnClamped(c.Src[c.Src.Count - 1].T, _graphT, _graphCols);
             for (int i = 0; i <= last && i < _graphCols; i++)
             {
                 float yHi = g.yMax - g.height * Mathf.Clamp01(c.Hi[i] / _graphTop);

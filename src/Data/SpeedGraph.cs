@@ -80,6 +80,16 @@ namespace ForestOverlay.Data
             return c < 0 ? 0 : (c >= columns ? columns - 1 : c);
         }
 
+        /// Like ColumnOf, but a time past tMax (a live run that has grown
+        /// since tMax was last refreshed) clamps to the last column instead of
+        /// -1, so the newest stretch is still drawn. -1 only for t < 0.
+        public static int ColumnClamped(float t, float tMax, int columns)
+        {
+            if (t < 0f || columns < 1) return -1;
+            if (t >= tMax) return columns - 1;
+            return ColumnOf(t, tMax, columns);
+        }
+
         /// The stored speed at time t (interpolated between samples, the
         /// unsmoothed value); false when t is outside the run.
         public static bool SpeedAt(IList<RunSample> s, float t, out float speed)
