@@ -89,7 +89,7 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
 
 ### Timed runs
 
-Paths: `src/Modules/PracticeRunModule*.cs` `src/Modules/{RunUploadModule,TimerModule}.cs` `src/Game/{ActionRecorder,AnimReader,ArmsReplica,BuildWatch,GameEvents,ItemCounter,ItemCounts,LatePass,PlayerStateReader,ReplayDraw,RibbonMesh,RunnerIdentity,WorldEvents}.cs` `src/Data/{AnimTrack,ArmCause,AttemptFormat,AttemptStore,BusEvents,ClockText,InputTracks,LineBuffer,LoadTimes,LssAutoSplit,LssFile,ReplayCamera,CheckpointMarks,MarkLabels,ReplayLabels,ReplayMarks,ReplayStats,ReplayValues,RibbonPath,RunHistory,RunLineRules,RunRecorder,RunResults,RunTiming,SiteBoard,SiteProtocol,SiteSpots,SpeedRamp,SplitSequence,SplitTable,TimerText}.cs`
+Paths: `src/Modules/PracticeRunModule*.cs` `src/Modules/{RunUploadModule,TimerModule}.cs` `src/Game/{ActionRecorder,AnimReader,ArmsReplica,BuildWatch,GameEvents,ItemCounter,ItemCounts,LatePass,PlayerStateReader,ReplayDraw,RibbonMesh,RunnerIdentity,WorldEvents}.cs` `src/Data/{AnimTrack,ArmCause,AttemptFormat,AttemptStore,BusEvents,ClockText,InputTracks,LineBuffer,LoadTimes,LssAutoSplit,LssFile,ReplayCamera,CheckpointMarks,MarkLabels,ExtraLines,ReplayLabels,ReplayMarks,ReplayStats,ReplayValues,RibbonPath,RunHistory,RunLineRules,RunRecorder,RunResults,RunTiming,SiteBoard,SiteProtocol,SiteSpots,SpeedRamp,SplitSequence,SplitTable,TimerText}.cs`
 
 Segments, checkpoints, splits, ghosts, run lines, replays, results,
 LiveSplit, uploads.

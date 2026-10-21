@@ -108,6 +108,7 @@ namespace ForestOverlay.Modules
                 _markFieldsCfg.Value = next;
                 ctx.Log.LogInfo("Run lines: checkpoint labels moved from the old default to " + next + ".");
             }
+            InitExtraLines(ctx);
             _ownLineLiveCfg = ctx.Config.Bind("Runs", "RunLineOwnLive", false,
                 "Draw your own run's line while a run is going (off: it is hidden while a run is going).");
             _keepDoneCfg = ctx.Config.Bind("Runs", "KeepFinishedRunLine", true,
@@ -331,6 +332,7 @@ namespace ForestOverlay.Modules
                 WinPx.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineAheadText);
                 y += 24f;
             }
+            y = DrawExtraOptions(x, y, w);
             y = DrawMarkOptions(x, y, w);
             return y + 4f;
         }
