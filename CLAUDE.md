@@ -157,26 +157,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-19 (author session, v1 scope):** every parked question
-  answered (decisions.md *What v1.0 is*): the P4 polish is before v1;
-  T-0152 / T-0153 closed; T-0339 (installed fonts, HUD + F2 apart),
-  T-0343 (rebinds in Settings, any action, allowed in runs), T-0344
-  (recorder, all three), T-0432 (yes) before v1; filed T-0436 (site
-  replay values), T-0437 (inventory / book FPS cheat, flagged), T-0438
-  (always-on lines above the game's). Nothing parked.
-  **Next:** the chain's next run (`tasks.py next`).
-
-- **2026-10-19 (run R-0030, author started, the loop):** 5 of 5
-  confirmed, each with a checker accept, smoke PASS and forest-tester in
-  game: v0.24.372 T-0339 (HUD / F2 window fonts from installed fonts),
-  v0.24.374 T-0343 (Settings > Game controls: any action on an extra
-  key / mouse button / wheel; .373 failed live - Rewired fields),
-  v0.24.375 T-0344 (Recorder, replay keys / 1-4 slots / chosen values,
-  free view on 4), v0.24.376 T-0352 (paint on far rocks), v0.24.377
-  T-0356 (input overlay Tiles fold, Sure? on x, Add input). Filed:
-  T-0440, T-0441, forest-ux T-0442..T-0447. Parked for the author:
-  T-0446, T-0447 (input overlay layout); open: extra bindings in menus?
-  **Next:** a fresh session for the next run (`tasks.py next`).
+- **2026-10-21 (run R-0032, author started, pipelined):** 5 of 5
+  progressed. Carry-over: T-0448 confirmed; v0.24.383 T-0373 FAILED live
+  (curve flicker), fixed in .388. Released one at a time, each smoke
+  PASS, checker accept and confirmed in game: .384 T-0438, .385
+  T-0445+T-0376, .386 T-0374, .387 T-0378, .388 T-0373, .389 T-0384,
+  .390 T-0362 (wrap at 44 chars), .391 T-0402, .392 T-0413 (run / swim
+  speed flag), .393 T-0422 (Full load re-makes drops); T-0449
+  (sendinput Alt) confirmed. Released, in-game check next: v0.24.394
+  T-0423 (smoke PASS). Parked for the author: T-0406 / T-0407 demo
+  (branch worktree-agent-ace9106be0c782956, shots in tasks/notes/shots).
+  Filed T-0450 (Quick load after a Full load). **Next:** forest-tester
+  checks T-0423 on v0.24.394, then a fresh run (`tasks.py next`).
 
 - **2026-10-21 (run R-0031, author started, pipelined, then
   unattended):** author: pipeline the loop (N+1 builds while N is

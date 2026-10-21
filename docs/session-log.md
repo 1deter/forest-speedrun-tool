@@ -2,6 +2,29 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-21 (R-0032 handoff)
+
+- **2026-10-19 (author session, v1 scope):** every parked question
+  answered (decisions.md *What v1.0 is*): the P4 polish is before v1;
+  T-0152 / T-0153 closed; T-0339 (installed fonts, HUD + F2 apart),
+  T-0343 (rebinds in Settings, any action, allowed in runs), T-0344
+  (recorder, all three), T-0432 (yes) before v1; filed T-0436 (site
+  replay values), T-0437 (inventory / book FPS cheat, flagged), T-0438
+  (always-on lines above the game's). Nothing parked.
+  **Next:** the chain's next run (`tasks.py next`).
+
+- **2026-10-19 (run R-0030, author started, the loop):** 5 of 5
+  confirmed, each with a checker accept, smoke PASS and forest-tester in
+  game: v0.24.372 T-0339 (HUD / F2 window fonts from installed fonts),
+  v0.24.374 T-0343 (Settings > Game controls: any action on an extra
+  key / mouse button / wheel; .373 failed live - Rewired fields),
+  v0.24.375 T-0344 (Recorder, replay keys / 1-4 slots / chosen values,
+  free view on 4), v0.24.376 T-0352 (paint on far rocks), v0.24.377
+  T-0356 (input overlay Tiles fold, Sure? on x, Add input). Filed:
+  T-0440, T-0441, forest-ux T-0442..T-0447. Parked for the author:
+  T-0446, T-0447 (input overlay layout); open: extra bindings in menus?
+  **Next:** a fresh session for the next run (`tasks.py next`).
+
 ## Moved out 2026-10-21 (R-0031 handoff)
 
 - **2026-10-19 (run R-0029, chain C-0003, unattended):** 5 of 5
