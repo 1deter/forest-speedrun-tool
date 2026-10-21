@@ -30,6 +30,19 @@ namespace ForestOverlay.Data
             return "time scale " + Num(peak) + " lasted " + seconds.ToString("0.0", CultureInfo.InvariantCulture) + " s (back to normal)";
         }
 
+        /// The player's own run / swim speed (FpCharacter.runSpeed / swimmingSpeed, docs/game-notes.md
+        /// *timeScale*): vanilla only ever lowers the run speed, so anything above is a change.
+        public const float VanillaRunSpeed = 13.5f;
+        public const float VanillaSwimSpeed = 3.75f;
+
+        /// The flag text for a raised run or swim speed; null when both are at or below the game's.
+        public static string RunSpeedFlag(float run, float swim)
+        {
+            if (run <= VanillaRunSpeed + 0.01f && swim <= VanillaSwimSpeed + 0.01f) return null;
+            return "the player's run speed was changed (run " + Num(run) + ", swim " + Num(swim) +
+                   "; the game's " + Num(VanillaRunSpeed) + " / " + Num(VanillaSwimSpeed) + ")";
+        }
+
         private static string Num(float v) { return v.ToString("0.###", CultureInfo.InvariantCulture); }
     }
 

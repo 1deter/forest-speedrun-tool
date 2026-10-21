@@ -42,6 +42,7 @@ namespace ForestOverlay.Modules
         private BridgeModule _bridge;
         private DeathModule _death;
         private SavestateModule _savestates;
+        private bool _runSpeedFlagged, _runSpeedWarned;   // the run / swim speed flag is once per attempt; the missing-field warning once
         private readonly TimeScaleWatch _timeScale = new TimeScaleWatch();   // the time scale episodes of this attempt
         private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
         private bool _loaded;               // last frame: in a loaded game
@@ -123,6 +124,21 @@ namespace ForestOverlay.Modules
                 string speed = _timeScale.Frame(scale, excused, zeroOk, Time.unscaledDeltaTime, out speedEnd);
                 if (speed != null) Ctx.Run.Flag(speed);
                 if (speedEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedEnd);
+                // The player's run / swim speed (_speedyrun writes 60 / 20): first time per attempt.
+                if (!excused && !_runSpeedFlagged)
+                {
+                    float run, swim;
+                    if (SpeedRead.TryRead(out run, out swim))
+                    {
+                        string rs = SpeedCheck.RunSpeedFlag(run, swim);
+                        if (rs != null) { _runSpeedFlagged = true; Ctx.Run.Flag(rs); }
+                    }
+                    else if (SpeedRead.Missing && !_runSpeedWarned)
+                    {
+                        _runSpeedWarned = true;
+                        Ctx.Log.LogWarning("Run mode: the player's run / swim speed fields were not found - that watch is off.");
+                    }
+                }
             }
             if (_reportDirty) { _reportDirty = false; WriteReport(); }
             TickChain();
@@ -216,6 +232,7 @@ namespace ForestOverlay.Modules
             ResetMoves();
             ResetAudit();
             _timeScale.Reset();
+            _runSpeedFlagged = false;
             _attemptOpen = true;
 
             _report = new RunReport();

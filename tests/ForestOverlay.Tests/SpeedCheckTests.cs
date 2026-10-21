@@ -23,6 +23,23 @@ namespace ForestOverlay.Tests
             Assert.Equal("the game's speed was changed (time scale 0.5)", SpeedCheck.FlagText(0.5f));
         }
 
+        [Theory]
+        [InlineData(13.5f, 3.75f, false)]
+        [InlineData(1.2f, 3f, false)]
+        [InlineData(0f, 0f, false)]
+        [InlineData(60f, 3.75f, true)]
+        [InlineData(13.5f, 20f, true)]
+        public void RunSpeedFlagsOnlyAboveTheGames(float run, float swim, bool flagged)
+        {
+            Assert.Equal(flagged, SpeedCheck.RunSpeedFlag(run, swim) != null);
+        }
+
+        [Fact]
+        public void RunSpeedFlagText()
+        {
+            Assert.Equal("the player's run speed was changed (run 60, swim 20; the game's 13.5 / 3.75)", SpeedCheck.RunSpeedFlag(60f, 20f));
+        }
+
         private static string F(TimeScaleWatch w, float scale, float dt, out string ended, bool excused = false, bool zeroOk = false)
         {
             return w.Frame(scale, excused, zeroOk, dt, out ended);
