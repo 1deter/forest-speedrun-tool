@@ -393,6 +393,40 @@ are overridden), `walkSpeed` 6.5; `swimmingSpeed` has no other writer,
 `Start` (`disableControllerFreeze`). Athleticism multiplies at use
 (`FirstPersonCharacter`: x up to 1.3), never writes the field.
 
+**The other clocks and the movement constants (IL + bridge, 2026-10-21,
+T-0414).**
+- **`Time.captureFramerate` has no writer** in any game assembly
+  (`ilscan refs set_captureFramerate` over Assembly-CSharp, -firstpass,
+  PlayMaker, the UnityScript ones, TheForest.Commons / .Modding, Rewired,
+  bolt). Set to 30 it makes `deltaTime` 1/30 a frame whatever the frame
+  rate while `unscaledDeltaTime` stays real (live, ~160 fps: `deltaTime`
+  0.0333, `unscaledDeltaTime` 0.0063, `timeScale` 1; 16.9 s of game time
+  in 3.0 s).
+- **`deltaTime` never exceeds `unscaledDeltaTime` in vanilla** (live,
+  every frame read at the end of `Update`: ratio max 1.0000 over ~10,000
+  frames of play, a Full load, the pause menu and the inventory; it drops
+  below 1 only at a load, 0.1, and in menus, 0). `deltaTime` is fixed
+  at the frame's start: a `timeScale` written in `LateUpdate` and put
+  back first thing in the next `Update` runs that frame at the written
+  scale while every later reader sees 1 (live: 2x for 5 s, `timeScale`
+  read 1 throughout).
+- **`fixedDeltaTime`** is 1/60; writers that run: `PlayerPreferences
+  .SetLowQualityPhysics` (1/30 or 1/60, *Frame time* below),
+  `LevelLoader.Load` (puts back the value it found), Bolt's
+  `BoltCore.BeginStart` (1 / its `framesPerSecond`, multiplayer only).
+  `clstimemanager.Awake` (0.01), `SlowMoButton`, `SteamVR_Render`,
+  `clscameratarget` and PlayMaker's `ScaleTime` have no instance in game.
+- **`Physics.gravity`** (0, -16, 0): its only writer is PlayMaker's
+  `SetGravity` action, in none of the exported FSMs.
+- **`FirstPersonCharacter`'s constants**, the same in a Normal and a
+  Creative (Peaceful) game: `walkSpeed` 6.5 and `strafeSpeed` 6 (written
+  only by `playerHitReactions`: 1.2, the FSM's 0 / 1, and back to the
+  values kept at `Start` - never higher), `crouchSpeed` 4.5, `jumpHeight`
+  8, `gravity` 10 (each written only by the constructor; the prefab's
+  values win). `maximumVelocity` is rewritten by the game
+  (`ClampVelocity` / `HandleJumpSpeed`: 200 set over the bridge read 55
+  again a frame later).
+
 ---
 
 ## Inventory

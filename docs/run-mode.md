@@ -527,6 +527,66 @@ than the table's plan:
     "wall boost" in a category's banned moves.
 - **Next**: the detected moves done for real (the author's hands-on list).
 
+## Red team (T-0414, 2026-10-21)
+
+Every cheat a runner could reach, tried live over the bridge in run mode
+attempts on v0.24.397 (uploads off, the test attempts deleted from the
+site after). A stand-in cheat mod (`RedTeamProbe`, a BepInEx plugin
+driven by bridge `call`s; never shipped) did what needs code. Every test
+attempt also carried the bridge's own flag; "flagged" below means a flag
+naming the method. The build plan for the gaps: `tasks/notes/T-0414.md`.
+
+| Method | Detected? | How / evidence | Fix or why not |
+|---|---|---|---|
+| `Time.timeScale` 2 / 0.5 | yes | "the game's speed was changed (time scale 2)" + "time scale 2 lasted 2.0 s" (T-0109) | - |
+| `timeScale` 2 set from `LateUpdate`, back to 1 first thing in `Update` (`[DefaultExecutionOrder(-30000)]`) | **no** | the game ran 9.6 s in 5.0 s of real time; run mode read 1 every frame | flag a frame whose `deltaTime` exceeds `unscaledDeltaTime` (vanilla never does: measured below) |
+| `Time.captureFramerate` 30 | **no** | 16.9 s of game time in 3.0 s real (`deltaTime` 0.0333, `unscaledDeltaTime` 0.0063, `timeScale` 1) | flag any non-zero value (no game writer) + the clock check above |
+| `Time.fixedDeltaTime` 1/120 | **no** | no flag | flag a value that is not 1/60 or the game's own 1/30 (*Low quality physics*, a decision) - not in multiplayer (Bolt sets its own) |
+| Debug console (`Cheats.DebugConsole`) | yes | "a game cheat is on: DebugConsole" - `_timescale` / `_speedyrun` need it | - |
+| `_speedyrun` / `runSpeed` 20 | yes | "the player's run speed was changed (run 20, ...)" (T-0413) | - |
+| `walkSpeed` 20, `strafeSpeed` 20, `crouchSpeed` 20, `jumpHeight` 40, `FpCharacter.gravity` 2, `Physics.gravity` (0,-4,0) | **no** | no flag for any | flag above the game's values (`walkSpeed` / `strafeSpeed` only ever go down) or any change (the rest have no writer but the constructor) |
+| `maximumVelocity` 200 | n/a | the game wrote 55 back within a frame | - |
+| Savestate capture / restore, Go, `go` / `restart` over the bridge | locked | "Savestate capture is locked during a run", "Go is locked during a run" | - |
+| Splice of two attempts | yes (site) | attempt A's code `YQZW` found in A's log (step 34), not in B's; B's `VAD7` in B's | - |
+| Edited start state behind a run spot (the spot names one hash, the file is another) | **no** | the log warns "the start state file ... is not the one the segment expects (12345678)", the attempt starts and reports `start state 12345678` | report the hash of the file loaded; flag a mismatch |
+| An own run spot anywhere (`run = Any%` on any spot) | no | the report names "own spot", the site does not compare it with the category's `spot =` | a decision (author / moderators) |
+| Practice, then *Start run mode* by hand at a late point | no | only "Practice was used before this attempt" (a note) | a decision |
+| BepInEx plugin (explorer tools: UnityExplorer, RuntimeUnityEditor are plugins) | yes | "Mods Detected: RedTeam Probe" on every attempt | - |
+| Foreign Harmony patch mid-attempt | yes | "another mod patched the game during the attempt: ItemDatabase.ItemIdByName (by redteam.cheat)" | - |
+| Harmony patch whose id starts with our GUID (`com.deter.forestoverlay.cheat`) | **no** | not in `ForeignPatches` | ours = owner prefix **and** the patch method in our assembly (every one of ours is, live) |
+| MonoMod `Hook` on a game method (not Harmony) | **no** | not listed; it is in MonoMod's `Detour._DetourMap` | list map entries Harmony does not own |
+| Code loaded from memory (`Assembly.Load(bytes)`, what an injector does) | **no** | `OtherCode` empty; the assembly's `Location` is "" | list non-dynamic assemblies with no file, but the four known ones |
+| A DLL in `TheForest_Data/Managed` loaded by a mod | **no** | `OtherCode` empty (the folder is trusted) | list a Managed / BepInEx core file not in a clean install |
+| Patcher in `BepInEx/patchers` | yes | "Another BepInEx patcher is installed: RedTeamPatcher.dll" | - |
+| Patcher named `ForestOverlay.Updater.dll` in a subfolder | **no** | not listed (skipped by file name, anywhere) | skip only our own path |
+| Bridge `tp`, a position written over the bridge (a memory edit) | bridge flag only | `tp` is not refused in a run; a 110 m position write gave no move | not caught by itself: a teleport detector needs the game's own snaps filtered from real runs (a follow-up) |
+| Items added by a call | seen, not judged | the audit's `+5 Rock (from 1:07)` with no source event | - |
+| Health written | no | nothing | game state is unbounded; not watched |
+
+**Not tried live, and why they stay open:** a Cheat Engine style speed
+hack (hooks the OS clocks, so `unscaledDeltaTime` and the log's
+`Stopwatch` run fast too) - the site's clock check catches it online
+("a log whose clock runs ahead of real time"), offline it is amber;
+native detours or code written into JIT output (invisible to every
+managed registry); a modified `UnityEngine.dll` / `mscorlib.dll` on disk
+(only Assembly-CSharp is hashed - hashing the other loaded Managed files
+against a clean install's list would catch it, a follow-up); a doorstop
+config pointing at another entry DLL in a trusted folder (the Managed /
+core allow-list above catches its assembly); a forked plugin (the honest
+limit).
+
+**The baseline the new checks rely on (live, v0.24.397, BepInEx
+5.4.23.5):** assemblies with no file in a clean session are exactly
+`Rewired_Windows`, `Rewired_Config_Manager`, `Rewired_Config_ManagerA`
+(the game's) and `MonoMod.Utils.GetManagedSizeHelper`; MonoMod's
+`Detour._DetourMap` holds every Harmony-patched method (one detour each)
+plus three of BepInEx / Harmony's own runtime fixes -
+`ILHook+Context.Refresh` and `StackFrame.GetMethod` (targets in
+`0Harmony`) and `HarmonyInteropFix.LoadFile` (a DMD of a
+`BepInEx.Preloader` method); a MonoMod `Hook` adds a map entry whose
+target is `Hook<...>` in a dynamic method; every patch owned by a
+`com.deter.forestoverlay*` id has its patch method in `ForestOverlay`.
+
 ## Other uses of locked settings
 
 - **Manhunt** (sxczurass, QA 2026-10-02: two players finish the game while
@@ -549,7 +609,8 @@ than the table's plan:
   a cutscene fast-forward drives it, nor while a save loads).
   `_speedyrun` writes the player's run / swim speed instead; since T-0413
   every frame also reads `FpCharacter.runSpeed` / `swimmingSpeed` and
-  flags the first value above 13.5 / 3.75 once per attempt.
+  flags the first value above 13.5 / 3.75 once per attempt. What else
+  can change the game's speed, and what is caught: *Red team* above.
 - A bridge `go` / `restart` refused by run mode answers the refusal
   (T-0110, done).
 - The report hashes the game's code as Mono loaded it (T-0111): the
