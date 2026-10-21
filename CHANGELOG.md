@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.379 - 2026-10-21
+
+- Input overlay: adding a key with no game action (a mouse side button, Alt) now says the tile stays dark under Game input and that Raw input lights it.
+- Input overlay: while Add input waits, clicking M1 or M2 now says why it is not taken (already a tile, or use + M1 / + M2).
+- Input overlay settings are shorter: the explanations moved into hover tips, so the tile list shows without scrolling.
+
 ## v0.24.378 - 2026-10-21
 
 - Edit HUD > Input overlay: the x on a tile row now fits its Sure? word instead of cutting it off.
