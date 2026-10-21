@@ -531,9 +531,21 @@ namespace ForestOverlay.Modules
 
         // --- changes (Edit HUD) ----------------------------------------------------------------
 
+        // Which control the status sits under: the add buttons, a removed row's place, or Reset.
+        private enum StatusAt { Add, Row, Reset }
+        private StatusAt _statusAt;
+        private int _statusRow;
+
         private void SetStatus(string text)
         {
+            SetStatus(text, StatusAt.Add, 0);
+        }
+
+        private void SetStatus(string text, StatusAt at, int row)
+        {
             _status.text = text;
+            _statusAt = at;
+            _statusRow = row;
         }
 
         private void Commit()
@@ -582,7 +594,7 @@ namespace ForestOverlay.Modules
             _layout.Remove(key, act);
             Commit();
             Reload();
-            SetStatus(InputLayout.RemovedText(key, others));
+            SetStatus(InputLayout.RemovedText(key, others), StatusAt.Row, i);   // under where the row was
             Ctx.Log.LogInfo("Inputs: tile " + key + (act.Length > 0 ? " (" + act + ")" : "") + " removed.");
         }
 
@@ -598,7 +610,7 @@ namespace ForestOverlay.Modules
         {
             _layoutCfg.Value = DefaultLayout().Format();
             Reload();
-            SetStatus("Back to the default layout.");
+            SetStatus("Back to the default layout.", StatusAt.Reset, 0);
             Ctx.Log.LogInfo("Inputs: layout reset to the default.");
         }
 
@@ -1095,9 +1107,9 @@ namespace ForestOverlay.Modules
             }
             y += 28f;
 
-            if (UiKit.Section(indent, ref y, w - indent, "hud.inputtiles", TilesTitle, false))
-                y = DrawTiles(indent, y, w - indent);
-            if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;
+            bool tilesOpen = UiKit.Section(indent, ref y, w - indent, "hud.inputtiles", TilesTitle, false);
+            if (tilesOpen) y = DrawTiles(indent, y, w - indent);   // draws the status under the add buttons
+            if (!tilesOpen && _status.text.Length > 0 && _statusAt != StatusAt.Reset) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;
 
             bool armed = _resetArmed && Time.unscaledTime <= _resetUntil;
             Rect resetR = new Rect(0f, y, 120f, 24f);
@@ -1108,18 +1120,14 @@ namespace ForestOverlay.Modules
             }
             UiKit.Hint(resetR, ResetTip);
             y += 30f;
+            if (_statusAt == StatusAt.Reset && _status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;   // under Reset
             if (_axisBroken) y += UiText.Draw(0f, y, w, BrokenText, UiKit.HintStyle) + 2f;
             return y + 8f;
         }
 
         private float DrawTiles(float x0, float y, float w)
         {
-            _removeAt = -1;
-            for (int i = 0; i < _states.Count; i++) y = DrawTileRow(x0, i, y, w);
-            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
-            _removeAt = -1;
-
-            // Add controls, flowing left to right; one that is already present is not drawn.
+            // Add controls first, just under the fold header (not below 13+ rows), flowing left to right; one that is already present is not drawn.
             float x = 0f;
             float keyW = Mathf.Max(90f, WinPx.CalcSize(GUI.skin.button, AddKeyWaiting).x + 8f, WinPx.CalcSize(GUI.skin.button, AddKeyText).x + 8f);
             Rect keyR = new Rect(x0 + x, y, keyW, 24f);
@@ -1134,7 +1142,23 @@ namespace ForestOverlay.Modules
             if (_layout.Find("Mouse0") == null) y = AddButton(x0, ref x, y, w, AddM1Text, null, "Mouse0");
             if (_layout.Find("Mouse1") == null) y = AddButton(x0, ref x, y, w, AddM2Text, null, "Mouse1");
             if (_layout.Find(InputLayout.MouseKey) == null) y = AddButton(x0, ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
-            return y + 30f;
+            y += 30f;
+            // A removed row's message goes where the row was (the add buttons when nothing is left).
+            bool atRow = _statusAt == StatusAt.Row && _states.Count > 0;
+            bool has = _status.text.Length > 0;
+            if (has && !atRow && _statusAt != StatusAt.Reset) y += UiText.Draw(x0, y, w, _status, UiKit.HintStyle) + 6f;   // under the add buttons
+
+            _removeAt = -1;
+            int at = atRow ? Mathf.Min(_statusRow, _states.Count) - 1 : -2;
+            if (has && atRow && at < 0) y += UiText.Draw(x0, y, w, _status, UiKit.HintStyle) + 6f;   // the first row was removed
+            for (int i = 0; i < _states.Count; i++)
+            {
+                y = DrawTileRow(x0, i, y, w);
+                if (has && i == at) y += UiText.Draw(x0, y, w, _status, UiKit.HintStyle) + 6f;
+            }
+            if (_removeAt >= 0 && _removeAt < _states.Count) RemoveTile(_removeAt);   // after the rows: the list changes
+            _removeAt = -1;
+            return y;
         }
 
         private static readonly GUIContent StyleTitle = new GUIContent("Mouse");
