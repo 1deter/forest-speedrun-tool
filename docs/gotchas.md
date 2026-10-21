@@ -1167,7 +1167,9 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     works: find the window by title or by the TheForest.exe pid,
     `AttachThreadInput` to the current foreground thread, an Alt tap,
     `BringWindowToTop` + `SetForegroundWindow`, then wait a few frames
-    for the switch. `scripts/sendinput.py` does it; forest-tester's brief
+    for the switch. The Alt tap is a key: an armed Add input took it
+    as its key (T-0449), so the script sends nothing when the game already
+    has focus and tries the plain switch first. `scripts/sendinput.py` does it; forest-tester's brief
     points at it.
 
 116. **A view gathered around the player goes stale under a flown camera.** (2026-10-16,
