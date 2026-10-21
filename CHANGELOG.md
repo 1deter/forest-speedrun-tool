@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.378 - 2026-10-21
+
+- Edit HUD > Input overlay: the x on a tile row now fits its Sure? word instead of cutting it off.
+
 ## v0.24.377 - 2026-10-19
 
 - Edit HUD > Input overlay: the tiles and their add buttons sit in a Tiles fold; x asks Sure? before removing a tile, and the + / - size buttons are gone (drag a tile's corner to resize).
