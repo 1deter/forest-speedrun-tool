@@ -346,7 +346,7 @@ namespace ForestOverlay.Modules
             if (!_oldDefaultChecked) MoveOldDefault();
             if (_on == null || !_on.Value) { _capturing = false; StopWatching(); return; }
             bool editing = Editing;
-            if (!editing) _capturing = false;
+            if (!editing) { _capturing = false; if (_status.text.Length > 0) { _status.text = ""; _statusAt = StatusAt.Add; _statusRow = 0; } }   // a closed Edit HUD forgets its message
             if (_capturing) Host.Hotkeys.HoldCapture();
             if (GameInput) GameActions.Ensure(Ctx.Log);
             if (!_applied || GameInput != _appliedGame || (GameInput && GameActions.Ready != _appliedReady)) ApplySource();
