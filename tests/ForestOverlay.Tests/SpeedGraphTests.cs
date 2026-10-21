@@ -20,6 +20,19 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ColumnClampedKeepsASampleNewerThanTheRefreshedTMax()
+        {
+            // The live run grew past tMax (refreshed every 0.25 s): ColumnOf says -1
+            // (the curve flickered), the clamp puts it in the last column.
+            Assert.Equal(-1, SpeedGraph.ColumnOf(10.2f, 10f, 100));
+            Assert.Equal(99, SpeedGraph.ColumnClamped(10.2f, 10f, 100));
+            Assert.Equal(99, SpeedGraph.ColumnClamped(10f, 10f, 100));
+            Assert.Equal(0, SpeedGraph.ColumnClamped(0f, 10f, 100));
+            Assert.Equal(SpeedGraph.ColumnOf(5f, 10f, 100), SpeedGraph.ColumnClamped(5f, 10f, 100));
+            Assert.Equal(-1, SpeedGraph.ColumnClamped(-1f, 10f, 100));
+        }
+
+        [Fact]
         public void Median5RemovesATwoSampleSpikeButNotTheStoredRun()
         {
             List<RunSample> r = Run(5, 5, 5, 50, 50, 5, 5, 5, 5);
