@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.395 - 2026-10-21
+
+- Item names in runner words: Survival book and Walkie talkie in the checkpoint label, its Items list and the Inventory tab.
+- The Inventory filter finds an item by either name (walkie or WalkyTalky).
+
 ## v0.24.394 - 2026-10-21
 
 - Savestates made before v0.24.357: a stick or rock a Quick or Full load puts back now despawns on a normal 60 s timer instead of never.
