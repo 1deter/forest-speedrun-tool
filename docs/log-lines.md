@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 890 log calls.
+256 prefixes from 893 log calls.
 
 ## `ActionReaders`
 
@@ -1789,6 +1789,7 @@ Written by LogStore.cs, SavestateModule.cs; info / warning.
 - info `Savestate after the load: <placed>.`
 - info `Savestate after the load: <weatherNote>.`
 - warning `Savestate after the load: chopping trees again failed: <ex.Message>`
+- info `Savestate after the load: despawn timers set as at the capture <n>.`
 - info `Savestate after the load: enemies (cave) <..> s after in game | <note>.`
 - info `Savestate after the load: enemies - <..>; the captured ones placed <..> s after in game | <rebuilt>.`
 - info `Savestate after the load: enemies - the game made no families within 30 s; captured ones not rebuilt.`
@@ -1796,6 +1797,8 @@ Written by LogStore.cs, SavestateModule.cs; info / warning.
 - info `Savestate after the load: held the player at the captured spot for <..> s<..>.`
 - info `Savestate after the load: pickups - none back that were taken before the capture.<kept>`
 - info `Savestate after the load: player <..> s after in game - <..>.`
+- info `Savestate after the load: re-made <m.Remade> copy(ies) the load cleared (<sb>).`
+- warning `Savestate after the load: re-making dropped copies failed: <ex.Message>`
 - warning `Savestate after the load: removing taken pickups failed: <ex.Message>`
 
 ## `Savestate areas after the restore`
