@@ -1130,7 +1130,7 @@ namespace ForestOverlay.Modules
             if (_layout.Find("Mouse1") == null) y = AddButton(x0, ref x, y, w, AddM2Text, null, "Mouse1");
             if (_layout.Find(InputLayout.MouseKey) == null) y = AddButton(x0, ref x, y, w, AddMouseBoxText, AddMouseBoxTip, InputLayout.MouseKey);
             y += 30f;
-            if (_status.text.Length > 0) y += UiText.Draw(0f, y, w, _status, UiKit.HintStyle) + 6f;   // under the clicked button
+            if (_status.text.Length > 0) y += UiText.Draw(x0, y, w, _status, UiKit.HintStyle) + 6f;   // under the clicked button
 
             _removeAt = -1;
             for (int i = 0; i < _states.Count; i++) y = DrawTileRow(x0, i, y, w);
