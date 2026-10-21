@@ -82,14 +82,16 @@ namespace ForestOverlay.Game
         public int MarkerStart { get { return _state.MarkerStart; } }
 
         /// Screen pixels, GUI space (y down): the left end and vertical
-        /// middle of the lowest line.
+        /// middle of our lowest line (the bottom of our block at the top of the stack).
         public Vector2 Anchor
         {
             get
             {
                 if (_anchorMeasured) return _anchor;
-                // Before a copy was ever shown: where the game's lowest line
-                // sits (bridge shot, 1366x768: x 0.073, y 0.928).
+                // Before a copy was ever shown: where the stack's bottom line
+                // sits (bridge shot, 1366x768: x 0.073, y 0.928) - the
+                // estimate until measured; with the game's messages under ours the
+                // measured spot is higher. The grid's bottom is the best guess.
                 return new Vector2(Screen.width * 0.073f, Screen.height * 0.928f);
             }
         }

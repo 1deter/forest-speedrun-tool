@@ -533,8 +533,8 @@ namespace ForestOverlay
             }
         }
 
-        // The fallback (author, 2026-10-15): bottom up from the game's lowest
-        // line, orange like the flags were. Each line is a string kept by
+        // The fallback (author, 2026-10-15): bottom up from the anchor (our lowest
+        // line), orange like the flags were. Each line is a string kept by
         // GameLinesState, so only the GUIContent's text is set here.
         private readonly GUIContent _alwaysLine = new GUIContent("");
 
