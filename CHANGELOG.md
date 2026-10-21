@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.389 - 2026-10-21
+
+- Run line, 'only the next few seconds': the checkpoint you just passed keeps its delta label until you pass the next one.
+- Checkpoint dots look even at any line opacity, and checkpoint labels no longer overlap replay-camera labels.
+
 ## v0.24.388 - 2026-10-21
 
 - Runs tab speed graph: the 'this run' line no longer flickers while a run is live.
