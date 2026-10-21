@@ -11,35 +11,44 @@ namespace ForestOverlay.Data
     // ------------------------------------------------------------------
     public static class SpeedGraph
     {
+        private static readonly float[] Window = new float[5];   // main thread only
+
         /// Median of the five samples centred on each one (clamped at the
-        /// ends); a spike of one or two samples disappears, a real change
-        /// that lasts three or more stays. Fewer than 5 samples: copied.
-        public static float[] Median5(IList<RunSample> s)
+        /// ends) into `o` (caller-owned, length >= s.Count); a spike of one or
+        /// two samples disappears, a real change that lasts three or more
+        /// stays. Fewer than 5 samples: copied. No allocation.
+        public static void Median5(IList<RunSample> s, float[] o)
         {
             int n = s.Count;
-            float[] o = new float[n];
-            float[] w = new float[5];
+            float[] w = Window;
             for (int i = 0; i < n; i++)
             {
                 if (n < 5) { o[i] = s[i].Speed; continue; }
                 int a = i - 2; if (a < 0) a = 0;
                 if (a > n - 5) a = n - 5;
-                for (int k = 0; k < 5; k++) w[k] = s[a + k].Speed;
-                Array.Sort(w);
+                for (int k = 0; k < 5; k++)
+                {
+                    float x = s[a + k].Speed;
+                    int j = k;
+                    while (j > 0 && w[j - 1] > x) { w[j] = w[j - 1]; j--; }
+                    w[j] = x;
+                }
                 o[i] = w[2];
             }
-            return o;
         }
 
         /// Fills lo / hi (length >= columns) with the smoothed speed range of
         /// each column over 0..tMax; a column no sample lands in takes the
-        /// line between its neighbours. Returns false when there is nothing
-        /// to draw (fewer than 2 samples, no time span, no columns).
-        public static bool Columns(IList<RunSample> s, float tMax, int columns, float[] lo, float[] hi)
+        /// line between its neighbours. `smooth` (length >= s.Count) is the
+        /// caller's scratch for the smoothed speeds. Returns false when there
+        /// is nothing to draw (fewer than 2 samples, no time span, no
+        /// columns). No allocation.
+        public static bool Columns(IList<RunSample> s, float tMax, int columns, float[] smooth, float[] lo, float[] hi)
         {
-            if (s == null || s.Count < 2 || tMax <= 0f || columns < 2 || lo.Length < columns || hi.Length < columns) return false;
-            float[] v = Median5(s);
-            bool[] has = new bool[columns];
+            if (s == null || s.Count < 2 || tMax <= 0f || columns < 2 || lo.Length < columns || hi.Length < columns || smooth.Length < s.Count) return false;
+            Median5(s, smooth);
+            float[] v = smooth;
+            // An empty column has lo > hi.
             for (int c = 0; c < columns; c++) { lo[c] = float.MaxValue; hi[c] = float.MinValue; }
             for (int i = 0; i < s.Count; i++)
             {
@@ -47,24 +56,19 @@ namespace ForestOverlay.Data
                 if (c < 0) continue;
                 if (v[i] < lo[c]) lo[c] = v[i];
                 if (v[i] > hi[c]) hi[c] = v[i];
-                has[c] = true;
             }
             // Between samples: the line between them (a sparse run on a wide graph).
             int j = 0;
             for (int c = 0; c < columns; c++)
             {
-                if (has[c]) continue;
+                if (lo[c] <= hi[c]) continue;
                 float t = c * tMax / (columns - 1);
                 if (t < s[0].T || t > s[s.Count - 1].T) { lo[c] = hi[c] = 0f; continue; }
                 while (j < s.Count - 2 && s[j + 1].T < t) j++;
                 float t0 = s[j].T, t1 = s[j + 1].T;
                 float f = t1 > t0 ? (t - t0) / (t1 - t0) : 0f;
-                float x = v[j] + (v[j + 1] - v[j]) * f;
-                lo[c] = hi[c] = x;
-                has[c] = true;
+                lo[c] = hi[c] = v[j] + (v[j + 1] - v[j]) * f;
             }
-            for (int c = 0; c < columns; c++)
-                if (!has[c]) { lo[c] = hi[c] = 0f; }
             return true;
         }
 

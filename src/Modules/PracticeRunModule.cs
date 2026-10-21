@@ -1307,7 +1307,7 @@ namespace ForestOverlay.Modules
             if (UiKit.Section(0f, ref y, cw, "runs.graph", TextGraph, null, TipGraph, false))
                 y = DrawGraphSection(y, cw);
 
-            if (UiKit.Section(0f, ref y, cw, "runs.recordings",TextRecordings, RecorderSummary, TipRecordings, false))
+            if (UiKit.Section(0f, ref y, cw, "runs.recordings", TextRecordings, RecorderSummary, TipRecordings, false))
                 y = DrawRecorderSection(y, cw);
 
             if (UiKit.Section(0f, ref y, cw, "runs.replay", TextReplay, null, TipReplay, false))

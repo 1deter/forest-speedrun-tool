@@ -23,7 +23,7 @@ namespace ForestOverlay.Tests
         public void Median5RemovesATwoSampleSpikeButNotTheStoredRun()
         {
             List<RunSample> r = Run(5, 5, 5, 50, 50, 5, 5, 5, 5);
-            float[] m = SpeedGraph.Median5(r);
+            float[] m = new float[r.Count]; SpeedGraph.Median5(r, m);
             for (int i = 0; i < m.Length; i++) Assert.Equal(5f, m[i]);
             Assert.Equal(50f, r[3].Speed);
         }
@@ -31,7 +31,7 @@ namespace ForestOverlay.Tests
         [Fact]
         public void Median5KeepsAThreeSampleChange()
         {
-            float[] m = SpeedGraph.Median5(Run(5, 5, 5, 50, 50, 50, 5, 5, 5));
+            List<RunSample> r = Run(5, 5, 5, 50, 50, 50, 5, 5, 5); float[] m = new float[r.Count]; SpeedGraph.Median5(r, m);
             Assert.Equal(50f, m[4]);
         }
 
@@ -41,7 +41,7 @@ namespace ForestOverlay.Tests
             // 9 samples over 8 s in 3 columns: the middle column holds t=3..5.
             List<RunSample> r = Run(1, 1, 1, 2, 9, 3, 4, 4, 4);
             float[] lo = new float[3], hi = new float[3];
-            Assert.True(SpeedGraph.Columns(r, 8f, 3, lo, hi));
+            Assert.True(SpeedGraph.Columns(r, 8f, 3, new float[9], lo, hi));
             Assert.Equal(1f, lo[0]);
             Assert.Equal(1f, hi[0]);
             Assert.Equal(4f, hi[2]);
@@ -52,7 +52,7 @@ namespace ForestOverlay.Tests
         {
             List<RunSample> r = Run(0, 10);
             float[] lo = new float[11], hi = new float[11];
-            Assert.True(SpeedGraph.Columns(r, 1f, 11, lo, hi));
+            Assert.True(SpeedGraph.Columns(r, 1f, 11, new float[2], lo, hi));
             Assert.Equal(5f, lo[5], 3);
             Assert.Equal(5f, hi[5], 3);
         }
@@ -61,8 +61,8 @@ namespace ForestOverlay.Tests
         public void NothingToDrawForShortRuns()
         {
             float[] a = new float[10], b = new float[10];
-            Assert.False(SpeedGraph.Columns(Run(3), 1f, 10, a, b));
-            Assert.False(SpeedGraph.Columns(null, 1f, 10, a, b));
+            Assert.False(SpeedGraph.Columns(Run(3), 1f, 10, new float[1], a, b));
+            Assert.False(SpeedGraph.Columns(null, 1f, 10, new float[1], a, b));
         }
 
         [Fact]
