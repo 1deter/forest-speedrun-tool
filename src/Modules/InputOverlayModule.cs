@@ -497,7 +497,11 @@ namespace ForestOverlay.Modules
         /// "Add input": the next key, mouse button or wheel step becomes a tile.
         private void CaptureKey()
         {
-            if (Input.mouseScrollDelta.y != 0f)
+            // a wheel step over the window scrolls its list; only the game area counts (T-0445)
+            MainWindowModule mw = Host.Find<MainWindowModule>();
+            Vector2 mp = Input.mousePosition;
+            bool overWindow = mw != null && mw.ScreenRect.Contains(new Vector2(mp.x, Screen.height - mp.y));
+            if (!overWindow && Input.mouseScrollDelta.y != 0f)
             {
                 _capturing = false;
                 Host.Hotkeys.ReleaseCapture();
