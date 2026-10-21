@@ -28,6 +28,30 @@ namespace ForestOverlay.Tests
             Assert.Equal(50f, r[3].Speed);
         }
 
+        private static float[] SmoothOf(List<RunSample> r) { float[] m = new float[r.Count]; SpeedGraph.Median5(r, m); return m; }
+
+        [Fact]
+        public void OneSampleSpikeIsSmoothedAwayInTheColumns()
+        {
+            List<RunSample> r = Run(5, 5, 5, 5, 50, 5, 5, 5, 5);
+            float[] lo = new float[3], hi = new float[3];
+            Assert.True(SpeedGraph.Columns(r, 8f, 3, SmoothOf(r), lo, hi));
+            for (int c = 0; c < 3; c++) { Assert.Equal(5f, lo[c]); Assert.Equal(5f, hi[c]); }
+        }
+
+        [Fact]
+        public void ThreeSampleSpikeSurvivesMinMaxWithFewerColumnsThanSamples()
+        {
+            // 12 samples (t 0..11) in 3 columns: the 50s at t 4..6 all land in column 1.
+            List<RunSample> r = Run(5, 5, 5, 5, 50, 50, 50, 5, 5, 5, 5, 5);
+            float[] lo = new float[3], hi = new float[3];
+            Assert.True(SpeedGraph.Columns(r, 11f, 3, SmoothOf(r), lo, hi));
+            Assert.Equal(50f, hi[1]);
+            Assert.Equal(5f, lo[1]);
+            Assert.Equal(5f, hi[0]);
+            Assert.Equal(5f, hi[2]);
+        }
+
         [Fact]
         public void Median5KeepsAThreeSampleChange()
         {
@@ -41,7 +65,8 @@ namespace ForestOverlay.Tests
             // 9 samples over 8 s in 3 columns: the middle column holds t=3..5.
             List<RunSample> r = Run(1, 1, 1, 2, 9, 3, 4, 4, 4);
             float[] lo = new float[3], hi = new float[3];
-            Assert.True(SpeedGraph.Columns(r, 8f, 3, new float[9], lo, hi));
+            float[] m = new float[9]; SpeedGraph.Median5(r, m);
+            Assert.True(SpeedGraph.Columns(r, 8f, 3, m, lo, hi));
             Assert.Equal(1f, lo[0]);
             Assert.Equal(1f, hi[0]);
             Assert.Equal(4f, hi[2]);
@@ -52,7 +77,7 @@ namespace ForestOverlay.Tests
         {
             List<RunSample> r = Run(0, 10);
             float[] lo = new float[11], hi = new float[11];
-            Assert.True(SpeedGraph.Columns(r, 1f, 11, new float[2], lo, hi));
+            Assert.True(SpeedGraph.Columns(r, 1f, 11, SmoothOf(r), lo, hi));
             Assert.Equal(5f, lo[5], 3);
             Assert.Equal(5f, hi[5], 3);
         }

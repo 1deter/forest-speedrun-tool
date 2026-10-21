@@ -39,15 +39,15 @@ namespace ForestOverlay.Data
 
         /// Fills lo / hi (length >= columns) with the smoothed speed range of
         /// each column over 0..tMax; a column no sample lands in takes the
-        /// line between its neighbours. `smooth` (length >= s.Count) is the
-        /// caller's scratch for the smoothed speeds. Returns false when there
+        /// line between its neighbours. `smooth` (length >= s.Count) holds the
+        /// speeds Median5 gave for s (the caller smooths once per data change,
+        /// not per column build). Returns false when there
         /// is nothing to draw (fewer than 2 samples, no time span, no
         /// columns). No allocation.
         public static bool Columns(IList<RunSample> s, float tMax, int columns, float[] smooth, float[] lo, float[] hi)
         {
             if (s == null || s.Count < 2 || tMax <= 0f || columns < 2 || lo.Length < columns || hi.Length < columns || smooth.Length < s.Count) return false;
-            Median5(s, smooth);
-            float[] v = smooth;
+            float[] v = smooth;   // Median5 output, made once per run change by the caller
             // An empty column has lo > hi.
             for (int c = 0; c < columns; c++) { lo[c] = float.MaxValue; hi[c] = float.MinValue; }
             for (int i = 0; i < s.Count; i++)

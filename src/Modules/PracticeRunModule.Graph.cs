@@ -34,14 +34,18 @@ namespace ForestOverlay.Modules
             public bool Ok;
             public List<RunSample> Src;
             // What the columns were built from: rebuilt only when one changes.
-            public List<RunSample> BuiltSrc;
-            public int BuiltCount = -1, BuiltCols = -1;
+            public int BuiltCols = -1;
             public float BuiltT = -1f, Peak;
+            // The smoothed speeds (Median5) are made only when the data changes,
+            // not when the time axis does. Version: a reused source list that
+            // got new contents (the failed copy).
+            public int Version, SmoothVersion = -1, SmoothCount = -1;
+            public List<RunSample> SmoothSrc;
         }
         private readonly GraphCurve _gRef = new GraphCurve(), _gNow = new GraphCurve(), _gFailed = new GraphCurve();
         private float _graphNext, _graphT, _graphTop = 5f, _graphTopShown = 5f;
         private int _graphCols;
-        private int _graphHoverCol = -1;
+        private int _graphHoverCol = -1, _graphDataVer, _graphHoverVer = -1, _failedVersion;
         private readonly GUIContent _graphHoverText = new GUIContent("");
         private readonly GUIContent _graphTopText = new GUIContent("5");
         private static readonly GUIContent TextGraph = new GUIContent("Speed graph");
@@ -51,6 +55,7 @@ namespace ForestOverlay.Modules
         {
             _failedSamples.Clear();
             _failedSamples.AddRange(_recorder.Current.Samples);
+            _failedVersion++;   // the list is reused: the graph's cache key
         }
 
         private float DrawGraphSection(float y, float w)
@@ -63,7 +68,8 @@ namespace ForestOverlay.Modules
             List<RunSample> now = _recorder.State == RunRecorder.RunState.Running && _recorder.Current != null ? _recorder.Current.Samples : null;
             _gRef.Src = _reference != null ? _reference.Samples : null;
             _gNow.Src = now;
-            _gFailed.Src = _failedSamples.Count >= 2 ? _failedSamples : null;
+            _gFailed.Src = _keepFailedCfg.Value && _failedSamples.Count >= 2 ? _failedSamples : null;   // off = no red curve
+            _gFailed.Version = _failedVersion;
 
             // The running curve grows: look for changes a few times a second;
             // a curve whose source, length, columns and time span are the same is left alone.
@@ -98,10 +104,11 @@ namespace ForestOverlay.Modules
 
             // Hover: the column under the mouse; the text is rebuilt only when it changes.
             int col = any && g.Contains(WinPx.Mouse) ? Mathf.Clamp((int)(WinPx.Mouse.x - g.x), 0, cols - 1) : -1;
-            if (col != _graphHoverCol)
+            if (col != _graphHoverCol || (col >= 0 && _graphHoverVer != _graphDataVer))
             {
                 _graphHoverCol = col;
-                _graphHoverText.text = col < 0 ? "" : HoverText(col, cols);
+                _graphHoverVer = _graphDataVer;
+                _graphHoverText.text = col < 0 ? "" : HoverText(col, cols);   // built on a change only
             }
 
             WinPx.Label(new Rect(0f, g.y - 4f, gx - 2f, 18f), _graphTopText);
@@ -139,16 +146,16 @@ namespace ForestOverlay.Modules
             _graphCols = cols;
             _graphNext = Time.unscaledTime + GraphRebuildEvery;
             _graphT = Mathf.Max(LastT(_gRef.Src), Mathf.Max(LastT(_gNow.Src), LastT(_gFailed.Src)));
-            BuildCurve(_gRef, cols, _graphT);
-            BuildCurve(_gNow, cols, _graphT);
-            BuildCurve(_gFailed, cols, _graphT);
+            bool changed = BuildCurve(_gRef, cols, _graphT);
+            changed |= BuildCurve(_gNow, cols, _graphT);
+            changed |= BuildCurve(_gFailed, cols, _graphT);
+            if (changed) _graphDataVer++;
             float top = 0f;
             if (_gRef.Ok) top = Mathf.Max(top, _gRef.Peak);
             if (_gNow.Ok) top = Mathf.Max(top, _gNow.Peak);
             if (_gFailed.Ok) top = Mathf.Max(top, _gFailed.Peak);
             _graphTop = SpeedGraph.AxisTop(top);
             if (_graphTop != _graphTopShown) { _graphTopShown = _graphTop; _graphTopText.text = _graphTop.ToString("0"); }
-            if (_graphHoverCol >= 0) _graphHoverText.text = _graphHoverCol < cols ? HoverText(_graphHoverCol, cols) : "";
         }
 
         private static float LastT(List<RunSample> s)
@@ -156,17 +163,24 @@ namespace ForestOverlay.Modules
             return s != null && s.Count > 0 ? s[s.Count - 1].T : 0f;
         }
 
-        private static void BuildCurve(GraphCurve c, int cols, float tMax)
+        private static bool BuildCurve(GraphCurve c, int cols, float tMax)
         {
             int n = c.Src != null ? c.Src.Count : 0;
-            if (ReferenceEquals(c.Src, c.BuiltSrc) && n == c.BuiltCount && cols == c.BuiltCols && tMax == c.BuiltT) return;
-            c.BuiltSrc = c.Src; c.BuiltCount = n; c.BuiltCols = cols; c.BuiltT = tMax;
+            bool dataSame = ReferenceEquals(c.Src, c.SmoothSrc) && n == c.SmoothCount && c.Version == c.SmoothVersion;
+            if (dataSame && cols == c.BuiltCols && tMax == c.BuiltT) return false;
+            if (!dataSame)
+            {
+                if (c.Smooth.Length < n) c.Smooth = new float[n + 256];
+                if (n >= 2) SpeedGraph.Median5(c.Src, c.Smooth);
+                c.SmoothSrc = c.Src; c.SmoothCount = n; c.SmoothVersion = c.Version;
+            }
+            c.BuiltCols = cols; c.BuiltT = tMax;
             if (c.Lo.Length < cols) { c.Lo = new float[cols]; c.Hi = new float[cols]; }
-            if (c.Smooth.Length < n) c.Smooth = new float[n + 256];
             c.Ok = SpeedGraph.Columns(c.Src, tMax, cols, c.Smooth, c.Lo, c.Hi);
             c.Peak = 0f;
-            if (!c.Ok) return;
-            for (int i = 0; i < cols; i++) if (c.Hi[i] > c.Peak) c.Peak = c.Hi[i];
+            if (c.Ok)
+                for (int i = 0; i < cols; i++) if (c.Hi[i] > c.Peak) c.Peak = c.Hi[i];
+            return true;
         }
 
         private void DrawCurve(GraphCurve c, Color colour, Rect g, Texture2D t)
