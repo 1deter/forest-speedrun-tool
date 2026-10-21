@@ -35,7 +35,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Practice | C | A | C | A | B | T-0046, T-0432 | 2026-10-19 |
 | Run mode | B | A | A | A | B | T-0243, T-0413 | 2026-10-19 |
 | Information tabs | B | B | A | A | B | | 2026-10-15 |
-| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0357, T-0442 | 2026-10-19 |
+| Plugin core and UI | B | B | A | A | B | T-0024, T-0302, T-0357 | 2026-10-21 |
 | Performance and loads | B | B | B | A | B | T-0048 | 2026-10-19 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-14 |
 | Dev tools | B | B | B | B | B | | 2026-10-16 |
@@ -180,7 +180,8 @@ builder, notice, settings, the reflection helpers.
   waits on a non-maker check); the cursor re-check (T-0024, released);
   forest-ux's P3 follow-ups (T-0320..T-0325, T-0335, T-0342). The
   2026-10-14 cleanup's unused members are gone (T-0347..T-0349 in
-  v0.24.368..370; T-0346 was stale).
+  v0.24.368..370; T-0346 was stale). Input overlay polish T-0442..T-0446 confirmed
+  in game (v0.24.378..379, 2026-10-21); grades unchanged.
 
 ### Performance and loads
 
