@@ -305,7 +305,7 @@ namespace ForestOverlay.Modules
             _report.Multiplayer = RunIntegrity.IsMultiplayer();
             RunIntegrity.Gather(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
             _modCounts = new ModCounts();
-            _modCounts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblyCount(), false);
+            _modCounts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblySignature(), false);
             _reportPath = Path.Combine(Path.Combine(Ctx.ConfigDirectory, "run-reports"),
                                        "attempt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
             Watch();
@@ -372,7 +372,7 @@ namespace ForestOverlay.Modules
             // Patches, MonoMod detours (T-0414 F6) and loaded code: the
             // report's lists themselves follow, not only the session's flag
             // (live, v0.24.398: OtherCode stayed empty mid-attempt).
-            if (_modCounts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblyCount(), false))
+            if (_modCounts.Due(RunIntegrity.PatchedCount(), RunIntegrity.DetourCount(), RunIntegrity.AssemblySignature(), false))
             {
                 List<string> patchesBefore = new List<string>(_report.ForeignPatches);
                 List<string> codeBefore = new List<string>(_report.OtherCode);

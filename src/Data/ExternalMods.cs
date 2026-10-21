@@ -210,16 +210,34 @@ namespace ForestOverlay.Data
     // Assembly.Load(bytes) raised no AssemblyLoad event the watch saw, so
     // the loaded assemblies are counted too, beside the patched methods
     // and MonoMod's detours. Game/ExternalModWatch and run mode's Watch
-    // each keep one.
+    // each keep one. Not a bare count (live, v0.24.399): Assembly.Load(bytes)
+    // under a name already loaded swaps the domain's entry and the count
+    // stays - so the assemblies are a signature over each one's identity.
     // ------------------------------------------------------------------
     public sealed class ModCounts
     {
         private bool _seen;
-        private int _patches, _detours, _assemblies;
+        private int _patches, _detours;
+        private ulong _assemblies;
+
+        /// The signature of no assemblies; FoldAssembly adds one each.
+        public const ulong EmptySignature = 0x9E3779B97F4A7C15UL;
+
+        /// Adds one loaded assembly (`identity` = its object's identity hash,
+        /// RuntimeHelpers.GetHashCode) to `signature`. Order does not count
+        /// (a sum of mixed values), a swapped or added assembly does.
+        public static ulong FoldAssembly(ulong signature, int identity)
+        {
+            ulong z = (ulong)(uint)identity + 0x9E3779B97F4A7C15UL;   // splitmix64
+            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+            z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+            z ^= z >> 31;
+            return unchecked(signature + z + 1UL);
+        }
 
         /// True when a look is due: the first call, a load event, or any
-        /// count moved since the last call (the counts are remembered).
-        public bool Due(int patches, int detours, int assemblies, bool loadEvent)
+        /// count / the assembly signature moved since the last call (remembered).
+        public bool Due(int patches, int detours, ulong assemblies, bool loadEvent)
         {
             bool due = !_seen || loadEvent || patches != _patches || detours != _detours || assemblies != _assemblies;
             _seen = true;

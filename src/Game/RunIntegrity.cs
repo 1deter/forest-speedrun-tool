@@ -528,12 +528,22 @@ namespace ForestOverlay.Game
             catch (Exception) { return ""; }
         }
 
-        /// How many assemblies are loaded now (an Assembly.Load(bytes) raises
-        /// no AssemblyLoad event we see, T-0414) - one array, every second or few.
-        public static int AssemblyCount()
+        /// A signature of the loaded assemblies' identities (Data/ModCounts):
+        /// moves when one is added or swapped - an Assembly.Load(bytes) raises
+        /// no AssemblyLoad event we see, and under a name already loaded it
+        /// leaves the count as it was (T-0414, live v0.24.398 / .399). One
+        /// array, every second or few; 0 when unreadable.
+        public static ulong AssemblySignature()
         {
-            try { return AppDomain.CurrentDomain.GetAssemblies().Length; }
-            catch (Exception) { return -1; }
+            try
+            {
+                Assembly[] all = AppDomain.CurrentDomain.GetAssemblies();
+                ulong sig = Data.ModCounts.EmptySignature;
+                for (int i = 0; i < all.Length; i++)
+                    sig = Data.ModCounts.FoldAssembly(sig, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(all[i]));
+                return sig;
+            }
+            catch (Exception) { return 0UL; }
         }
 
         /// How many methods are patched now - a cheap "did anything change".
