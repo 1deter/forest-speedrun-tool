@@ -775,6 +775,8 @@ namespace ForestOverlay.Modules
         private string Teleport(List<string> a, List<string> o)
         {
             if (!Ctx.Player.Found || PlayerRef.AtTitleScreen) return "no player (load a game first)";
+            // Locked in a run like Go (author, 2026-10-21, T-0414 D5).
+            if (Ctx.Run.Refuse("go", "the bridge's tp (teleport)")) return Ctx.Run.RefusedText("tp");
             float x, y, z, yaw = Ctx.Player.Transform.eulerAngles.y;
             if (a.Count < 3 || !BridgeCommand.TryParseFloat(a[0], out x) || !BridgeCommand.TryParseFloat(a[1], out y) ||
                 !BridgeCommand.TryParseFloat(a[2], out z)) return "tp <x> <y> <z> [yaw]";

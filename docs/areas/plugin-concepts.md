@@ -131,8 +131,9 @@ concept before changing its feature. Where the code lives:
   alternative). Capturing moves the spawn to where you stand, makes the
   segment current and **saves the segment**. No start state = the restart
   keeps the game as it is (routes need that). **A new start state is a new
-  route** (author's call): capture writes `startstate = <FNV hash of the
-  data>`, folded into `RouteFingerprint()` only when set, so old times
+  route** (author's call): capture writes `startstate = <SHA-256 of the
+  data>` (spots named by the old 8-digit FNV hash still match; own spots
+  re-hashed once, T-0414), folded into `RouteFingerprint()` only when set, so old times
   retire as when a zone moves; Capture and Delete ask for a second click
   when attempts would be retired (`AttemptStore.CountOnRoute`). A restart
   whose file does not match the hash logs a warning. Each restart logs

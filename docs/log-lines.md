@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 893 log calls.
+256 prefixes from 899 log calls.
 
 ## `ActionReaders`
 
@@ -1440,6 +1440,7 @@ Written by PracticeModule.cs; info / warning.
 - info `Practice: '<s.Name>' had the id '<old>' of another entry - now '<s.Id>'.`
 - info `Practice: <..> '<incoming.Id>' from <..> (<what>).`
 - warning `Practice: <..> not importable: <error>` (x2)
+- warning `Practice: <..> not saved after re-hashing start states.`
 - info `Practice: LiveSplit file <file> -> '<s.Id>' (<s.Name>): start <..>, <..> splits, autosplit = <..>.`
 - warning `Practice: LiveSplit import of <e.Path> failed: <ex>`
 - info `Practice: autosave held back <..> - '<invalid.Id>' needs a spawn, or a start and an end.`
@@ -1453,6 +1454,8 @@ Written by PracticeModule.cs; info / warning.
 - info `Practice: exported '<s.Id>' to <path> (<what>).`
 - warning `Practice: import of <e.Path> failed: <ex>`
 - info `Practice: selected '<entry.Id>'<..> (<_unsaved.Count> unsaved).`
+- info `Practice: start state of '<s.Id>' named by SHA-256 now (<..>...) - route <oldRoute> -> <..>.`
+- warning `Practice: start state of '<s.Id>' not re-hashed: <ex.Message>`
 
 ## `PracticeRunModule`
 
@@ -1703,12 +1706,15 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: load <_loadsLogged> of <_attemptId>: <span.LengthMs> ms real time, <timed> ms of it on the timer (load-removed time).`
 - info `Run mode: '<s.Name>' (<s.RunCategory>) - starting a run.`
 - warning `Run mode: another mod patched the game during the attempt: <..>.`
+- info `Run mode: attempt <Ctx.Run.Attempt> - <clockEnd>`
+- info `Run mode: attempt <Ctx.Run.Attempt> - <clockLeft>`
 - info `Run mode: attempt <Ctx.Run.Attempt> - <speedEnd>`
 - info `Run mode: attempt <Ctx.Run.Attempt> - <speedLeft>`
 - info `Run mode: attempt <Ctx.Run.Attempt> goes on after Reload save on death.`
 - info `Run mode: attempt <_report.Attempt> ended - <why>; <..>.`
 - info `Run mode: attempt <_report.Attempt> started (<_report.Started>) - practice locked; <..>.`
 - warning `Run mode: report not written: <ex.Message>`
+- warning `Run mode: the player's movement fields were not found - that watch is off.`
 - warning `Run mode: the player's run / swim speed fields were not found - that watch is off.`
 - warning `Run mode: the run spot's category '<s.RunCategory>' is not one of the site's <_categories.Count> - the defaults apply (everything locked).`
 - warning `Run mode: the run's spot '<s.Name>' did not load - no attempt: <error>`

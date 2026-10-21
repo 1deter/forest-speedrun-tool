@@ -155,6 +155,114 @@ namespace ForestOverlay.Tests
             Assert.Null(w.End());
         }
 
+        // ---- ClockWatch (T-0414 F1) ----
+
+        [Fact]
+        public void ClockVanillaFramesAreSilent()
+        {
+            var w = new ClockWatch();
+            string end;
+            Assert.Null(w.Frame(0.016f, 0.016f, 1f, false, out end));   // play
+            Assert.Null(w.Frame(0f, 0.016f, 0f, false, out end));       // menu
+            Assert.Null(w.Frame(0.1f, 1.5f, 0.1f, false, out end));     // a load frame
+            Assert.Null(w.Frame(0.333f, 4f, 1f, false, out end));       // a long frame, deltaTime capped
+            Assert.Null(w.Frame(0.01005f, 0.01f, 1f, false, out end));  // ratio 1.005: noise
+            Assert.Null(w.Frame(0.01f, 0f, 1f, false, out end));        // no unscaled time
+            Assert.Null(end);
+            Assert.Null(w.End());
+        }
+
+        [Fact]
+        public void ClockAheadFlagsOncePerEpisodeWithAnEndLine()
+        {
+            var w = new ClockWatch();
+            string end;
+            Assert.Equal("the game's clock ran faster than real time (x2, time scale read 1)", w.Frame(0.02f, 0.01f, 1f, false, out end));
+            Assert.Null(w.Frame(0.02f, 0.01f, 1f, false, out end));
+            Assert.Null(w.Frame(0.03f, 0.01f, 1f, false, out end));
+            Assert.Null(w.Frame(0.01f, 0.01f, 1f, false, out end));
+            Assert.Equal("game clock x3 lasted 0.0 s (back to real time)", end);
+            Assert.NotNull(w.Frame(0.0333f, 0.0063f, 1f, false, out end));   // capture rate 30 at ~160 fps
+            Assert.Equal("game clock x5.29 lasted 0.0 s (back to real time)", w.End());
+        }
+
+        [Fact]
+        public void ClockEpisodeSumsTheUnscaledSeconds()
+        {
+            var w = new ClockWatch();
+            string end;
+            for (int i = 0; i < 50; i++) w.Frame(0.2f, 0.1f, 1f, false, out end);
+            Assert.Equal("game clock x2 lasted 5.0 s (back to real time)", w.End());
+        }
+
+        [Fact]
+        public void ClockExcusedFramesStartNothingAndLeaveAnEpisodeAlone()
+        {
+            var w = new ClockWatch();
+            string end;
+            Assert.Null(w.Frame(0.02f, 0.01f, 1f, true, out end));
+            Assert.Null(w.End());
+            Assert.NotNull(w.Frame(0.02f, 0.01f, 1f, false, out end));
+            Assert.Null(w.Frame(0.01f, 0.01f, 1f, true, out end));
+            Assert.Null(end);
+            Assert.Null(w.Frame(0.02f, 0.01f, 1f, false, out end));
+            w.Reset();
+            Assert.Null(w.End());
+        }
+
+        [Fact]
+        public void CaptureRateFlag()
+        {
+            Assert.Null(SpeedCheck.CaptureRateFlag(0));
+            Assert.Equal("the game's clock was locked to 30 frames a second (capture frame rate)", SpeedCheck.CaptureRateFlag(30));
+        }
+
+        // ---- MovementFlag (T-0414 F3, D1) ----
+
+        private static string Move(float walk = 6.5f, float strafe = 6f, float crouch = 4.5f, float jump = 8f, float gravity = 10f,
+                                   float px = 0f, float py = -16f, float pz = 0f, float fixedDt = 1f / 60f, bool mp = false)
+        {
+            return SpeedCheck.MovementFlag(walk, strafe, crouch, jump, gravity, px, py, pz, fixedDt, mp);
+        }
+
+        [Fact]
+        public void MovementVanillaIsSilent()
+        {
+            Assert.Null(Move());
+            Assert.Null(Move(fixedDt: 0.0166667f));
+        }
+
+        [Theory]
+        [InlineData(1.2f)]
+        [InlineData(0f)]
+        [InlineData(1f)]
+        public void MovementLoweredHitReactionValuesAreSilent(float v)
+        {
+            Assert.Null(Move(walk: v, strafe: v));
+        }
+
+        [Fact]
+        public void MovementNamesEveryValueOff()
+        {
+            Assert.Equal("the game's movement values were changed: walk speed 20 (the game's 6.5), jump height 40 (the game's 8), " +
+                         "player gravity 2 (the game's 10)", Move(walk: 20f, jump: 40f, gravity: 2f));
+            Assert.Contains("strafe speed 20", Move(strafe: 20f));
+            Assert.Contains("crouch speed 20", Move(crouch: 20f));
+            Assert.Contains("crouch speed 1", Move(crouch: 1f));
+            Assert.Equal("the game's movement values were changed: physics gravity (0, -4, 0) (the game's (0, -16, 0))", Move(py: -4f));
+            Assert.Contains("physics gravity (1, -16, 0)", Move(px: 1f));
+        }
+
+        [Fact]
+        public void MovementFlagsAnyPhysicsRateButTheDefault()
+        {
+            Assert.Equal("the game's movement values were changed: physics rate 120 Hz (the game's 60 Hz)", Move(fixedDt: 0.00833f));
+            Assert.Equal("the game's movement values were changed: physics rate 30 Hz (the game's 60 Hz; 30 is its hidden Low quality physics setting)",
+                         Move(fixedDt: 1f / 30f));   // D1
+            Assert.Null(Move(fixedDt: 1f / 30f, mp: true));
+            Assert.Null(Move(fixedDt: 0.00833f, mp: true));
+        }
+
         [Fact]
         public void ZeroWhenAMenuOpensMidwayEndsTheEpisode()
         {

@@ -150,5 +150,41 @@ namespace ForestOverlay.Tests
             Assert.NotEqual(Segment.HashText("abc"), Segment.HashText("abd"));
             Assert.Equal(8, Segment.HashText("").Length);
         }
+
+        // ---- SHA-256 start states (T-0414 D4) ----
+
+        [Fact]
+        public void StateHashIsSha256OfTheUtf8Text()
+        {
+            Assert.Equal("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", Segment.StateHash(""));
+            Assert.Equal("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", Segment.StateHash("abc"));
+        }
+
+        [Fact]
+        public void StateHashOfALargeTextMatchesAOneShotHash()
+        {
+            // Past several slices, with a two-char character across a slice edge.
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < 30000; i++) sb.Append(i % 7 == 0 ? "é" : "x");
+            sb.Insert(8191, "\U0001F332");
+            string text = sb.ToString();
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                byte[] h = sha.ComputeHash(new System.Text.UTF8Encoding(false).GetBytes(text));
+                Assert.Equal(System.BitConverter.ToString(h).Replace("-", "").ToLowerInvariant(), Segment.StateHash(text));
+            }
+        }
+
+        [Fact]
+        public void StateMatchesReadsBothForms()
+        {
+            Assert.True(Segment.StateMatches("world one", Segment.StateHash("world one")));
+            Assert.True(Segment.StateMatches("world one", Segment.HashText("world one")));   // a spot named before T-0414
+            Assert.False(Segment.StateMatches("world two", Segment.StateHash("world one")));
+            Assert.False(Segment.StateMatches("world two", Segment.HashText("world one")));
+            Assert.False(Segment.StateMatches("world one", ""));
+            Assert.True(Segment.IsLegacyStateHash("12345678"));
+            Assert.False(Segment.IsLegacyStateHash(Segment.StateHash("x")));
+        }
     }
 }

@@ -154,5 +154,27 @@ namespace ForestOverlay.Tests
             Assert.Equal("20260925_210411_45.123.run", SegmentBundle.AttemptFileName(Run));
             Assert.Null(SegmentBundle.AttemptFileName("anchor|x\ns|0|0|0|0|0\n"));
         }
+
+        // An imported .foseg's state against the segment's name for it (T-0414 D4).
+        [Fact]
+        public void AnImportedStateMatchesBySha256OrTheOldHash()
+        {
+            var state = new SavestateFile { Name = "boost", Level = "TheForest", Data = "level data" };
+            var other = new SavestateFile { Name = "boost", Level = "TheForest", Data = "other data" };
+            var seg = new Segment { Id = "s-0123456789ab", Name = "Boost" };
+
+            seg.StartState = Segment.StateHash(state.Data);
+            Assert.True(SegmentBundle.StateIsTheRoutes(seg, state.Write()));
+            Assert.False(SegmentBundle.StateIsTheRoutes(seg, other.Write()));
+            Assert.False(SegmentBundle.StateIsTheRoutes(seg, null));
+            Assert.False(SegmentBundle.StateIsTheRoutes(seg, "not a savestate"));
+
+            seg.StartState = Segment.HashText(state.Data);   // exported before T-0414
+            Assert.True(SegmentBundle.StateIsTheRoutes(seg, state.Write()));
+            Assert.False(SegmentBundle.StateIsTheRoutes(seg, other.Write()));
+
+            seg.StartState = "";   // names none
+            Assert.True(SegmentBundle.StateIsTheRoutes(seg, other.Write()));
+        }
     }
 }

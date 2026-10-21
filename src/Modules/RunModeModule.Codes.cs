@@ -103,7 +103,7 @@ namespace ForestOverlay.Modules
             string category = Ctx.Run.Category != null ? Ctx.Run.Category.Id : _runSpot != null ? _runSpot.RunCategory : label;
             string spot = _runSpot != null ? _runSpot.Id : "";
             _chain.Header(_attemptId, runnerId, runnerName, OverlayPlugin.PluginVersion, category, spot,
-                          _runSpot != null ? _runSpot.StartState : "", AttemptChain.RandomHex(16), DateTime.UtcNow);
+                          _startHash, AttemptChain.RandomHex(16), DateTime.UtcNow);   // the state loaded (T-0414 F4)
             if (_report != null) { _report.AttemptId = _attemptId; _reportDirty = true; }
             StepNow(0);
 

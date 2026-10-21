@@ -20,13 +20,16 @@ namespace ForestOverlay.Game
     //    a few tens of ms - never on the main thread); the file on disk is
     //    hashed too and only noted when it differs;
     //  - BepInEx's loaded plugins other than this one, and patchers other
-    //    than our updater;
-    //  - assemblies loaded from files outside the game's Managed folder,
-    //    BepInEx's core and this plugin (dynamic ones - Harmony's own
-    //    generated code - have no file and are skipped);
+    //    than our updater (by its path, T-0414 F9);
+    //  - assemblies loaded from files other than a clean install's in the
+    //    game's Managed folder and BepInEx's core, and this plugin (T-0414
+    //    F8); code loaded from memory but the game's and the platform's
+    //    known four (F7; dynamic ones - Harmony's own generated code - are
+    //    skipped);
     //  - every Harmony patch in the process with its owner: anything not
-    //    owned by ForestOverlay is another mod changing the game's code
-    //    (a "Megan always uses one attack" mod would show here);
+    //    owned by ForestOverlay (our GUID and our assembly, F5) is another
+    //    mod changing the game's code (a "Megan always uses one attack" mod
+    //    would show here), and MonoMod detours Harmony does not own (F6);
     //  - the game's own cheat switches (static Cheats fields).
     //
     // It cannot stop someone who rewrites this plugin to lie - nothing on
@@ -286,15 +289,26 @@ namespace ForestOverlay.Game
             }
             catch (Exception ex) { r.OtherPlugins.Add("could not list the plugins: " + ex.Message); }
 
+            // Only our own patcher's path is skipped (T-0414 F9): a file of
+            // that name in a subfolder is someone else's.
+            string patchers = Norm(Paths.PatcherPluginPath);
             try
             {
+                string root = Paths.PatcherPluginPath.TrimEnd('\\', '/');
                 if (Directory.Exists(Paths.PatcherPluginPath))
                     foreach (string f in Directory.GetFiles(Paths.PatcherPluginPath, "*.dll", SearchOption.AllDirectories))
-                        if (!string.Equals(Path.GetFileName(f), "ForestOverlay.Updater.dll", StringComparison.OrdinalIgnoreCase))
-                            r.OtherPatchers.Add(Path.GetFileName(f));
+                    {
+                        if (Data.ExternalMods.IsOurPatcher(Norm(f), patchers)) continue;
+                        // A subfolder shows: "redteam/ForestOverlay.Updater.dll".
+                        bool under = f.Length > root.Length + 1 && f.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+                        r.OtherPatchers.Add(under ? f.Substring(root.Length + 1).Replace('\\', '/') : Path.GetFileName(f));
+                    }
             }
             catch (Exception ex) { r.OtherPatchers.Add("could not list the patchers: " + ex.Message); }
 
+            // The game's and BepInEx's folders are trusted file by file, as a
+            // clean install has them (F8); code with no file is listed but
+            // the game's and the platform's known four (F7).
             string managed = Norm(Paths.ManagedPath);
             string core = Norm(Path.Combine(Paths.BepInExRootPath, "core"));
             string own = Norm(ownPath);
@@ -305,13 +319,18 @@ namespace ForestOverlay.Game
                 {
                     if (a is System.Reflection.Emit.AssemblyBuilder) continue;
                     loc = a.Location;
+                    if (string.IsNullOrEmpty(loc))
+                    {
+                        string name = a.GetName().Name;
+                        if (!Data.ExternalMods.IsKnownInMemory(name)) r.OtherCode.Add(Data.ExternalMods.InMemoryEntry(name));
+                        continue;
+                    }
                 }
                 catch (Exception) { continue; }
-                if (string.IsNullOrEmpty(loc)) continue;
                 loc = Norm(loc);
-                if (loc.StartsWith(managed) || loc.StartsWith(core) || loc == own) continue;
+                if (loc == own || Data.ExternalMods.IsTrustedFile(loc, managed, core)) continue;
                 if (pluginFiles.Contains(loc)) continue;   // listed as a plugin already
-                if (string.Equals(Path.GetFileName(loc), "ForestOverlay.Updater.dll", StringComparison.OrdinalIgnoreCase)) continue;
+                if (Data.ExternalMods.IsOurPatcher(loc, patchers)) continue;
                 r.OtherCode.Add(Path.GetFileName(loc));
             }
 
@@ -325,11 +344,13 @@ namespace ForestOverlay.Game
         {
             r.ForeignPatches.Clear();
             r.OwnPatchedMethods = 0;
+            List<MethodBase> harmony = new List<MethodBase>();
             try
             {
                 string core = Path.Combine(Paths.BepInExRootPath, "core");
                 foreach (MethodBase m in Harmony.GetAllPatchedMethods())
                 {
+                    harmony.Add(m);
                     Patches info = Harmony.GetPatchInfo(m);
                     if (info == null) continue;
                     bool ours = false;
@@ -342,9 +363,12 @@ namespace ForestOverlay.Game
                 }
             }
             catch (Exception ex) { r.ForeignPatches.Add("could not list the patches: " + ex.Message); }
+            GatherDetours(r, harmony);
         }
 
-        /// Lists the foreign patches of one kind on `m`; true if one is ours.
+        /// Lists the foreign patches of one kind on `m`; true if one is ours
+        /// (T-0414 F5: our GUID as the owner's prefix and the patch method
+        /// in this assembly - a borrowed prefix is listed with its assembly).
         private static bool SortPatches(IList<Patch> patches, MethodBase m, Data.RunReport r, string ownGuid, string core)
         {
             if (patches == null) return false;
@@ -354,12 +378,140 @@ namespace ForestOverlay.Game
                 Patch p = patches[i];
                 if (p == null) continue;
                 string owner = p.owner;
-                if (owner != null && owner.StartsWith(ownGuid)) { ours = true; continue; }
+                Assembly asm = PatchAssembly(p);
+                if (Data.PlatformPatches.IsOurs(owner, ownGuid, asm != null && asm == typeof(RunIntegrity).Assembly)) { ours = true; continue; }
                 if (Data.PlatformPatches.IsBepInEx(owner, PatchFile(p), core)) continue;
-                string entry = (m.DeclaringType != null ? m.DeclaringType.Name + "." : "") + m.Name + " (by " + owner + ")";
+                string entry = Data.PlatformPatches.PatchEntry(MethodName(m), owner, ownGuid, asm != null ? AssemblyName(asm) : "");
                 if (!r.ForeignPatches.Contains(entry)) r.ForeignPatches.Add(entry);
             }
             return ours;
+        }
+
+        private static string MethodName(MethodBase m)
+        {
+            return (m.DeclaringType != null ? m.DeclaringType.Name + "." : "") + m.Name;
+        }
+
+        // The assembly's name, or "" for code with no file.
+        private static string AssemblyName(Assembly a)
+        {
+            try
+            {
+                if (a is System.Reflection.Emit.AssemblyBuilder) return "";
+                return a.GetName().Name;
+            }
+            catch (Exception) { return ""; }
+        }
+
+        private static Assembly PatchAssembly(Patch p)
+        {
+            try
+            {
+                MethodInfo pm = p.PatchMethod;
+                return pm != null && pm.DeclaringType != null ? pm.DeclaringType.Assembly : null;
+            }
+            catch (Exception) { return null; }
+        }
+
+        // ------------------------------------------------------------------
+        // Detours that are not Harmony's (T-0414 F6): MonoMod keeps every
+        // detour in the static MonoMod.RuntimeDetour.Detour._DetourMap
+        // (IDictionary MethodBase -> List<Detour>; each Detour's Target is
+        // the replacement). Harmony makes one per patched method, so a key
+        // Harmony does not hold, or a Harmony key with more than one, is
+        // someone else's - but the platform's own (Data/PlatformPatches).
+        // A BepInEx without the field skips this.
+        private static FieldInfo _detourMap;
+        private static bool _detourResolved;
+
+        private static System.Collections.IDictionary DetourMap()
+        {
+            if (!_detourResolved)
+            {
+                _detourResolved = true;
+                try
+                {
+                    foreach (Assembly a in AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        if (a.GetName().Name != "MonoMod.RuntimeDetour") continue;
+                        Type t = a.GetType("MonoMod.RuntimeDetour.Detour");
+                        if (t != null) _detourMap = t.GetField("_DetourMap", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                        break;
+                    }
+                }
+                catch (Exception) { _detourMap = null; }
+            }
+            if (_detourMap == null) return null;
+            try { return _detourMap.GetValue(null) as System.Collections.IDictionary; }
+            catch (Exception) { return null; }
+        }
+
+        /// How many detours MonoMod holds now (every key's list summed) - a
+        /// cheap "did anything change" beside PatchedCount; -1 unread.
+        public static int DetourCount()
+        {
+            System.Collections.IDictionary map = DetourMap();
+            if (map == null) return -1;
+            try
+            {
+                int n = 0;
+                foreach (object list in map.Values)
+                {
+                    System.Collections.ICollection c = list as System.Collections.ICollection;
+                    n += c != null ? c.Count : 1;
+                }
+                return n;
+            }
+            catch (Exception) { return -1; }
+        }
+
+        private static void GatherDetours(Data.RunReport r, List<MethodBase> harmony)
+        {
+            System.Collections.IDictionary map = DetourMap();
+            if (map == null) return;
+            try
+            {
+                foreach (System.Collections.DictionaryEntry e in map)
+                {
+                    MethodBase key = e.Key as MethodBase;
+                    System.Collections.IList list = e.Value as System.Collections.IList;
+                    if (key == null || list == null || list.Count == 0) continue;
+                    bool patched = harmony.Contains(key);
+                    if (patched && list.Count <= 1) continue;   // Harmony's own one
+                    string keyAsm = key.DeclaringType != null ? AssemblyName(key.DeclaringType.Assembly) : "";
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        string target = TargetAssembly(list[i]);
+                        if (Data.PlatformPatches.IsPlatformDetour(keyAsm, target)) continue;
+                        string entry = Data.PlatformPatches.DetourEntry(MethodName(key), target);
+                        if (!r.ForeignPatches.Contains(entry)) r.ForeignPatches.Add(entry);
+                    }
+                }
+            }
+            catch (Exception ex) { r.ForeignPatches.Add("could not list the detours: " + ex.Message); }
+        }
+
+        // The assembly of a Detour's Target ("" for code with no file).
+        private static string TargetAssembly(object detour)
+        {
+            if (detour == null) return "";
+            try
+            {
+                Type t = detour.GetType();
+                const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                object target = null;
+                FieldInfo f = t.GetField("Target", inst);
+                if (f != null) target = f.GetValue(detour);
+                else
+                {
+                    PropertyInfo p = t.GetProperty("Target", inst);
+                    if (p != null) target = p.GetValue(detour, null);
+                }
+                MethodBase m = target as MethodBase;
+                if (m == null || m.DeclaringType == null) return "";
+                return AssemblyName(m.DeclaringType.Assembly);
+            }
+            catch (Exception) { return ""; }
         }
 
         /// The file the patch method was loaded from ("" when it has none).

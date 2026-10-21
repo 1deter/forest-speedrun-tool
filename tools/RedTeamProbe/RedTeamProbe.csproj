@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    T-0414's stand-in cheat mod for run mode's red team (docs/run-mode.md
+    *Red team*). Dev only, never shipped, never left installed: copy
+    bin/Release/net35/RedTeamProbe.dll into BepInEx/plugins, restart, drive
+    it over the bridge (`call static:RedTeam.Probe <Method> ...`), remove it
+    with the game closed. Extra/ builds RedTeamExtra.dll for the Managed
+    folder and disguised-patcher checks. Needs the game's files:
+    dotnet build tools/RedTeamProbe -c Release -p:ForestRoot="<game folder>"
+  -->
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>RedTeamProbe</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <ForestRoot Condition="'$(ForestRoot)' == ''">G:\SteamLibrary\steamapps\common\The Forest</ForestRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Extra/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <Reference Include="BepInEx"><HintPath>$(ForestRoot)\BepInEx\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(ForestRoot)\BepInEx\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MonoMod.RuntimeDetour"><HintPath>$(ForestRoot)\BepInEx\core\MonoMod.RuntimeDetour.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MonoMod.Utils"><HintPath>$(ForestRoot)\BepInEx\core\MonoMod.Utils.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ForestRoot)\TheForest_Data\Managed\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

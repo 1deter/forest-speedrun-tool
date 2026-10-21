@@ -11,8 +11,8 @@ namespace ForestOverlay.Game
     // come from RunIntegrity.GatherMods (the run report's own lists - one
     // gatherer). Plugins load after ours, so the first look is on the
     // first Update (every plugin's Awake is done by then); after that it
-    // looks again only when an assembly loaded or the patched-method count
-    // moved, and at most every few seconds. Sticky: a name once seen stays
+    // looks again only when an assembly loaded or the patched-method or
+    // detour count moved, and at most every few seconds. Sticky: a name once seen stays
     // for the session. A label, never a gate (rule 12).
     // ------------------------------------------------------------------
     public sealed class ExternalModWatch
@@ -26,7 +26,7 @@ namespace ForestOverlay.Game
         private readonly List<string> _seen = new List<string>();
         private volatile bool _loaded = true;   // true: look at the first Tick
         private float _next;
-        private int _patchCount = -2;
+        private int _patchCount = -2, _detourCount = -2;
 
         public ExternalModWatch(ManualLogSource log, PracticeState practice, string guid, string path)
         {
@@ -48,9 +48,11 @@ namespace ForestOverlay.Game
             if (now < _next) return;
             _next = now + EverySeconds;
             int patches = RunIntegrity.PatchedCount();
-            if (!_loaded && patches == _patchCount) return;
+            int detours = RunIntegrity.DetourCount();   // MonoMod hooks too (T-0414 F6)
+            if (!_loaded && patches == _patchCount && detours == _detourCount) return;
             _loaded = false;
             _patchCount = patches;
+            _detourCount = detours;
             Look();
         }
 

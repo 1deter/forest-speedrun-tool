@@ -162,7 +162,7 @@ public sealed class Runs
         {
             SavestateFile f = SavestateFile.Parse(b.StartState, out string error);
             if (f == null) res.Skipped.Add("start state: " + error);
-            else if (Segment.HashText(f.Data) != seg.StartState) res.Skipped.Add("start state: not the one the route was timed from");
+            else if (!Segment.StateMatches(f.Data, seg.StartState)) res.Skipped.Add("start state: not the one the route was timed from");
             else
             {
                 _store.SaveStartState(seg.Id, route, b.StartState);

@@ -477,10 +477,54 @@ namespace ForestOverlay.Data
         }
 
         /// FNV-1a of any text as eight hex digits - how a start state's
-        /// data is named in the segment block.
+        /// data was named in the segment block before SHA-256 (T-0414 D4);
+        /// still read for spots that name one that way.
         public static string HashText(string text)
         {
             return Fold(2166136261, text).ToString("x8");
+        }
+
+        /// SHA-256 of a start state's data (UTF-8) as 64 hex digits - how
+        /// it is named in the segment block (author, 2026-10-21, T-0414 D4:
+        /// a 32-bit FNV-1a can be forged to match; route fingerprints change).
+        /// Hashed in slices, so a large state needs no copy of its size.
+        public static string StateHash(string data)
+        {
+            if (data == null) data = "";
+            using (System.Security.Cryptography.SHA256 sha = System.Security.Cryptography.SHA256.Create())
+            {
+                System.Text.Encoder enc = new System.Text.UTF8Encoding(false).GetEncoder();
+                const int slice = 8192;
+                char[] chars = new char[slice];
+                byte[] bytes = new byte[slice * 4];
+                for (int at = 0; at < data.Length; at += slice)
+                {
+                    int n = Math.Min(slice, data.Length - at);
+                    data.CopyTo(at, chars, 0, n);
+                    int b = enc.GetBytes(chars, 0, n, bytes, 0, at + n >= data.Length);
+                    sha.TransformBlock(bytes, 0, b, null, 0);
+                }
+                sha.TransformFinalBlock(bytes, 0, 0);
+                System.Text.StringBuilder sb = new System.Text.StringBuilder(64);
+                byte[] h = sha.Hash;
+                for (int i = 0; i < h.Length; i++) sb.Append(h[i].ToString("x2"));
+                return sb.ToString();
+            }
+        }
+
+        /// True for a start state named the old way (eight hex digits, FNV-1a).
+        public static bool IsLegacyStateHash(string named)
+        {
+            return named != null && named.Length == 8;
+        }
+
+        /// True when `named` (a segment's `startstate`) is the hash of
+        /// `data`: SHA-256, or the old FNV-1a for a spot named before
+        /// T-0414 (a community / imported spot not yet re-hashed).
+        public static bool StateMatches(string data, string named)
+        {
+            if (string.IsNullOrEmpty(named)) return false;
+            return IsLegacyStateHash(named) ? HashText(data) == named : StateHash(data) == named;
         }
 
         private static uint Fold(uint hash, string text)

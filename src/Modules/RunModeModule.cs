@@ -44,15 +44,19 @@ namespace ForestOverlay.Modules
         private SavestateModule _savestates;
         private bool _runSpeedFlagged, _runSpeedWarned;   // the run / swim speed flag is once per attempt; the missing-field warning once
         private readonly TimeScaleWatch _timeScale = new TimeScaleWatch();   // the time scale episodes of this attempt
+        private readonly ClockWatch _clockWatch = new ClockWatch();   // game time ahead of real time (T-0414 F1)
+        private bool _captureFlagged, _moveFlagged, _moveWarned;   // capture frame rate / movement constants: once per attempt
         private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
         private bool _loaded;               // last frame: in a loaded game
         private bool _attemptOpen;          // an attempt is running (not reset yet)
         private bool _spotStarting;         // a run spot's Full load is under way
         private bool _byHand;               // run mode started with Start run mode
+        private bool _byHandClick;          // the attempt being started is the Start run mode click's (T-0414 D3)
+        private string _startHash = "";     // the start state the run spot really loaded (T-0414 F4)
         private RunReport _report;
         private string _reportPath;
         private float _nextCheck;
-        private int _patchCount = -1;
+        private int _patchCount = -1, _detourCount = -1;
         private bool _reportDirty;
 
         private float _confirmUntil;        // End run mode: the second click's window
@@ -124,6 +128,20 @@ namespace ForestOverlay.Modules
                 string speed = _timeScale.Frame(scale, excused, zeroOk, Time.unscaledDeltaTime, out speedEnd);
                 if (speed != null) Ctx.Run.Flag(speed);
                 if (speedEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedEnd);
+                // The game clock against real time (T-0414 F1): only while the
+                // time scale reads 1 or less - a plain 2 is the time-scale
+                // watch's one flag, not two.
+                string clockEnd;
+                string clock = _clockWatch.Frame(Time.deltaTime, Time.unscaledDeltaTime, scale, excused || scale > 1f, out clockEnd);
+                if (clock != null) Ctx.Run.Flag(clock);
+                if (clockEnd != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + clockEnd);
+                // Time.captureFramerate has no game writer (F2).
+                if (!_captureFlagged)
+                {
+                    string cap = SpeedCheck.CaptureRateFlag(Time.captureFramerate);
+                    if (cap != null) { _captureFlagged = true; Ctx.Run.Flag(cap); }
+                }
+                if (!excused && !_moveFlagged) CheckMovement();
                 // The player's run / swim speed (_speedyrun writes 60 / 20): first time per attempt.
                 if (!excused && !_runSpeedFlagged)
                 {
@@ -145,6 +163,25 @@ namespace ForestOverlay.Modules
             TickCategories();
             RebuildText();
             RebuildCategoryText();
+        }
+
+        // The player's movement constants and the physics settings (T-0414
+        // F3, D1): first time per attempt.
+        private void CheckMovement()
+        {
+            float walk, strafe, crouch, jump, gravity;
+            if (SpeedRead.TryReadMovement(out walk, out strafe, out crouch, out jump, out gravity))
+            {
+                Vector3 g = Physics.gravity;
+                string mv = SpeedCheck.MovementFlag(walk, strafe, crouch, jump, gravity, g.x, g.y, g.z,
+                                                    Time.fixedDeltaTime, _report != null && _report.Multiplayer);   // read at the start: no reflection a frame
+                if (mv != null) { _moveFlagged = true; Ctx.Run.Flag(mv); }
+            }
+            else if (SpeedRead.MovementMissing && !_moveWarned)
+            {
+                _moveWarned = true;
+                Ctx.Log.LogWarning("Run mode: the player's movement fields were not found - that watch is off.");
+            }
         }
 
         private void OnGameLoaded()
@@ -196,13 +233,17 @@ namespace ForestOverlay.Modules
             }
             _byHand = false;
             _runSpot = s;
+            // The state the spot really loaded, not the one it names (T-0414 F4).
+            _startHash = _savestates != null ? _savestates.LastStartStateHash : "";
             string from = s.RunCategory + " from '" + s.Name + "' (" +
                           (SegmentLibrary.IsCommunity(s) ? "community" : "own") + " spot " + s.Id +
-                          ", start state " + (s.StartState.Length > 0 ? s.StartState : "not hashed") + ")";
+                          ", start state " + (_startHash.Length > 0 ? _startHash : "not hashed") + ")";
             RunCategory cat = CategoryFor(s);
             if (cat == null) Ctx.Log.LogWarning("Run mode: the run spot's category '" + s.RunCategory + "' is not one of the site's " +
                                                 _categories.Count + " - the defaults apply (everything locked).");
             StartAttempt(from + ", " + RunIntegrity.Describe(), cat != null ? cat.Name : s.RunCategory);
+            string mismatch = RunStartCheck.StartStateFlag(_startHash, _savestates != null ? _savestates.LastStartStateLegacy : "", s.StartState);
+            if (mismatch != null) Ctx.Run.Flag(mismatch);
         }
 
         /// The fallback for a category with no run spot: run mode on now,
@@ -212,6 +253,7 @@ namespace ForestOverlay.Modules
             if (Ctx.Run.Active) return;
             if (!InLoadedGame()) { Ctx.Notice.Show("Run mode: load a game first.", 6f); return; }
             _byHand = true;
+            _byHandClick = true;   // practice before this click is a flag (D3)
             _runSpot = null;
             StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", ByHandLabel());
         }
@@ -228,11 +270,23 @@ namespace ForestOverlay.Modules
             string before = Ctx.Practice.Used ? Ctx.Practice.Reason : "";
             Ctx.Practice.Reset();   // an attempt starts clean; the report keeps what came before
             RunCategory cat = CategoryFor(_runSpot);
-            Ctx.Run.Begin(started, label, cat);
+            if (_runSpot == null) _startHash = "";
+            // A run by hand says on the HUD that it did not start from a
+            // category spot (author, 2026-10-21, T-0414 D3); the chain keeps the plain label.
+            Ctx.Run.Begin(started, _byHand ? RunStartCheck.ByHandLabel(label) : label, cat);
+            bool click = _byHandClick;
+            _byHandClick = false;
+            // Practice, then Start run mode: a savestate just before could
+            // start the run anywhere - a flag, not a note (D3).
+            string afterPractice = click ? RunStartCheck.ByHandAfterPracticeFlag(before) : null;
+            if (afterPractice != null) Ctx.Run.Flag(afterPractice);
             ResetMoves();
             ResetAudit();
             _timeScale.Reset();
+            _clockWatch.Reset();
             _runSpeedFlagged = false;
+            _captureFlagged = false;
+            _moveFlagged = false;
             _attemptOpen = true;
 
             _report = new RunReport();
@@ -250,6 +304,7 @@ namespace ForestOverlay.Modules
             _report.Multiplayer = RunIntegrity.IsMultiplayer();
             RunIntegrity.Gather(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
             _patchCount = RunIntegrity.PatchedCount();
+            _detourCount = RunIntegrity.DetourCount();
             _reportPath = Path.Combine(Path.Combine(Ctx.ConfigDirectory, "run-reports"),
                                        "attempt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
             Watch();
@@ -259,7 +314,7 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " started (" + _report.Started + ") - practice locked; " +
                             _report.Summary() + ".");
             if (!Host.AnyPanelOpen())
-                Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + label + ") - practice features are locked. End run mode in the Runs tab to practise.", 7f);
+                Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + Ctx.Run.Label + ") - practice features are locked. End run mode in the Runs tab to practise.", 7f);
         }
 
         /// `reason`: the log's short word (reset, finished, title screen, ...).
@@ -269,6 +324,8 @@ namespace ForestOverlay.Modules
             FlushAudit();   // items / bursts still being merged, likewise
             string speedLeft = _timeScale.End();   // a speed change still running when the attempt ends
             if (speedLeft != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + speedLeft);
+            string clockLeft = _clockWatch.End();
+            if (clockLeft != null) Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " - " + clockLeft);
             _attemptOpen = false;
             Ctx.Run.Reset();
             CheckCategoriesSoon();   // a new version is ready for the next attempt
@@ -312,9 +369,11 @@ namespace ForestOverlay.Modules
             }
 
             int patches = RunIntegrity.PatchedCount();
-            if (patches != _patchCount)
+            int detours = RunIntegrity.DetourCount();   // a MonoMod hook is no Harmony patch (T-0414 F6)
+            if (patches != _patchCount || detours != _detourCount)
             {
                 _patchCount = patches;
+                _detourCount = detours;
                 int foreign = _report.ForeignPatches.Count;
                 RunIntegrity.GatherPatches(_report, OverlayPlugin.PluginGuid);
                 if (_report.ForeignPatches.Count > foreign)

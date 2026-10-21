@@ -173,7 +173,7 @@ namespace ForestOverlay.Data
             if (stateText == null) { why = "no start state for it on this PC"; return null; }
             SavestateFile f = SavestateFile.Parse(stateText, out error);
             if (f == null) { why = "the start state here is unreadable (" + error + ")"; return null; }
-            if (Segment.HashText(f.Data) != b.Segment.StartState) { why = "the start state here is not the one the route was timed from"; return null; }
+            if (!Segment.StateMatches(f.Data, b.Segment.StartState)) { why = "the start state here is not the one the route was timed from"; return null; }
             b.StartState = stateText;
             why = null;
             return b.Write();
