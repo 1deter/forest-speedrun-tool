@@ -1059,28 +1059,30 @@ namespace ForestOverlay.Modules
         public override float DrawHudEditor(float y, float w)
         {
             const float indent = 20f;
-            bool on = UiKit.Toggle(new Rect(0f, y, w, 22f), _on.Value, InputsText);
+            Rect onR = new Rect(0f, y, w, 22f);
+            bool on = UiKit.Toggle(onR, _on.Value, InputsText);
+            UiKit.Hint(onR, About);
             if (on != _on.Value)
             {
                 _on.Value = on;
                 Ctx.Log.LogInfo("Inputs: " + (on ? "on" : "off") + ".");
             }
             y += 24f;
-            y += UiText.Draw(indent, y, w - indent, About, UiKit.HintStyle) + 2f;
             if (!_on.Value) return y + 8f;
 
             y = DrawSourceChoice(y, w, indent);
 
             y = DrawStyleChoice(y, w, indent);
 
-            bool only = UiKit.Toggle(new Rect(0f, y, w, 22f), _onlyPressed.Value, OnlyPressedText);
+            Rect onlyR = new Rect(0f, y, w, 22f);
+            bool only = UiKit.Toggle(onlyR, _onlyPressed.Value, OnlyPressedText);
+            UiKit.Hint(onlyR, OnlyPressedAbout);
             if (only != _onlyPressed.Value)
             {
                 _onlyPressed.Value = only;
                 Ctx.Log.LogInfo("Inputs: only-pressed mode " + (only ? "on" : "off") + ".");
             }
-            y += 24f;
-            y += UiText.Draw(indent, y, w - indent, OnlyPressedAbout, UiKit.HintStyle) + 4f;
+            y += 28f;
 
             if (UiKit.Section(indent, ref y, w - indent, "hud.inputtiles", TilesTitle, false))
                 y = DrawTiles(indent, y, w - indent);
@@ -1127,8 +1129,10 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent StyleTitle = new GUIContent("Mouse");
         private static readonly GUIContent StyleCometText = new GUIContent("Comet");
         private static readonly GUIContent StyleBoxText = new GUIContent("Box");
-        private static readonly GUIContent StyleAbout = new GUIContent(
-            "Comet: no frame, the dot stays put and a tail of the last 0.4 s shows where the mouse came from. Box: a framed box where the dot drifts and wraps at the edges.");
+        private static readonly GUIContent StyleCometTip = new GUIContent(
+            "No frame: the dot stays put and a tail of the last 0.4 s shows where the mouse came from.");
+        private static readonly GUIContent StyleBoxTip = new GUIContent(
+            "A framed box where the dot drifts and wraps at the edges.");
 
         private float DrawStyleChoice(float y, float w, float indent)
         {
@@ -1136,10 +1140,12 @@ namespace ForestOverlay.Modules
             WinPx.Label(new Rect(0f, y, labelW, 22f), StyleTitle);
             float bw = Mathf.Max(60f, (w - labelW - 4f) * 0.5f);
             bool comet = Comet;
-            if (UiKit.Toggle(new Rect(labelW, y, bw, 22f), comet, StyleCometText, GUI.skin.button) && !comet) SetStyle(StyleComet);
-            if (UiKit.Toggle(new Rect(labelW + bw + 4f, y, bw, 22f), !comet, StyleBoxText, GUI.skin.button) && comet) SetStyle(StyleBox);
-            y += 26f;
-            return y + UiText.Draw(indent, y, w - indent, StyleAbout, UiKit.HintStyle) + 4f;
+            Rect cometR = new Rect(labelW, y, bw, 22f), boxR = new Rect(labelW + bw + 4f, y, bw, 22f);
+            if (UiKit.Toggle(cometR, comet, StyleCometText, GUI.skin.button) && !comet) SetStyle(StyleComet);
+            if (UiKit.Toggle(boxR, !comet, StyleBoxText, GUI.skin.button) && comet) SetStyle(StyleBox);
+            UiKit.Hint(cometR, StyleCometTip);
+            UiKit.Hint(boxR, StyleBoxTip);
+            return y + 30f;
         }
 
         private void SetStyle(string style)
@@ -1154,9 +1160,11 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent SourceGameText = new GUIContent("Game input");
         private static readonly GUIContent SourceRawText = new GUIContent("Raw input");
         private static readonly GUIContent SourceAbout = new GUIContent(
-            "Game input: each tile is its key's game action (Jump, Crouch, Forward...), lit whenever the game's action fires, " +
-            "so a rebind follows the action and a replay's or the test bridge's inputs show. Raw input: the keys you press, named as keys. " +
-            "The mouse wheel is raw in both. This window always lights tiles from the keys.");
+            "Game input lights a tile when its game action fires; Raw input when you press its key.");
+        private static readonly GUIContent SourceGameTip = new GUIContent(
+            "Each tile is its key's game action (Jump, Crouch, Forward...), lit whenever the game's action fires, so a rebind follows the action and a replay's or the test bridge's inputs show. The mouse wheel is raw in both. This window always lights tiles from the keys.");
+        private static readonly GUIContent SourceRawTip = new GUIContent(
+            "The keys you press, named as keys. The mouse wheel is raw in both. This window always lights tiles from the keys.");
         private readonly GUIContent _sourceStatus = new GUIContent("");
         private string _statusFor;
 
@@ -1169,6 +1177,8 @@ namespace ForestOverlay.Modules
             bool game = GameInput;
             if (UiKit.Toggle(gameR, game, SourceGameText, GUI.skin.button) && !game) SetSource(SourceGame);
             if (UiKit.Toggle(rawR, !game, SourceRawText, GUI.skin.button) && game) SetSource(SourceRaw);
+            UiKit.Hint(gameR, SourceGameTip);
+            UiKit.Hint(rawR, SourceRawTip);
             y += 26f;
             y += UiText.Draw(indent, y, w - indent, SourceAbout, UiKit.HintStyle) + 2f;
             if (GameInput && !GameActions.Ready)
