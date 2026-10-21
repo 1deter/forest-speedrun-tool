@@ -19,8 +19,8 @@ namespace ForestOverlay.Game
     // (Instantiate, never the "misc" pool: pooled copies are reused by the
     // game's own messages, so a restyle would leak into them - bridge,
     // 2026-10-15). The copies sit in no HudGui timed dictionary, so the
-    // game never expires them, and they are kept the grid's last children:
-    // the lowest lines, the game's passing messages above them. Higher
+    // game never expires them, and they are kept the grid's first children:
+    // the top lines, the game's passing messages under them. Higher
     // contrast than the game's plain yellow (a black outline), no
     // translation, and the game's own icons in the template's icon slot
     // (its "Book") so they stand apart from the game's messages (author,
@@ -82,14 +82,16 @@ namespace ForestOverlay.Game
         public int MarkerStart { get { return _state.MarkerStart; } }
 
         /// Screen pixels, GUI space (y down): the left end and vertical
-        /// middle of the lowest line.
+        /// middle of our lowest line (the bottom of our block at the top of the stack).
         public Vector2 Anchor
         {
             get
             {
                 if (_anchorMeasured) return _anchor;
-                // Before a copy was ever shown: where the game's lowest line
-                // sits (bridge shot, 1366x768: x 0.073, y 0.928).
+                // Before a copy was ever shown: where the stack's bottom line
+                // sits (bridge shot, 1366x768: x 0.073, y 0.928) - the
+                // estimate until measured; with the game's messages under ours the
+                // measured spot is higher. The grid's bottom is the best guess.
                 return new Vector2(Screen.width * 0.073f, Screen.height * 0.928f);
             }
         }
@@ -118,7 +120,7 @@ namespace ForestOverlay.Game
 
                 bool moved = false;
                 if (_applied != _state.Version) { Apply(); moved = true; }
-                moved |= KeepLowest();
+                moved |= KeepTop();
                 if (moved) Reposition();
                 Measure();
             }
@@ -277,18 +279,17 @@ namespace ForestOverlay.Game
             _iconNames[i] = name;
         }
 
-        // Ours lowest: the grid's last children, in order (author, 2026-10-15).
-        private bool KeepLowest()
+        // Ours at the top: the grid's first children, in order (author,
+        // 2026-10-19, T-0438; the game's own messages are appended after).
+        private bool KeepTop()
         {
-            Transform grid = _grid.transform;
-            int n = grid.childCount;
             int used = Math.Min(_state.Lines.Count, _copies.Count);
             bool ok = true;
             for (int i = 0; i < used && ok; i++)
-                if (_copies[i] == null || _copies[i].transform.GetSiblingIndex() != n - used + i) ok = false;
+                if (_copies[i] == null || _copies[i].transform.GetSiblingIndex() != i) ok = false;
             if (ok) return false;
-            for (int i = 0; i < used; i++)
-                if (_copies[i] != null) _copies[i].transform.SetAsLastSibling();
+            for (int i = used - 1; i >= 0; i--)
+                if (_copies[i] != null) _copies[i].transform.SetAsFirstSibling();
             return true;
         }
 
