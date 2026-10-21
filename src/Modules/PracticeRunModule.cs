@@ -814,6 +814,7 @@ namespace ForestOverlay.Modules
             if (_recorder.Current.Samples.Count < 2) return;
             _failedLine.Clear();
             _failedLine.Sync(_recorder.Current.Samples);
+            KeepFailedSamples();
         }
 
         private void AbortRun()
@@ -898,6 +899,7 @@ namespace ForestOverlay.Modules
             _loadedSegmentId = s.Id;
             _attempts.Clear();
             _failedLine.Clear();   // another segment's failure is not this one's
+            _failedSamples.Clear();
             _doneLine.Clear();
             _rowsDirty = true;
             // Cleared here, not left to UpdateLines: a segment with no
@@ -1301,6 +1303,9 @@ namespace ForestOverlay.Modules
                 UiKit.Hint(new Rect(0, y, 120, 24), TipClear);
                 y += 30f;
             }
+
+            if (UiKit.Section(0f, ref y, cw, "runs.graph", TextGraph, null, TipGraph, false))
+                y = DrawGraphSection(y, cw);
 
             if (UiKit.Section(0f, ref y, cw, "runs.recordings", TextRecordings, RecorderSummary, TipRecordings, false))
                 y = DrawRecorderSection(y, cw);
