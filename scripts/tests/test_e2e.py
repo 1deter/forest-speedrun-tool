@@ -58,6 +58,13 @@ class Values(unittest.TestCase):
         self.assertEqual(E.parse_items(["X.Cheats = List<String> (0)  (List<String>)"]), [])
 
 
+class GitHygiene(unittest.TestCase):
+    def test_task_file_writes_are_ignored(self):
+        porcelain = (" M tasks/tasks.jsonl\nM  docs/tasks.md\n?? tasks/notes/T-0448.md\n"
+                     " M tasks/loop.jsonl\n M src/Plugin.cs\n?? docs/tasks-old.md\n")
+        self.assertEqual(E.without_task_files(porcelain), " M src/Plugin.cs\n?? docs/tasks-old.md\n")
+
+
 class Cleanup(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
