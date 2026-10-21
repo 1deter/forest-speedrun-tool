@@ -665,11 +665,12 @@ namespace ForestOverlay.Game
 
         /// After a Quick load (the pickups step done, so put-back copies are
         /// shown and re-made ones have run Start): every copy the last
-        /// MirrorRoots matched to the capture gets its despawn timer as it
-        /// stood then - resumed from its captured age, or none if none ran.
-        /// A pose with no timer tag (a file from before T-0418) is left as
-        /// the game has it. `apply` false (the load failed) only forgets
-        /// them. Returns how many were set.
+        /// MirrorRoots matched to the capture gets its timer by
+        /// DespawnTimer.Decide: `t<age>` resumes from the captured age, `s`
+        /// stops it; a file from before T-0418 (no tag at all) gives a fresh
+        /// timer to a copy put back or made again and leaves an untouched
+        /// one running; `u` (unreadable at the capture) is left. `apply`
+        /// false (the load failed) only forgets them. Returns how many were set.
         public static int ResumeTimers(bool apply)
         {
             int n = 0;

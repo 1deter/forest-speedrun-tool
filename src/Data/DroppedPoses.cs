@@ -11,8 +11,8 @@ namespace ForestOverlay.Data
     /// rolled since back. Format `id:item@x,y,z@qx,qy,qz,qw;...`, with an
     /// optional 4th segment of comma tags (T-0418): `p` (a copy of the item's
     /// own drop prefab, re-made when it is gone), `t<age>` (its despawn timer
-    /// ran, `age` game seconds old) or `s` (it has one, not running), or `u` (not readable at the capture). Unknown
-    /// tags are ignored. Pure.
+    /// ran, `age` game seconds old), `s` (it has one, not running) or `u`
+    /// (not readable at the capture). Unknown tags are ignored. Pure.
     public static class DroppedPoses
     {
         /// What the capture knew of a copy's despawn timer.
