@@ -747,6 +747,7 @@ namespace ForestOverlay.Modules
         {
             DrawReplayLabels();
             DrawLineMarkLabels();
+            DrawExtraLineLabels();
             Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
             try { DrawPanels(); DrawReplayBar(); }
             finally { GUI.matrix = outer; }

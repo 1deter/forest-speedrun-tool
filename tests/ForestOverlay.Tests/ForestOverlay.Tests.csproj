@@ -161,6 +161,7 @@
     <Compile Include="../../src/Data/ReplayMarks.cs" Link="Linked/ReplayMarks.cs" />
     <Compile Include="../../src/Data/ReplayLabels.cs" Link="Linked/ReplayLabels.cs" />
     <Compile Include="../../src/Data/CheckpointMarks.cs" Link="Linked/CheckpointMarks.cs" />
+    <Compile Include="../../src/Data/ExtraLines.cs" Link="Linked/ExtraLines.cs" />
     <Compile Include="../../src/Data/MarkLabels.cs" Link="Linked/MarkLabels.cs" />
     <Compile Include="../../src/Data/ReplayCamera.cs" Link="Linked/ReplayCamera.cs" />
     <Compile Include="../../src/Data/DumpText.cs" Link="Linked/DumpText.cs" />

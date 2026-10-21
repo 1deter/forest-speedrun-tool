@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 886 log calls.
+256 prefixes from 889 log calls.
 
 ## `ActionReaders`
 
@@ -1667,8 +1667,9 @@ Written by ItemCounter.cs; info / warning.
 ## `Run lines`
 
 Meaning: The runner chose how run lines meet plants, rocks and ground (Hidden, Faint, Through).
-Written by PracticeRunModule.Lines.cs; info.
+Written by PracticeRunModule.ExtraLines.cs, PracticeRunModule.Lines.cs; info.
 
+- info `Run lines: extra line <token> <..> (now '<value>').`
 - info `Run lines: behind things set to <..>.`
 - info `Run lines: checkpoint labels moved from the old default to <next>.`
 - info `Run lines: checkpoint markers set to <text>.`
@@ -1973,8 +1974,10 @@ Written by PracticeRunModule.Site.cs; info / warning.
 ## `Site run`
 
 Meaning: A site run downloaded as a comparison reference, or why not.
-Written by PracticeRunModule.Site.cs; info / warning.
+Written by PracticeRunModule.ExtraLines.cs, PracticeRunModule.Site.cs; info / warning.
 
+- warning `Site run <e.RunId> (<e.Name>): <why> (as an extra line).`
+- info `Site run <e.RunId> (<e.Name>, <..>): <a.Samples.Count> samples - an extra line for '<key>'.`
 - warning `Site run <e.RunId> (<e.Name>): <why>.`
 - info `Site run <e.RunId> (<e.Name>, <..>): <a.Samples.Count> samples - the reference for '<key>'.`
 

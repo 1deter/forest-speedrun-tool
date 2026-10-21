@@ -142,6 +142,8 @@ namespace ForestOverlay.Modules
             RefreshRunnerPickText();
             SelectReference();
             _splitsDirty = true;
+            _xOthersDirty = true;
+            _xDirty = true;
         }
 
         private void ClearBoard(string key)

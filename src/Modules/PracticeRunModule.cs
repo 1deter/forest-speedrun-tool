@@ -1087,6 +1087,7 @@ namespace ForestOverlay.Modules
             // The segment's checkpoint marks belong to the comparison run, not to a recording.
             if (_watchTake) ClearLineMarks();
             else UpdateLineMarks();
+            UpdateExtraLines(!_watchTake && (_camOn || _showLines));
 
             _lines.HasGhost = false;
             if (lineRef != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
@@ -1110,6 +1111,7 @@ namespace ForestOverlay.Modules
             _lines.HasGhost = false;
             _doneLine.Clear();
             ClearLineMarks();
+            ClearExtraLines();
             _lineSource = null;
             _referenceLine.Clear();
             _currentLine.Clear();

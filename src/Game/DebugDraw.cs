@@ -893,6 +893,20 @@ namespace ForestOverlay.Game
         public Vector3[] CurrentLine;
         public int CurrentCount;
 
+        /// Extra comparison lines (T-0374): up to ExtraPicks.Max more runs
+        /// drawn beside the comparison, each in its own colour (ExtraColours).
+        /// ExtraLine[i] / ExtraCount[i] are filled by the module.
+        public readonly Vector3[][] ExtraLine = new Vector3[ForestOverlay.Data.ExtraPicks.Max][];
+        public readonly int[] ExtraCount = new int[ForestOverlay.Data.ExtraPicks.Max];
+        public int ExtraN;
+        public float ExtraOpacity = 1f;
+        /// Distinct from the comparison blue, your yellow, the failed red and the ghost pink.
+        public static readonly Color[] ExtraColours =
+        {
+            new Color(0.45f, 0.95f, 0.45f, 0.9f), new Color(1f, 0.6f, 0.2f, 0.9f), new Color(0.75f, 0.55f, 1f, 0.9f),
+            new Color(0.25f, 0.9f, 0.85f, 0.9f), new Color(0.85f, 0.85f, 0.85f, 0.9f), new Color(0.8f, 0.9f, 0.2f, 0.9f),
+        };
+
         /// The last run that did not finish (v0.24.200), red.
         public Vector3[] FailedLine;
         public int FailedCount;
@@ -1005,7 +1019,7 @@ namespace ForestOverlay.Game
         private void OnEnable() { try { LatePass.Register(this); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnEnable", ex); } }
         private void OnDisable() { try { LatePass.Unregister(this); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDisable", ex); } }
         private void LateUpdate() { try { LatePass.Sync(DrawTarget.View()); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.LateUpdate", ex); } }
-        public bool WantsLateDraw { get { return Show && (ReferenceCount >= 2 || CurrentCount >= 2 || FailedCount >= 2 || HasGhost || PathCount >= 2); } }
+        public bool WantsLateDraw { get { return Show && (ReferenceCount >= 2 || CurrentCount >= 2 || FailedCount >= 2 || HasGhost || PathCount >= 2 || ExtraN > 0); } }
         public void DrawLate(Camera camera) { DrawLines(camera); }
 
         private void OnRenderObject()
@@ -1046,6 +1060,8 @@ namespace ForestOverlay.Game
 
             AddLine(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity),
                     BySpeed ? ReferenceSpeeds : null);
+            for (int x = 0; x < ExtraN && x < ExtraLine.Length; x++)
+                AddLine(ExtraLine[x], 0, ExtraCount[x], Faded(ExtraColours[x % ExtraColours.Length], ExtraOpacity));
             AddLine(CurrentLine, 0, CurrentCount, Faded(CurrentColour, Opacity));
             AddLine(FailedLine, 0, FailedCount, Faded(FailedColour, Opacity));
             AddLine(PathWindow, 0, PathCount, PathColour);
