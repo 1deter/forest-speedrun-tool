@@ -454,8 +454,17 @@ def slot_dir():
     return None
 
 
+# The task file other agents write while a suite runs (the pipelined loop, author 2026-10-21; T-0448).
+TASK_PATHS = ("tasks/tasks.jsonl", "tasks/loop.jsonl", "tasks/notes/", "docs/tasks.md")
+
+
+def without_task_files(porcelain):
+    return "".join(l for l in porcelain.splitlines(True) if not l[3:].strip().startswith(TASK_PATHS))
+
+
 def git_status():
-    return subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout
+    out = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout
+    return without_task_files(out)
 
 
 def own_files():
