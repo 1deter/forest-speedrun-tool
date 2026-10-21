@@ -1207,7 +1207,8 @@ namespace ForestOverlay.Modules
         {
             TileState s = _states[i];
             if (s.Skip) return y;   // a per-action tile not shown now (raw input)
-            const float removeW = 46f, gap = 4f;
+            const float gap = 4f;
+            float removeW = Mathf.Max(46f, WinPx.CalcSize(GUI.skin.button, RemoveSureText).x + 8f);   // wide enough for the confirm word
             float h = 22f;
             bool sure = ReferenceEquals(_removeSure, s) && Time.unscaledTime <= _removeSureUntil;
             Rect removeR = new Rect(x0 + w - removeW, y, removeW, h);
