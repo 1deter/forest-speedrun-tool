@@ -1068,7 +1068,7 @@ namespace ForestOverlay.Game
             }
             // Last: it changes the ribbons' offsets.
             if (MarkerCount > 0 && ReferenceCount - ReferenceStart >= 2)
-                AddDots(t, k, scale, soft - edge, Faded(ReferenceColour, ReferenceOpacity));
+                AddDots(t, k, scale, soft - edge, Faded(ReferenceColour, 1f));   // opaque: a dot's ribbons overlap, so any alpha shows the ring through (T-0384)
             _ribbon.End();
 
             // The same meshes, once or twice (T-0370); _Color scales the

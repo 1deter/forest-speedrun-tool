@@ -103,6 +103,29 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void BoxesMoveUpPastFixedOnes()
+        {
+            float[] cx = { 100f };
+            float[] top = { 200f };
+            float[] w = { 100f };
+            float[] h = { 16f };
+            bool[] shown = { true };
+            float[] fx = { 110f }, ftop = { 195f }, fw = { 100f }, fh = { 16f };
+            bool[] fshown = { true };
+            ReplayLabels.Stack(cx, top, w, h, shown, 1, 2f, fx, ftop, fw, fh, fshown, 1);
+            Assert.Equal(195f - 16f - 2f, top[0]);
+            Assert.Equal(195f, ftop[0]);
+        }
+
+        [Fact]
+        public void APassedCheckpointLingersInTheAheadWindow()
+        {
+            Assert.False(CheckpointMarks.Shown(8f, true, 10f, 15f));
+            Assert.True(CheckpointMarks.Shown(8f, true, 10f, 15f, 4f));
+            Assert.False(CheckpointMarks.Shown(5f, true, 10f, 15f, 4f));
+        }
+
+        [Fact]
         public void StackingClearsEveryEarlierBox()
         {
             // Three at the same point: each ends above the one before.

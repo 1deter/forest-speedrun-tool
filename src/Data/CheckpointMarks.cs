@@ -30,8 +30,15 @@ namespace ForestOverlay.Data
         /// seconds" on - only inside that stretch of the comparison.
         public static bool Shown(float t, bool windowed, float from, float to)
         {
+            return Shown(t, windowed, from, to, 0f);
+        }
+
+        /// Also keeps a checkpoint you have just passed for `linger` seconds,
+        /// so its delta label can be read in that mode (T-0384).
+        public static bool Shown(float t, bool windowed, float from, float to, float linger)
+        {
             if (float.IsNaN(t) || float.IsInfinity(t) || t < 0f) return false;
-            return !windowed || (t >= from && t <= to);
+            return !windowed || (t >= from - linger && t <= to);
         }
 
         /// Which row of your run's times marker `i` of `count` belongs to, or

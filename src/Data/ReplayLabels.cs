@@ -121,13 +121,28 @@ namespace ForestOverlay.Data
         /// the first keeps its place. Only top[] changes.
         public static void Stack(float[] cx, float[] top, float[] w, float[] h, bool[] shown, int n, float gap)
         {
-            for (int k = 1; k < n; k++)
+            Stack(cx, top, w, h, shown, n, gap, null, null, null, null, null, 0);
+        }
+
+        /// As above, and the boxes fx / ftop / fw / fh / fshown (fn of them)
+        /// stay put: these move up past them too.
+        public static void Stack(float[] cx, float[] top, float[] w, float[] h, bool[] shown, int n, float gap,
+                                 float[] fx, float[] ftop, float[] fw, float[] fh, bool[] fshown, int fn)
+        {
+            for (int k = fn > 0 ? 0 : 1; k < n; k++)
             {
                 if (!shown[k]) continue;
                 // Each move is upwards past one earlier box, so k passes settle it.
-                for (int pass = 0; pass <= k; pass++)
+                for (int pass = 0; pass <= k + fn; pass++)
                 {
                     bool moved = false;
+                    for (int j = 0; j < fn; j++)
+                    {
+                        if (!fshown[j]) continue;
+                        if (!Overlap(cx[k], top[k], w[k], h[k], fx[j], ftop[j], fw[j], fh[j], gap)) continue;
+                        top[k] = ftop[j] - h[k] - gap;
+                        moved = true;
+                    }
                     for (int j = 0; j < k; j++)
                     {
                         if (!shown[j]) continue;

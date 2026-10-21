@@ -48,6 +48,7 @@ namespace ForestOverlay.Modules
         private readonly bool[] _markHidden = new bool[CheckpointMarks.Max];
         private readonly float[] _markHiddenAt = new float[CheckpointMarks.Max];
         private const float HiddenEvery = 0.25f;
+        private const float PassedLinger = 4f;   // seconds a passed checkpoint stays in the ahead-only window
 
         /// From UpdateLines: the markers' places (when the comparison
         /// changes), which show, and their texts (when a delta, the
@@ -98,7 +99,7 @@ namespace ForestOverlay.Modules
             {
                 // Off: no dots either (and so no labels).
                 _lines.MarkerOn[i] = spec.Mode != MarkSpec.Kind.Off
-                    && CheckpointMarks.Shown(_markT[i], windowed, from, from + LineAhead);
+                    && CheckpointMarks.Shown(_markT[i], windowed, from, from + LineAhead, PassedLinger);
 
                 // Your delta, once your run is past this split (not while
                 // the replay camera plays: nobody is running then).
@@ -217,7 +218,10 @@ namespace ForestOverlay.Modules
             }
             if (n == 0) return;
 
-            ReplayLabels.Stack(_markX, _markTop, _markW, _markH, _markShown, n, ReplayLabels.Gap);
+            // The replay camera's labels (placed just before, this repaint)
+            // are obstacles too: a checkpoint label moves up past them.
+            ReplayLabels.Stack(_markX, _markTop, _markW, _markH, _markShown, n, ReplayLabels.Gap,
+                               _boxX, _boxTop, _labelW, _labelH, _boxShown, _labelCount);
             for (int s = 0; s < n; s++)
             {
                 int m = _markOrder[s];
