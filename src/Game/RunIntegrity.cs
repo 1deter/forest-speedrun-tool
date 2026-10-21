@@ -528,11 +528,14 @@ namespace ForestOverlay.Game
             catch (Exception) { return ""; }
         }
 
-        /// A signature of the loaded assemblies' identities (Data/ModCounts):
-        /// moves when one is added or swapped - an Assembly.Load(bytes) raises
-        /// no AssemblyLoad event we see, and under a name already loaded it
-        /// leaves the count as it was (T-0414, live v0.24.398 / .399). One
-        /// array, every second or few; 0 when unreadable.
+        /// A signature of the loaded assemblies (Data/ModCounts): each one's
+        /// identity, file and module version id, so it moves when one is
+        /// added or swapped, or keeps its object but changes its file - an
+        /// Assembly.Load(bytes) raises no AssemblyLoad event we see; under a
+        /// name already loaded it leaves the count (v0.24.399) and the object
+        /// (v0.24.400: only Location went from the file to "") as they were
+        /// (T-0414). One array and a string per assembly, every second or
+        /// few, never a frame; 0 when unreadable.
         public static ulong AssemblySignature()
         {
             try
@@ -540,7 +543,17 @@ namespace ForestOverlay.Game
                 Assembly[] all = AppDomain.CurrentDomain.GetAssemblies();
                 ulong sig = Data.ModCounts.EmptySignature;
                 for (int i = 0; i < all.Length; i++)
-                    sig = Data.ModCounts.FoldAssembly(sig, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(all[i]));
+                {
+                    Assembly a = all[i];
+                    string loc = "";
+                    int module = 0;
+                    if (!(a is System.Reflection.Emit.AssemblyBuilder))
+                    {
+                        try { loc = a.Location ?? ""; } catch (Exception) { loc = "?"; }
+                        try { module = a.ManifestModule.ModuleVersionId.GetHashCode(); } catch (Exception) { module = 0; }
+                    }
+                    sig = Data.ModCounts.FoldAssembly(sig, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(a), loc, module);
+                }
                 return sig;
             }
             catch (Exception) { return 0UL; }

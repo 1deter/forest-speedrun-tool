@@ -173,6 +173,19 @@ namespace ForestOverlay.Data
             return added;
         }
 
+        /// The log text when the code lists changed between two looks (an
+        /// entry new or gone - code that went from a file to memory shows as
+        /// both); null when nothing changed.
+        public static string ChangeText(IList<string> before, IList<string> after)
+        {
+            List<string> added = Added(before, after), gone = Added(after, before);
+            if (added.Count == 0 && gone.Count == 0) return null;
+            if (gone.Count == 0) return "other code loaded during the attempt: " + string.Join(", ", added.ToArray());
+            return "other code changed during the attempt: " +
+                   (added.Count > 0 ? "now " + string.Join(", ", added.ToArray()) + "; " : "") +
+                   "no longer " + string.Join(", ", gone.ToArray());
+        }
+
         /// "A, B, C, D +2 more": the names for the HUD and the flag.
         public static string Join(IList<string> names)
         {
@@ -223,16 +236,35 @@ namespace ForestOverlay.Data
         /// The signature of no assemblies; FoldAssembly adds one each.
         public const ulong EmptySignature = 0x9E3779B97F4A7C15UL;
 
-        /// Adds one loaded assembly (`identity` = its object's identity hash,
-        /// RuntimeHelpers.GetHashCode) to `signature`. Order does not count
-        /// (a sum of mixed values), a swapped or added assembly does.
-        public static ulong FoldAssembly(ulong signature, int identity)
+        /// Adds one loaded assembly to `signature`: `identity` = its object's
+        /// identity hash (RuntimeHelpers.GetHashCode), `location` its file
+        /// ("" / null = none), `module` its manifest module's version id's
+        /// hash. Order does not count (a sum of mixed values); an added or
+        /// swapped assembly does, and so does the same object whose file
+        /// changed - live v0.24.400: Assembly.Load(bytes) under a loaded
+        /// name kept the object and emptied its Location.
+        public static ulong FoldAssembly(ulong signature, int identity, string location, int module)
         {
-            ulong z = (ulong)(uint)identity + 0x9E3779B97F4A7C15UL;   // splitmix64
-            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
-            z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
-            z ^= z >> 31;
+            ulong z = Mix((ulong)(uint)identity);
+            z = Mix(z ^ Fnv64(location));
+            z = Mix(z ^ (ulong)(uint)module);
             return unchecked(signature + z + 1UL);
+        }
+
+        private static ulong Mix(ulong z)   // splitmix64
+        {
+            z = unchecked(z + 0x9E3779B97F4A7C15UL);
+            z = unchecked((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL);
+            z = unchecked((z ^ (z >> 27)) * 0x94D049BB133111EBUL);
+            return z ^ (z >> 31);
+        }
+
+        private static ulong Fnv64(string s)
+        {
+            ulong h = 14695981039346656037UL;
+            if (s == null) return h;
+            for (int i = 0; i < s.Length; i++) h = unchecked((h ^ s[i]) * 1099511628211UL);
+            return h;
         }
 
         /// True when a look is due: the first call, a load event, or any
