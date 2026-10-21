@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.399 - 2026-10-21
+
+- Run mode no longer adds a second 'clock' flag right after a time-scale change or the end of a cutscene fast-forward.
+- Run mode now catches code loaded straight from memory within a few seconds and lists it in the attempt's report while the run is going.
+
 ## v0.24.398 - 2026-10-21
 
 - Run mode now flags a game clock running faster than real time, a locked capture frame rate, and changed movement or physics values (any physics rate but the default, Low quality physics included).
