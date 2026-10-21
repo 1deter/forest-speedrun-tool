@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.394 - 2026-10-21
+
+- Savestates made before v0.24.357: a stick or rock a Quick or Full load puts back now despawns on a normal 60 s timer instead of never.
+
 ## v0.24.393 - 2026-10-21
 
 - A Full load of a savestate now puts back the sticks and rocks you had dropped, where they lay, and they disappear on the timer they had left at the capture.
