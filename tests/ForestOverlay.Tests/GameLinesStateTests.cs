@@ -25,6 +25,17 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ALongRunLineWrapsAtSpacesAndStaysTheMarkers()
+        {
+            GameLinesState s = new GameLinesState();
+            s.SetText("fast save loads", "RUN MODE - attempt 12 (test label here) v1.2 - the test bridge is on - flagged", true);
+            Assert.Equal(new[] { "fast save loads", "RUN MODE - attempt 12 (test label here) v1.2", "- the test bridge is on - flagged" }, s.Lines.ToArray());
+            Assert.Equal(1, s.MarkerStart);
+            foreach (string l in s.Lines) Assert.True(l.Length <= GameLinesState.MaxLineChars + 4);
+            Assert.True(s.LineWarns(2));
+        }
+
+        [Fact]
         public void TheSameTextChangesNothing()
         {
             GameLinesState s = new GameLinesState();
