@@ -45,6 +45,7 @@ namespace ForestOverlay.Modules
         private readonly float[] _markH = new float[CheckpointMarks.Max];
         private readonly bool[] _markShown = new bool[CheckpointMarks.Max];
         private GUIStyle _markStyle, _markShadow;
+        private float _markRowStep;
 
         // Is the dot hidden from the camera by scenery (T-0370): cached per
         // label, rechecked a few times a second so it does not flicker.
@@ -166,6 +167,8 @@ namespace ForestOverlay.Modules
                 _markStyle.clipping = TextClipping.Overflow;
                 _markStyle.padding = new RectOffset(0, 0, 0, 0);
                 _markShadow = UiKit.Style(_markStyle);
+                // The step between wrapped rows at this font size, measured once.
+                _markRowStep = _markStyle.CalcSize(new GUIContent("A\nA")).y - _markStyle.CalcSize(new GUIContent("A")).y;
             }
 
             // Which are in view, nearest first (insertion into the order).
@@ -236,7 +239,11 @@ namespace ForestOverlay.Modules
                 if (dw > 0f)
                 {
                     Color c = SplitPalette[(int)_markColour[m]];
-                    DrawMarkPiece(x0 + fw + gap, _markTop[s], dw, ReplayLabels.LineHeight, _markDText[m], c, a);
+                    // The text is bottom-anchored and its rows step by the font's
+                    // line height, not LineHeight: put the delta's bottom on row 1's
+                    // (wrap drew it 1-2 px high, T-0406 in game).
+                    float row1Bottom = _markTop[s] + _markH[s] - (_markRows[m] - 1) * _markRowStep;
+                    DrawMarkPiece(x0 + fw + gap, row1Bottom - ReplayLabels.LineHeight, dw, ReplayLabels.LineHeight, _markDText[m], c, a);
                 }
             }
         }

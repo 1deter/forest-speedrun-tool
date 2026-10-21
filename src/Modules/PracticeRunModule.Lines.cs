@@ -454,10 +454,14 @@ namespace ForestOverlay.Modules
                 WinPx.Label(new Rect(x, y, 120, 20), "Label layout");
                 v = MarkFieldToggle(ref lcx, ref y, x0, right, 100f, sp.Wrap, " Wrap lines", TipMarkWrap);
                 if (v != sp.Wrap) { edit = MarkSpec.Parse(sp.Serialize()); edit.Wrap = v; }
-                if (sp.Wrap)
+                // A join toggle only for a group the label shows (one with nothing on does nothing).
+                if (sp.Wrap && sp.Channels.Count > 0)
                 {
                     v = MarkFieldToggle(ref lcx, ref y, x0, right, 168f, sp.JoinStats, " Stats join line above", TipMarkJoinStats);
                     if (v != sp.JoinStats) { edit = MarkSpec.Parse(sp.Serialize()); edit.JoinStats = v; }
+                }
+                if (sp.Wrap && sp.Items.Count > 0)
+                {
                     v = MarkFieldToggle(ref lcx, ref y, x0, right, 168f, sp.JoinItems, " Items join line above", TipMarkJoinItems);
                     if (v != sp.JoinItems) { edit = MarkSpec.Parse(sp.Serialize()); edit.JoinItems = v; }
                 }
