@@ -145,6 +145,30 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DecideOldFileGivesFreshTimerOnlyToReshownCopies()
+        {
+            Assert.Equal(DespawnTimer.Plan.Fresh, DespawnTimer.Decide(DroppedPoses.TimerKind.Unknown, true));
+            Assert.Equal(DespawnTimer.Plan.Leave, DespawnTimer.Decide(DroppedPoses.TimerKind.Unknown, false));
+        }
+
+        [Fact]
+        public void DecideNewFileUnreadIsLeftAndRecordedAgesResume()
+        {
+            Assert.Equal(DespawnTimer.Plan.Leave, DespawnTimer.Decide(DroppedPoses.TimerKind.Unread, true));
+            Assert.Equal(DespawnTimer.Plan.Resume, DespawnTimer.Decide(DroppedPoses.TimerKind.Running, false));
+            Assert.Equal(DespawnTimer.Plan.Stop, DespawnTimer.Decide(DroppedPoses.TimerKind.Stopped, true));
+        }
+
+        [Fact]
+        public void UnreadTagRoundTrips()
+        {
+            var list = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<int, DroppedPoses.Pose>>();
+            DroppedPoses.Pose p = new DroppedPoses.Pose(); p.Item = 5; p.Timer = DroppedPoses.TimerKind.Unread;
+            list.Add(new System.Collections.Generic.KeyValuePair<int, DroppedPoses.Pose>(-4, p));
+            Assert.Equal(DroppedPoses.TimerKind.Unread, DroppedPoses.Parse(DroppedPoses.Format(list))[-4].Timer);
+        }
+
+        [Fact]
         public void NextCheckResumesTheGamesSchedule()
         {
             // destroyAfter on Stick_Dynamic: 60 s, then every 10 s (repeating).
