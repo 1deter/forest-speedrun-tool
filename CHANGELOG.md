@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.388 - 2026-10-21
+
+- Runs tab speed graph: the 'this run' line no longer flickers while a run is live.
+
 ## v0.24.387 - 2026-10-21
 
 - Input overlay, Edit HUD: dragging or hiding a tile, or clicking in the F2 window, no longer lights the M1 / M2 tiles.
