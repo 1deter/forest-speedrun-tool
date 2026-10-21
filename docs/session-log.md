@@ -2,6 +2,22 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-21 (T-0406 / T-0407 handoff)
+
+- **2026-10-21 (run R-0031, author started, pipelined, then
+  unattended):** author: pipeline the loop (N+1 builds while N is
+  checked / released), merge only the task being released.
+  Confirmed in game: T-0442..T-0444, T-0446 (v0.24.378..379), T-0447
+  (.380), T-0357 (.381), T-0365 (.382). Released, smoke + tester
+  next: T-0373 (.383, Runs speed graph). Checker-accepted, each on
+  its own branch, release one at a time: T-0438
+  (worktree-agent-a6316d1a5cd068106), T-0445 (-a347e956864ae9821),
+  T-0376 (-af456516af50eb7b5, carries T-0445), T-0374
+  (-a3d87dcc23ef77f41). Built, unchecked, on main unpushed: T-0448
+  (e2e hygiene ignores the task file). Parked: T-0362 (overlay vs
+  run line placement). **Next:** Check T-0448, smoke + test v0.24.383,
+  then release the branches.
+
 ## Moved out 2026-10-21 (R-0032 handoff)
 
 - **2026-10-19 (author session, v1 scope):** every parked question
