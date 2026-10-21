@@ -30,7 +30,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
-| Savestates | C | A | C | A | C | T-0046, T-0058, T-0422, T-0423, T-0424, T-0426, T-0429 | 2026-10-18 |
+| Savestates | C | A | C | A | C | T-0046, T-0058, T-0423, T-0424, T-0426, T-0429, T-0450 | 2026-10-21 |
 | Timed runs | B | A | B | A | B | | 2026-10-21 |
 | Practice | C | A | C | A | B | T-0046, T-0432 | 2026-10-19 |
 | Run mode | B | A | A | A | B | T-0243 | 2026-10-21 |
@@ -70,7 +70,8 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   in-place restores, and the full-inventory pickup keep (T-0053, v0.24.344);
   rope restores keep the height and the rope (T-0065, v0.24.346);
   half-chopped trees and sapling sticks as captured (T-0067, v0.24.347); a Quick load removes items dropped since the capture (T-0411,
-  v0.24.350).
+  v0.24.350); a Full load re-makes dropped sticks / rocks with their
+  timers (T-0422, v0.24.393).
 - Legibility **C**: `SavestateModule.cs` 2,539 lines, `SavestateBridge.cs`
   2,355 (both grew ~360 since 2026-10-07); 14 keepers; 17 restore
   gotchas, 14 of them judgement only. docs/savestates.md and plugin.md's
@@ -85,7 +86,8 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
   since the capture are not re-made (T-0418) and fires started since are
   not put out (T-0419). Rolled copies put back and thrown bombs / flares /
   molotovs removed since T-0416 (v0.24.354). Live animals kept
-  since T-0415 (v0.24.351).
+  since T-0415 (v0.24.351). A Quick load right after a Full load of the
+  same capture removes the re-made copies (T-0450).
 
 ### Timed runs
 
