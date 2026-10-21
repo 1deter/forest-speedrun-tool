@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.396 - 2026-10-21
+
+- Run options > Checkpoints: new 'Label layout' row. 'Wrap lines' puts the line values, the stats and the items each on their own line in the drawn label; stats or items can join the line above.
+
 ## v0.24.395 - 2026-10-21
 
 - Item names in runner words: Survival book and Walkie talkie in the checkpoint label, its Items list and the Inventory tab.

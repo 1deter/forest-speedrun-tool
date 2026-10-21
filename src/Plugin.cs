@@ -33,7 +33,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.395";
+        public const string PluginVersion = "0.24.396";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
