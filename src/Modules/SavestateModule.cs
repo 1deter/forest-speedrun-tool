@@ -271,7 +271,7 @@ namespace ForestOverlay.Modules
             {
                 // Before the census, so its heap line shows the result.
                 if (_fixes == null) _fixes = Host.Find<GameFixesModule>();
-                if (_fixes != null) _fixes.PruneSubscribers();
+                if (_fixes != null) _fixes.PruneSubscribers(_loads.Loads);
                 _nature.ForgetWorld();
                 FireKeeper.Prune();
                 _keeper.PruneDestroyed();

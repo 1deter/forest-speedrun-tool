@@ -200,10 +200,14 @@ namespace ForestOverlay.Game
         private readonly List<Fix> _fixes = new List<Fix>();
         private readonly CameraTrim _cameras;
 
+        /// The Harmony id's suffix: LoadTiming orders its hooks after these
+        /// patches by it (T-0458).
+        public const string HarmonySuffix = ".perf";
+
         public PerfPatches(ManualLogSource log, ConfigFile config, string harmonyId)
         {
             _log = log;
-            _harmony = new Harmony(harmonyId + ".perf");
+            _harmony = new Harmony(harmonyId + HarmonySuffix);
             _cameras = new CameraTrim(log, _harmony);
 
             Add(config, "OverlayLayoutOnlyForWindows", "Overlay: no GUI layout pass without a window",

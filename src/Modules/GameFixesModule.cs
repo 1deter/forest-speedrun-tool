@@ -20,11 +20,16 @@ namespace ForestOverlay.Modules
     // Performance (DrawPerformance) and Developer > Experimental
     // (DrawExperimental, under the trajectory preview).
     //
-    // Stale subscribers are pruned once per load. SavestateModule calls
-    // PruneSubscribers() just before its census / heap line, as before, so
-    // that line shows the result; this module's own load watcher covers a
-    // load when SavestateModule is not there. Registered last in
-    // BuildModules, so the bridge's module indexes stay.
+    // Stale subscribers are pruned once per load (by load number).
+    // SavestateModule calls PruneSubscribers just before its census / heap
+    // line, as before, so that line shows the result; this module's own
+    // load watcher covers a load when SavestateModule is not there.
+    // Registered last in BuildModules, so the bridge's module indexes stay;
+    // it initialises last too, so LoadTiming orders its hooks after
+    // PerfPatches by Harmony id (the old order). The other game methods
+    // these patch are patched by nobody else, by patches with an explicit
+    // priority (WreckNav), or were already patched first by the other
+    // owner (PathfindingWatch on AstarPath.Awake, before PathPoolCleanup).
     //
     // Not practice-only: the leak fixes and the behaviour-preserving
     // patches change no gameplay. The experimental patches are marked on
@@ -33,9 +38,6 @@ namespace ForestOverlay.Modules
     public sealed class GameFixesModule : OverlayModule
     {
         private const float Row = 24f;
-        // Loads are seconds apart; the two load watchers (this one and
-        // SavestateModule's) see the same load within one poll (0.2 s).
-        private const float SameLoadWindow = 1f;
 
         public override string Id { get { return "gamefixes"; } }
         public override string DisplayName { get { return "Game fixes"; } }
@@ -47,7 +49,7 @@ namespace ForestOverlay.Modules
         private PathPoolCleanup _pathPool;
         private ConfigEntry<bool> _pathPoolFix;
         private readonly LoadWatcher _loads = new LoadWatcher();
-        private float _prunedAt = -100f;
+        private int _prunedLoad;   // the last load number pruned for
 
         private PerfPatches _perf;
         private string[] _perfNames;   // the HUD's ON NOW names, built once
@@ -85,14 +87,16 @@ namespace ForestOverlay.Modules
             _perf = new PerfPatches(Ctx.Log, Ctx.Config, OverlayPlugin.PluginGuid);
         }
 
-        /// Drops the previous world's event subscribers, once per load.
-        /// SavestateModule calls it before its load line; this module's
-        /// Tick calls it for a load nobody else saw.
-        public void PruneSubscribers()
+        /// Drops the previous world's event subscribers, once per load:
+        /// `load` is a LoadWatcher's count (1 = the first load). Both
+        /// watchers (SavestateModule's and this one's) count the same
+        /// FinishGameLoad edges from the plugin's start, so the number
+        /// names the load. SavestateModule calls it before its load line;
+        /// this module's Tick covers a load when SavestateModule is gone.
+        public void PruneSubscribers(int load)
         {
-            if (_subscribers == null) return;
-            if (Time.unscaledTime - _prunedAt < SameLoadWindow) return;
-            _prunedAt = Time.unscaledTime;
+            if (_subscribers == null || load <= _prunedLoad) return;
+            _prunedLoad = load;
             _subscribers.Prune();
         }
 
@@ -104,7 +108,7 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
-            if (_loads.Tick()) PruneSubscribers();
+            if (_loads.Tick()) PruneSubscribers(_loads.Loads);
 
             if (_perf == null) return;
             // The experimental performance switches change the game: say

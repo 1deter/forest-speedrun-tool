@@ -48,6 +48,12 @@ namespace ForestOverlay.Game
         private static LoadTiming _instance;
         private readonly ManualLogSource _log;
         private readonly Harmony _harmony;
+        // Every hook runs after PerfPatches' patches on the same method
+        // (UnloadUnusedAssets, LoadSave.Activation.MoveNext), whichever
+        // installed first: the order they had while both were built by
+        // DebugViewModule, PerfPatches first (T-0458 moved PerfPatches
+        // into GameFixesModule, which initialises last).
+        private readonly string[] _afterPerf;
         private readonly List<Pending> _pending = new List<Pending>();
         // What ran since the last frame (for a hitch line).
         private readonly List<string> _thisFrame = new List<string>();
@@ -62,6 +68,7 @@ namespace ForestOverlay.Game
         {
             _log = log;
             _harmony = new Harmony(harmonyId + ".loadtiming");
+            _afterPerf = new[] { harmonyId + PerfPatches.HarmonySuffix };
             Status = "off";
         }
 
@@ -113,6 +120,13 @@ namespace ForestOverlay.Game
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
         }
 
+        private HarmonyMethod AfterPerf(MethodInfo hook)
+        {
+            HarmonyMethod h = new HarmonyMethod(hook);
+            h.after = _afterPerf;
+            return h;
+        }
+
         private int Hook(Type t, string method, string prefix, string postfix, ref string missing)
         {
             MethodInfo m = t.GetMethod(method, BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
@@ -121,8 +135,8 @@ namespace ForestOverlay.Game
             try
             {
                 _harmony.Patch(m,
-                    prefix != null ? new HarmonyMethod(typeof(LoadTiming).GetMethod(prefix, BindingFlags.Static | BindingFlags.NonPublic)) : null,
-                    postfix != null ? new HarmonyMethod(typeof(LoadTiming).GetMethod(postfix, BindingFlags.Static | BindingFlags.NonPublic)) : null);
+                    prefix != null ? AfterPerf(typeof(LoadTiming).GetMethod(prefix, BindingFlags.Static | BindingFlags.NonPublic)) : null,
+                    postfix != null ? AfterPerf(typeof(LoadTiming).GetMethod(postfix, BindingFlags.Static | BindingFlags.NonPublic)) : null);
                 return 1;
             }
             catch (Exception ex)
