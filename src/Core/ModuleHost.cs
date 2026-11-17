@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using ForestOverlay.Data;
 using ForestOverlay.Game;
@@ -42,6 +43,15 @@ namespace ForestOverlay.Core
         private const float SlowReportInterval = 10f;
         private readonly Dictionary<OverlayModule, float> _nextSlowReport = new Dictionary<OverlayModule, float>();
 
+        // Measuring each module (T-0460, REVIEW.md Top 10 item 9): its tick
+        // time, its collections and its heap growth around every hook - a
+        // few hundred counter reads a frame, so off unless asked for. Off:
+        // no Slow tick lines and no "most:" in the Perf line; the Perf
+        // line's tick total is still timed, around all modules at once, and
+        // the stall watch still names the module (three field writes).
+        private readonly ConfigEntry<bool> _measureCfg;
+        private bool _measure;
+
         public HotkeyMap Hotkeys { get { return _hotkeys; } }
         public PerfMonitor Perf { get { return _perf; } }
         public HudBuilder Hud { get { return _hud; } }
@@ -75,6 +85,10 @@ namespace ForestOverlay.Core
             _perf = new PerfMonitor(ctx.Log);
             _perf.Breakdown = this;
             _hotkeys = new HotkeyMap(ctx.Config);
+            _measureCfg = ctx.Config.Bind("Diagnostics", "MeasureModules", false,
+                "Measure every overlay module each frame: Slow tick lines in the log naming the module that took over 5 ms, " +
+                "and the Perf line's 'most:' list of who makes the overlay's garbage. A small cost every frame; off by default.");
+            _measure = _measureCfg.Value;
             _hud.Settings = new HudSettings(ctx.Config);
             _hud.Settings.Log = ctx.Log;
             _hud.Widgets = new HudWidgets(ctx.Config, _hud.Settings, ctx.ConfigDirectory, ctx.Log);
@@ -228,8 +242,9 @@ namespace ForestOverlay.Core
         }
 
         // ------------------------------------------------------------------
-        // Rough heap growth per module, always on: the Perf line's "most:"
-        // names who makes the overlay's garbage without the tracker. The
+        // Rough heap growth per module, with Diagnostics.MeasureModules on
+        // (T-0460): the Perf line's "most:" names who makes the overlay's
+        // garbage without the tracker. The
         // heap counter moves in blocks, so a module is charged when its
         // allocation takes a new one - right on average over 30 s, not
         // per frame. One cheap counter read before and after each hook.
@@ -310,16 +325,34 @@ namespace ForestOverlay.Core
             long allocStart = _perf.BeginAlloc();
             _hotkeys.Dispatch();
 
+            bool measure = _measureCfg.Value;
+            if (measure != _measure)
+            {
+                _measure = measure;
+                ResetTop();   // no "most:" from before the switch
+            }
             double tickTotal = 0.0;
+            long allStart = measure ? 0 : System.Diagnostics.Stopwatch.GetTimestamp();
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];
                 if (!IsLive(m)) continue;
 
-                int gc0 = GcCount();
-                long start = System.Diagnostics.Stopwatch.GetTimestamp();
+                // The allocation tracker's exact count is its own switch.
                 bool exact = ForestOverlay.Game.AllocationTracker.Counting;
                 long bytes0 = exact ? ForestOverlay.Game.AllocationTracker.MainBytes : 0;
+                if (!measure)
+                {
+                    StallWatch.At(StallWatch.Hook.ModuleTick, i);
+                    try { m.Tick(); }
+                    catch (Exception ex) { Disable(m, "Tick", ex); }
+                    StallWatch.At(StallWatch.Hook.Update, -1);
+                    if (exact && ForestOverlay.Game.AllocationTracker.Counting) CountAlloc(i, ForestOverlay.Game.AllocationTracker.MainBytes - bytes0);
+                    continue;
+                }
+
+                int gc0 = GcCount();
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 long heap0 = Heap();
                 StallWatch.At(StallWatch.Hook.ModuleTick, i);
                 try { m.Tick(); }
@@ -333,6 +366,8 @@ namespace ForestOverlay.Core
                 tickTotal += ms;
                 if (ms >= SlowTickMs) ReportSlowTick(m, ms, GcCount() != gc0);
             }
+            if (!measure)
+                tickTotal = (System.Diagnostics.Stopwatch.GetTimestamp() - allStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
 
             _perf.Frame(tickTotal, _ctx.Player.Found);
             _hud.Widgets.FlushProfile();
@@ -464,7 +499,7 @@ namespace ForestOverlay.Core
                 OverlayModule m = _modules[i];
                 if (!IsLive(m)) continue;
                 _hud.Source = m.Id;
-                long heap0 = Heap();
+                long heap0 = _measure ? Heap() : -1;
                 StallWatch.At(StallWatch.Hook.Hud, i);
                 try { m.ContributeHud(_hud); }
                 catch (Exception ex) { Disable(m, "ContributeHud", ex); }
@@ -481,7 +516,7 @@ namespace ForestOverlay.Core
             {
                 OverlayModule m = _modules[i];
                 if (!IsLive(m) || !_drawsScreen[i]) continue;
-                long heap0 = Heap();
+                long heap0 = _measure ? Heap() : -1;
                 StallWatch.At(StallWatch.Hook.DrawScreen, i);
                 try { m.DrawScreen(); }
                 catch (Exception ex) { Disable(m, "DrawScreen", ex); }
@@ -495,7 +530,7 @@ namespace ForestOverlay.Core
             {
                 OverlayModule m = _modules[i];
                 if (!IsLive(m) || !_drawsAlways[i]) continue;
-                long heap0 = Heap();
+                long heap0 = _measure ? Heap() : -1;
                 StallWatch.At(StallWatch.Hook.DrawScreenAlways, i);
                 try { m.DrawScreenAlways(); }
                 catch (Exception ex) { Disable(m, "DrawScreenAlways", ex); }
@@ -543,7 +578,7 @@ namespace ForestOverlay.Core
                 {
                     OverlayModule m = _modules[i];
                     if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
-                    long heap0 = Heap();
+                    long heap0 = _measure ? Heap() : -1;
                     try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
                     catch (Exception ex)
                     {

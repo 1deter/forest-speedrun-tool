@@ -1301,7 +1301,7 @@ Written by PathPoolCleanup.cs; info / warning.
 
 ## `Perf`
 
-Meaning: Every 30 s: fps, worst frame, hitches over 50 ms, GC count, overlay tick cost, GL passes and heap growth.
+Meaning: Every 30 s: fps, worst frame, hitches over 50 ms, GC count, overlay tick cost, GL passes and heap growth; the `(most: ...)` modules only with `[Diagnostics] MeasureModules` on (T-0460).
 Written by PerfMonitor.cs; info.
 
 - info `Perf (<..> s): <..> fps, worst <..> ms, <_hitches> over 50 ms, GC x<gc><..> | overlay tick <..> ms avg, <..> max | GL <..> ms/frame, <..> passes (<..> skipped), <..> verts/frame | heap +<..> KB/s, overlay +<..> KB/s<..>`
@@ -2019,7 +2019,7 @@ Written by SlotInfoGuard.cs; warning.
 
 ## `Slow tick`
 
-Meaning: A module's tick took too long: which module and how long.
+Meaning: A module's tick took too long: which module and how long. Only with `[Diagnostics] MeasureModules` on (off by default since T-0460).
 Written by ModuleHost.cs; warning.
 
 - warning `Slow tick: '<m.Id>' took <..> ms<..>`

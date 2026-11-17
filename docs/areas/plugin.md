@@ -161,7 +161,9 @@ line among the game's own bottom-left messages.
 - **Performance reports**: another runner's slowdown with ghost lines /
   recording (not reproducible here, 4080 Super / 7800X3D), maks's
   background performance - read their `Perf (30 s):` / `Slow tick:` lines
-  before changing anything. Author's own: overlay tick <= 0.02 ms, GC 0-1
+  before changing anything (`Slow tick:` and the Perf line's `most:` need
+  `[Diagnostics] MeasureModules = true`, off by default since T-0460 - ask
+  the runner to turn it on for the report). Author's own: overlay tick <= 0.02 ms, GC 0-1
   per 30 s; one-off `Slow tick:` lines for `collectibles` / `inventory`
   (15-100 ms) while the player binds during a load, and `deaths` /
   `savestates` (~100-490 ms) while a load starts, are the load itself -
@@ -238,7 +240,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 
 ### Performance and rendering
 
-11. **`Resources.FindObjectsOfTypeAll` is a stutter** (and `FindObjectOfType`: 22-25 ms in ForestMain) - prefer the game's static handle, else find once, keep (`Game/SceneCache`) or note them as they start (`Game/ElevatorRides`), rate-limit re-searches; check `Slow tick:` lines first. [check: lint.py findall baseline]
+11. **`Resources.FindObjectsOfTypeAll` is a stutter** (and `FindObjectOfType`: 22-25 ms in ForestMain) - prefer the game's static handle, else find once, keep (`Game/SceneCache`) or note them as they start (`Game/ElevatorRides`), rate-limit re-searches; check `Slow tick:` lines first (`[Diagnostics] MeasureModules` on). [check: lint.py findall baseline]
 42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch (the profiler's hooks leave garbage until a restart). [judgement]
 45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic. [judgement]
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control, and twice in a row each time (the first forced GC after a load keeps the old world for its finalizers). [judgement]
