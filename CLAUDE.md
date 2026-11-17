@@ -160,15 +160,19 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-21 (author session, T-0406 / T-0407 picks):** author picked
-  from the demo shots. T-0407 runner item words (Survival book, Walkie
-  talkie; Axe Plane kept), plus the Inventory filter / not-held rows:
-  v0.24.395, confirmed. T-0406 rescoped by the author to a drawn-label
-  "Label layout" (single line / wrap, Line / Stats / Items groups,
-  "join line above"): v0.24.396, two minor faults live (delta 1-2 px
-  high, dead join toggles), fixed in .397, confirmed. Demo branch
-  worktree-agent-ace9106be0c782956 is superseded. **Next:** forest-tester
-  checks T-0423 on v0.24.394, then `tasks.py next`.
+- **2026-11-17 (refactor, session 1):** T-0456 (official board: green
+  only, amber by a moderator's hand, refusals) released to the site
+  (main c69209e, live). T-0457 (nothing sent until the runner says yes;
+  the question, Settings > Network switches, offline notices) built and
+  checker-accepted on branch claude/youthful-hypatia-63eoji, NOT
+  released - needs the game (e2e smoke, layout of the question, both
+  offline notices). Author: runner-facing words are no longer asked
+  (rule 5); offline runs fine if the runner is told; T-0485 (corner
+  toast) and T-0484 (admin approve button) held after the refactor. The
+  author is setting up a Windows VM (Proxmox) for game access. **Next:**
+  merge the branch to main, release T-0457 once the game is reachable;
+  meanwhile T-0458 (its task note maps the move), then `tasks.py next`.
+  Cloud containers need the .NET 10 SDK + 8 runtime for the pre-push hook.
 
 - **2026-11-17 (review + refactor plan):** an independent review is in
   `REVIEW.md`; the author's decisions are in decisions.md *Refactor and
