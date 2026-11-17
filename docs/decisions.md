@@ -750,6 +750,10 @@ Addendum has the reasoning). The work is tasks T-0456..T-0483, titled
   articulate enough to come up with sensible wording"): the builder
   writes it plainly, the checker revises only unclear or wrong words, and
   confusing ones are fixed later. Rule 5's other questions stand.
+- **A run without a yes is offline, and the runner is told** (author,
+  2026-11-17): no site start code, so never on an official board; the
+  one-time question and each offline attempt's start notice say so
+  (T-0457; a corner toast later, T-0485).
 
 Module kinds (T-0465):
 

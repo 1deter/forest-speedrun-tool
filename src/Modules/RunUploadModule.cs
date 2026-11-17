@@ -484,9 +484,10 @@ namespace ForestOverlay.Modules
         // The author's words (decisions.md *Refactor and race build*).
         private static readonly GUIContent AskText = new GUIContent(
             "Send your timed runs and run attempts to forest.deter.cloud? Other people can see your runner name, times and route. " +
-            "You can change this in Settings.");
+            "If you choose No, everything stays on this PC and run mode attempts are offline: they cannot be on the site's official boards. " +
+            "You can change this in Settings > Network.");
         private static readonly GUIContent AskYes = new GUIContent("Yes, send them");
-        private static readonly GUIContent AskNo = new GUIContent("No");
+        private static readonly GUIContent AskNo = new GUIContent("No, keep them offline");
 
         /// The window still has to ask whether to send anything.
         public bool SendQuestionOpen { get { return _asked != null && !_asked.Value; } }
@@ -539,9 +540,9 @@ namespace ForestOverlay.Modules
         {
             float top = y;
             y += UiText.Draw(0, y, w, AskText);
-            if (WinPx.Button(new Rect(0, y + 2, 130, 22), AskYes)) AnswerSendQuestion(true);
+            if (WinPx.Button(new Rect(0, y + 2, 170, 22), AskYes)) AnswerSendQuestion(true);
             y += 26f;
-            if (WinPx.Button(new Rect(0, y + 2, 130, 22), AskNo)) AnswerSendQuestion(false);
+            if (WinPx.Button(new Rect(0, y + 2, 170, 22), AskNo)) AnswerSendQuestion(false);
             y += 30f;
             return y - top;
         }

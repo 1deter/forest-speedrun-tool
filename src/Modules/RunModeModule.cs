@@ -315,8 +315,14 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " started (" + _report.Started + ") - practice locked; " +
                             _report.Summary() + ".");
             if (!Host.AnyPanelOpen())
-                Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + Ctx.Run.Label + ") - practice features are locked. End run mode in the Runs tab to practise.", 7f);
+                Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + Ctx.Run.Label + ") - practice features are locked. End run mode in the Runs tab to practise." +
+                                (_offline ? OfflineNote : ""), _offline ? 10f : 7f);
         }
+
+        // T-0457: an attempt started with sending off is offline - the
+        // runner sees what that means each time, not only in the question.
+        private const string OfflineNote =
+            " Offline: sending attempts to the website is off, so this attempt cannot be on an official board (Settings > Network).";
 
         /// `reason`: the log's short word (reset, finished, title screen, ...).
         private void EndAttempt(string why, string reason)
