@@ -150,9 +150,9 @@ namespace ForestOverlay.Modules
                 {
                     string id = Path.GetFileNameWithoutExtension(files[i]);
                     string reportFile = Path.Combine(_openDir, id + OpenReportExt);
-                    if (AttemptsOn)
-                        QueueAttemptLog(id, AttemptLogFile.Recovered(File.ReadAllText(files[i]),
-                                                                     File.Exists(reportFile) ? File.ReadAllText(reportFile) : ""));
+                    string text = AttemptsOn ? AttemptLogFile.Recovered(File.ReadAllText(files[i]),
+                                                                        File.Exists(reportFile) ? File.ReadAllText(reportFile) : "") : "";
+                    if (text.Length > 0) QueueAttemptLog(id, text);
                     TryDelete(files[i]);
                     TryDelete(reportFile);
                     Ctx.Log.LogInfo("Attempts: " + id + " never ended (the game closed during it) - its log is " +

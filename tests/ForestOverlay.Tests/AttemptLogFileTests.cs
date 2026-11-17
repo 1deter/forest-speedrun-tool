@@ -159,6 +159,7 @@ namespace ForestOverlay.Tests
             Assert.Equal("", AttemptLogFile.CompleteLines(null));
             Assert.Equal("", AttemptLogFile.CompleteLines(""));
             Assert.Equal("", AttemptLogFile.CompleteLines("forest-att"));
+            Assert.Equal("", AttemptLogFile.Recovered("forest-att", "a report"));
         }
     }
 }

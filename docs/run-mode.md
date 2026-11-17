@@ -162,7 +162,8 @@ a `Stopwatch`, a checkpoint a minute once online, every 30 s the log's
 new lines appended to `run-reports/attempt-<time>.log` and
 `uploads/attempts/open/<id>.attempt` with the report in `open/<id>.report`
 (`Data/AttemptLogFile`, T-0459; a crash's cut last line is dropped on
-recovery), the finished log written whole; ended on every attempt end incl. a finished timed run and the game
+recovery; a crashed attempt's run-reports `.log` then has no `[report]` -
+its report is the `.txt` beside it), the finished log written whole; ended on every attempt end incl. a finished timed run and the game
 closing; the code box, `[RunMode] CodeX / CodeY / CodeSize`, drawn by
 `DrawScreenAlways` - shown with F5's overlay hidden too),
 `Modules/RunUploadModule.Attempts` (the nonce request, tried ~25 s; the

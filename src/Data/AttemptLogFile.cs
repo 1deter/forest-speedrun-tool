@@ -98,9 +98,11 @@ namespace ForestOverlay.Data
 
         /// A recovered log as the outbox sends it: its whole lines, then the
         /// report after the marker - the same shape as a finished log's.
+        /// "" when not even the format line was written (nothing to send).
         public static string Recovered(string log, string report)
         {
             string lines = CompleteLines(log);
+            if (lines.Length == 0) return "";
             if (lines.IndexOf("\n" + AttemptChain.ReportMarker + "\n", StringComparison.Ordinal) >= 0) return lines;
             return lines + AttemptChain.ReportMarker + "\n" + (report ?? "");
         }
