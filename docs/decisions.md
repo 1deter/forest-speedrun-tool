@@ -746,6 +746,11 @@ Addendum has the reasoning). The work is tasks T-0456..T-0483, titled
   no feature tasks**; anything it finds goes in as a P4 held under
   `after the refactor`.
 
+- **Runner-facing wording is not asked** (author, 2026-11-17: "you are
+  articulate enough to come up with sensible wording"): the builder
+  writes it plainly, the checker revises only unclear or wrong words, and
+  confusing ones are fixed later. Rule 5's other questions stand.
+
 Module kinds (T-0465):
 
 | Kind | Modules |

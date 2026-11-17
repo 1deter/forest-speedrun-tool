@@ -48,7 +48,7 @@ each decision into the repo in the same session it is made (OpenAI SOP).
 
 The loop works around this rule, not against it:
 - **An unknown is a question, never a default.** That covers intent, a
-  design choice, a runner-facing word, scope, and which of two readings of
+  design choice, scope, and which of two readings of
   a request is meant. A fact the code, the docs, a log or the bridge can
   settle is not a question: look it up (gotcha 25 still holds - a live
   read beats an IL theory). This rule is about what only the author knows.
