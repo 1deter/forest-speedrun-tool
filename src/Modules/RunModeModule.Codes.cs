@@ -21,8 +21,10 @@ namespace ForestOverlay.Modules
     // (finished, reset, run mode ended, the game closed) the whole log,
     // with the run report after it, goes to the outbox
     // (Modules/RunUploadModule.Attempts) and to run-reports/ beside the
-    // report. While it runs the log is rewritten every 30 s (open/ and
-    // run-reports/), so a crash still leaves it.
+    // report. While it runs, every 30 s the log's new lines are appended to
+    // open files (open/ and run-reports/; Data/AttemptLogFile, T-0459) and
+    // the report goes to a file of its own, so a crash still leaves both;
+    // the finished log is written whole, as before.
     // ------------------------------------------------------------------
     public sealed partial class RunModeModule
     {
@@ -34,6 +36,7 @@ namespace ForestOverlay.Modules
         private Segment _runSpot;              // the run spot of this run mode; null = by hand
 
         private AttemptChain _chain;
+        private AttemptLogFile _localLog;      // run-reports/<attempt>.log while the attempt runs
         private string _attemptId = "";
         private readonly Stopwatch _clock = new Stopwatch();
         private long _nextStepMs, _nextCheckpointMs, _nextSaveMs;
@@ -96,6 +99,8 @@ namespace ForestOverlay.Modules
             _nextStepMs = 0;
             _nextCheckpointMs = CheckpointMs;
             _nextSaveMs = SaveMs;
+            if (_localLog != null) _localLog.Close();
+            _localLog = _reportPath != null ? new AttemptLogFile(Path.ChangeExtension(_reportPath, ".log")) : null;
 
             string runnerId = _upload != null && _upload.RunnerIdNow != null ? _upload.RunnerIdNow() : "";
             string runnerName = _upload != null && _upload.RunnerNameNow != null ? _upload.RunnerNameNow() : "";
@@ -227,6 +232,8 @@ namespace ForestOverlay.Modules
             _chain.End(_clock.ElapsedMilliseconds, reason, timer);
             _clock.Stop();
 
+            // The finished log is written whole (chain + report), as before.
+            if (_localLog != null) { _localLog.Close(); _localLog = null; }
             string text = FullLog();
             WriteLocal(text);
             if (_upload != null)
@@ -245,11 +252,17 @@ namespace ForestOverlay.Modules
             return _chain.Text + AttemptChain.ReportMarker + "\n" + (_report != null ? _report.Format() : "");
         }
 
+        // Every 30 s: the lines added since, appended (the report beside
+        // the local log is WriteReport's .txt; the open one gets its own).
         private void SaveOpen()
         {
-            string text = FullLog();
-            WriteLocal(text);
-            if (_upload != null && _upload.AttemptsOn) _upload.WriteOpenAttempt(_attemptId, text);
+            if (_localLog != null)
+            {
+                try { _localLog.Sync(_chain); }
+                catch (Exception ex) { Ctx.Log.LogWarning("Run mode: attempt log not written: " + ex.Message); }
+            }
+            if (_upload != null && _upload.AttemptsOn)
+                _upload.SyncOpenAttempt(_attemptId, _chain, _report != null ? _report.Format() : "");
         }
 
         private void WriteLocal(string text)

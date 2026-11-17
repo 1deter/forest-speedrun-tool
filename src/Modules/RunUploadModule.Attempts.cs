@@ -94,25 +94,52 @@ namespace ForestOverlay.Modules
         // --- an attempt in progress, on disk (the game can die mid-run) ----------------
 
         private string _openDir;
+        // The open attempt's log (its chain, appended) and its report (a
+        // file of its own, rewritten when it changes) - T-0459.
+        private const string OpenReportExt = ".report";
+        private AttemptLogFile _openLog;
+        private string _openLogId;
+        private string _openReport;
 
-        /// The log so far, rewritten every few seconds while the attempt runs.
-        public void WriteOpenAttempt(string attemptId, string text)
+        /// The log so far: the chain's new lines appended every 30 s while
+        /// the attempt runs, and the report beside it.
+        public void SyncOpenAttempt(string attemptId, AttemptChain chain, string report)
         {
             try
             {
-                Directory.CreateDirectory(_openDir);
-                File.WriteAllText(Path.Combine(_openDir, attemptId + AttemptExt), text, new UTF8Encoding(false));
+                if (_openLogId != attemptId)
+                {
+                    if (_openLog != null) _openLog.Close();
+                    _openLog = new AttemptLogFile(Path.Combine(_openDir, attemptId + AttemptExt));
+                    _openLogId = attemptId;
+                    _openReport = null;
+                }
+                _openLog.Sync(chain);
+                if (report != _openReport)
+                {
+                    File.WriteAllText(Path.Combine(_openDir, attemptId + OpenReportExt), report ?? "", new UTF8Encoding(false));
+                    _openReport = report;
+                }
             }
             catch (Exception ex) { Ctx.Log.LogWarning("Attempts: could not write the open log of " + attemptId + ": " + ex.Message); }
         }
 
         public void ClearOpenAttempt(string attemptId)
         {
+            if (_openLogId == attemptId && _openLog != null)
+            {
+                _openLog.Close();
+                _openLog = null;
+                _openLogId = null;
+                _openReport = null;
+            }
             TryDelete(Path.Combine(_openDir, attemptId + AttemptExt));
+            TryDelete(Path.Combine(_openDir, attemptId + OpenReportExt));
         }
 
         // An attempt the game never ended (a crash, a killed process): its
-        // log goes out as it is - the site reads "no end".
+        // log goes out as it is - the site reads "no end" - with the report
+        // after it, as a finished log has (a line the crash cut is dropped).
         private void RecoverOpenAttempts()
         {
             try
@@ -122,11 +149,18 @@ namespace ForestOverlay.Modules
                 for (int i = 0; i < files.Length; i++)
                 {
                     string id = Path.GetFileNameWithoutExtension(files[i]);
-                    if (AttemptsOn) QueueAttemptLog(id, File.ReadAllText(files[i]));
+                    string reportFile = Path.Combine(_openDir, id + OpenReportExt);
+                    if (AttemptsOn)
+                        QueueAttemptLog(id, AttemptLogFile.Recovered(File.ReadAllText(files[i]),
+                                                                     File.Exists(reportFile) ? File.ReadAllText(reportFile) : ""));
                     TryDelete(files[i]);
+                    TryDelete(reportFile);
                     Ctx.Log.LogInfo("Attempts: " + id + " never ended (the game closed during it) - its log is " +
                                     (AttemptsOn ? "queued as it is." : "not sent (sending attempts is off; run-reports keeps it)."));
                 }
+                // A report whose log was never written (the game closed between the two).
+                string[] reports = Directory.GetFiles(_openDir, "*" + OpenReportExt);
+                for (int i = 0; i < reports.Length; i++) TryDelete(reports[i]);
             }
             catch (Exception ex) { Ctx.Log.LogWarning("Attempts: open logs not recovered: " + ex.Message); }
         }

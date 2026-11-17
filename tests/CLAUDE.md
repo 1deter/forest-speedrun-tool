@@ -13,6 +13,6 @@ should be refactored — not that the shim should grow.** Only pure files can be
 linked; anything touching MonoBehaviour or reflection into the game cannot
 (`Data/DumpText` reflects over plain objects by name - its tests pass
 stand-in types). The
-filesystem exceptions are `patcher/PendingSwap.cs` and `Data/SafeFile.cs`,
-tested against real temp folders because they are the code that can break
-an install or a runner's spot file.
+filesystem exceptions are `patcher/PendingSwap.cs`, `Data/SafeFile.cs` and
+`Data/AttemptLogFile.cs`, tested against real temp folders because they are
+the code that can break an install, a runner's spot file or a run's log.

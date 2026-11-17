@@ -87,6 +87,18 @@ namespace ForestOverlay.Data
         /// The log so far (folded lines only).
         public string Text { get { return _text.ToString(); } }
 
+        /// Characters in Text, without building it.
+        public int Length { get { return _text.Length; } }
+
+        /// Text from `start` on: only the lines added since an append
+        /// (Data/AttemptLogFile), without building the whole log.
+        public string TextFrom(int start)
+        {
+            if (start <= 0) return _text.ToString();
+            if (start >= _text.Length) return "";
+            return _text.ToString(start, _text.Length - start);
+        }
+
         // --- writing -------------------------------------------------------
 
         public void Header(string attemptId, string runnerId, string runnerName, string plugin, string category,

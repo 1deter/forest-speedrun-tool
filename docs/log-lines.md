@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 903 log calls.
+257 prefixes from 904 log calls.
 
 ## `ActionReaders`
 
@@ -1701,7 +1701,7 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: <_attemptId> ended (<reason>) after <_chain.Steps> step(s), <..>; last code <_chain.Code>.`
 - info `Run mode: <id> got the site's start code after <_clock.ElapsedMilliseconds> ms.`
 - info `Run mode: attempt <Ctx.Run.Attempt> is <id> (<..>).`
-- warning `Run mode: attempt log not written: <ex.Message>`
+- warning `Run mode: attempt log not written: <ex.Message>` (x2)
 - warning `Run mode: attempt not closed on shutdown: <ex.Message>`
 - info `Run mode: load <_loadsLogged> of <_attemptId>: <span.LengthMs> ms real time, <timed> ms of it on the timer (load-removed time).`
 - info `Run mode: '<s.Name>' (<s.RunCategory>) - starting a run.`

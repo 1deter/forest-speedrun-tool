@@ -158,9 +158,11 @@ in real time: the gap between the two attempts shows as a missing or late
 checkpoint (amber) or a mismatch (red).
 
 **Plugin**: `Modules/RunModeModule.Codes` (the chain: a step a second from
-a `Stopwatch`, a checkpoint a minute once online, the log rewritten every
-30 s to `run-reports/attempt-<time>.log` and `uploads/attempts/open/`,
-ended on every attempt end incl. a finished timed run and the game
+a `Stopwatch`, a checkpoint a minute once online, every 30 s the log's
+new lines appended to `run-reports/attempt-<time>.log` and
+`uploads/attempts/open/<id>.attempt` with the report in `open/<id>.report`
+(`Data/AttemptLogFile`, T-0459; a crash's cut last line is dropped on
+recovery), the finished log written whole; ended on every attempt end incl. a finished timed run and the game
 closing; the code box, `[RunMode] CodeX / CodeY / CodeSize`, drawn by
 `DrawScreenAlways` - shown with F5's overlay hidden too),
 `Modules/RunUploadModule.Attempts` (the nonce request, tried ~25 s; the
