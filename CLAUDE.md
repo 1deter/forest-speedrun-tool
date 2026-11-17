@@ -160,6 +160,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-11-17 (refactor, session 2):** on branch
+  claude/youthful-hypatia-63eoji, all NOT released (the game is still
+  unreachable): T-0458 (GameFixesModule, index 24), T-0459 (attempt log
+  appended), T-0460 (`[Diagnostics] MeasureModules`, default off) built
+  and checker-accepted; each task note lists what the game must show.
+  T-0461 (bridge by Id) in progress: `_modules[<id>]` paths work, the
+  callers and docs still name indexes (its note lists them). **Next:**
+  finish T-0461, then `tasks.py next`; with the game, release T-0457..T-0461
+  together (e2e smoke + each note's checks), then merge to main.
+  The plan (T-0456..T-0483 in order, older tasks held, no feature tasks
+  until T-0474 is released): docs/session-log.md *review + refactor plan*.
+
 - **2026-11-17 (refactor, session 1):** T-0456 (official board: green
   only, amber by a moderator's hand, refusals) released to the site
   (main c69209e, live). T-0457 (nothing sent until the runner says yes;
@@ -173,19 +185,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   merge the branch to main, release T-0457 once the game is reachable;
   meanwhile T-0458 (its task note maps the move), then `tasks.py next`.
   Cloud containers need the .NET 10 SDK + 8 runtime for the pre-push hook.
-
-- **2026-11-17 (review + refactor plan):** an independent review is in
-  `REVIEW.md`; the author's decisions are in decisions.md *Refactor and
-  race build*. The work is T-0456..T-0483, titled "Refactor NN", P1,
-  chained with blocked-by: `tasks.py next` hands them out in order.
-  Nothing was built. **Next:** `python scripts/tasks.py next`, read that
-  task's row and the REVIEW.md section its notes name, do it, release,
-  repeat. Tasks with `needs` bridge / author-present / author-eyes wait
-  for the game or the author; the rest need neither (with the game,
-  `next --bridge` offers the two Research tasks first). The 51 older
-  open tasks are held under `after the refactor` (`tasks.py lift`
-  brings them back) and T-0424 is parked. File no feature tasks until
-  T-0474 is released.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
