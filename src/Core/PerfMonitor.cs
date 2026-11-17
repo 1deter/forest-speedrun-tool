@@ -36,7 +36,8 @@ namespace ForestOverlay.Core
     //
     // Hitches with a GC count beside them point at garbage; a high GL
     // figure points at the lines; a high overlay tick at a module (which
-    // ModuleHost also names in a "Slow tick" line). Nothing here is
+    // ModuleHost names in a "Slow tick" line with [Diagnostics]
+    // MeasureModules on, T-0460). Nothing here is
     // allocated per frame - only the log line itself, twice a minute.
     //
     // WHO MAKES THE GARBAGE. A GC every few seconds is a hitch every few
