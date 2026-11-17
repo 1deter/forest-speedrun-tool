@@ -947,6 +947,12 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(2) + "/approve"));
         Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(6) + "/approve"));
         Assert.Equal(HttpStatusCode.NotFound, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(99) + "/approve"));
+        // Only a finished attempt: a reset is not a run.
+        string n11 = await StartOnline(token2, AId(11), "any-normal");
+        Assert.Equal(HttpStatusCode.OK, (await Post(token2, "/api/attempts/" + AId(11) + "/log",
+            new StringContent(FinishedLog(AId(11), "any-normal", 600, "reset", Runner2, nonce: n11, nonceMs: 31_000, endMs: 31_100),
+                              Encoding.UTF8, "text/plain"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(11) + "/approve"));
 
         // Back to a draft: gone again.
         await PutCategory("any-normal", "Any% - Normal", "draft");

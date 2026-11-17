@@ -341,7 +341,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         if (row == null) return (false, 404, "no such attempt");
         if (by != null)
         {
-            if (row.LogMs == null) return (false, 409, "this attempt has not ended");
+            if (row.LogMs == null || row.EndReason != "finished") return (false, 409, "only a finished attempt is approved");
             string refusal = OfficialRefusal(row.Nonce, row.EndMs, row.FinalTimerMs);
             if (refusal != null) return (false, 409, refusal);
             string verdict = VerdictOf(id, row);
@@ -364,7 +364,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     /// category by id, or by a run spot's `run = ` (an id or a name, as
     /// IsPublished reads it). Drafts are not named, so nothing about them
     /// leaves the site. Judging a log replays it, so the answer is kept
-    /// until a log arrives, the allow-list changes or two minutes pass.
+    /// until a log arrives, the allow-list or an approval changes or two
+    /// minutes pass.
     public List<object> Official()
     {
         if (_categories == null) return new List<object>();
