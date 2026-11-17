@@ -84,6 +84,13 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             alter.CommandText = "ALTER TABLE attempts ADD COLUMN log_bytes INTEGER;";
             alter.ExecuteNonQuery();
         }
+        // A moderator's hand approval of an amber attempt (T-0456).
+        if (!Store.HasColumn(c, "attempts", "approved_by"))
+        {
+            using var alter = c.CreateCommand();
+            alter.CommandText = "ALTER TABLE attempts ADD COLUMN approved_by TEXT; ALTER TABLE attempts ADD COLUMN approved_ms INTEGER;";
+            alter.ExecuteNonQuery();
+        }
     }
 
     public sealed record Answer(int Status, object Body);
@@ -261,6 +268,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
             events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads, path = j?.Path,
             modApi = j?.ModApi ?? false, mods = j?.Mods ?? "",
+            approved = row.ApprovedBy != null,
+            officialRefusal = row.LogMs != null ? OfficialRefusal(row.Nonce, row.EndMs, row.FinalTimerMs) : null,
         };
     }
 
@@ -307,12 +316,49 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private List<object> _officialList;
     private long _officialAt;
 
+    /// How much longer than the log's own real span a final timer may be: the
+    /// timer and the attempt's clock are two clocks read a frame apart.
+    public const long TimerOverSpanMs = 1_000;
+
+    /// Why an ended attempt can never be on an official board, whatever its
+    /// verdict (T-0456; null: nothing). The site did not give it a start
+    /// code - nothing the server saw places it in time - or its final timer
+    /// is longer than the attempt it ran in, which no game can do.
+    public static string OfficialRefusal(string nonce, long? endMs, long? finalTimerMs)
+    {
+        if (nonce == null) return "The site gave this attempt no start code, so it cannot be on an official board.";
+        if (finalTimerMs is long t && endMs is long e && t > e + TimerOverSpanMs + (long)(e * Drift))
+            return "The final timer (" + Clock(t) + ") is longer than the attempt it ran in (" + Clock(e) + ").";
+        return null;
+    }
+
+    /// A moderator approves an amber attempt by hand for the official boards
+    /// (or takes it back: `by` null). Red stays red, and an attempt the
+    /// boards refuse (OfficialRefusal) cannot be approved.
+    public (bool ok, int status, string error) Approve(string id, string by)
+    {
+        var row = Row(id);
+        if (row == null) return (false, 404, "no such attempt");
+        if (by != null)
+        {
+            if (row.LogMs == null) return (false, 409, "this attempt has not ended");
+            string refusal = OfficialRefusal(row.Nonce, row.EndMs, row.FinalTimerMs);
+            if (refusal != null) return (false, 409, refusal);
+            string verdict = VerdictOf(id, row);
+            if (verdict != "amber") return (false, 409, "only an amber attempt is approved by hand (this one is " + verdict + ")");
+        }
+        _store.Update("UPDATE attempts SET approved_by = $b, approved_ms = $t WHERE id = $id",
+            ("$id", id), ("$b", (object)by ?? DBNull.Value), ("$t", by == null ? DBNull.Value : _now()));
+        return (true, 200, null);
+    }
+
     /// The official runs, per published category (author, 2026-10-08: only
     /// once a category is published, in their own section apart from the
     /// runners' spots; 2026-10-10: each runner's best only, plus their latest
-    /// runs and the average; a run whose check found problems only while
-    /// the moderators' allow-list clears it - "approved by moderation" is
-    /// the verdict not being red). A runner is listed once, with their
+    /// runs and the average). Green attempts only; an amber one once a
+    /// moderator approves it by hand (Approve); never one OfficialRefusal
+    /// names (author, 2026-11-17: decisions.md *Refactor and race build*).
+    /// The moderators' allow-list still clears a report's findings. A runner is listed once, with their
     /// fastest accepted run; `recent` = their newest accepted runs
     /// (OfficialRecent) and `avgMs` their average. An attempt names its
     /// category by id, or by a run spot's `run = ` (an id or a name, as
@@ -328,10 +374,11 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         using (var c0 = _store.Open())
         {
             using var s = c0.CreateCommand();
-            s.CommandText = "SELECT COUNT(*), COALESCE(MAX(log_ms), 0) FROM attempts WHERE end_reason = 'finished'";
+            s.CommandText = @"SELECT COUNT(*), COALESCE(MAX(log_ms), 0), COUNT(approved_ms), COALESCE(MAX(approved_ms), 0)
+                              FROM attempts WHERE end_reason = 'finished'";
             using var r = s.ExecuteReader();
             r.Read();
-            stamp = Volatile.Read(ref _allowedVersion) + "|" + r.GetInt64(0) + "|" + r.GetInt64(1) + "|" +
+            stamp = Volatile.Read(ref _allowedVersion) + "|" + r.GetInt64(0) + "|" + r.GetInt64(1) + "|" + r.GetInt64(2) + "|" + r.GetInt64(3) + "|" +
                     string.Join(",", published.Select(p => p.Id + "=" + p.Name));
         }
         lock (_judged)
@@ -359,7 +406,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             {
                 if (accepted.TryGetValue(id, out bool ok)) return ok;
                 var row = Row(id);
-                ok = row?.LogMs != null && VerdictOf(id, row) != "red";
+                ok = row?.LogMs != null && OfficialRefusal(row.Nonce, row.EndMs, row.FinalTimerMs) == null &&
+                     VerdictOf(id, row) switch { "green" => true, "amber" => row.ApprovedBy != null, _ => false };
                 accepted[id] = ok;
                 return ok;
             }
@@ -946,20 +994,21 @@ GROUP BY kind, text ORDER BY MAX(allowed) DESC, SUM(n) DESC, kind, text";
     // --- rows -----------------------------------------------------------------
 
     private sealed record AttemptRow(string Runner, string Category, string Spot, string Nonce, long? IssuedMs, long? LogMs,
-                                     string EndReason, long? EndMs, long? FinalTimerMs, long? Steps, string Verdict, string Why);
+                                     string EndReason, long? EndMs, long? FinalTimerMs, long? Steps, string Verdict, string Why,
+                                     string ApprovedBy);
 
     private AttemptRow Row(string id)
     {
         using var c = _store.Open();
         using var cmd = c.CreateCommand();
         cmd.CommandText = @"SELECT runner_id, category, spot_id, nonce, issued_ms, log_ms, end_reason, end_ms, final_timer_ms,
-                                   steps, verdict, why FROM attempts WHERE id = $id";
+                                   steps, verdict, why, approved_by FROM attempts WHERE id = $id";
         cmd.Parameters.AddWithValue("$id", id);
         using var r = cmd.ExecuteReader();
         if (!r.Read()) return null;
         string S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
         long? L(int i) => r.IsDBNull(i) ? null : r.GetInt64(i);
-        return new AttemptRow(r.GetString(0), r.GetString(1), r.GetString(2), S(3), L(4), L(5), S(6), L(7), L(8), L(9), S(10), S(11));
+        return new AttemptRow(r.GetString(0), r.GetString(1), r.GetString(2), S(3), L(4), L(5), S(6), L(7), L(8), L(9), S(10), S(11), S(12));
     }
 
     private List<Cp> Checkpoints(string id)

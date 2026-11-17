@@ -752,12 +752,27 @@ section**, apart from the runners' spots.
   category names a *published* category - by id, or by name as a run
   spot's `run = ` can (`Categories.IsPublished` reads it the same way) -
   that **finished** (`end_reason = finished`, its log in, a timer above 0)
-  and whose **verdict is not red**. Resets, title-screen exits and attempts
-  still running are not runs. "Approved by moderation" (author, 2026-10-10)
-  is exactly that: the moderators' allow-list (`/admin`, *Allowed code*)
-  is the only moderation step, a red run is out until it clears (no
-  per-run flag). The verdict is the one the attempt page shows
-  (`JudgedLog`, cached).
+  and whose **verdict is green** (author, 2026-11-17, T-0456; before it,
+  anything not red). Resets, title-screen exits and attempts still running
+  are not runs. The verdict is the one the attempt page shows
+  (`JudgedLog`, cached); the moderators' allow-list (`/admin`, *Allowed
+  code*) still clears a report's findings.
+- **Amber by hand only**: a moderator approves one amber attempt with
+  `POST /api/admin/attempts/<id>/approve` (`DELETE` takes it back;
+  `Attempts.Approve`, columns `approved_by`, `approved_ms`). Green needs
+  no approval and red cannot have one (409). The attempt's view says
+  `approved`.
+- **Never listed, whatever the verdict** (`Attempts.OfficialRefusal`, also
+  in the attempt's view as `officialRefusal`, and refused for approval):
+  an attempt the site gave **no start code** (offline - nothing the server
+  saw places it in time, so an invented log is amber at best), or whose
+  **final timer is longer than its own real span** (`end_ms`), past
+  `TimerOverSpanMs` (1 s) plus the 1 % clock drift - the timer and the
+  attempt's clock are read a frame apart. For a green log the real span
+  is itself vouched for by `Judge` (the log cannot arrive before the
+  attempt could have ended, checkpoints on time). Not checked yet: a
+  timer far *below* the span with no `load` lines to explain it (REVIEW.md
+  item 1; T-0476's plausibility checks).
 - **Each runner once** (author, 2026-10-10): the runner's fastest accepted
   run is the row; their latest `OfficialRecent` (5) accepted runs and the
   average of those come with it.
@@ -768,7 +783,7 @@ section**, apart from the runners' spots.
   (100) fastest; `at` = when the attempt started. While nothing is
   published the answer is `[]`: drafts and hidden categories are never
   named. Judging replays a log, so the answer is kept until a log arrives,
-  the allow-list changes or two minutes pass (at most 2000 finished runs
+  the allow-list or an approval changes or two minutes pass (at most 2000 finished runs
   read per category). Tested: `AttemptTests.Official_OnlyPublished_...`;
   the smoke checks the empty answer. Index `attempts_category`.
 - **The home page** (`app.js` `renderOfficial`): *Official runs* above the

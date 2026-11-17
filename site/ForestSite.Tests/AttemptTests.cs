@@ -822,14 +822,35 @@ public sealed class AttemptTests : IDisposable
 
     // --- the official runs (T-0223) ------------------------------------------------
 
-    private static string FinishedLog(string id, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null)
+    /// A finished (or reset) attempt: a step a second up to `endMs`, the
+    /// site's start code folded at `nonceMs` when there is one (none:
+    /// offline).
+    private static string FinishedLog(string id, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null,
+                                      string nonce = null, long nonceMs = 300, long endMs = 3100)
     {
         var c = new AttemptChain();
         c.Header(id, runner, "Runner", "test", category, "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
-        for (int s = 1; s <= 3; s++) c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
-        c.End(3100, reason, timerMs);
-        return report == null ? c.Text : c.Text + AttemptChain.ReportMarker + "\n" + report;
+        for (int s = 1; s * 1000L <= endMs; s++)
+        {
+            if (nonce != null && nonceMs < s * 1000L) { c.Nonce(nonceMs, nonce); nonce = null; }
+            c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
+        }
+        if (nonce != null) c.Nonce(nonceMs, nonce);
+        c.End(endMs, reason, timerMs);
+        return c.Text + AttemptChain.ReportMarker + "\n" + (report ?? Report());   // a clean report unless given one
     }
+
+    /// The site's start code for a new attempt, over HTTP.
+    private async Task<string> StartOnline(string token, string id, string category)
+    {
+        var r = await Post(token, "/api/attempts", JsonContent.Create(new { attempt = id, category, spot = "" }));
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        return (await r.Content.ReadFromJsonAsync<JsonObject>())!["nonce"]!.GetValue<string>();
+    }
+
+    /// The same, straight from an Attempts.
+    private static string StartOnline(Attempts a, string runner, string id) =>
+        System.Text.Json.JsonSerializer.SerializeToNode(a.Start(runner, id, "any-normal", "").Body)!["nonce"]!.GetValue<string>();
 
     private async Task PutCategory(string id, string name, string status)
     {
@@ -846,16 +867,19 @@ public sealed class AttemptTests : IDisposable
     public async Task Official_OnlyPublished_EachRunnersBest_RecentAndAverage_RedRunsOnlyOnceAllowed_DraftsNeverNamed()
     {
         string token = await Register(Runner), token2 = await Register(Runner2);
+        // Online, short enough that the start code covers it: green. (The
+        // log reaches the site at once, so a run is a few seconds long.)
         async Task Up(string t, int n, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null) =>
             Assert.Equal(HttpStatusCode.OK, (await Post(t, "/api/attempts/" + AId(n) + "/log",
-                new StringContent(FinishedLog(AId(n), category, timerMs, reason, runner, report), Encoding.UTF8, "text/plain"))).StatusCode);
-        await Up(token, 1, "any-normal", 90_000);
-        await Up(token, 2, "any-normal", 60_000);
-        await Up(token, 3, "any-normal", 30_000, "reset");          // a reset is not a run
-        await Up(token, 4, "Any% - Normal", 80_000);                 // a run spot's `run = ` by name
-        await Up(token, 5, "secret-draft", 50_000);
-        await Up(token, 6, "any-normal", 20_000, report: Report(r => r.OtherPlugins.Add(Mod)));   // problems found: red
-        await Up(token2, 7, "any-normal", 75_000, runner: Runner2);
+                new StringContent(FinishedLog(AId(n), category, timerMs, reason, runner, report, await StartOnline(t, AId(n), category)),
+                                  Encoding.UTF8, "text/plain"))).StatusCode);
+        await Up(token, 1, "any-normal", 2_900);
+        await Up(token, 2, "any-normal", 2_000);
+        await Up(token, 3, "any-normal", 1_000, "reset");          // a reset is not a run
+        await Up(token, 4, "Any% - Normal", 2_600);                 // a run spot's `run = ` by name
+        await Up(token, 5, "secret-draft", 1_500);
+        await Up(token, 6, "any-normal", 800, report: Report(r => r.OtherPlugins.Add(Mod)));   // problems found: red
+        await Up(token2, 7, "any-normal", 2_500, runner: Runner2);
 
         // Nothing published (the live site today): an empty list, no category named.
         Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
@@ -873,13 +897,13 @@ public sealed class AttemptTests : IDisposable
         var runs = cat["runs"]!.AsArray();
         // One row per runner: the fastest accepted run.
         Assert.Equal(new[] { AId(2), AId(7) }, runs.Select(r => (string)r!["id"]));
-        Assert.Equal(new long[] { 60_000, 75_000 }, runs.Select(r => (long)r!["timerMs"]));
+        Assert.Equal(new long[] { 2_000, 2_500 }, runs.Select(r => (long)r!["timerMs"]));
         Assert.All(runs, r => Assert.EndsWith("Z", (string)r!["at"]));
         // Recent runs and their average: A's accepted runs (1, 2, 4), B's one.
         Assert.Equal(new[] { AId(1), AId(2), AId(4) }, runs[0]!["recent"]!.AsArray().Select(r => (string)r!["id"]).OrderBy(x => x));
-        Assert.Equal(76_667, (long)runs[0]!["avgMs"]);
+        Assert.Equal(2_500, (long)runs[0]!["avgMs"]);
         Assert.Equal(new[] { AId(7) }, runs[1]!["recent"]!.AsArray().Select(r => (string)r!["id"]));
-        Assert.Equal(75_000, (long)runs[1]!["avgMs"]);
+        Assert.Equal(2_500, (long)runs[1]!["avgMs"]);
 
         // The moderators allow the mod: the run is cleared, and tops the board.
         string q = "/api/admin/allowed?kind=mod&text=" + Uri.EscapeDataString(Mod);
@@ -891,9 +915,55 @@ public sealed class AttemptTests : IDisposable
         runs = JsonNode.Parse(await _http.GetStringAsync("/api/official"))!.AsArray()[0]!["runs"]!.AsArray();
         Assert.Equal(new[] { AId(2), AId(7) }, runs.Select(r => (string)r!["id"]));
 
+        // T-0456. Offline (no site start code), fastest of all: amber, never
+        // listed, and cannot be approved.
+        Assert.Equal(HttpStatusCode.OK, (await Post(token2, "/api/attempts/" + AId(8) + "/log",
+            new StringContent(FinishedLog(AId(8), "any-normal", 500, runner: Runner2), Encoding.UTF8, "text/plain"))).StatusCode);
+        Assert.Equal("amber", (string)(await AdminGet("/api/attempts/" + AId(8)))["verdict"]);
+        Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(8) + "/approve"));
+        // Online, but a final timer longer than the attempt it ran in (an
+        // invented log): green on its own, never listed, cannot be approved.
+        string n9 = await StartOnline(token2, AId(9), "any-normal");
+        Assert.Equal(HttpStatusCode.OK, (await Post(token2, "/api/attempts/" + AId(9) + "/log",
+            new StringContent(FinishedLog(AId(9), "any-normal", 9_000, runner: Runner2, nonce: n9), Encoding.UTF8, "text/plain"))).StatusCode);
+        var v9 = await AdminGet("/api/attempts/" + AId(9));
+        Assert.Equal("green", (string)v9["verdict"]);
+        Assert.Contains("longer than the attempt", (string)v9["officialRefusal"]);
+        Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(9) + "/approve"));
+        // Online with a late start code: amber, listed only once approved by hand.
+        string n10 = await StartOnline(token2, AId(10), "any-normal");
+        Assert.Equal(HttpStatusCode.OK, (await Post(token2, "/api/attempts/" + AId(10) + "/log",
+            new StringContent(FinishedLog(AId(10), "any-normal", 600, runner: Runner2, nonce: n10, nonceMs: 31_000, endMs: 31_100),
+                              Encoding.UTF8, "text/plain"))).StatusCode);
+        Assert.Equal("amber", (string)(await AdminGet("/api/attempts/" + AId(10)))["verdict"]);
+        string Ids(JsonNode n) => string.Join(",", n.AsArray()[0]!["runs"]!.AsArray().Select(r => (string)r!["id"]));
+        Assert.Equal(AId(2) + "," + AId(7), Ids(JsonNode.Parse(await _http.GetStringAsync("/api/official"))!));
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(10) + "/approve"));
+        Assert.True((bool)(await AdminGet("/api/attempts/" + AId(10)))["approved"]);
+        Assert.Equal(AId(10) + "," + AId(2), Ids(JsonNode.Parse(await _http.GetStringAsync("/api/official"))!));
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Delete, "/api/admin/attempts/" + AId(10) + "/approve"));
+        Assert.Equal(AId(2) + "," + AId(7), Ids(JsonNode.Parse(await _http.GetStringAsync("/api/official"))!));
+        // A green one is not approved by hand (it needs none), a red one never.
+        Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(2) + "/approve"));
+        Assert.Equal(HttpStatusCode.Conflict, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(6) + "/approve"));
+        Assert.Equal(HttpStatusCode.NotFound, await AdminCall(HttpMethod.Post, "/api/admin/attempts/" + AId(99) + "/approve"));
+
         // Back to a draft: gone again.
         await PutCategory("any-normal", "Any% - Normal", "draft");
         Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+    }
+
+    [Fact]
+    public void OfficialRefusal_NoStartCode_OrATimerLongerThanTheAttempt()
+    {
+        Assert.Contains("no start code", Attempts.OfficialRefusal(null, 60_000, 50_000));
+        Assert.Null(Attempts.OfficialRefusal("n1", 60_000, 50_000));
+        Assert.Null(Attempts.OfficialRefusal("n1", 60_000, 60_000));
+        // Two clocks a frame apart: up to a second plus the drift over.
+        Assert.Null(Attempts.OfficialRefusal("n1", 60_000, 60_000 + Attempts.TimerOverSpanMs + 600));
+        Assert.Contains("longer than the attempt", Attempts.OfficialRefusal("n1", 60_000, 60_000 + Attempts.TimerOverSpanMs + 601));
+        Assert.Contains("longer than the attempt", Attempts.OfficialRefusal("n1", 3_100, 3_600_000));
+        Assert.Null(Attempts.OfficialRefusal("n1", 60_000, -1));   // no timer: nothing to compare
     }
 
     [Fact]
@@ -911,13 +981,13 @@ public sealed class AttemptTests : IDisposable
             var a = new Attempts(store, dir, () => Issued, categories) { MaxCachedLog = 1 };   // no view is kept
             string red = Report(r => r.OtherPlugins.Add(Mod));
             for (int n = 1; n <= 3; n++)
-                Assert.Equal(200, a.Log(Runner, AId(n), FinishedLog(AId(n), "any-normal", 60_000 + n, report: red)).Status);
+                Assert.Equal(200, a.Log(Runner, AId(n), FinishedLog(AId(n), "any-normal", 2_000 + n, report: red, nonce: StartOnline(a, Runner, AId(n)))).Status);
             int Listed() => System.Text.Json.JsonSerializer.SerializeToNode(a.Official())!.AsArray().Single()!["count"]!.GetValue<int>();
 
             Assert.Equal(0, Listed());
             Assert.Equal(3, a.LogsJudged);
             // A new log changes the list: only that one is judged.
-            Assert.Equal(200, a.Log(Runner2, AId(4), FinishedLog(AId(4), "any-normal", 70_000, runner: Runner2)).Status);
+            Assert.Equal(200, a.Log(Runner2, AId(4), FinishedLog(AId(4), "any-normal", 2_500, runner: Runner2, nonce: StartOnline(a, Runner2, AId(4)))).Status);
             Assert.Equal(1, Listed());
             Assert.Equal(4, a.LogsJudged);
             // The allow-list changes every verdict: judged again, once.

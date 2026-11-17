@@ -627,6 +627,12 @@ admin.MapDelete("/runs/{id:long}", (long id) => store.DeleteRun(id) ? Results.Ok
 admin.MapDelete("/attempts/{id}", (HttpContext c, string id) =>
     !IsOwner(c) ? Problem(403, "only the owner deletes attempts")
     : attempts.Delete(id) ? Results.Ok() : Problem(404, "no such attempt"));
+// An amber attempt approved by hand for the official boards (T-0456:
+// they list green only otherwise); DELETE takes the approval back.
+admin.MapPost("/attempts/{id}/approve", (HttpContext c, string id) =>
+    attempts.Approve(id, c.Items["admin"] as string ?? "admin") is var (ok, status, error) && ok ? Results.Ok() : Problem(status, error));
+admin.MapDelete("/attempts/{id}/approve", (string id) =>
+    attempts.Approve(id, null) is var (ok, status, error) && ok ? Results.Ok() : Problem(status, error));
 
 // Mods the moderators allow (phase 3): every mod / patcher / code / patch
 // owner a report named, and the allowed ones. ?kind=mod&text=<exact entry>.
