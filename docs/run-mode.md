@@ -173,7 +173,10 @@ leaves it; a site from before that answers 404, and then each one gets
 `GET /api/attempts/<id>` for the rest of the session - the site's 404 ("no
 such attempt") takes it off, 200 is not asked again, anything else leaves
 it (T-0144), `Data/SentAttempts`; `[Site] SendRunAttempts`, off until the runner answers the F2 window's
-one-time question - T-0457; the old `SendAttempts`, on, is not read).
+one-time question - T-0457; the old `SendAttempts`, on, is not read). Until then
+an attempt starts offline: no site start code, so it is amber at best and
+never on an official board (T-0456; open point for the author: ask before
+the first run instead?).
 
 **Site**: `POST /api/attempts` (nonce; a retry gets the same one),
 `POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),
