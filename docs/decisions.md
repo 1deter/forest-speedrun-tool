@@ -754,7 +754,7 @@ Module kinds (T-0465):
 | Practice | Practice, Savestate, PracticeRun (what is left after T-0467), Deaths (revive, god mode, no stagger, in place), Community, Tas, Map, Paint, DebugView (freecam, trajectory) |
 | Dev | Bridge, Dump, Explorer, Qa, Developer, the profilers and census |
 
-Proposed wording for T-0457's one-time question (the author confirms or
-edits it): "Send your timed runs and run attempts to forest.deter.cloud?
-Other people can see your runner name, times and route. You can change
-this in Settings." with **Yes, send them** / **No**.
+T-0457's one-time question (author confirmed as proposed, 2026-11-17):
+"Send your timed runs and run attempts to forest.deter.cloud? Other
+people can see your runner name, times and route. You can change this in
+Settings." with **Yes, send them** / **No**.

@@ -30,6 +30,8 @@ namespace ForestOverlay.Modules
     public sealed partial class RunUploadModule
     {
         private static readonly GUIContent SendTip = new GUIContent("Each run mode attempt's codes and log go to forest.deter.cloud, where moderators check runs.");
+        private static readonly GUIContent AttemptsOffText = new GUIContent(
+            "Sending run mode attempts to the website is off: they stay on this PC and are checked by their video only.");
         private const string AttemptExt = ".attempt";
         private const int RecentShown = 5;
 
@@ -78,7 +80,7 @@ namespace ForestOverlay.Modules
 
         private void InitAttempts(ConfigFile config, string root)
         {
-            _attemptsOn = config.Bind("Site", "SendAttempts", true,
+            _attemptsOn = config.Bind("Site", "SendRunAttempts", false,   // T-0457: was SendAttempts, on
                 "Run mode: send each attempt's codes and log to the website (a start code, a checkpoint a minute, the log " +
                 "when it ends), so anyone can check a run's video against it. Off = attempts are checked by the video only.");
             _attemptDir = Path.Combine(root, "attempts");
@@ -383,8 +385,9 @@ namespace ForestOverlay.Modules
             _recentDrawnFrame = Time.frameCount;
             bool on = UiKit.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website");
             UiKit.Hint(new Rect(0, y, w, 20), SendTip);
-            if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
+            SetSendAttempts(on);
             y += 22f;
+            if (!_attemptsOn.Value) y += UiText.Draw(0, y, w, AttemptsOffText);
             if (_attemptState.Length > 0)
             {
                 if (_attemptStateText.text != _attemptState) _attemptStateText.text = _attemptState;

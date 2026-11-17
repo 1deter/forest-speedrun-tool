@@ -59,7 +59,7 @@ namespace ForestOverlay.Data
         public string AttemptId = "";
         public string Code = "";         // the last code of the chain
         public bool Online;              // the site's start code arrived
-        public bool SendOn;              // [Site] SendAttempts
+        public bool SendOn;              // [Site] SendRunAttempts (T-0457; was SendAttempts)
         public bool AntiSplice = true;   // the category shows codes on screen
         public string Report = "";       // RunReport.Summary()
     }

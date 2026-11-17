@@ -99,7 +99,15 @@ namespace ForestOverlay.Modules
         // startup, one for every automatic refresh).
         private static readonly GUIContent TextNetwork = new GUIContent("Network");
         private static readonly GUIContent TipNetwork = new GUIContent(
-            "When the overlay asks the internet by itself. Uploads have their own switches in the Runs tab.");
+            "When the overlay asks the internet by itself, and whether your runs are sent to the website.");
+        private static readonly GUIContent SendRunsText = new GUIContent(" Send finished timed runs to the website");
+        private static readonly GUIContent SendRunsNote = new GUIContent(
+            "Each finished timed run's path, split times and your runner name go to forest.deter.cloud, where other people can see them.");
+        private static readonly GUIContent SendAttemptsText = new GUIContent(" Send run mode attempts to the website");
+        private static readonly GUIContent SendAttemptsNote = new GUIContent(
+            "Each run mode attempt's codes and log go to forest.deter.cloud, where moderators check runs. Off: checked by the video only.");
+        private RunUploadModule _upload;
+        private bool _uploadLooked;
         private static readonly GUIContent AtStartupText = new GUIContent(" Check online at startup");
         private static readonly GUIContent AtStartupNote = new GUIContent(
             "Updates, community spots and run categories, a few seconds after the game starts. " +
@@ -364,6 +372,18 @@ namespace ForestOverlay.Modules
             }
             y += 24f;
             y += UiText.Note(30, y, w - 42, RefreshNote) + 6f;
+
+            // What is sent (T-0457): off until the runner says yes once.
+            if (!_uploadLooked) { _uploadLooked = true; _upload = Host.Find<RunUploadModule>(); }
+            if (_upload != null)
+            {
+                _upload.SetSendRuns(UiKit.Toggle(new Rect(12, y, w - 24, 22), _upload.SendRuns, SendRunsText));
+                y += 24f;
+                y += UiText.Note(30, y, w - 42, SendRunsNote) + 6f;
+                _upload.SetSendAttempts(UiKit.Toggle(new Rect(12, y, w - 24, 22), _upload.SendAttempts, SendAttemptsText));
+                y += 24f;
+                y += UiText.Note(30, y, w - 42, SendAttemptsNote) + 6f;
+            }
             return y;
         }
 

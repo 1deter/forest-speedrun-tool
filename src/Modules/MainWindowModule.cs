@@ -53,6 +53,9 @@ namespace ForestOverlay.Modules
 
         private readonly List<GUIContent> _tabLabels = new List<GUIContent>();
 
+        private RunUploadModule _upload;   // the one-time sending question (T-0457)
+        private bool _uploadLooked;
+
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("panel.main", KeyCode.F2, "Open ForestOverlay window", TogglePanel);
@@ -266,12 +269,24 @@ namespace ForestOverlay.Modules
 
             DrawTabStrip(tabs);
 
+            // The one-time question about sending to the website (T-0457),
+            // above every tab until it is answered.
+            float asked = 0f;
+            if (!_uploadLooked) { _uploadLooked = true; _upload = Host.Find<RunUploadModule>(); }
+            if (_upload != null && _upload.SendQuestionOpen)
+            {
+                float qy = 26f + TabStripHeight + 4f;
+                WinPx.BeginGroup(new Rect(Pad, qy, _windowRect.width - Pad * 2f, _windowRect.height - qy - 12f));
+                asked = _upload.DrawSendQuestion(0f, _windowRect.width - Pad * 2f);
+                WinPx.EndGroup();
+            }
+
             // The body is drawn inside a group so each module can lay out
             // from 0,0 and never has to know where the window is.
             Rect body = new Rect(Pad,
-                                 26f + TabStripHeight + 4f,
+                                 26f + TabStripHeight + 4f + asked,
                                  _windowRect.width - Pad * 2f,
-                                 _windowRect.height - 26f - TabStripHeight - 12f);
+                                 _windowRect.height - 26f - TabStripHeight - 12f - asked);
 
             WinPx.BeginGroup(body);
             StallWatch.Tab(tabs[_active].Index);

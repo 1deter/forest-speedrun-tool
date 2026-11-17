@@ -38,6 +38,7 @@ namespace ForestOverlay.Modules
         private const int MaxBundleBytes = 16 * 1024 * 1024;   // ~60 min with the arms track (T-0399); the site takes 20 MB
 
         private ConfigEntry<bool> _enabled;
+        private ConfigEntry<bool> _asked;
         private ConfigEntry<string> _url;
         private ConfigEntry<string> _token;
 
@@ -65,7 +66,13 @@ namespace ForestOverlay.Modules
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
-            _enabled = ctx.Config.Bind("Site", "UploadRuns", true,
+            // T-0457: nothing is sent until the runner answers the window's
+            // one-time question. New keys, off: an "on" saved by an older
+            // version (UploadRuns / SendAttempts, on by default) never
+            // carries over.
+            _asked = ctx.Config.Bind("Site", "AskedToSend", false,
+                "Whether you answered the window's one-time question about sending runs to the website.");
+            _enabled = ctx.Config.Bind("Site", "SendRuns", false,
                 "Upload each finished timed run to the website (forest.deter.cloud): its path, split times and your runner name.");
             _url = ctx.Config.Bind("Site", "Url", SiteProtocol.DefaultUrl, "The website's address.");
             _token = ctx.Config.Bind("Site", "Token", "",
@@ -472,6 +479,73 @@ namespace ForestOverlay.Modules
             return n;
         }
 
+        // --- the one-time question (T-0457) ---------------------------------------------
+
+        // The author's words (decisions.md *Refactor and race build*).
+        private static readonly GUIContent AskText = new GUIContent(
+            "Send your timed runs and run attempts to forest.deter.cloud? Other people can see your runner name, times and route. " +
+            "You can change this in Settings.");
+        private static readonly GUIContent AskYes = new GUIContent("Yes, send them");
+        private static readonly GUIContent AskNo = new GUIContent("No");
+
+        /// The window still has to ask whether to send anything.
+        public bool SendQuestionOpen { get { return _asked != null && !_asked.Value; } }
+
+        /// The runner's answer: both switches follow it, and it is not asked again.
+        public void AnswerSendQuestion(bool yes)
+        {
+            _enabled.Value = yes;
+            _attemptsOn.Value = yes;
+            _asked.Value = true;
+            _tokenBad = false;
+            _nextTry = 0f;
+            _nextAttemptTry = 0f;
+            _nextText = 0f;
+            _state = yes ? "on" : "off";
+            Ctx.Log.LogInfo("Site: the runner answered the one-time question - " +
+                            (yes ? "runs and run attempts are sent to the website." : "nothing is sent to the website."));
+        }
+
+        /// The two switches, for the Runs tab and Settings > Network. A switch
+        /// by hand answers the question too.
+        public bool SendRuns { get { return _enabled.Value; } }
+        public bool SendAttempts { get { return _attemptsOn.Value; } }
+
+        public void SetSendRuns(bool on)
+        {
+            if (on == _enabled.Value) return;
+            _enabled.Value = on;
+            _asked.Value = true;
+            _tokenBad = false;
+            _nextTry = 0f;
+            _nextText = 0f;
+            if (on) _state = "on";
+            Ctx.Log.LogInfo("Site: sending finished runs to the website " + (on ? "on." : "off."));
+        }
+
+        public void SetSendAttempts(bool on)
+        {
+            if (on == _attemptsOn.Value) return;
+            _attemptsOn.Value = on;
+            _asked.Value = true;
+            _tokenBad = false;
+            _nextAttemptTry = 0f;
+            Ctx.Log.LogInfo("Site: sending run mode attempts to the website " + (on ? "on." : "off."));
+        }
+
+        /// The question with its two buttons, at the top of the window until
+        /// it is answered; returns the height it took.
+        public float DrawSendQuestion(float y, float w)
+        {
+            float top = y;
+            y += UiText.Draw(0, y, w, AskText);
+            if (WinPx.Button(new Rect(0, y + 2, 130, 22), AskYes)) AnswerSendQuestion(true);
+            y += 26f;
+            if (WinPx.Button(new Rect(0, y + 2, 130, 22), AskNo)) AnswerSendQuestion(false);
+            y += 30f;
+            return y - top;
+        }
+
         // --- the Runs tab's section ---------------------------------------------------
 
         private readonly GUIContent _stateText = new GUIContent("");
@@ -484,8 +558,9 @@ namespace ForestOverlay.Modules
             if (Time.unscaledTime < _nextText) return;
             _nextText = Time.unscaledTime + 0.5f;
             int pending = PendingCount;
-            string s = !_enabled.Value ? "Website uploads are off."
-                     : "Website: " + _state + (pending > 0 && !_state.Contains("wait") ? " - " + pending + " run file(s) to send" : "");
+            string s = SendQuestionOpen ? "Nothing is sent to the website until you answer the question at the top of this window."
+                     : !_enabled.Value ? "Sending runs to the website is off: your runs stay on this PC."
+                     : "Sending runs to the website is on" + (_state == "on" ? "." : " - " + _state) + (pending > 0 && !_state.Contains("wait") ? " - " + pending + " run file(s) to send" : "");
             if (_stateText.text != s) _stateText.text = s;
             string t = " Upload finished runs to " + HostName();
             if (_toggleText.text != t) _toggleText.text = t;
@@ -494,15 +569,7 @@ namespace ForestOverlay.Modules
         /// The section under the Runs tab's status lines; returns the new y.
         public float DrawSection(float y, float w)
         {
-            bool on = UiKit.Toggle(new Rect(0, y, w, 20), _enabled.Value, _toggleText);
-            if (on != _enabled.Value)
-            {
-                _enabled.Value = on;
-                _tokenBad = false;
-                _nextTry = 0f;
-                _nextText = 0f;
-                if (on) _state = "on";
-            }
+            SetSendRuns(UiKit.Toggle(new Rect(0, y, w, 20), _enabled.Value, _toggleText));
             y += 22f;
             y += UiText.Draw(0, y, w, _stateText);
 

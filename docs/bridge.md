@@ -251,7 +251,7 @@ the player stands, selects it, makes it current and writes it (id
 segment (the zone preview draws a **timed** entry only, with
 `_zoneMode` = All / NextOnly / Off). A start state: copy a `capture`d file to
 `savestates/segments/<id>.fosave`; `set ..._current.StartRestoreWithLoad
-true` (memory only). **A test run that FINISHES uploads to the live site** (uploads on by default):
+true` (memory only). **A test run that FINISHES uploads to the live site** (uploads off until the install's one-time question is answered yes - T-0457 - and on after):
 delete the test spot there after (`DELETE /api/admin/spots/<id>`, header
 `X-Admin-Token` = the User variable) - the 2026-10-01 import test had to be.
 **Every run mode attempt uploads too** (start, checkpoints, log): delete a

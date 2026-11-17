@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 900 log calls.
+257 prefixes from 903 log calls.
 
 ## `ActionReaders`
 
@@ -1972,6 +1972,15 @@ Meaning: The camera rotators found by reflection (startup).
 Written by GameBridge.cs; info.
 
 - info `SimpleMouseRotator x<_rotators.Length> resetOriginalRotation:<..> camera:<..> angles:<..> fixCameraRotation:<..>`
+
+## `Site`
+
+Meaning: What this install sends to the website (T-0457): the runner's answer to the window's one-time question, and each change of the two sending switches (finished runs, run mode attempts) in the Runs tab or Settings > Network. Nothing is sent before the answer.
+Written by RunUploadModule.cs; info.
+
+- info `Site: sending finished runs to the website <..>`
+- info `Site: sending run mode attempts to the website <..>`
+- info `Site: the runner answered the one-time question - <..>`
 
 ## `Site board`
 
