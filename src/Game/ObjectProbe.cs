@@ -576,7 +576,7 @@ namespace ForestOverlay.Game
             List<BridgeCommand.Step> steps = new List<BridgeCommand.Step>();
             string err;
             if (!BridgeCommand.TryParsePath(path, steps, out err)) return err;
-            if (steps[steps.Count - 1].Index >= 0) return "set cannot write a list element (" + path + ")";
+            if (steps[steps.Count - 1].Picks) return "set cannot write a list element (" + path + ")";
 
             // Keep every owner on the way, so a struct changed on the way
             // down (a Vector3 inside a field) is written back up.
@@ -598,9 +598,9 @@ namespace ForestOverlay.Game
                 object next;
                 err = Read(m, cur, out next);
                 if (err != null) return err;
-                if (steps[i].Index >= 0)
+                if (steps[i].Picks)
                 {
-                    err = Index(next, steps[i].Index, out next);
+                    err = Pick(next, steps[i], out next);
                     if (err != null) return err;
                     if (next != null && next.GetType().IsValueType) return "set cannot write through a list of structs";
                 }
@@ -728,7 +728,8 @@ namespace ForestOverlay.Game
             {
                 if (i > 0) sb.Append('.');
                 sb.Append(steps[i].Name);
-                if (steps[i].Index >= 0) sb.Append('[').Append(steps[i].Index).Append(']');
+                if (steps[i].Key != null) sb.Append('[').Append(steps[i].Key).Append(']');
+                else if (steps[i].Index >= 0) sb.Append('[').Append(steps[i].Index).Append(']');
             }
             return sb.ToString();
         }
@@ -754,9 +755,9 @@ namespace ForestOverlay.Game
                 if (m == null) return "no field or property '" + steps[i].Name + "' on " + OwnerName(cur, i == first ? staticType : null);
                 err = Read(m, cur, out cur);
                 if (err != null) return err;
-                if (steps[i].Index >= 0)
+                if (steps[i].Picks)
                 {
-                    err = Index(cur, steps[i].Index, out cur);
+                    err = Pick(cur, steps[i], out cur);
                     if (err != null) return JoinSteps(steps, i + 1) + ": " + err;
                 }
             }
@@ -779,6 +780,7 @@ namespace ForestOverlay.Game
 
             BridgeCommand.Step s = steps[0];
             first = 1;
+            if (s.Key != null) return "a component step takes a number, not '" + s.Key + "' (" + s.Name + "[n])";
             if (s.Name == "GameObject" || s.Name == "gameObject") { cur = go; return null; }
 
             Component[] comps = go.GetComponents<Component>();
@@ -873,6 +875,41 @@ namespace ForestOverlay.Game
                 return null;
             }
             catch (Exception ex) { return m.Name + " threw " + Inner(ex).GetType().Name + ": " + BridgeCommand.OneLine(Inner(ex).Message, 200); }
+        }
+
+        private static string Pick(object list, BridgeCommand.Step step, out object item)
+        {
+            return step.Key != null ? ByKey(list, step.Key, out item) : Index(list, step.Index, out item);
+        }
+
+        /// list[key]: a dictionary's entry, or the element whose Id (field
+        /// or property) is the key - `_host._modules[upload]` (T-0461).
+        private static string ByKey(object list, string key, out object item)
+        {
+            item = null;
+            if (list == null) return "null";
+            IDictionary dict = list as IDictionary;
+            if (dict != null)
+            {
+                if (!dict.Contains(key)) return "no key '" + key + "'";
+                item = dict[key];
+                return null;
+            }
+            IEnumerable seq = list as IEnumerable;
+            if (seq == null || list is string) return list.GetType().Name + " is not a list";
+            StringBuilder ids = new StringBuilder();
+            foreach (object o in seq)
+            {
+                if (o == null) continue;
+                object id;
+                MemberInfo m = FindMember(o, null, "Id");
+                if (m == null || Read(m, o, out id) != null || id == null) continue;
+                string s = id.ToString();
+                if (s == key) { item = o; return null; }
+                if (ids.Length < 400) ids.Append(ids.Length > 0 ? ", " : "").Append(s);
+            }
+            return ids.Length > 0 ? "no element with Id '" + key + "' (ids: " + ids + ")"
+                                  : "no element with an Id (index it with a number)";
         }
 
         private static string Index(object list, int index, out object item)

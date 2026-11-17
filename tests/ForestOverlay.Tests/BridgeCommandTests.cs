@@ -55,11 +55,33 @@ namespace ForestOverlay.Tests
             Assert.Equal("name", steps[2].Name);
         }
 
+        [Fact]
+        public void AnIdInBracketsIsAKey()
+        {
+            // The bridge names a module by its Id, not its index (T-0461).
+            List<BridgeCommand.Step> steps = new List<BridgeCommand.Step>();
+            string err;
+            Assert.True(BridgeCommand.TryParsePath("OverlayPlugin._host._modules[run-mode_2]._url", steps, out err));
+            Assert.Null(err);
+            Assert.Equal("_modules", steps[2].Name);
+            Assert.Equal("run-mode_2", steps[2].Key);
+            Assert.Equal(-1, steps[2].Index);
+            Assert.True(steps[2].Picks);
+            Assert.Null(steps[1].Key);
+            Assert.False(steps[1].Picks);
+            Assert.True(BridgeCommand.TryParsePath("_modules[3]", steps, out err));
+            Assert.Null(steps[0].Key);
+            Assert.Equal(3, steps[0].Index);
+        }
+
         [Theory]
         [InlineData("")]
         [InlineData("a..b")]
         [InlineData("a[1")]
-        [InlineData("a[x]")]
+        [InlineData("a[x y]")]
+        [InlineData("a[1x]")]
+        [InlineData("a[-x]")]
+        [InlineData("a[]")]
         [InlineData("a[-1]")]
         [InlineData("[0]")]
         public void BadPathsAreRefused(string path)

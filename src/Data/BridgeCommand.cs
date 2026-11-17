@@ -48,11 +48,28 @@ namespace ForestOverlay.Data
         }
 
         /// One step of a member path: a name and, when written as
-        /// name[i], an index.
+        /// name[i], an index, or as name[key], a key - the element whose
+        /// Id is that key (`_modules[upload]`, T-0461), or a dictionary's.
         public struct Step
         {
             public string Name;
             public int Index;   // -1: none
+            public string Key;  // null: none
+
+            /// Written with [..]: an element of the member, not the member.
+            public bool Picks { get { return Index >= 0 || Key != null; } }
+        }
+
+        /// A key in [..]: letters, digits, '_' and '-' (module ids, names).
+        public static bool IsKey(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (!(char.IsLetterOrDigit(c) || c == '_' || c == '-')) return false;
+            }
+            return !char.IsDigit(s[0]) && s[0] != '-';
         }
 
         /// "a.b[2].c" -> a, b[2], c. False with the reason for a malformed
@@ -69,6 +86,7 @@ namespace ForestOverlay.Data
                 string p = parts[i];
                 Step s;
                 s.Index = -1;
+                s.Key = null;
 
                 int open = p.IndexOf('[');
                 if (open >= 0)
@@ -76,12 +94,13 @@ namespace ForestOverlay.Data
                     if (!p.EndsWith("]")) { error = "'" + p + "': missing ]"; return false; }
                     string idx = p.Substring(open + 1, p.Length - open - 2);
                     int n;
-                    if (!int.TryParse(idx, NumberStyles.Integer, CultureInfo.InvariantCulture, out n) || n < 0)
+                    if (IsKey(idx)) s.Key = idx;
+                    else if (!int.TryParse(idx, NumberStyles.Integer, CultureInfo.InvariantCulture, out n) || n < 0)
                     {
-                        error = "'" + p + "': index must be a number from 0";
+                        error = "'" + p + "': index must be a number from 0, or an id (letters, digits, _ and -)";
                         return false;
                     }
-                    s.Index = n;
+                    else s.Index = n;
                     p = p.Substring(0, open);
                 }
 
