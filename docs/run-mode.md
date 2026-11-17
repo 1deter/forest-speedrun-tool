@@ -177,7 +177,8 @@ one-time question - T-0457; the old `SendAttempts`, on, is not read). Until then
 an attempt starts offline: no site start code, so it is amber at best and
 never on an official board (T-0456). Fine as long as the runner is told
 (author, 2026-11-17): the question says so, and each offline attempt's
-start notice does too.
+start notice does too (or, with sending on, that the site refused the
+install's token).
 
 **Site**: `POST /api/attempts` (nonce; a retry gets the same one),
 `POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),

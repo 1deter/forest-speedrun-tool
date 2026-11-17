@@ -316,13 +316,16 @@ namespace ForestOverlay.Modules
                             _report.Summary() + ".");
             if (!Host.AnyPanelOpen())
                 Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + Ctx.Run.Label + ") - practice features are locked. End run mode in the Runs tab to practise." +
-                                (_offline ? OfflineNote : ""), _offline ? 10f : 7f);
+                                (!_offline ? "" : _upload != null && _upload.SendAttempts ? OfflineTokenNote : OfflineNote), _offline ? 10f : 7f);
         }
 
         // T-0457: an attempt started with sending off is offline - the
         // runner sees what that means each time, not only in the question.
         private const string OfflineNote =
             " Offline: sending attempts to the website is off, so this attempt cannot be on an official board (Settings > Network).";
+        // Sending is on, but the site refused this install's token (AttemptsOn is false).
+        private const string OfflineTokenNote =
+            " Offline: the website does not accept this install's token, so this attempt cannot be on an official board (the Runs tab says how to fix it).";
 
         /// `reason`: the log's short word (reset, finished, title screen, ...).
         private void EndAttempt(string why, string reason)
