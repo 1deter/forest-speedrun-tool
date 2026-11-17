@@ -1,5 +1,7 @@
 # ForestOverlay: architecture and codebase review
 
+**To act on this:** the plan is filed as tasks T-0456..T-0483 ("Refactor NN", in order: `python scripts/tasks.py next`), and the decisions are in `docs/decisions.md` *Refactor and race build*. Where this file and those differ, they win.
+
 Reviewed at `c9cb3ed` (plugin v0.24.401), 2026-11-17. Static review only: nothing was built, run or changed. Claims are from reading the code unless marked **[in-game]** (needs a check in the game) or **[unverified]**.
 
 Size at this commit: plugin `src/` about 99,000 lines of C# (`Game/` 38,100, `Modules/` 27,100, `Data/` 26,000, `Core/` 6,500), tests 21,900, site 13,200, bot 5,100, Python harness 15,800, docs 18,900. 26 registered modules, about 40 classes that install Harmony patches, 117 config entries, 413 changelog sections.

@@ -697,3 +697,64 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   that hold while it is run, forced off (e.g. debug colliders) or forced
   on: "it's their spot, their rules", so everyone runs it on the same
   playing field.
+
+## Refactor and race build (author, 2026-11-17)
+
+Decided after the independent review ([`REVIEW.md`](../REVIEW.md); its
+Addendum has the reasoning). The work is tasks T-0456..T-0483, titled
+"Refactor NN" in the order to do them.
+
+- **What verification is for:** a runner can show that using the tool is
+  not cheating (an external tool counts as modding under today's rules).
+  The claim made to the moderators: a tool run is no easier to fake than
+  an unmodded one and comes with more evidence. Never "the tool proves it".
+- **Two files, one codebase.** `ForestOverlay.dll` is the run file: no
+  teleport, savestate, TAS, input-injection or bridge code in it.
+  `ForestOverlay.Practice.dll` is optional and holds the practice tools.
+  With it installed run mode locks it as today and the report says so;
+  moderators may require it absent for records. Dev tooling is in neither
+  release file.
+- **The tool replaces LiveSplit and the ASL.** The in-game timer is the
+  timer of record; `.lss` files are only imported.
+- **Ranked time stays real time**; load-removed time is an extra figure on
+  tool runs (the moderators will not convert old times).
+- **Performance patches stay on in runs** when they change nothing but
+  waiting and hitches; each one kept needs its row in the moderators' page
+  (T-0483). Patches 7, 13 and 14 are deleted.
+- **Runs start from the centralised preset saves, through the game's own
+  load** once T-0468 proves it; the savestate restore is practice only.
+- **Quick load is frozen**: approximate, practice only, no new keeper
+  without the author.
+- **Reload save on death is allowed in runs** (it only saves menuing; a
+  death reload is a reset in practice). Run mode uses the menu path until
+  T-0464 proves the in-game path equal. The capture / boss wake-up toggles
+  and the revive are practice tools.
+- **Extra game bindings are allowed in runs** as long as one input does
+  not drive several actions (T-0462); no report line.
+- **Official boards list green only**; amber by a moderator's hand.
+- **Privacy:** nothing is sent until the runner says yes once; reports are
+  private until shared; Discord posts are the runner's choice, off by
+  default; a runner id that cannot be traced to Steam, current data kept
+  if the move is cheap.
+- **Paint stays** (practice file).
+- **The bot, the knowledge base and the map tooling move to their own
+  repositories** (T-0481).
+- **The window should look like the game's own menus** (the pause menu's
+  plain list, its font), reached from one entry in the pause menu - after
+  the refactor (T-0482). Not a themed skin.
+- **During the refactor the loop takes only "Refactor NN" tasks and files
+  no feature tasks**; anything it finds goes in as a P4 held under
+  `after the refactor`.
+
+Module kinds (T-0465):
+
+| Kind | Modules |
+|---|---|
+| Core | MainWindow, Update, Settings, RunInfo, Inventory (its item caps / logs / fast build move out in T-0470), Collectibles, RunUpload, RunMode, InputOverlay, GameControls, GameFixes (new, T-0458), RunTimer (new, T-0467), the reload half of Deaths (split in T-0470) |
+| Practice | Practice, Savestate, PracticeRun (what is left after T-0467), Deaths (revive, god mode, no stagger, in place), Community, Tas, Map, Paint, DebugView (freecam, trajectory) |
+| Dev | Bridge, Dump, Explorer, Qa, Developer, the profilers and census |
+
+Proposed wording for T-0457's one-time question (the author confirms or
+edits it): "Send your timed runs and run attempts to forest.deter.cloud?
+Other people can see your runner name, times and route. You can change
+this in Settings." with **Yes, send them** / **No**.
