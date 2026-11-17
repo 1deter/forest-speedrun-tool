@@ -94,8 +94,9 @@ go to decisions.md; feature detail goes here.
   owner token is `local-admin`.
 
 The plugin side is done (v0.24.153-154, `Modules/RunUploadModule`):
-each finished timed run is queued on disk and uploaded, on by default;
-the Runs tab's Website section has the switch, the state, "Upload this
+each finished timed run is queued on disk and uploaded - off until the
+runner answers the F2 window's one-time question yes (T-0457; on by
+default before it); the Runs tab's Website section has the switch, the state, "Upload this
 spot's saved runs" and "Open on the website".
 
 ## How spots get onto the site (2026-09-27)

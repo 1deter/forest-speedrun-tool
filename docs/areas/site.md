@@ -19,7 +19,8 @@ itself when you open a file under `site/`); the site's decisions in
 
 ## Where we are
 
-Spots, runs uploaded from the game (on by default; a test run that
+Spots, runs uploaded from the game (once the install's one-time question
+is answered yes, T-0457; a test run that
 finishes uploads - delete it, docs/bridge.md *Test spots*), other
 runners' PBs as comparisons, the admin page, spot submissions, the photo
 map (recaptured 2026-10-03 on v0.24.222) and the 3D world of the game's
