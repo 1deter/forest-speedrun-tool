@@ -105,12 +105,9 @@ namespace ForestOverlay.Modules
         private readonly LoadWatcher _loads = new LoadWatcher();
         private MemoryCensus _census;
         private ConfigEntry<bool> _censusOnLoad;
-        private LeakedThreads _threads;
-        private ConfigEntry<bool> _threadsFix;
-        private StaleSubscribers _subscribers;
-        private ConfigEntry<bool> _subscribersFix;
-        private ConfigEntry<bool> _pathPoolFix;
-        private PathPoolCleanup _pathPool;
+        // The leak fixes live in GameFixesModule (T-0458); a load's stale
+        // subscribers are pruned through it before the census line.
+        private GameFixesModule _fixes;
         private float _censusDue;
         private string _censusLabel = "";
         private readonly GUIContent _censusText = new GUIContent("");
@@ -164,31 +161,6 @@ namespace ForestOverlay.Modules
 
             _census = new MemoryCensus(ctx.Log);
 
-            // Two worker threads the game leaves running every load
-            // (game-notes "The load leak"). Memory only - no gameplay
-            // effect, so not practice-only.
-            _threadsFix = ctx.Config.Bind("Fixes", "StopLeakedThreadsOnLoad", true,
-                "Stop the two worker threads the game leaves running on every load (the old WorkScheduler's, " +
-                "and an extra FocusLostAudio copy's) - each keeps memory from the previous load.");
-            LeakedThreads.Enabled = _threadsFix.Value;
-            _threads = new LeakedThreads(ctx.Log);
-            _threads.Install(OverlayPlugin.PluginGuid);
-
-            // The leak's root: the game's event registries keep every
-            // destroyed world's subscribers until the title screen clears them.
-            _subscribersFix = ctx.Config.Bind("Fixes", "PruneDeadSubscribersOnLoad", true,
-                "After every load, remove the game's event subscriptions left by the previous world's destroyed objects " +
-                "(the game only clears them at the title screen) - they keep the old world in memory, ~120 MB a load.");
-            StaleSubscribers.Enabled = _subscribersFix.Value;
-            _subscribers = new StaleSubscribers(ctx.Log);
-
-            // The A* path pool keeps the old world's navmesh (T-0034).
-            _pathPoolFix = ctx.Config.Bind("Fixes", "ClearPathPoolOnLoad", true,
-                "When a new world starts, empty the game's pool of old pathfinding paths - it keeps the previous world's " +
-                "navigation mesh in memory (~100 MB) for a minute or more after a load.");
-            PathPoolCleanup.Enabled = _pathPoolFix.Value;
-            _pathPool = new PathPoolCleanup(ctx.Log);
-            _pathPool.Install(OverlayPlugin.PluginGuid);
             // Off since v0.23.6 (the leak is fixed; the census is the ~0.7 s
             // hitch after a load). A new key, so existing configs turn it off.
             _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusAfterEveryLoad", false,
@@ -221,8 +193,6 @@ namespace ForestOverlay.Modules
             WreckClearing.Uninstall();
             ElevatorRides.Uninstall();
             SceneCache.Uninstall();
-            if (_threads != null) _threads.Uninstall();
-            if (_pathPool != null) _pathPool.Uninstall();
         }
 
         // ------------------------------------------------------------------
@@ -300,7 +270,8 @@ namespace ForestOverlay.Modules
             if (_loads.Tick())
             {
                 // Before the census, so its heap line shows the result.
-                _subscribers.Prune();
+                if (_fixes == null) _fixes = Host.Find<GameFixesModule>();
+                if (_fixes != null) _fixes.PruneSubscribers();
                 _nature.ForgetWorld();
                 FireKeeper.Prune();
                 _keeper.PruneDestroyed();
@@ -2747,20 +2718,8 @@ namespace ForestOverlay.Modules
                                       " Savestates: put the captured enemies back after a restore (respawn, clear bodies)");
             if (respawn != _respawnEnemies.Value) _respawnEnemies.Value = respawn;
             y += 26f;
-
-            // The load leak: what each load leaves behind.
-            bool fix = UiKit.Toggle(new Rect(x, y, w, 22), _threadsFix.Value,
-                                  " Fix: stop the worker threads the game leaves running after a load");
-            if (fix != _threadsFix.Value) { _threadsFix.Value = fix; LeakedThreads.Enabled = fix; }
-            y += 26f;
-            bool subs = UiKit.Toggle(new Rect(x, y, w, 22), _subscribersFix.Value,
-                                   " Fix: drop the old world's event subscriptions after a load (the game keeps them)");
-            if (subs != _subscribersFix.Value) { _subscribersFix.Value = subs; StaleSubscribers.Enabled = subs; }
-            y += 26f;
-            bool pool = UiKit.Toggle(new Rect(x, y, w, 22), _pathPoolFix.Value,
-                                   " Fix: empty the old pathfinding paths when a world starts (they keep its navmesh)");
-            if (pool != _pathPoolFix.Value) { _pathPoolFix.Value = pool; PathPoolCleanup.Enabled = pool; }
-            y += 26f;
+            // The leak fixes' toggles follow, drawn by GameFixesModule
+            // (SettingsModule, T-0458).
             return y;
         }
 

@@ -96,8 +96,6 @@ namespace ForestOverlay.Modules
         private GameProfiler _profiler;
         private ConfigEntry<string> _profilerExtraCfg;
         private ConfigEntry<bool> _allocAtStartupCfg;
-        private PerfPatches _perf;
-        private string[] _perfNames;   // the HUD's ON NOW names, built once
         private LoadTiming _loadTiming;
         private const float AllocInterval = 30f;
         private float _allocWindowStart;
@@ -187,15 +185,8 @@ namespace ForestOverlay.Modules
                 "misses plain objects from code the game already ran.");
             if (_allocAtStartupCfg.Value) AllocationTracker.Install(Ctx.Log, true);
 
-            _perf = new PerfPatches(Ctx.Log, Ctx.Config, OverlayPlugin.PluginGuid);
             _loadTiming = new LoadTiming(Ctx.Log, OverlayPlugin.PluginGuid);
             _loadTiming.Install();
-        }
-
-        /// A performance patch on / off (Debug views; the bridge calls this).
-        public void TogglePerfPatch(int i)
-        {
-            if (_perf != null && i >= 0 && i < _perf.Count) _perf.Toggle(i);
         }
 
         /// The frame test on / off (Debug views; the bridge calls this).
@@ -247,20 +238,6 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
-            // The experimental performance switches change the game: say
-            // which are on (the HUD's ON NOW line).
-            if (_perf != null)
-            {
-                _perf.SuspendExperimental(Ctx.Run.Locks("perf"));
-                if (_perfNames == null)
-                {
-                    _perfNames = new string[_perf.Count];
-                    for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.FlagName(i);
-                }
-                for (int i = 0; i < _perf.Count && i < _perfNames.Length; i++)
-                    if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i) && !_perf.ExperimentalSuspended);
-            }
-
             // Freecam ends itself when the game tears its camera down (a
             // level load); stop holding the player when it does.
             if (_freeCamOn && !_freeCam.Active)
@@ -303,7 +280,6 @@ namespace ForestOverlay.Modules
 
             _profiler.Tick();
             _loadTiming.Tick();
-            _perf.Tick(Ctx.Player, Ctx.Events);
             if (AllocationTracker.Counting && Time.unscaledTime - _allocWindowStart >= AllocInterval)
             {
                 LogAllocations();
@@ -501,26 +477,6 @@ namespace ForestOverlay.Modules
             }
         }
 
-        // One group of performance switches: the behaviour-preserving ones,
-        // or the experimental ones with what each changes under it.
-        private float DrawPerf(float y, float w, bool experimental)
-        {
-            for (int i = 0; i < _perf.Count; i++)
-            {
-                if (_perf.IsExperimental(i) != experimental) continue;
-                bool guiWas = GUI.enabled;
-                if (experimental && _perf.ExperimentalSuspended) GUI.enabled = false;
-                bool on = UiKit.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
-                GUI.enabled = guiWas;
-                if (on != _perf.IsOn(i)) _perf.Toggle(i);
-                y += Row;
-                if (_perf.Note(i).Length > 0) UiText.Note(30, y, w - 42, _perf.Note(i));
-                if (_perf.Status(i) != (_perf.IsOn(i) ? "on" : "off"))
-                    y += UiText.Draw(30, y, w - 42, _perf.Status(i));
-            }
-            return y;
-        }
-
         public override void DrawTab(Rect area)
         {
             float w = area.width - 20f;
@@ -614,15 +570,6 @@ namespace ForestOverlay.Modules
             WinPx.EndScrollView();
         }
 
-        // --- drawn by the Settings tab's Performance fold ---------------------
-        // The behaviour-preserving patches: on by default and for everyone
-        // (author, 2026-10-08: not developer-only). Draws from x 0, width w.
-        public float DrawPerformance(float y, float w)
-        {
-            y += UiText.Note(12, y, w - 24, PerformanceNote) + 4f;
-            return DrawPerf(y, w, false);
-        }
-
         // --- drawn by the Developer tab ------------------------------------------
         // Benchmarks: the game profiler, the frame test, the allocation tracker.
         public float DrawBenchmarks(float y, float w)
@@ -649,8 +596,8 @@ namespace ForestOverlay.Modules
             return y;
         }
 
-        // Experimental: the trajectory preview and the gameplay-altering
-        // performance switches - off by default, never needed for a run.
+        // Experimental: the trajectory preview - off by default, never
+        // needed for a run.
         public float DrawExperimental(float y, float w)
         {
             y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
@@ -669,16 +616,11 @@ namespace ForestOverlay.Modules
             }
             UiText.Note(30, y, w - 42, TrajectoryHelp);
             y += 10f;
-
-            { float hh = UiText.Draw(12, y, w - 24, "Gameplay-altering performance switches"); UiText.Note(12, y + hh, w - 24, ExperimentalNote); y += hh; }
-            return DrawPerf(y, w, true) + 4f;
+            // The gameplay-altering performance switches follow, drawn by
+            // GameFixesModule (DeveloperModule, T-0458).
+            return y;
         }
 
-        private static readonly GUIContent PerformanceNote = new GUIContent(
-            "Less work for the game each frame, and less garbage to collect (fewer hitches); " +
-            "each one keeps what the game does. Untick one to get the game's own code back.");
-        private static readonly GUIContent ExperimentalNote = new GUIContent(
-            "Off by default. These change what the game does, not only how fast it runs; each one says what under it.");
         private static readonly GUIContent FrameTestNote = new GUIContent(
             "Tells whether your processor's main game thread or its drawing thread limits your frame " +
             "rate: the log's Frame lines with and without it. Never kept on between launches.");
@@ -691,7 +633,6 @@ namespace ForestOverlay.Modules
             if (_wireframe != null) _wireframe.Enabled = false;
             if (_host != null) Object.Destroy(_host);
             if (_profiler != null) _profiler.Uninstall();
-            if (_perf != null) _perf.Shutdown();
             if (_loadTiming != null) _loadTiming.Uninstall();
         }
     }

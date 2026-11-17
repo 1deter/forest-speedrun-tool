@@ -48,6 +48,7 @@ namespace ForestOverlay.Modules
         private BridgeModule _bridge;
         private SettingsModule _settings;
         private DebugViewModule _views;
+        private GameFixesModule _fixes;
         private TasModule _tas;
         private SavestateModule _savestates;
         private CollectiblesModule _collectibles;
@@ -67,6 +68,7 @@ namespace ForestOverlay.Modules
             {
                 _bridge = Host.Find<BridgeModule>();
                 _views = Host.Find<DebugViewModule>();
+                _fixes = Host.Find<GameFixesModule>();
                 _tas = Host.Find<TasModule>();
                 _savestates = Host.Find<SavestateModule>();
                 _collectibles = Host.Find<CollectiblesModule>();
@@ -93,8 +95,13 @@ namespace ForestOverlay.Modules
             if (_views != null && UiKit.Section(0f, ref y, w, "dev.bench", TextBench, null, TipBench, false))
                 y = _views.DrawBenchmarks(y, w);
 
-            if (_views != null && UiKit.Section(0f, ref y, w, "dev.experimental", TextExperimental, null, TipExperimental, false))
-                y = _views.DrawExperimental(y, w);
+            // The trajectory preview, then the experimental performance
+            // switches (GameFixesModule, T-0458).
+            if ((_views != null || _fixes != null) && UiKit.Section(0f, ref y, w, "dev.experimental", TextExperimental, null, TipExperimental, false))
+            {
+                if (_views != null) y = _views.DrawExperimental(y, w);
+                if (_fixes != null) y = _fixes.DrawExperimental(y, w);
+            }
 
             if (_tas != null && UiKit.Section(0f, ref y, w, "dev.tas", TextTas, false))
                 y = _tas.DrawSection(y, w) + 4f;

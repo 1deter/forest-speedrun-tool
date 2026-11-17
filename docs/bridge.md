@@ -221,7 +221,7 @@ Instance.TimeOfDay`; `set ... TimeOfDay <deg>` moves the clock.
 window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type explorer, 8
 debug views, 9 practice, 10 savestates, 11 runs, 12 deaths, 13 QA, 14
 bridge, 15 community, 16 upload (`_url.Value`, `_token.Value`,
-`EnqueueSaved`, `_state`), 17 run mode (`EndRunMode`, `_report`).
+`EnqueueSaved`, `_state`), 17 run mode (`EndRunMode`, `_report`), 24 game fixes (`TogglePerfPatch i`, `_perf`; T-0458).
 **Run mode starts on a run spot's Restart** (a spot with `run =
 <category>` and a start state - always a Full load; a new game has not
 started one since v0.24.213, docs/run-mode.md *What starts a run*):

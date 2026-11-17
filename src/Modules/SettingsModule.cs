@@ -69,8 +69,8 @@ namespace ForestOverlay.Modules
         // The page: folds, one scroll (T-0226).
         private Vector2 _pageScroll;
         private float _pageH = 900f;   // measured on the last pass
-        private DebugViewModule _views;
         private SavestateModule _savestates;
+        private GameFixesModule _fixes;
         private static readonly GUIContent TextKeys = new GUIContent("Keys");
         private static readonly GUIContent TipKeys = new GUIContent(
             "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
@@ -256,8 +256,8 @@ namespace ForestOverlay.Modules
         {
             _tabW = area.width;
             _tabH = area.height;
-            if (_views == null) _views = Host.Find<DebugViewModule>();
             if (_savestates == null) _savestates = Host.Find<SavestateModule>();
+            if (_fixes == null) _fixes = Host.Find<GameFixesModule>();
             DrawContents();
         }
 
@@ -335,11 +335,16 @@ namespace ForestOverlay.Modules
             if (UiKit.Section(0f, ref y, w, "settings.theme", TextTheme, null, TipTheme, false))
                 y = DrawTheme(y, w);
 
-            if (_views != null && UiKit.Section(0f, ref y, w, "settings.perf", TextPerf, null, TipPerf, false))
-                y = _views.DrawPerformance(y, w) + 6f;
+            if (_fixes != null && UiKit.Section(0f, ref y, w, "settings.perf", TextPerf, null, TipPerf, false))
+                y = _fixes.DrawPerformance(y, w) + 6f;
 
-            if (_savestates != null && UiKit.Section(0f, ref y, w, "settings.loads", TextLoads, null, TipLoads, false))
-                y = _savestates.DrawOptions(12f, y, w - 24f) + 6f;
+            // The savestate option, then the leak fixes (GameFixesModule, T-0458).
+            if ((_savestates != null || _fixes != null) && UiKit.Section(0f, ref y, w, "settings.loads", TextLoads, null, TipLoads, false))
+            {
+                if (_savestates != null) y = _savestates.DrawOptions(12f, y, w - 24f);
+                if (_fixes != null) y = _fixes.DrawLeakFixes(12f, y, w - 24f);
+                y += 6f;
+            }
 
             if (UiKit.Section(0f, ref y, w, "settings.network", TextNetwork, null, TipNetwork, false))
                 y = DrawNetwork(y, w);

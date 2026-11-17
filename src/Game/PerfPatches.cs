@@ -451,7 +451,7 @@ namespace ForestOverlay.Game
             return string.Join("; ", parts.ToArray());
         }
 
-        /// Once a frame (DebugViewModule).
+        /// Once a frame (GameFixesModule).
         public void Tick(PlayerRef player, GameEvents events)
         {
             EndgameLoader.Tick(player, events);
