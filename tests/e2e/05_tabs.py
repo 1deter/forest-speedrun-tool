@@ -15,9 +15,11 @@ def run(t):
     n = int(g.get(e2e.PLUGIN, e2e.HOST + ".Count"))
     tabs = []
     for i in range(n):
-        base = "%s._modules[%d]" % (e2e.HOST, i)
+        # Indexes only to list them; each tab is then reached by its Id.
+        mid = g.get(e2e.PLUGIN, "%s._modules[%d].Id" % (e2e.HOST, i))
+        base = g.mod(mid)
         if g.get(e2e.PLUGIN, base + ".HasTab") == "True":
-            tabs.append((g.get(e2e.PLUGIN, base + ".Id"), base))
+            tabs.append((mid, base))
     t.check(len(tabs) >= 5, "%d tabs found" % len(tabs), ", ".join(i for i, _ in tabs))
 
     checker = g.mod("update") + "._checker.Message"

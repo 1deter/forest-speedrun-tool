@@ -195,9 +195,9 @@ hand-`Render()` only with the author's eyes on the picture (T-0032).
 
 ## Performance / loads - what is left, by payoff
 
-Tools: `_modules[8].ToggleAllocations` (`Allocations (30 s):` lines),
-`ToggleProfiler`, `_modules[24].TogglePerfPatch i` (A/B live; GameFixesModule since T-0458), `_modules[24]._perf.ListLayoutUsers`,
-`Load timing:` lines, `_modules[10]._census.RunScene "x"`. Rules:
+Tools: `_modules[debugview].ToggleAllocations` (`Allocations (30 s):` lines),
+`ToggleProfiler`, `_modules[gamefixes].TogglePerfPatch i` (A/B live), `_modules[gamefixes]._perf.ListLayoutUsers`,
+`Load timing:` lines, `_modules[savestates]._census.RunScene "x"`. Rules:
 behaviour-preserving patches on by default, each with its own switch and
 one log line, measured before / after in one session; anything changing
 timing or outcomes is Experimental, labelled (*Standing decisions*).

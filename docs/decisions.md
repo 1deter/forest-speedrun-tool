@@ -115,7 +115,8 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   install updates only through the release path.
 - **No guessing** (author, 2026-10-06): minimise guesses to ideally
   zero. If something is not obvious from the context and instructions -
-  intent, a design choice, a runner-facing word, scope - **ask**; facts
+  intent, a design choice, scope - **ask** (runner-facing words are the
+  maker's since 2026-11-17, see *Refactor and race build*); facts
   the code / docs / logs / bridge can settle are looked up, not asked.
   Unattended work parks the task with the question written out
   (docs/harness.md *Ground rule*); new features are built with the

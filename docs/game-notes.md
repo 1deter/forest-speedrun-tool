@@ -1931,7 +1931,7 @@ there) - their `LOD_Base` destroyed on a pooled object.
 ## The frames of an in-place restore (bridge, 2026-10-07, v0.24.251, T-0148)
 
 Measured with one `get static:UnityEngine.Time realtimeSinceStartup` a
-frame after `call ..._modules[9].BridgeRestart <id>` (maks's Labskip
+frame after `call ..._modules[practice].BridgeRestart <id>` (maks's Labskip
 Jumping Section, Slot 1, 1366x768 and 2560x1440 alike): the start frame
 ~70 ms, ~22 short frames (the restore's waits before LoadNow), LoadNow's frames
 150 + 170 ms, 33 ms (streaming back), **216 ms** (the continuation: every
@@ -4418,7 +4418,7 @@ Threads, the plugin's texture paths and the live checks:
   trunk stays hidden). The picture there was ARGBHalf, not sRGB, at
   1920x1200. Built as `Game/LatePass` (probe assembly loaded with
   `Assembly.LoadFrom` over the bridge; reset the bridge's type list with
-  `set BepInEx_Manager OverlayPlugin._host._modules[14]._probe._allTypes
+  `set BepInEx_Manager OverlayPlugin._host._modules[bridge]._probe._allTypes
   null` to reach a type loaded after the first `static:`).
 - **Eye adaptation can't be switched off** (2026-10-01): setting
   `PostProcessingBehaviour.profile.eyeAdaptation.enabled` false is undone

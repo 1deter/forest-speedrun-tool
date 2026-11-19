@@ -199,11 +199,11 @@ in game): a ghost with a body and the replay camera** (*Order* items 1,
   starting, or a load tearing the camera down. Log lines `Replay camera:
   on / view / off`; HUD `Replay`.
 - **Bridge check:** a segment with a finished run (practice mode on, Go
-  to it), then `call BepInEx_Manager OverlayPlugin._host._modules[11].ToggleReplayCamera`,
-  `wait 2`, `shot replay-chase`; `set ..._modules[11]._camView FirstPerson`,
+  to it), then `call BepInEx_Manager OverlayPlugin._host._modules[practicerun].ToggleReplayCamera`,
+  `wait 2`, `shot replay-chase`; `set ..._modules[practicerun]._camView FirstPerson`,
   `shot replay-fp`; `set ..._camView Trajectory`, `wait 2`, `shot
   replay-traj`; `set ..._clock.Paused true` + `set ..._clock.T <s>` to
-  pick the moment; `call ..._modules[11].ToggleReplayCamera` ends it
+  pick the moment; `call ..._modules[practicerun].ToggleReplayCamera` ends it
   (check `_camOn` false and the view back on the player). A run recorded
   on this version first, for the look track (`l|` lines in
   `runs/<id>/*.run`).

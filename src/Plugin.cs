@@ -210,13 +210,13 @@ namespace ForestOverlay
             host.Register(new CommunityModule());    // community spots / segments (downloads, never the runner's own file)
             host.Register(new RunUploadModule());    // finished runs to forest.deter.cloud (drawn in the Runs tab)
             host.Register(new RunModeModule());      // run mode: a new game = a run, practice locked (drawn in the Runs tab)
-            host.Register(new TasModule());          // PRACTICE ONLY, experimental: input record / replay (drawn in the Runs tab; last, so bridge indexes stay)
-            host.Register(new MapModule());          // info-only view (its Go is Practice's); after TAS so bridge indexes stay
-            host.Register(new PaintModule());        // practice mode only: paint where the crosshair hits (T-0219); last, so bridge indexes stay
-            host.Register(new DeveloperModule());    // the Developer tab: hosts other modules' developer folds; last, so bridge indexes stay
-            host.Register(new InputOverlayModule());  // info-only: the keys and mouse buttons pressed, drawn in Edit HUD style (T-0302); last, so bridge indexes stay
-            host.Register(new GameControlsModule());  // extra game bindings in the game's Rewired maps, drawn in Settings (T-0343); allowed in runs; last, so bridge indexes stay
-            host.Register(new GameFixesModule());     // always on: the load-leak fixes and the performance patches, drawn in Settings / Developer (T-0458); last, so bridge indexes stay
+            host.Register(new TasModule());          // PRACTICE ONLY, experimental: input record / replay (drawn in the Runs tab)
+            host.Register(new MapModule());          // info-only view (its Go is Practice's)
+            host.Register(new PaintModule());        // practice mode only: paint where the crosshair hits (T-0219)
+            host.Register(new DeveloperModule());    // the Developer tab: hosts other modules' developer folds
+            host.Register(new InputOverlayModule());  // info-only: the keys and mouse buttons pressed, drawn in Edit HUD style (T-0302)
+            host.Register(new GameControlsModule());  // extra game bindings in the game's Rewired maps, drawn in Settings (T-0343); allowed in runs
+            host.Register(new GameFixesModule());     // always on: the load-leak fixes and the performance patches, drawn in Settings / Developer (T-0458)
         }
 
         // ------------------------------------------------------------------

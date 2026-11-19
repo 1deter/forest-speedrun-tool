@@ -149,9 +149,6 @@ def dist(a, b):
 
 
 class Game:
-    def __init__(self):
-        self._mods = None
-
     def call(self, tool, args=None, timeout=900):
         """One MCP tool; its text. An error result raises Fail."""
         try:
@@ -166,8 +163,6 @@ class Game:
         text = "\n".join(c.get("text", "") for c in res.get("content", []) if c.get("type") == "text")
         if res.get("isError"):
             raise Fail("%s: %s" % (tool, text))
-        if tool == "game":
-            self._mods = None
         return text
 
     def run(self, *lines, timeout=None, errors_ok=False):
@@ -194,14 +189,9 @@ class Game:
         return parse_value(b.lines[0]) if b.lines else ""
 
     def mod(self, module_id):
-        """`BepInEx_Manager OverlayPlugin._host._modules[i]` path by module id (indexes move)."""
-        if self._mods is None:
-            n = int(self.get(PLUGIN, HOST + ".Count"))
-            blocks = self.run(*["get %s %s._modules[%d].Id" % (PLUGIN, HOST, i) for i in range(n)])
-            self._mods = {parse_value(b.lines[0]): i for i, b in enumerate(blocks)}
-        if module_id not in self._mods:
-            raise Fail("no module '%s' (have %s)" % (module_id, ", ".join(sorted(self._mods))))
-        return "%s._modules[%d]" % (HOST, self._mods[module_id])
+        """`OverlayPlugin._host._modules[<id>]`: a module by its Id (T-0461); an
+        unknown id is the bridge's error, which lists the ids there are."""
+        return "%s._modules[%s]" % (HOST, module_id)
 
     def status(self):
         lines = self.run("status")[0].lines

@@ -30,7 +30,7 @@ repeating becomes a journey in `tests/e2e/`.
 
 3. **Keep tests off the live site** (router rule 13): a finished timed
    run uploads -
-   `set BepInEx_Manager OverlayPlugin._host._modules[16]._enabled.Value false`
+   `set BepInEx_Manager OverlayPlugin._host._modules[upload]._enabled.Value false`
    before, `true` after (it persists in the config). Run mode attempts
    upload regardless: note the attempt id (`Run mode: attempt n is a-...`
    in the log) and delete it after (docs/bridge.md *Test spots*).
@@ -53,7 +53,7 @@ repeating becomes a journey in `tests/e2e/`.
 7. **Clean up**: god mode / infinite energy back as found, test spots
    removed (`[segment]` blocks + their `.fosave` / `runs/<id>/`, then
    `Reload`), uploads back on, the save slot restored, the main window
-   left as found (`_modules[0].PanelOpen`).
+   left as found (`_modules[mainwindow].PanelOpen`).
 
 8. **Record**: `python scripts/tasks.py evidence T-n "<what proves it:
    log line / shot / version>" --by <name>`; a confirmed feature gets a

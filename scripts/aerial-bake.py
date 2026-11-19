@@ -1,7 +1,7 @@
 """Bake the game's aerial capture into map tiles for the website.
 
 The capture comes from the game (v0.24.164+), over the bridge:
-    call BepInEx_Manager OverlayPlugin._host._modules[8].AerialStart x0 z0 x1 z1 tile settle rangeScale sunTime
+    call BepInEx_Manager OverlayPlugin._host._modules[debugview].AerialStart x0 z0 x1 z1 tile settle rangeScale sunTime
 which writes BepInEx/config/ForestOverlay/aerial/{tiles.txt, canopy/, ground/}:
 one <ix>_<iz>.jpg per tile (north up), tile (ix, iz) covering
 x0 + ix*tile .. +tile, z0 + iz*tile .. +tile. (v0.24.170-177 also wrote

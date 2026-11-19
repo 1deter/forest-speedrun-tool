@@ -85,15 +85,15 @@ refused as "another runner's attempt".
 
 **Testing the plugin against a local site** (preview `forest-site`,
 `http://localhost:5080`, owner token `local-admin` from
-`.claude/launch.json`): `set ..._modules[16]._url.Value
+`.claude/launch.json`): `set ..._modules[upload]._url.Value
 http://localhost:5080`, and back to `https://forest.deter.cloud` after.
 The author's config holds a **live token** now: leave it in place (the
 local site answers 401 - enough to test a request path; a session may
 not copy the token aside) or, to test a full registration locally, clear
 it and have the author **Reset token** for their runner on the live
 `/admin` afterwards, so the plugin registers again live. A local test
-that sets `_tokenBad` (401) needs `set ..._modules[16]._tokenBad false`.
-Pressing Submit over the bridge: `call ..._modules[9].SubmitSelected`
+that sets `_tokenBad` (401) needs `set ..._modules[upload]._tokenBad false`.
+Pressing Submit over the bridge: `call ..._modules[practice].SubmitSelected`
 (after `QuickSaveSpot`, which selects the new spot; remove it after per
 *Removing test spots*).
 

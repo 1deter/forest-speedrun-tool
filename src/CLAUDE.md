@@ -13,9 +13,10 @@ how features behave: [`docs/areas/plugin-concepts.md`](../docs/areas/plugin-conc
 Modules never reach for globals or each other — shared services arrive via
 `ModuleContext`; `Host.Find<T>()` covers the rare genuine collaboration.
 Every module is individually try/caught at every hook: one that throws is
-disabled and logged, the rest keep running. **A new module is registered
-last** in `BuildModules()`: the bridge reaches modules by index
-(`_modules[9]`, `_modules[16]` in docs/bridge.md), so inserting one shifts them.
+disabled and logged, the rest keep running. The bridge, the MCP server and
+e2e reach a module by its `Id` (`_modules[upload]`, docs/bridge.md), so
+registration order is free - but a module's `Id` is part of that surface:
+renaming one means updating its bridge users.
 
 ## Rules for modules
 

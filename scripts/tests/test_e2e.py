@@ -19,8 +19,8 @@ scene 'ForestMain_v08', frame 68559, time 348.7, timeScale 1
 player (451.92, 78.48, -3.14)
 savestates idle, current spot none
 ok (0 ms)
-> get BepInEx_Manager OverlayPlugin._host._modules[17]._report.Flags
-OverlayPlugin._host._modules[17]._report.Flags = List<String> (1)  (List<String>)
+> get BepInEx_Manager OverlayPlugin._host._modules[upload]._report.Flags
+OverlayPlugin._host._modules[upload]._report.Flags = List<String> (1)  (List<String>)
   [0] "the test bridge is on"
 ok (1 ms)
 > call #5 Foo.Bar
@@ -33,7 +33,7 @@ error: no method Bar on Foo
 class Transcript(unittest.TestCase):
     def test_blocks(self):
         b = E.parse_run(RUN)
-        self.assertEqual([x.cmd for x in b], ["status", "get BepInEx_Manager OverlayPlugin._host._modules[17]._report.Flags",
+        self.assertEqual([x.cmd for x in b], ["status", "get BepInEx_Manager OverlayPlugin._host._modules[upload]._report.Flags",
                                               "call #5 Foo.Bar", "restore e2e-a load"])
         self.assertTrue(b[0].closed and b[0].error is None)
         self.assertEqual(len(b[0].lines), 3)

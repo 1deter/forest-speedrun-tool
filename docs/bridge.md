@@ -37,7 +37,8 @@ scripts/bridge.sh -f commands.txt
 listing; the instance id), `player`, `camera`, `static:<Type>`, or a
 GameObject name/path. Paths: on a GameObject the first step is a
 component (`GameObject` = itself, `Comp[1]` = the second), then fields /
-properties, `[n]` indexes lists. `find` / `type` (radius, `all` =
+properties, `[n]` indexes lists, `[key]` picks a dictionary's entry or
+the element whose `Id` is the key (`_modules[upload]`, T-0461). `find` / `type` (radius, `all` =
 inactive too, `max=N`, nearest first), `roots`, `types`, `members`
 (live `ilscan type`), `inspect`, `fields`, `get`, `set` / `call` /
 `destroy` (mark practice; an `IEnumerator` method is started as a
@@ -217,35 +218,39 @@ car), a cannibal family: `tp 523 56.3 10 180` (20 m north of spawner
 Instance.TimeOfDay`; `set ... TimeOfDay <deg>` moves the clock.
 
 **The plugin**: target `BepInEx_Manager` (`#-88` usually);
-`OverlayPlugin._host._modules[i]` in `BuildModules` order: 0 main
-window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type explorer, 8
-debug views, 9 practice, 10 savestates, 11 runs, 12 deaths, 13 QA, 14
-bridge, 15 community, 16 upload (`_url.Value`, `_token.Value`,
-`EnqueueSaved`, `_state`), 17 run mode (`EndRunMode`, `_report`), 24 game fixes (`TogglePerfPatch i`, `_perf`; T-0458).
+`OverlayPlugin._host._modules[<id>]` by the module's `Id` (an unknown id
+lists them; `[n]` still works but moves when a module is added):
+`mainwindow`, `update`, `settings`, `runinfo`, `inventory`,
+`collectibles`, `dumps`, `explorer`, `debugview`, `practice`,
+`savestates`, `practicerun` (the Runs tab), `deaths`, `qa`, `bridge`,
+`community`, `upload` (`_url.Value`, `_token.Value`, `EnqueueSaved`,
+`_state`), `runmode` (`EndRunMode`, `_report`), `tas`, `map`, `paint`,
+`developer`, `inputs`, `gamecontrols`, `gamefixes` (`TogglePerfPatch i`,
+`_perf`).
 **Run mode starts on a run spot's Restart** (a spot with `run =
 <category>` and a start state - always a Full load; a new game has not
 started one since v0.24.213, docs/run-mode.md *What starts a run*):
 during it Go / `restart` / savestates are refused (`go` / `restart`
 answer the refusal since T-0110; for the other commands check the
 player moved) and the attempt is flagged "the
-test bridge is on". `call ..._modules[17].EndRunMode` unlocks. **Slot 1
+test bridge is on". `call ..._modules[runmode].EndRunMode` unlocks. **Slot 1
 is a Creative save** (Peaceful underneath; god mode and infinite energy
 come from the mode). New game:
 `call TitleSceneMain/TitleScreen TitleScreen.OnSinglePlayer`, `wait 1`,
 `... TitleScreen.OnNewNormalGame` (or `OnNewCreativeGame`, ...), ~40 s;
 back to the title: `call static:UnityEngine.SceneManagement.SceneManager
 LoadScene TitleScene` (a reset). The title screen's handle changes per
-visit - target it by path. `call ..._modules[i].OpenMyTab` shows a tab;
-`_modules[0].TogglePanel` **toggles** - read `_modules[0].PanelOpen`
+visit - target it by path. `call ..._modules[<id>].OpenMyTab` shows a tab;
+`_modules[mainwindow].TogglePanel` **toggles** - read `_modules[mainwindow].PanelOpen`
 and leave the window as found. Every `shot` / `set` / `call` marks
 practice (expected). QA answers reload from `qa/answers/<id>.txt` on
 `SelectList` - delete the file to clear test answers.
 
 **Endgame cutscene events** (T-0055, a hook test, not a run): the player's SpecialActions (`find PlayerGoodbyeTimmyAction`) takes `call <h> PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` and `PlayerEndCrashAction.doShutDownRoutine <h>` (the mark is any Transform: the same handle); a raft is `call static:UnityEngine.Object Instantiate #<h of Prefabs.Instance.Constructions._blueprints[15]._builtPrefab>`, then `RaftPush.outOfWorldRoutine` on its `RaftController` child (it NREs on the null driver after 2 s: `set static:TheForest.Utils.LocalPlayer AnimControl.endGameCutScene false`, `call ... Create.Grabber.gameObject.SetActive true`, destroy the clone). Each logs `Game event: endgame-cutscene` + the event.
 
-**Test spots**: `call ..._modules[9].QuickSaveSpot` makes a spot where
+**Test spots**: `call ..._modules[practice].QuickSaveSpot` makes a spot where
 the player stands, selects it, makes it current and writes it (id
-`s-...`: `get ..._modules[9]._selected.Id`). Triggers are structs, and
+`s-...`: `get ..._modules[practice]._selected.Id`). Triggers are structs, and
 `set ..._selected.Start.Kind Zone` / `.Position x,y,z` / `.Radius 3` /
 `End.Shape Box` / `End.Yaw 45` write back - enough for a timed test
 segment (the zone preview draws a **timed** entry only, with
@@ -255,7 +260,7 @@ true` (memory only). **A test run that FINISHES uploads to the live site** (uplo
 delete the test spot there after (`DELETE /api/admin/spots/<id>`, header
 `X-Admin-Token` = the User variable) - the 2026-10-01 import test had to be.
 **Every run mode attempt uploads too** (start, checkpoints, log): delete a
-test one with `DELETE /api/admin/attempts/<id>` (`_modules[17]._attemptId`;
+test one with `DELETE /api/admin/attempts/<id>` (`_modules[runmode]._attemptId`;
 the log line `Run mode: attempt n is a-...`). `restart` = F7 (`restart <id>`), `go <id>`; `select <id>` selects
 an entry as a row click does (T-0403: `restart` / `go` set the current
 spot only, never the selection, so the comparison line and its
@@ -264,9 +269,9 @@ a `call` argument, so **Export and the Import buttons need the author's click**
 (`ToggleImport` opens the list). **Removing test spots**: delete their
 `[segment]` blocks from `segments/my-segments.txt` (a Python split on
 `\n[segment]`, BOM and line endings kept), then `call
-..._modules[9].Reload`, and delete their `savestates/segments/<id>.fosave`
-/ `runs/<id>/`. Community checks: `set ..._modules[15]._url.Value
-"file:///<folder>/"` + `call ..._modules[15].CheckNow`, and set it back
+..._modules[practice].Reload`, and delete their `savestates/segments/<id>.fosave`
+/ `runs/<id>/`. Community checks: `set ..._modules[community]._url.Value
+"file:///<folder>/"` + `call ..._modules[community].CheckNow`, and set it back
 to `CommunityModule.DefaultUrl` after (it persists in the config).
 
 **Player actions**: `T=static:TheForest.Utils.LocalPlayer`: equip `call
@@ -290,7 +295,7 @@ batch; `call static:HutongGames.PlayMaker.FsmLog ClearLogs` and `false`
 after.
 Test away from cannibals (they stagger the player and cut actions).
 **Updates without the MCP tool**: `call #<h>
-OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
+OverlayPlugin._host._modules[update]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, restart.
 
 **What one action costs, frame by frame** (T-0072): `call
@@ -303,7 +308,7 @@ around a call misses what it sets off for later frames (gotcha 108).
 static:ForestOverlay.Game.RenderProbe TextureUsers zzz _MainTex` (logs
 "in N materials"; a census gives every type) against `get
 static:UnityEngine.Time frameCount` - a count that grows by exactly the
-frames is one a frame. Then `set ..._modules[8]._allocAtStartupCfg.Value
+frames is one a frame. Then `set ..._modules[debugview]._allocAtStartupCfg.Value
 true`, restart the game, and run `ToggleAllocations` + `ToggleProfiler`
 together for 30 s: an object made from script shows as its managed
 wrapper type (`UnityEngine.Material` 24 bytes) at that rate, and the
@@ -312,7 +317,7 @@ made it (an `enabled = true` runs the target's OnEnable inside the
 caller). Put the config back after.
 **Who holds the old world** (T-0034): `call static:System.GC
 GetTotalMemory true` twice in a row (take the second), every few seconds after a load (gotcha 49), then
-`call BepInEx_Manager OverlayPlugin._host._modules[10]._census.Paths
+`call BepInEx_Manager OverlayPlugin._host._modules[savestates]._census.Paths
 <TypeName> <max> <ownOnly>` - a breadth-first walk from the statics (only
 ours with `true`) logging `Census paths` lines: each held destroyed
 object's shortest field path, grouped by shape, and the first paths to
@@ -329,14 +334,14 @@ effects' noise), then per cut: 4 s Snapshot windows before / with / after
 and a `shot` each, diffed with PIL. `RenderProbe.MainCamDraws` gives the
 table. Put `timeScale` back to 1.
 **A restore's garbage by step** (T-0202): with the tracker counting
-(`call ..._modules[8].ToggleAllocations`), every Quick load's line ends
+(`call ..._modules[debugview].ToggleAllocations`), every Quick load's line ends
 `garbage (main thread) N MB: <step> N, ..., GC xN` and the "after
 restoring" line gives the total since that restore began; a 10-restore
 loop is `restart <spot>` + `wait 6` x10 between two `ToggleAllocations`,
 with `call static:System.GC CollectionCount 0` before and after.
 `call static:ForestOverlay.Game.PathfindingWatch NodeHash x y z sx sy sz`
 fingerprints the navmesh in a box (equal hash = the same paths for
-enemies); `call ..._modules[10]._bridge.CheckKeptLevelData` says whether
+enemies); `call ..._modules[savestates]._bridge.CheckKeptLevelData` says whether
 the level data kept between restores still equals a fresh decompress.
 **Garbage by scenario** (T-0033): `ToggleAllocations` is a toggle that
 logs a report when it goes off and every 30 s while on - read

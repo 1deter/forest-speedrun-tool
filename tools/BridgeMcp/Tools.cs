@@ -572,7 +572,6 @@ namespace ForestOverlay.BridgeMcp
 
         private sealed class ModuleInfo
         {
-            public int Index;
             public string Id, Title;
             public bool HasTab, HasPanel;
         }
@@ -602,7 +601,6 @@ namespace ForestOverlay.BridgeMcp
             for (int i = 0; i < n && i * 4 + 3 < values.Count; i++)
                 list.Add(new ModuleInfo
                 {
-                    Index = i,
                     Id = values[i * 4] ?? "",
                     Title = values[i * 4 + 1] ?? "",
                     HasTab = values[i * 4 + 2] == "True",
@@ -615,7 +613,7 @@ namespace ForestOverlay.BridgeMcp
 
         private static string ModulePath(ModuleInfo m, string member)
         {
-            return Host + "._modules[" + m.Index + "]." + member;
+            return Host + "._modules[" + m.Id + "]." + member;
         }
 
         private async Task<ToolResult> OpenTab(Args a, CancellationToken ct)
@@ -681,7 +679,7 @@ namespace ForestOverlay.BridgeMcp
         /// it, then put the scroll back where it was.
         private async Task<ToolResult> ScrollTour(ModuleInfo m, string done, Args a, CancellationToken ct)
         {
-            string self = Host + "._modules[" + m.Index + "]";
+            string self = Host + "._modules[" + m.Id + "]";
             var (lines, err) = await Lines(BridgeText.Command("fields", Plugin, self), ct);
             if (lines == null) return ToolResult.Fail(done + "; could not read its fields: " + err);
             var views = BridgeText.ScrollFields(lines);

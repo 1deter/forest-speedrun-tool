@@ -130,7 +130,7 @@ Top-down photos of the whole island, the map's Photo / Ground layers,
 with a Water switch.
 
 1. **Capture** (game, bridge, ~25 min): `call BepInEx_Manager
-   OverlayPlugin._host._modules[8].AerialStart -1750 -1742.631 1750
+   OverlayPlugin._host._modules[debugview].AerialStart -1750 -1742.631 1750
    1757.369 218.75 4 4 320` (x0 z0 x1 z1 tile settle rangeScale sunTime);
    read `_aerial.Status`. Writes `config/ForestOverlay/aerial/`
    `{canopy,ground}/<ix>_<iz>.jpg` + `tiles.txt`. Every tile, sea
@@ -918,7 +918,7 @@ out - it has the log cap; a saved name not in the list shows "not a game
 item"). The author asked for it in place of a text box (2026-10-02:
 "autofills the names so they can't be mistakenly typed"). To refresh it
 after a game update: over the bridge read
-`BepInEx_Manager OverlayPlugin._host._modules[4].Ctx.Inventory._catalog[i].Id`
+`BepInEx_Manager OverlayPlugin._host._modules[inventory].Ctx.Inventory._catalog[i].Id`
 / `.Name` for i < `_catalog.Count`, and `call
 static:TheForest.Utils.LocalPlayer Inventory.GetMaxAmountOf <id>` per id
 (a `-f` script, ~2 s). The local site stamps `?v=` once at startup:
