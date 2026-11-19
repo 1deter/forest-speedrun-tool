@@ -57,6 +57,10 @@ advantage.
   `LevelSerializer.Resume`, and through the menu) against a manual reload
   of the same save. Compare player state, inventory, time of day, enemies,
   the world and the cave state. If one differs, lock that path in a run.
+  **Until that comparison (T-0464) proves the in-game path equal, run mode
+  always reloads through the title screen**, whatever *Skip the title
+  screen* says (author, 2026-11-17: "for now, until we have concrete
+  evidence"; T-0463).
   (Its default is on for everyone today, from before run mode; ask the
   author whether that should change.)
 - **Anti-splice codes** beside the timer: big, readable on YouTube, out of the

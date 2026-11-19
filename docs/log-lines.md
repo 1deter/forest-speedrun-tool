@@ -1506,7 +1506,7 @@ Written by DeathModule.cs; info / warning.
 - warning `Quick-load: <_status>` (x2)
 - warning `Quick-load: <ex>`
 - info `Quick-load: loading slot <_quickLoadSlot> from in game (no menu)<note>.`
-- info `Quick-load: loading slot <_quickLoadSlot> via the title screen.`
+- info `Quick-load: loading slot <_quickLoadSlot> via the title screen<..>.`
 - info `Quick-load: loading slot <_quickLoadSlot> via the title screen<note>.`
 
 ## `Quick-load without the menu failed`

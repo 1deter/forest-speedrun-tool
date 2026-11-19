@@ -182,10 +182,19 @@ namespace ForestOverlay.Data
             string why = chosen ?? (s.ReloadForced ? lead + "the run's category forces Reload save on death"
                                                    : instead ?? "no spot applies");
             if (chosen != null) why = lead + chosen;
-            string what = !s.ReloadInPlace ? "reloads your save (the game's own load)"
-                        : s.RunActive ? "reloads your save (the game's own load - run mode never reloads in place)"
+            string what = s.RunActive ? "reloads your save (the game's own load, through the title screen - run mode's way)"
+                        : !s.ReloadInPlace ? "reloads your save (the game's own load)"
                         : "reloads your save in place (a Quick load of the slot's save; marks practice)";
             return Make(DeathOutcome.ReloadSave, what, why);
+        }
+
+        /// Whether a Reload save on death goes through the title screen. Run
+        /// mode always does (T-0463, author 2026-11-17: "for now, until we have
+        /// concrete evidence" - lifted when T-0464 proves the in-game load
+        /// equal); otherwise the runner's 'Skip the title screen' decides.
+        public static bool ReloadThroughMenu(bool runActive, bool skipMenu)
+        {
+            return runActive || !skipMenu;
         }
 
         /// Null when a reload can be done in place (the slot's save restored

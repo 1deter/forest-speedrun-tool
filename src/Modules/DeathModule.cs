@@ -102,6 +102,10 @@ namespace ForestOverlay.Modules
             "Run mode: a restart or revive on death is locked during a run unless the run's category allows the " +
             "practice revive; a reload on death follows the category. The line below says what happens instead.");
 
+        private static readonly GUIContent RunModeMenuText = new GUIContent(
+            "Run mode: a reload always goes through the title screen, whatever this says, until the in-game load is " +
+            "shown to be the same load.");
+
         private DeathHooks _hooks;
         private ConfigEntry<string> _choiceCfg;
 
@@ -256,7 +260,9 @@ namespace ForestOverlay.Modules
                         _reviveOutcome = d.Outcome;
                         return DeathAction.Revive;
                     case DeathOutcome.ReloadSave:
-                        // In place starts from in game too (death skipped).
+                        // In place starts from in game too (death skipped);
+                        // run mode always takes the menu path (T-0463).
+                        if (Ctx.Run.Active) return DeathAction.QuickLoad;
                         return _skipMenuCfg.Value || _inPlaceCfg.Value ? DeathAction.QuickLoadInGame : DeathAction.QuickLoad;
                     default:
                         return DeathAction.Normal;
@@ -441,8 +447,9 @@ namespace ForestOverlay.Modules
         /// Skip the title screen off, through the menu. `note`: why not in place.
         private void LoadWithLoad(string note)
         {
-            if (!_skipMenuCfg.Value)
+            if (DeathPlan.ReloadThroughMenu(Ctx.Run.Active, _skipMenuCfg.Value))
             {
+                if (Ctx.Run.Active && _skipMenuCfg.Value) note += " (run mode: always the menu path)";
                 Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " via the title screen" + note + ".");
                 if (DeathHooks.GameOverNow()) StartMenuLoad("reloading slot " + _quickLoadSlot + "...");
                 else _status = "reload failed: the death's game is gone - load from the menu";
@@ -511,7 +518,8 @@ namespace ForestOverlay.Modules
                 _onLoad.Invoke(title, null);
                 _onSlotSelection.Invoke(title, new object[] { _quickLoadSlot });
                 _status = "reloaded slot " + _quickLoadSlot;
-                Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " via the title screen.");
+                Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " via the title screen" +
+                                (Ctx.Run.Active ? " (run mode: always the menu path)" : "") + ".");
             }
             catch (Exception ex)
             {
@@ -638,6 +646,7 @@ namespace ForestOverlay.Modules
                                        " Skip the title screen (faster; off = load through the menu)");
                 if (skip != _skipMenuCfg.Value) _skipMenuCfg.Value = skip;
                 y += 24f;
+                if (Ctx.Run.Active) y += UiText.Note(50, y, w - 50, RunModeMenuText) + 4f;
                 bool inPlace = UiKit.Toggle(new Rect(30, y, w - 30, 22), _inPlaceCfg.Value, ReloadInPlaceLabel);
                 if (inPlace && !_inPlaceCfg.Value) { _inPlaceCfg.Value = true; _nextDeathAt = 0f; }
                 y += 24f;

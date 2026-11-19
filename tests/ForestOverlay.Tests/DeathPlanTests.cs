@@ -194,7 +194,21 @@ namespace ForestOverlay.Tests
             s.RunActive = true;
             DeathDecision d = DeathPlan.Decide(DeathChoice.ReloadSave, s);
             Assert.Equal(DeathOutcome.ReloadSave, d.Outcome);
-            Assert.StartsWith("reloads your save (the game's own load - run mode never reloads in place)", d.Text);
+            Assert.StartsWith("reloads your save (the game's own load, through the title screen - run mode's way)", d.Text);
+            s.ReloadInPlace = false;
+            Assert.StartsWith("reloads your save (the game's own load, through the title screen - run mode's way)",
+                              DeathPlan.Decide(DeathChoice.ReloadSave, s).Text);
+        }
+
+        // T-0463: run mode reloads through the title screen whatever
+        // 'Skip the title screen' says; outside run mode the setting decides.
+        [Fact]
+        public void ReloadThroughMenu_AlwaysInARun()
+        {
+            Assert.True(DeathPlan.ReloadThroughMenu(true, true));
+            Assert.True(DeathPlan.ReloadThroughMenu(true, false));
+            Assert.False(DeathPlan.ReloadThroughMenu(false, true));
+            Assert.True(DeathPlan.ReloadThroughMenu(false, false));
         }
 
         // Slot 1's case (2026-10-04): saved in the lab, reloaded in the lab.

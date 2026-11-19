@@ -112,7 +112,9 @@ concept before changing its feature. Where the code lives:
   The reload **skips the title screen** by default (`QuickLoadSkipMenu`,
   author: "faster load with no compromise") via `LevelSerializer.Resume()`,
   falling back to the menu path. The author rules it **allowed in
-  normal runs**: it is the game's own load of the same save.
+  normal runs**: it is the game's own load of the same save. In run mode
+  it always goes through the title screen until T-0464 proves the in-game
+  path equal (T-0463; docs/run-mode.md).
   A revive from a fatal hard landing cancels the landing's aftermath (a
   postfix on `FirstPersonCharacter.HandleLanded`; game-notes *Deaths*).
 - **Savestates** (no tab: Practice start states + the bridge; practice-only):
