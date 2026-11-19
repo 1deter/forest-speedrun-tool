@@ -156,6 +156,44 @@ namespace ForestOverlay.Data
             return true;
         }
 
+        /// Whether `b` drives a different action than `o` on the same input
+        /// (another action, or the other side of the same axis) - the clash
+        /// that refuses a binding (T-0462, author 2026-11-17: one input never
+        /// drives several actions). The same binding twice is not a clash.
+        public static bool Clashes(ExtraBinding b, ExtraBinding o)
+        {
+            if (b == null || o == null || !string.Equals(b.Input, o.Input, StringComparison.Ordinal)) return false;
+            return b.Negative != o.Negative || !string.Equals(b.Action, o.Action, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// The first binding in `list` that clashes with `b`, or null.
+        public static ExtraBinding ClashIn(IList<ExtraBinding> list, ExtraBinding b)
+        {
+            if (list == null) return null;
+            for (int i = 0; i < list.Count; i++)
+                if (Clashes(b, list[i])) return list[i];
+            return null;
+        }
+
+        /// Drops each binding that clashes with one before it (the first one
+        /// saved keeps its input), adding it to `dropped` (may be null); the
+        /// number dropped.
+        public static int DropClashes(List<ExtraBinding> list, List<ExtraBinding> dropped)
+        {
+            if (list == null) return 0;
+            int n = 0;
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                bool clash = false;
+                for (int j = 0; j < i && !clash; j++) clash = Clashes(list[i], list[j]);
+                if (!clash) continue;
+                if (dropped != null) dropped.Insert(0, list[i]);
+                list.RemoveAt(i);
+                n++;
+            }
+            return n;
+        }
+
         /// An input's name for a runner: the mouse buttons as people call
         /// them (Mouse3 is the 4th button, the back side button), as the
         /// overlay's own key list names them.

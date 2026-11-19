@@ -120,5 +120,43 @@ namespace ForestOverlay.Tests
             Assert.Equal("Mouse 4", ExtraBindings.InputLabel("Mouse3"));
             Assert.Equal("J", ExtraBindings.InputLabel("J"));
         }
+
+        // T-0462: one input never drives several actions.
+        [Fact]
+        public void Clashes_OnlyAnotherActionOrSideOnTheSameInput()
+        {
+            ExtraBinding jumpK = P("Jump=K")[0];
+            Assert.True(ExtraBindings.Clashes(P("Crouch=K")[0], jumpK));
+            Assert.True(ExtraBindings.Clashes(P("Vertical-=K")[0], P("Vertical=K")[0]));
+            Assert.False(ExtraBindings.Clashes(P("jump=K")[0], jumpK));        // the same binding: not a clash
+            Assert.False(ExtraBindings.Clashes(P("Crouch=J")[0], jumpK));      // another input
+            Assert.False(ExtraBindings.Clashes(P("Jump=WheelUp")[0], P("Crouch=WheelDown")[0]));   // the wheel's two directions are two inputs
+            Assert.True(ExtraBindings.Clashes(P("Jump=WheelUp")[0], P("Crouch=wheelup")[0]));
+            Assert.False(ExtraBindings.Clashes(null, jumpK));
+        }
+
+        [Fact]
+        public void ClashIn_FindsTheBindingAlreadyOnTheInput()
+        {
+            List<ExtraBinding> list = P("Jump=WheelUp, Crouch=Mouse3");
+            Assert.Same(list[1], ExtraBindings.ClashIn(list, P("Sprint=Mouse3")[0]));
+            Assert.Null(ExtraBindings.ClashIn(list, P("Sprint=Mouse4")[0]));
+            Assert.Null(ExtraBindings.ClashIn(list, P("Crouch=Mouse3")[0]));
+            Assert.Null(ExtraBindings.ClashIn(null, P("Crouch=Mouse3")[0]));
+        }
+
+        [Fact]
+        public void DropClashes_TheFirstSavedKeepsItsInput()
+        {
+            List<ExtraBinding> list = P("Jump=K, Crouch=K, Sprint=J, Vertical-=J, Use=K, Jump=Mouse3");
+            List<ExtraBinding> dropped = new List<ExtraBinding>();
+            Assert.Equal(3, ExtraBindings.DropClashes(list, dropped));
+            Assert.Equal("Jump=K, Sprint=J, Jump=Mouse3", ExtraBindings.Format(list));
+            Assert.Equal("Crouch=K, Vertical-=J, Use=K", ExtraBindings.Format(dropped));
+
+            List<ExtraBinding> clean = P("Jump=K, Crouch=J");
+            Assert.Equal(0, ExtraBindings.DropClashes(clean, null));
+            Assert.Equal(2, clean.Count);
+        }
     }
 }

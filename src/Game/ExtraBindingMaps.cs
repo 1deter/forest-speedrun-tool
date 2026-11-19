@@ -176,10 +176,12 @@ namespace ForestOverlay.Game
             return name != null && _byName.TryGetValue(name, out a) ? a : null;
         }
 
-        /// The game's own actions on this input, by their descriptive names
-        /// ("Crouch, Batch"), "" when none: the clash note. Read from the
-        /// live maps (the runner's rebinds included), ours left out, Chat and
-        /// Menu left out. Allocates: call it when something changed.
+        /// The game's own other actions on this input, by their descriptive
+        /// names ("Crouch, Batch"), "" when none: a binding that clashes
+        /// (T-0462). The binding's own action on the same side is not a
+        /// clash. Read from the live maps (the runner's rebinds included),
+        /// ours left out, Chat and Menu left out. Allocates: call it when
+        /// something changed.
         public static string GameUses(ExtraBinding b)
         {
             if (!_setup || b == null) return "";
@@ -187,6 +189,7 @@ namespace ForestOverlay.Game
             {
                 object player = PlayerNow();
                 if (player == null) return "";
+                ActionInfo own = Find(b.Action);
                 List<string> names = new List<string>();
                 foreach (object map in Maps(player, b.IsMouse ? _mouseType : _keyboardType))
                 {
@@ -201,6 +204,7 @@ namespace ForestOverlay.Game
                         ActionInfo a;
                         if (!_byId.TryGetValue((int)_elActionId.GetValue(el, null), out a)) continue;
                         bool neg = a.Axis && _elPole.GetValue(el, null).ToString() == "Negative";
+                        if (own != null && a.Id == own.Id && neg == b.Negative) continue;
                         string n = a.LabelFor(neg);
                         if (!names.Contains(n)) names.Add(n);
                     }

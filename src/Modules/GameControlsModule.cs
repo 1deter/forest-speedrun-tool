@@ -17,7 +17,10 @@ namespace ForestOverlay.Modules
     // own Rewired maps by Game/ExtraBindingMaps.
     //
     // Not practice-only and never refused in run mode, with no flag: the
-    // author counts it the same as macro software (2026-10-19).
+    // author counts it the same as macro software (2026-10-19), as long as
+    // one input never drives several actions (2026-11-17, T-0462): a binding
+    // on an input the game or another extra binding already uses for a
+    // different action is refused, and a saved one is dropped with a log line.
     // ------------------------------------------------------------------
     public sealed class GameControlsModule : OverlayModule
     {
@@ -50,6 +53,7 @@ namespace ForestOverlay.Modules
         private bool _rowsDirty = true;
         private int _rowsVersion = -1;
         private bool _writing;
+        private int _checkedVersion = -1;   // ExtraBindingMaps.Version the saved list was last checked against the game's maps
 
         // Add: pick an action, then capture its input.
         private readonly List<Pick> _picks = new List<Pick>();
@@ -71,7 +75,8 @@ namespace ForestOverlay.Modules
 
         private static readonly GUIContent Intro = new GUIContent(
             "Put one of the game's actions on one more key, mouse button or wheel direction, e.g. jump on the wheel. " +
-            "The game's own keys keep working and its Controls menu does not change. Allowed in runs.");
+            "The game's own keys keep working and its Controls menu does not change. Allowed in runs. " +
+            "An input that already does something else in the game cannot be used: one input, one action.");
         private static readonly GUIContent NoneText = new GUIContent("No extra bindings yet.");
         private static readonly GUIContent AddText = new GUIContent("Add a binding");
         private static readonly GUIContent RemoveText = new GUIContent("Remove");
@@ -102,7 +107,50 @@ namespace ForestOverlay.Modules
             _list = ExtraBindings.Parse(_cfg.Value, KeyName, skipped);
             for (int i = 0; i < skipped.Count; i++)
                 Ctx.Log.LogWarning("Game controls: skipped '" + skipped[i] + "' in [Game controls] Bindings - not Action=Input with a key, Mouse0..Mouse6, WheelUp or WheelDown.");
+            List<ExtraBinding> dropped = new List<ExtraBinding>();
+            if (ExtraBindings.DropClashes(_list, dropped) > 0)
+            {
+                Dropped(dropped, "on an input an earlier extra binding already uses for another action");
+                Save();
+            }
+            _checkedVersion = -1;   // the game's maps are checked again once they are read
             ExtraBindingMaps.SetBindings(_list, true, Ctx.Log, OverlayPlugin.PluginGuid);
+            _rowsDirty = true;
+        }
+
+        /// One log line (and the status line) for saved bindings taken out
+        /// because their input drives another action (T-0462).
+        private void Dropped(List<ExtraBinding> dropped, string why)
+        {
+            string tokens = "";
+            for (int i = 0; i < dropped.Count; i++) tokens += (i > 0 ? ", " : "") + dropped[i].Token;
+            Ctx.Log.LogWarning("Game controls: dropped " + tokens + " from [Game controls] Bindings - " + why + " (one input, one action).");
+            _status.text = "Removed " + tokens + ": " + why + ". One input can drive only one action.";
+        }
+
+        /// Once the game's maps are read (and whenever they change): drops a
+        /// saved binding whose input the game uses for another action. The
+        /// game's maps only exist once its controls are loaded, so this is not
+        /// in Load.
+        private void DropGameClashes()
+        {
+            _checkedVersion = ExtraBindingMaps.Version;
+            if (_list.Count == 0) return;
+            List<ExtraBinding> dropped = null;
+            string uses = "";
+            for (int i = _list.Count - 1; i >= 0; i--)
+            {
+                string game = ExtraBindingMaps.GameUses(_list[i]);
+                if (game.Length == 0) continue;
+                if (dropped == null) dropped = new List<ExtraBinding>();
+                dropped.Insert(0, _list[i]);
+                uses = ExtraBindings.InputLabel(_list[i].Input) + " is " + game + (uses.Length > 0 ? "; " + uses : "");
+                _list.RemoveAt(i);
+            }
+            if (dropped == null) return;
+            Dropped(dropped, "the game's controls already use it for another action (" + uses + ")");
+            Save();
+            ExtraBindingMaps.SetBindings(_list, false, Ctx.Log, OverlayPlugin.PluginGuid);
             _rowsDirty = true;
         }
 
@@ -139,6 +187,7 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             ExtraBindingMaps.Tick(Ctx.Log, OverlayPlugin.PluginGuid);
+            if (ExtraBindingMaps.Ready && _checkedVersion != ExtraBindingMaps.Version) DropGameClashes();
 
             bool shown = Time.frameCount - _drawnFrame <= 2;
             if (_armed != null)
@@ -251,6 +300,7 @@ namespace ForestOverlay.Modules
             ExtraBinding b = ExtraBindings.Make(p.A.Name, p.Negative, input, KeyName);
             string text = p.A.LabelFor(p.Negative) + " = " + ExtraBindings.InputLabel(input);
             if (b == null) { _status.text = input + " cannot be bound."; return; }
+            if (Refused(b, text)) return;
             if (!ExtraBindings.AddUnique(_list, b)) { _status.text = text + " is there already."; return; }
             Save();
             ExtraBindingMaps.SetBindings(_list, false, Ctx.Log, OverlayPlugin.PluginGuid);
@@ -259,6 +309,30 @@ namespace ForestOverlay.Modules
             string clash = ClashNote(b, InputKey(b));
             _status.text = "Added: " + text + "." + (clash.Length > 0 ? " " + clash + "." : "");
             _rowsDirty = true;
+        }
+
+        /// T-0462: one input never drives several actions - not the game's
+        /// own, not another extra binding's. True (with the reason under the
+        /// button and one log line) when `b` would.
+        private bool Refused(ExtraBinding b, string text)
+        {
+            string input = ExtraBindings.InputLabel(b.Input);
+            string uses;
+            ExtraBinding other = ExtraBindings.ClashIn(_list, b);
+            if (other != null)
+            {
+                ExtraBindingMaps.ActionInfo a = ExtraBindingMaps.Find(other.Action);
+                uses = (a != null ? a.LabelFor(other.Negative) : other.Token) + " (your extra binding above)";
+            }
+            else
+            {
+                uses = ExtraBindingMaps.GameUses(b);
+                if (uses.Length == 0) return false;
+                uses += " in the game's controls";
+            }
+            _status.text = "Not added: " + input + " already does " + uses + ". One input can drive only one action - pick another input.";
+            Ctx.Log.LogInfo("Game controls: refused " + text + " [" + b.Token + "] - " + input + " already does " + uses + ".");
+            return true;
         }
 
         private void Remove(int i)

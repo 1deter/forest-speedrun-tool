@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 904 log calls.
+257 prefixes from 906 log calls.
 
 ## `ActionReaders`
 
@@ -620,6 +620,8 @@ Written by ExtraBindingMaps.cs, GameControlsModule.cs; info / warning.
 - warning `Game controls: <why>`
 - warning `Game controls: only <n> of <of> of the game's map calls found - the game's Controls menu may list or save the extra bindings.`
 - info `Game controls: added <text> [<b.Token>] (<where>).`
+- warning `Game controls: dropped <tokens> from [Game controls] Bindings - <why> (one input, one action).`
+- info `Game controls: refused <text> [<b.Token>] - <input> already does <uses>.`
 - info `Game controls: removed <text> [<b.Token>].`
 - warning `Game controls: skipped '<..>' in [Game controls] Bindings - not Action=Input with a key, Mouse0..Mouse6, WheelUp or WheelDown.`
 
