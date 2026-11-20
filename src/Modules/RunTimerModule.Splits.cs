@@ -621,7 +621,7 @@ namespace ForestOverlay.Modules
         // the hundredths run smoothly and nothing allocates.
 
         /// The clock is drawn in the splits panel (else the HUD's Run timer shows it).
-        public bool TimerInPanel
+        private bool TimerInPanel
         {
             get { return _splitsPanel != null && _splitsPanel.Value && _timerInPanel.Value; }
         }
@@ -644,7 +644,7 @@ namespace ForestOverlay.Modules
         /// What the timer shows: the running clock; between runs the time
         /// of the run whose splits the panel still shows (it finished), as
         /// LiveSplit keeps it until a reset; else 0.
-        public float TimerSeconds(bool running)
+        private float TimerSeconds(bool running)
         {
             if (Watching) return _companion.WatchClock;   // watching a replay: its time (author, 2026-10-16)
             if (running) return _recorder.Elapsed;

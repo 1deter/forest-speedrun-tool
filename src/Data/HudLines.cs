@@ -147,18 +147,20 @@ namespace ForestOverlay.Data
             Off("practice", "Prac", "ShowPracticeStatus", "Practice messages",
               "The last practice action's result (teleport, restart, save)."),
             // The clock only (author, 2026-10-14, T-0336): it sits in the
-            // splits panel by default and shows here when popped out.
-            L("practicerun", "Run", "ShowRunTimer", "Run timer",
+            // splits panel by default and shows here when popped out. The
+            // run timer writes the block (Modules/RunTimerModule, T-0467);
+            // the delta is the ghost's, handed to it by the practice tools.
+            L("runtimer", "Run", "ShowRunTimer", "Run timer",
               "The run's clock, when it is not in the splits panel (Edit HUD: Splits panel, Run timer); or why there is no timer."),
-            Off("practicerun", "Delta", "ShowRunDelta", "Delta",
+            Off("runtimer", "Delta", "ShowRunDelta", "Delta",
               "How far ahead (-) or behind (+) the comparison you are, while a run is on."),
             // Off until ticked (added after the HUD settings: the old look stays).
-            new HudLine("practicerun", "LRT", "ShowLoadRemoved", "Load-removed time",
+            new HudLine("runtimer", "LRT", "ShowLoadRemoved", "Load-removed time",
               "The run's clock with the game's loads taken out (LRT); the last run's between runs.",
               false, false, false),
-            Off("practicerun", "Next", "ShowNextSplit", "Next split",
+            Off("runtimer", "Next", "ShowNextSplit", "Next split",
               "The next checkpoint while a run is on."),
-            Off("practicerun", "Last", "ShowLastTime", "Last time",
+            Off("runtimer", "Last", "ShowLastTime", "Last time",
               "Your previous time on the segment."),
             Always("ON NOW",
               "Always shown while on: what changes the game right now (god mode, item caps...), one orange name each. A recording must show it."),

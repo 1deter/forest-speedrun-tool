@@ -404,6 +404,95 @@ namespace ForestOverlay.Modules
             if (Aborted != null) Aborted();
         }
 
+        // --- the HUD lines (Data/HudLines: Run, Delta, LRT, Next, Last) ------------------
+
+        public override void ContributeHud(HudBuilder hud)
+        {
+            // The replay camera's and a recording's lines sat above these.
+            if (_companion != null) _companion.HudFirst(hud);
+            if (!Timing) return;
+
+            if (_segment == null)
+            {
+                hud.Pair("Run", "no timed segment selected");   // why there is no timer (no splits panel either)
+                return;
+            }
+
+            // One number, one value, nothing appended (author, 2026-10-14,
+            // T-0336): the clock is the Run timer - here only when it is not
+            // in the splits panel - and the delta its own value.
+            bool running = _timer.Running;
+            if (!TimerInPanel) hud.Pair("Run", HudClock(running));
+            if (running)
+            {
+                // The ghost's (the practice tools'), in its place in the block.
+                float delta;
+                if (_companion != null && _companion.TryDelta(out delta) && hud.Shows(DeltaLabel)) hud.Pair(DeltaLabel, ClockText.Signed(delta));
+                // Built only when shown (off by default): a string a refresh.
+                if (hud.Shows(LrtLabel)) hud.Pair(LrtLabel, ClockText.Clock(_timer.Lrt));
+
+                if (_timer.OnlyEndLeft) hud.Pair("Next", "finish");
+                else
+                {
+                    int next = _timer.Next, of = _segment.Checkpoints.Count;
+                    if (next != _hudNextAt || of != _hudNextOf || _hudNext == null)
+                    {
+                        _hudNextAt = next;
+                        _hudNextOf = of;
+                        _hudNext = "checkpoint " + (next + 1) + "/" + of;
+                    }
+                    hud.Pair("Next", _hudNext);
+                }
+            }
+            else if (_attempts.Count > 0 && hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLastLrt());
+            // The previous time stays in view while the next one runs
+            // (runners: the HUD showed only the current one).
+            if (_attempts.Count > 0) hud.Pair("Last", HudLast());
+        }
+
+        // The HUD's Delta and load-removed time values (Data/HudLines).
+        private const string DeltaLabel = "Delta", LrtLabel = "LRT";
+        private string _hudLrtLast, _hudClock;
+        private Attempt _hudLrtLastFor;
+        private float _hudClockFor = float.NaN;
+
+        /// The Run timer value: the panel timer's text (LiveSplit's look, the
+        /// splits' time decimals) - running, a string a refresh as before;
+        /// between runs kept until it moves.
+        private string HudClock(bool running)
+        {
+            float t = TimerSeconds(running);
+            if (!running && _hudClock != null && t == _hudClockFor) return _hudClock;
+            _hudClockFor = t;
+            _hudClock = new string(_timerChars, 0, TimerText.Write(_timerChars, t, _timeDecimals.Value));
+            return _hudClock;
+        }
+
+        // The last attempt's, kept until another attempt is the last.
+        private string HudLastLrt()
+        {
+            Attempt a = _attempts[_attempts.Count - 1];
+            if (_hudLrtLast == null || !ReferenceEquals(a, _hudLrtLastFor))
+            {
+                _hudLrtLastFor = a;
+                _hudLrtLast = ClockText.Clock(LoadClock.LrtOf(a));
+            }
+            return _hudLrtLast;
+        }
+
+        // The HUD's texts that only change with the run's state, kept until
+        // they do (the HUD refreshes ten times a second).
+        private string _hudNext, _hudLast;
+        private int _hudNextAt = -1, _hudNextOf = -1;
+        private float _hudLastFor = float.NaN;
+
+        private string HudLast()
+        {
+            float d = _attempts[_attempts.Count - 1].Duration;
+            if (_hudLast == null || d != _hudLastFor) { _hudLastFor = d; _hudLast = RunTimer.Format(d); }
+            return _hudLast;
+        }
+
         // --- IRunTimer -------------------------------------------------------------
 
         /// The running timer in ms, -1 when none (run mode's chain).

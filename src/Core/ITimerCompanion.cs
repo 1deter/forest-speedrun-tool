@@ -9,9 +9,10 @@ namespace ForestOverlay.Core
     /// four in this order.
     public enum RunComparison { Best, Last, Average, BestSegments, Runner, LiveSplit }
 
-    /// What the run timer's splits panel takes from the practice tools
-    /// (T-0467): the comparisons they bring, the replay being watched, the
-    /// results panel, checkpoint practice's golds. Modules/PracticeRunModule implements it and sets itself as
+    /// What the run timer's splits panel and HUD lines take from the
+    /// practice tools (T-0467): the comparisons they bring, the replay being
+    /// watched, the results panel, checkpoint practice's golds, the ghost's
+    /// delta. Modules/PracticeRunModule implements it and sets itself as
     /// RunTimerModule.Companion; without one (a run file) the timer
     /// compares against the runner's own runs and draws its panel itself.
     public interface ITimerCompanion
@@ -51,5 +52,13 @@ namespace ForestOverlay.Core
         /// The splits were reset (the next run started, another segment or
         /// route): the results panel closes.
         void SplitsReset();
+
+        /// The HUD lines that come before the timer's (the replay camera's,
+        /// a recording's): the column keeps its order.
+        void HudFirst(HudBuilder hud);
+
+        /// The ghost's delta to the running run (seconds, + behind); false
+        /// when there is none.
+        bool TryDelta(out float delta);
     }
 }
