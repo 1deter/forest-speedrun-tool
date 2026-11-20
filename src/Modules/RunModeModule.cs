@@ -37,6 +37,7 @@ namespace ForestOverlay.Modules
     public sealed partial class RunModeModule : OverlayModule
     {
         public override string Id { get { return "runmode"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Run mode"; } }
 
         private BridgeModule _bridge;

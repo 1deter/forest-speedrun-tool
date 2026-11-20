@@ -17,6 +17,7 @@ namespace ForestOverlay.Modules
     public sealed class RunInfoModule : OverlayModule
     {
         public override string Id { get { return "runinfo"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Run info"; } }
 
         // Each value's text and the numbers it was made from: standing

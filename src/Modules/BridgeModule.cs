@@ -34,6 +34,7 @@ namespace ForestOverlay.Modules
     public sealed class BridgeModule : OverlayModule
     {
         public override string Id { get { return "bridge"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Dev; } }
         public override string DisplayName { get { return "Test bridge"; } }
         public override bool IsPracticeOnly { get { return true; } }
 

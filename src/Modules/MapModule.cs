@@ -42,6 +42,7 @@ namespace ForestOverlay.Modules
     public sealed class MapModule : OverlayModule
     {
         public override string Id { get { return "map"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Map"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Map"; } }

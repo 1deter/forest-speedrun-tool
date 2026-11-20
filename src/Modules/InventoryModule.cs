@@ -29,6 +29,7 @@ namespace ForestOverlay.Modules
         private const float RowHeight = 19f;
 
         public override string Id { get { return "inventory"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Inventory"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Inventory"; } }

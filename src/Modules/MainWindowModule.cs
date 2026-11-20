@@ -31,6 +31,7 @@ namespace ForestOverlay.Modules
         private const float Pad = 8f;
 
         public override string Id { get { return "mainwindow"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "ForestOverlay"; } }
         public override bool HasPanel { get { return true; } }
 

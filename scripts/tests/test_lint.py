@@ -325,6 +325,24 @@ public sealed class Plain
 """
 
 
+class CoreFind(unittest.TestCase):
+    def mod(self, name, kind, body=""):
+        return ("src/Modules/%s.cs" % name,
+                "class %s : OverlayModule {\n public override ModuleKind Kind { get { return ModuleKind.%s; } }\n%s\n}"
+                % (name, kind, body))
+
+    def test_core_to_practice_is_a_hit(self):
+        texts = [self.mod("A", "Core", "void F() { var p = Host.Find<B>(); var c = Host.Find<C>(); }"),
+                 self.mod("B", "Practice"), self.mod("C", "Core")]
+        hits = L.corefind_hits(texts)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0][:2], ("corefind", "src/Modules/A.cs"))
+
+    def test_practice_to_core_is_fine(self):
+        texts = [self.mod("A", "Practice", "void F() { Host.Find<B>(); }"), self.mod("B", "Core")]
+        self.assertEqual(L.corefind_hits(texts), [])
+
+
 class Lifecycle(unittest.TestCase):
     def methods(self):
         return [(c, m, n, body is not None and L.body_wrapped(body)) for c, m, n, body in L.message_methods(BEHAVIOURS)]

@@ -35,6 +35,7 @@ namespace ForestOverlay.Modules
     public sealed class QaModule : OverlayModule
     {
         public override string Id { get { return "qa"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Dev; } }
         public override string DisplayName { get { return "QA"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "QA"; } }

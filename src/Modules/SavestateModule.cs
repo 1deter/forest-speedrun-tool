@@ -40,6 +40,7 @@ namespace ForestOverlay.Modules
         private const float LoadTimingTimeout = 180f;
 
         public override string Id { get { return "savestates"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Savestates"; } }
         public override bool IsPracticeOnly { get { return true; } }
 

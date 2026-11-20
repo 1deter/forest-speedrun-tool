@@ -14,6 +14,7 @@ namespace ForestOverlay.Modules
     public sealed class DumpModule : OverlayModule
     {
         public override string Id { get { return "dumps"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Dev; } }
         public override string DisplayName { get { return "Dumps"; } }
 
         private string _status = "";

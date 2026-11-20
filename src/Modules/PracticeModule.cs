@@ -44,6 +44,7 @@ namespace ForestOverlay.Modules
         private const float ListWidth = 250f;
 
         public override string Id { get { return "practice"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Practice"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Practice"; } }
