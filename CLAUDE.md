@@ -160,31 +160,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-11-17 (refactor, session 2):** on branch
-  claude/youthful-hypatia-63eoji, all NOT released (the game is still
-  unreachable): T-0458 (GameFixesModule, index 24), T-0459 (attempt log
-  appended), T-0460 (`[Diagnostics] MeasureModules`, default off) built
-  and checker-accepted; each task note lists what the game must show.
-  T-0461 (bridge by Id) in progress: `_modules[<id>]` paths work, the
-  callers and docs still name indexes (its note lists them). **Next:**
-  finish T-0461, then `tasks.py next`; with the game, release T-0457..T-0461
-  together (e2e smoke + each note's checks), then merge to main.
-  The plan (T-0456..T-0483 in order, older tasks held, no feature tasks
-  until T-0474 is released): docs/session-log.md *review + refactor plan*.
-
-- **2026-11-17 (refactor, session 1):** T-0456 (official board: green
-  only, amber by a moderator's hand, refusals) released to the site
-  (main c69209e, live). T-0457 (nothing sent until the runner says yes;
-  the question, Settings > Network switches, offline notices) built and
-  checker-accepted on branch claude/youthful-hypatia-63eoji, NOT
-  released - needs the game (e2e smoke, layout of the question, both
-  offline notices). Author: runner-facing words are no longer asked
-  (rule 5); offline runs fine if the runner is told; T-0485 (corner
-  toast) and T-0484 (admin approve button) held after the refactor. The
-  author is setting up a Windows VM (Proxmox) for game access. **Next:**
-  merge the branch to main, release T-0457 once the game is reachable;
-  meanwhile T-0458 (its task note maps the move), then `tasks.py next`.
-  Cloud containers need the .NET 10 SDK + 8 runtime for the pre-push hook.
+- **2026-11-20 (refactor, session 3):** branch
+  claude/laughing-mayer-xyn155 (= youthful-hypatia-63eoji + this
+  session; continue on it), all NOT released (the game is still
+  unreachable). T-0461 (bridge by Id: `_modules[upload]` in the MCP, e2e,
+  docs; the "register last" rule gone), T-0462 (an extra binding on an
+  input that drives another action is refused, saved ones dropped),
+  T-0463 (run mode reloads on death through the title screen) built and
+  checker-accepted; with T-0457..T-0460 that is eight tasks waiting for
+  the game - each task's evidence / note lists what the game must show
+  (e2e smoke first: it now exercises `[id]` paths). **Next:**
+  `tasks.py next` (T-0465; T-0464 waits for the game); with the game,
+  release T-0457..T-0463 together, then merge to main. Cloud containers:
+  install the .NET 10 SDK + 8 SDK (`dotnet-install.sh --channel 10.0` /
+  `8.0` into ~/.dotnet) before the pre-push hook and builds.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
