@@ -7,9 +7,9 @@ namespace ForestOverlay.Core
     public delegate RunModeOutcome RunFinishedHandler(Segment segment, float seconds);
 
     /// The run timer as run mode sees it (T-0466): the timer and the load
-    /// clock it reads, and the split and finish events it reacts to. The
-    /// Runs module provides it (ModuleContext.RunTimer); run mode never
-    /// names that module.
+    /// clock it reads, and the split and finish events it reacts to.
+    /// Modules/RunTimerModule provides it (ModuleContext.RunTimer, T-0467);
+    /// run mode never names that module.
     public interface IRunTimer
     {
         /// The running timer in ms, -1 when none.

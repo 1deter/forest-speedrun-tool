@@ -303,7 +303,7 @@ namespace ForestOverlay.Modules
         private void RecordSplit(int row, float t)
         {
             // The timer filled the row's time and loads (Data/RunTimer).
-            if (Split != null) Split(row, t);
+            if (_runTimer != null) _runTimer.ReportSplit(row, t);
             _splitsDirty = true;
             _pbChanceDirty = true;
         }

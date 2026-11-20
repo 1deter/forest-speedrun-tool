@@ -24,7 +24,7 @@ namespace ForestOverlay.Modules
     // A segment with no triggers is just a teleport; this module ignores
     // it rather than inventing a run around it.
     // ------------------------------------------------------------------
-    public sealed partial class PracticeRunModule : OverlayModule, IRunTimer
+    public sealed partial class PracticeRunModule : OverlayModule
     {
         public enum Reference { Best, Last, Average, BestSegments, Runner, LiveSplit }
 
@@ -48,8 +48,11 @@ namespace ForestOverlay.Modules
         /// what else F9 does (run lines, auto-restart, the practice revive).
         private bool Timing { get { return RunTiming.TimingOn(Enabled, _armSource, Ctx.Run.Active); } }
 
-        // The timer of record: arming, the clock, splits, rows (Data/RunTimer).
-        private readonly RunTimer _timer = new RunTimer();
+        // The timer of record: arming, the clock, splits, rows - Data/RunTimer,
+        // owned by Modules/RunTimerModule (T-0467); driven from here until
+        // the arming and the frame step move there.
+        private RunTimerModule _runTimer;
+        private RunTimer _timer = new RunTimer();
         private RunRecorder _recorder { get { return _timer.Recorder; } }
 
         // Inventory counts, recorded as changes (the website's state panel).
@@ -131,6 +134,10 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
 
+            _runTimer = Host.Find<RunTimerModule>();
+            if (_runTimer != null) _timer = _runTimer.Machine;
+            else ctx.Log.LogWarning("PracticeRunModule: no RunTimerModule found - runs are timed but run mode does not see them.");
+
             _store = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _live = new LiveItemCounts(ctx.Inventory);
 
@@ -159,9 +166,6 @@ namespace ForestOverlay.Modules
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
             _tas = Host.Find<TasModule>();
-            // Load-removed time reads the game's load state (gotcha 16: say what it found).
-            Ctx.Log.LogInfo("Load-removed time: the game's load state from " + GameLoading.Resolve() + ".");
-            ctx.RunTimer = this;   // run mode reads the timer through it (T-0466)
             if (_upload != null)
             {
                 _upload.CurrentSegment = SegmentForUpload;
@@ -216,22 +220,6 @@ namespace ForestOverlay.Modules
 
         // A run a TAS replay plays: never the runner's attempt.
         private bool TasRun { get { return _tas != null && _tas.Replaying; } }
-
-        /// The running timer in ms, -1 when none (run mode's chain).
-        public long TimerMs()
-        {
-            return _timer.TimerMs();
-        }
-
-        /// Every ms of load the timer has counted, ever (run mode's `load`
-        /// lines take the difference over one load).
-        public long TimedLoadMs()
-        {
-            return _timer.TimedLoadMs();
-        }
-
-        public event System.Action<int, float> Split;
-        public event RunFinishedHandler Finished;
 
         /// The spot the runner is on: the armed segment, else the Practice
         /// tab's current spot (practice mode off arms nothing).
@@ -735,7 +723,7 @@ namespace ForestOverlay.Modules
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done);
-            RunModeOutcome outcome = Finished != null ? Finished(_segment, done.Duration) : null;
+            RunModeOutcome outcome = _runTimer != null ? _runTimer.ReportFinished(_segment, done.Duration) : null;
             ShowResults(done, outcome, -1);
 
             Attempt best = RunCompare.Best(_attempts);
