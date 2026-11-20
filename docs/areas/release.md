@@ -35,7 +35,8 @@ release the updater installs replaces it.
 and the update patcher as embedded resources and writes both out on startup.
 
 ```
-tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
+tag vX.Y.Z -> CI builds + tests (read-only job) -> release job (contents: write;
+  lint.py --tag, the build's DLL) -> GitHub Release with ForestOverlay.dll
   -> in game: startup check, Updates tab -> Download
   -> ForestOverlay.dll.pending beside the plugin
   -> next launch: ForestOverlay.Updater (BepInEx/patchers) runs before plugins,
