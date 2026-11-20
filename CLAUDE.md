@@ -160,23 +160,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-11-20 (refactor, session 4, author asleep):** branch
-  claude/hopeful-fermi-5qqe0m (= laughing-mayer-xyn155 + this session;
-  continue on it), all NOT released (no game). Loop run R-0034, 5 rounds,
-  all built and checker-accepted: T-0465 (module Kind + lint `corefind`,
-  7 baselined lookups), T-0466 (IRunTimer), T-0467 (RunTimerModule +
-  Data/RunTimer, 3 researcher sessions; notes in tasks/notes/T-0467.md),
-  T-0473 (TimerModule, patches 7/13/14, font picker deleted), T-0480 (CI
-  read-only, release job, pins). **For the author:** T-0467 put own PB /
-  golds comparisons in the run file per "the tool replaces LiveSplit";
-  other runners' and .lss comparisons stay practice-side - say if not.
-  **Next:** `tasks.py next` (T-0476..T-0479 site chain; T-0468 / T-0464
-  wait for the game, and T-0469..T-0471 behind T-0468). With the game:
-  release T-0457..T-0467, T-0473 together (e2e lists in each task's
-  notes; CHANGELOG names the hotkey order change), then merge to main and
-  watch the first tag's new release job. Agent worktrees start from main:
-  tell each to `git reset --hard <this branch>` first. Cloud: install
-  .NET 10 + 8 SDKs into ~/.dotnet first.
+- **2026-11-20 (refactor, session 5, author asleep):** branch
+  claude/hopeful-fermi-5qqe0m (continue on it), still all NOT released
+  (no game). Loop run R-0035: 1 round, nothing built - **T-0476 parked**
+  with three questions for the author (no excused fast-move list exists;
+  the 55 m/s clamp is not a proven per-sample bound; what "route order"
+  means); its recommendation: build rising splits + timer-vs-span now,
+  speed check later behind a live proof. The whole site chain
+  T-0477..T-0479 waits on it, so the pool was empty. Baseline green
+  (1696 plugin, 134 site tests). **For the author:** answer T-0476 at the
+  next `loop.py begin`; session 4's note stands (T-0467 put own PB / golds
+  in the run file; other runners' and .lss comparisons practice-side).
+  **Next:** with the game: T-0468 / T-0464, then release T-0457..T-0467,
+  T-0473 together (e2e lists in each task's notes; CHANGELOG names the
+  hotkey order change), merge to main, watch the first tag's release job.
+  Agent worktrees start from main: `git reset --hard <this branch>`
+  first. Cloud: install .NET 10 + 8 SDKs into ~/.dotnet first.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
