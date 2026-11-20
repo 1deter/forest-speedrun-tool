@@ -222,7 +222,8 @@ Instance.TimeOfDay`; `set ... TimeOfDay <deg>` moves the clock.
 lists them; `[n]` still works but moves when a module is added):
 `mainwindow`, `update`, `settings`, `runinfo`, `inventory`,
 `collectibles`, `dumps`, `explorer`, `debugview`, `practice`,
-`savestates`, `practicerun` (the Runs tab), `deaths`, `qa`, `bridge`,
+`savestates`, `runtimer` (the run timer: `Machine` is the
+state machine, `TimerMs`), `practicerun` (the Runs tab), `deaths`, `qa`, `bridge`,
 `community`, `upload` (`_url.Value`, `_token.Value`, `EnqueueSaved`,
 `_state`), `runmode` (`EndRunMode`, `_report`), `tas`, `map`, `paint`,
 `developer`, `inputs`, `gamecontrols`, `gamefixes` (`TogglePerfPatch i`,

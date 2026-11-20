@@ -203,6 +203,7 @@ namespace ForestOverlay
             host.Register(new DebugViewModule());     // view-only, but holds the player
             host.Register(new PracticeModule());     // PRACTICE ONLY
             host.Register(new SavestateModule());    // PRACTICE ONLY, experimental (phase 0)
+            host.Register(new RunTimerModule());     // the run timer of record: provides IRunTimer to run mode (T-0467)
             host.Register(new PracticeRunModule());  // info-only (times what practice sets up)
             host.Register(new DeathModule());        // quick-load (normal runs) / revive (practice)
             host.Register(new QaModule());           // info-only (QA team: test list, marks, report)

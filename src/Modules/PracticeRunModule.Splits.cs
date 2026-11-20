@@ -49,11 +49,12 @@ namespace ForestOverlay.Modules
         private ConfigEntry<string> _runnerName, _localRunnerId;
 
         private SplitStats _stats;
-        private float[] _times = new float[0];
+        // The rows' times and the timer's load seconds when each was reached
+        // (NaN = not reached / unknown): the LRT column, the attempt's
+        // SplitLoads - Data/RunTimer's Times and LoadsAt.
+        private float[] _times { get { return _timer.Times; } }
+        private float[] _loadsAt { get { return _timer.LoadsAt; } }
         private float[] _watchTimes = new float[0];   // the watched run's splits so far (replay bar)
-        // The timer's load seconds when each row was reached (NaN = not
-        // reached / unknown): the LRT column, the attempt's SplitLoads.
-        private float[] _loadsAt = new float[0];
         private SplitRow[] _rowsData = new SplitRow[0];
         private SplitSummary _summary;
         private bool _splitsDirty = true;
@@ -245,15 +246,9 @@ namespace ForestOverlay.Modules
 
         private void StampAttempt(Attempt done)
         {
-            if (_segment != null && _splits.Count == _segment.Checkpoints.Count) done.Splits = _splits.ToArray();
-            // The loads before each checkpoint (Data/LoadTimes): only when
-            // there were any - none listed reads as none before any.
-            if (done.Loads > 0 && done.Splits.Length > 0 && _loadsAt.Length == done.Splits.Length + 1)
-            {
-                float[] at = new float[done.Splits.Length];
-                for (int i = 0; i < at.Length; i++) at[i] = float.IsNaN(_loadsAt[i]) ? 0f : _loadsAt[i];
-                done.SplitLoads = at;
-            }
+            // Its split times and the loads before each checkpoint
+            // (Data/LoadTimes): only when there were any.
+            _timer.StampSplits(done);
             done.RunnerId = RunnerIdNow();
             done.RunnerName = RunnerNameNow();
             done.ModApi = Ctx.Practice != null && Ctx.Practice.ModApi;
@@ -287,14 +282,18 @@ namespace ForestOverlay.Modules
         /// run - and no times yet.
         private void ResetSplits()
         {
+            _timer.ResetRows(SplitRows);
+            ResetSplitStats();
+        }
+
+        /// The stats and the panels of ResetSplits, the rows left as they
+        /// are (a resumed run's are filled by the timer).
+        private void ResetSplitStats()
+        {
             _statsKey = _segment == null ? "" : _segment.Id + "|" + _armedRoute + "|" + SplitRows;
             int rows = SplitRows;
             _stats = rows > 0 ? SplitStats.Build(_attempts, rows - 1) : null;
             ApplyPracticeGolds(_stats);   // golds from checkpoint practice
-            if (_times.Length != rows) _times = new float[rows];
-            for (int i = 0; i < rows; i++) _times[i] = float.NaN;
-            if (_loadsAt.Length != rows) _loadsAt = new float[rows];
-            for (int i = 0; i < rows; i++) _loadsAt[i] = float.NaN;
             if (_rowsData.Length != rows) _rowsData = new SplitRow[rows];
             _splitsDirty = true;
             _pbChanceDirty = true;
@@ -303,17 +302,15 @@ namespace ForestOverlay.Modules
 
         private void RecordSplit(int row, float t)
         {
-            if (Split != null) Split(row, t);
-            if (row >= 0 && row < _times.Length) _times[row] = t;
-            if (row >= 0 && row < _loadsAt.Length) _loadsAt[row] = _recorder.LoadClock.LoadTime;
+            // The timer filled the row's time and loads (Data/RunTimer).
+            if (_runTimer != null) _runTimer.ReportSplit(row, t);
             _splitsDirty = true;
             _pbChanceDirty = true;
         }
 
         private void FinishSplits(Attempt done)
         {
-            if (_times.Length > 0) _times[_times.Length - 1] = done.Duration;
-            if (_loadsAt.Length > 0) _loadsAt[_loadsAt.Length - 1] = done.LoadTime;
+            _timer.FinishRows(done);
             _splitsDirty = true;
             _pbChanceDirty = true;
         }
@@ -332,11 +329,7 @@ namespace ForestOverlay.Modules
             if (TasRun) return;    // a TAS replay's run is not the runner's
             _recordedUnfinished = cur;
 
-            UnfinishedAttempt u = new UnfinishedAttempt();
-            u.StartedUtc = cur.RecordedUtc;
-            u.Route = cur.Route ?? "";
-            u.Duration = _recorder.Elapsed;
-            u.Splits = _splits.ToArray();
+            UnfinishedAttempt u = _timer.Unfinished();
             _store.AddUnfinished(cur.AnchorLabel, u);
             if (cur.AnchorLabel == _loadedSegmentId) _unfinished.Add(u);
             _pbChanceDirty = true;
@@ -527,7 +520,7 @@ namespace ForestOverlay.Modules
             string compareName = ComparisonName();
             // A run resumed from a checkpoint says so here (it was appended
             // to the HUD's clock before T-0336).
-            int from = running && Resumed ? _resumedFrom : -1;
+            int from = running && Resumed ? _timer.ResumedFrom : -1;
             if (!ReferenceEquals(_segment.Name, _titleFor) || !string.Equals(compareName, _titleVs) || from != _titleFrom)
             {
                 _titleFor = _segment.Name;

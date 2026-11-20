@@ -33,15 +33,9 @@ namespace ForestOverlay.Modules
         private SavestateModule _savestates;
         private ConfigEntry<bool> _cpCapture;
 
-        // -1 = a full run; else the checkpoint (0-based) this run resumed
-        // after.
-        private int _resumedFrom = -1;
         // The checkpoint restarted from last (the hotkey's).
         private int _cpLast = -1;
         private bool _cpRestoring;
-        // The first frame after a resume: its delta time holds the
-        // restore's own frame, not the runner's.
-        private bool _resumeSkipDt;
         // Auto-restart after a resumed run: back to its checkpoint.
         private int _autoRestartCheckpoint = -1;
 
@@ -72,7 +66,9 @@ namespace ForestOverlay.Modules
                 "Each capture is a short hitch in that run. Never in run mode.");
         }
 
-        private bool Resumed { get { return _resumedFrom >= 0; } }
+        // A run resumed from a checkpoint (Data/RunTimer.ResumedFrom: the
+        // checkpoint it resumed after).
+        private bool Resumed { get { return _timer.Resumed; } }
 
         // --- capture -----------------------------------------------------------
 
@@ -89,11 +85,12 @@ namespace ForestOverlay.Modules
             int index = row;
             float askedElapsed = _recorder.Elapsed;
             float askedAt = Time.realtimeSinceStartup;
-            float[] splits = _splits.ToArray();
+            float[] splits = _timer.Splits.ToArray();
             string route = _armedRoute;
-            List<KeyValuePair<int, int>> baseline = new List<KeyValuePair<int, int>>(_referencedItemIds.Count);
-            for (int i = 0; i < _referencedItemIds.Count; i++)
-                baseline.Add(new KeyValuePair<int, int>(_referencedItemIds[i], _baseline.AmountOf(_referencedItemIds[i])));
+            List<int> ids = _timer.ItemIds;
+            List<KeyValuePair<int, int>> baseline = new List<KeyValuePair<int, int>>(ids.Count);
+            for (int i = 0; i < ids.Count; i++)
+                baseline.Add(new KeyValuePair<int, int>(ids[i], _timer.Baseline.AmountOf(ids[i])));
 
             _savestates.CaptureCheckpointState(seg, index, delegate(SavestateBridge.Result r)
             {
@@ -121,7 +118,7 @@ namespace ForestOverlay.Modules
         private void RecordPracticeSegment(int row)
         {
             if (!Resumed || _segment == null) return;
-            float seconds = PracticeGolds.LiveSegment(_times, _resumedFrom, row);
+            float seconds = PracticeGolds.LiveSegment(_times, _timer.ResumedFrom, row);
             if (float.IsNaN(seconds)) return;
             PracticeSegment p = new PracticeSegment();
             p.Route = _armedRoute;
@@ -215,18 +212,12 @@ namespace ForestOverlay.Modules
         {
             ArmRun("checkpoint restore");   // a fresh attempt on this segment and route
 
-            _baseline.Load(st.Baseline);
-            _splits.Clear();
-            _splits.AddRange(st.Splits);
-            _auto.Begin(_live);
-            Vector3 pos = PlayerPosition();
-            _recorder.Resume(pos, st.ResumeAt);
+            // The clock at the capture's time, its checkpoints done, their
+            // rows filled, the start's item counts back; the next frame adds
+            // nothing (it holds the restore's own frame).
+            _timer.Resume(PlayerPosition(), st, _live);
             ReplayRunStarted();
-            _sequence.Resume(_segment.Checkpoints, _segment.End, st.Index + 1);
-            ResetSplits();
-            for (int i = 0; i < st.Splits.Length && i < _times.Length; i++) { _times[i] = st.Splits[i]; _loadsAt[i] = 0f; }
-            _resumedFrom = st.Index;
-            _resumeSkipDt = true;
+            ResetSplitStats();
             // The delta's search starts where the comparison was at this time.
             _deltaHint = 0;
             if (_reference != null)
@@ -245,9 +236,9 @@ namespace ForestOverlay.Modules
         {
             FinishSplits(done);
             RecordPracticeSegment(_times.Length - 1);
-            int from = _resumedFrom;
+            int from = _timer.ResumedFrom;
             ShowResults(done, null, from);   // `_stats` are still from before it
-            _resumedFrom = -1;
+            _timer.EndResume();
             _status = "finished from checkpoint " + (from + 1) + ": " + Format(done.Duration) + " (practice - not a PB)";
             SelectReference();
             ClearRunPreview();

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 906 log calls.
+257 prefixes from 907 log calls.
 
 ## `ActionReaders`
 
@@ -984,7 +984,7 @@ Written by LoadTiming.cs; info.
 ## `Load-removed time`
 
 Meaning: Where a timed run reads the game's load state from (load-removed timing).
-Written by PracticeRunModule.cs; info.
+Written by RunTimerModule.cs; info.
 
 - info `Load-removed time: the game's load state from <..>.`
 
@@ -1465,6 +1465,7 @@ Meaning: Run timing found no PracticeModule; spot runs are off.
 Written by PracticeRunModule.cs; warning.
 
 - warning `PracticeRunModule: no PracticeModule found.`
+- warning `PracticeRunModule: no RunTimerModule found - runs are timed but run mode does not see them.`
 
 ## `QA`
 
@@ -1630,8 +1631,8 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<_segment.Id>': armed after <cause> (start: <..>).`
 - info `Run '<_segment.Id>': auto-restart<..>.`
 - info `Run '<_segment.Id>': autosplit on <why> at <..>.`
-- info `Run '<_segment.Id>': checkpoint <_splits.Count> split by hand at <..>.`
-- info `Run '<_segment.Id>': checkpoint <_splits.Count>/<_segment.Checkpoints.Count> at <..>.`
+- info `Run '<_segment.Id>': checkpoint <_timer.Splits.Count> split by hand at <..>.`
+- info `Run '<_segment.Id>': checkpoint <_timer.Splits.Count>/<_segment.Checkpoints.Count> at <..>.`
 - info `Run '<_segment.Id>': end reached with checkpoint <..> (<..>) outstanding<..>.`
 - info `Run '<done.AnchorLabel>': finished in <..> - <done.Splits.Length> split time(s) saved, runner '<done.RunnerName>' (<done.RunnerId>); load-removed <..> (<..>).`
 - info `Run '<done.AnchorLabel>': finished in <..> by a TAS replay (not saved).`
