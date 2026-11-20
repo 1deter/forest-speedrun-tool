@@ -300,14 +300,6 @@ namespace ForestOverlay.Modules
             CloseResults();   // the next run started, or another segment / route
         }
 
-        private void RecordSplit(int row, float t)
-        {
-            // The timer filled the row's time and loads (Data/RunTimer).
-            if (_runTimer != null) _runTimer.ReportSplit(row, t);
-            _splitsDirty = true;
-            _pbChanceDirty = true;
-        }
-
         private void FinishSplits(Attempt done)
         {
             _timer.FinishRows(done);

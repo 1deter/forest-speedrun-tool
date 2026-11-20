@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 907 log calls.
+257 prefixes from 906 log calls.
 
 ## `ActionReaders`
 
@@ -1465,7 +1465,6 @@ Meaning: Run timing found no PracticeModule; spot runs are off.
 Written by PracticeRunModule.cs; warning.
 
 - warning `PracticeRunModule: no PracticeModule found.`
-- warning `PracticeRunModule: no RunTimerModule found - runs are timed but run mode does not see them.`
 
 ## `QA`
 
@@ -1616,7 +1615,7 @@ Written by PracticeRunModule.Results.cs; info.
 ## `Run`
 
 Meaning: A spot run's life: armed, splits and checkpoints, finished (time, best), aborted or disarmed and why.
-Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, PracticeRunModule.cs; info / warning.
+Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, PracticeRunModule.cs, RunTimerModule.cs; info / warning.
 
 - info `Run '<_segment.Id>': aborted - restarting from checkpoint <..>.`
 - info `Run '<_segment.Id>': resumed from checkpoint <..>/<_segment.Checkpoints.Count> at <..> - practice: not saved as a run, its live segments can be golds.`
@@ -1630,15 +1629,15 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<_segment.Id>': aborted - restarting the spot.`
 - info `Run '<_segment.Id>': armed after <cause> (start: <..>).`
 - info `Run '<_segment.Id>': auto-restart<..>.`
-- info `Run '<_segment.Id>': autosplit on <why> at <..>.`
-- info `Run '<_segment.Id>': checkpoint <_timer.Splits.Count> split by hand at <..>.`
-- info `Run '<_segment.Id>': checkpoint <_timer.Splits.Count>/<_segment.Checkpoints.Count> at <..>.`
-- info `Run '<_segment.Id>': end reached with checkpoint <..> (<..>) outstanding<..>.`
 - info `Run '<done.AnchorLabel>': finished in <..> - <done.Splits.Length> split time(s) saved, runner '<done.RunnerName>' (<done.RunnerId>); load-removed <..> (<..>).`
 - info `Run '<done.AnchorLabel>': finished in <..> by a TAS replay (not saved).`
 - info `Run '<gone.Id>': <..> - the spot was deleted.`
 - info `Run '<s.Id>': practice mode turned on by Restart.`
 - info `Run '<s.Id>': timed by run mode (practice mode is off).`
+- info `Run '<_timer.Segment.Id>': autosplit on <why> at <..>.`
+- info `Run '<s.Id>': checkpoint <_timer.Splits.Count> split by hand at <..>.`
+- info `Run '<s.Id>': checkpoint <_timer.Splits.Count>/<s.Checkpoints.Count> at <..>.`
+- info `Run '<s.Id>': end reached with checkpoint <..> (<..>) outstanding<..>.`
 
 ## `Run audit`
 

@@ -39,20 +39,25 @@ namespace ForestOverlay.Modules
         /// or not one was wanted.
         public bool Enabled;
 
+        // The timer of record: who armed it, arming, one frame of it, F12
+        // and the abort key, the clock, splits, rows - Modules/RunTimerModule
+        // and its Data/RunTimer (T-0467). This module drives it: it arms it
+        // at a timed spot and steps it in its Tick.
+        private RunTimerModule _runTimer;
+        private RunTimer _timer;
+
         /// Who armed the run: F9, or a run spot's run start in run mode,
-        /// which times it whatever F9 says (Data/RunTiming).
-        private ArmSource _armSource = ArmSource.None;
+        /// which times it whatever F9 says (Data/RunTiming) - the timer's.
+        private ArmSource _armSource
+        {
+            get { return _runTimer.Source; }
+            set { _runTimer.Source = value; }
+        }
 
         /// The timer works: F9 on, or a run mode run while run mode is on.
         /// Gates the triggers, the HUD's Run line, splits and results - not
         /// what else F9 does (run lines, auto-restart, the practice revive).
-        private bool Timing { get { return RunTiming.TimingOn(Enabled, _armSource, Ctx.Run.Active); } }
-
-        // The timer of record: arming, the clock, splits, rows - Data/RunTimer,
-        // owned by Modules/RunTimerModule (T-0467); driven from here until
-        // the arming and the frame step move there.
-        private RunTimerModule _runTimer;
-        private RunTimer _timer = new RunTimer();
+        private bool Timing { get { return _runTimer.Timing; } }
         private RunRecorder _recorder { get { return _timer.Recorder; } }
 
         // Inventory counts, recorded as changes (the website's state panel).
@@ -98,9 +103,6 @@ namespace ForestOverlay.Modules
         private ConfigEntry<string> _compareCfg;
         private float _autoRestartAt;
 
-        // Game events: how many of Ctx.Events have been evaluated, and a
-        // line for the tab saying the hooks are alive and what fired last.
-        private int _eventsSeen;
         // Runs started on this segment, finished or not (AttemptStore
         // started.txt); never fewer than the finished ones on file.
         private int _started;
@@ -134,9 +136,19 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
 
+            // The timer is this module's to drive: without it nothing here is
+            // timed, so the module is not run (the host logs and disables it).
             _runTimer = Host.Find<RunTimerModule>();
-            if (_runTimer != null) _timer = _runTimer.Machine;
-            else ctx.Log.LogWarning("PracticeRunModule: no RunTimerModule found - runs are timed but run mode does not see them.");
+            if (_runTimer == null) throw new System.InvalidOperationException("PracticeRunModule: no RunTimerModule found - practice runs are off.");
+            _timer = _runTimer.Machine;
+            _runTimer.EventRead += RecordReplayEvent;   // before the occurrence gate: the companion carries the detail
+            _runTimer.ClockStarted += OnClockStarted;
+            _runTimer.SplitTaken += OnSplitTaken;
+            _runTimer.EndBlocked += OnEndBlocked;
+            _runTimer.FinishDue += FinishRun;
+            _runTimer.NothingArmed += OnNothingArmed;
+            _runTimer.Dropping += OnDropping;
+            _runTimer.Aborted += OnAborted;
 
             _store = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _live = new LiveItemCounts(ctx.Inventory);
@@ -184,6 +196,7 @@ namespace ForestOverlay.Modules
             _compareCfg = ctx.Config.Bind("Runs", "CompareTo", "Best",
                 "The comparison picked in the Runs tab: Best, Last, Average or BestSegments.");
             Enabled = _practiceModeCfg.Value;
+            _runTimer.PracticeOn = Enabled;
             if (Enabled) _status = "on - go to a timed segment in Practice";
             _showLines = _showLinesCfg.Value;
             try
@@ -254,8 +267,7 @@ namespace ForestOverlay.Modules
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("run.toggleMode", KeyCode.F9, "Practice mode on / off", ToggleMode);
-            map.Add("run.manualSplit", KeyCode.F12, "Manual split / finish", ManualAdvance);
-            map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
+            // F12 and the abort key are the timer's (Modules/RunTimerModule).
             map.Add("run.cycleComparison", KeyCode.None, "Splits: next comparison", CycleComparison);
             map.Add("run.closeResults", KeyCode.None, "Close the results panel", CloseResultsKey);
             map.Add("run.restartCheckpoint", KeyCode.None, "Restart from checkpoint (the last one used, else the latest)", RestartFromCheckpointKey);
@@ -278,6 +290,7 @@ namespace ForestOverlay.Modules
         {
             _turnedOnByRestart = false;   // F9 since: the Restart's words no longer apply
             Enabled = !Enabled;
+            _runTimer.PracticeOn = Enabled;
             if (_practiceModeCfg != null && _practiceModeCfg.Value != Enabled) _practiceModeCfg.Value = Enabled;
 
             // A run mode run keeps its timer either way: F9 off would abort
@@ -292,7 +305,7 @@ namespace ForestOverlay.Modules
             if (!Enabled)
             {
                 RecordUnfinished("practice mode off");
-                _recorder.Abort();
+                _runTimer.Abort();
                 _hasDelta = false;
                 _armSource = ArmSource.None;
                 ClearLines();
@@ -317,6 +330,7 @@ namespace ForestOverlay.Modules
         {
             if (Enabled) return;
             Enabled = true;
+            _runTimer.PracticeOn = true;
             if (_practiceModeCfg != null && !_practiceModeCfg.Value) _practiceModeCfg.Value = true;
             _status = "practice mode turned on by Restart - '" + s.Name + "' is timed";
             _turnedOnByRestart = true;
@@ -352,7 +366,7 @@ namespace ForestOverlay.Modules
                 _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
                 // A plain spot is a teleport, not a run.
                 _segment = null;
-                _recorder.Abort();
+                _runTimer.Abort();
                 ClearRunPreview();
                 _status = s == null
                     ? "no entry selected"
@@ -385,7 +399,7 @@ namespace ForestOverlay.Modules
                 _autoRestartAt = 0f;
                 KeepFailed();
                 RecordUnfinished("run mode ended");
-                _recorder.Abort();
+                _runTimer.Abort();
                 _hasDelta = false;
                 _segment = null;
                 ClearLines();
@@ -399,30 +413,18 @@ namespace ForestOverlay.Modules
         {
             RecordUnfinished("re-armed");   // before its splits are cleared
             _deltaHint = 0;
-            _eventsSeen = Ctx.Events.Count;
             _hasDelta = false;
-
-            // The item ids its triggers and autosplits read: fresh before
-            // the timer takes the baseline (in Arm, below).
-            _timer.Prepare(_segment);
-            if (_timer.ItemIds.Count > 0)
-            {
-                Ctx.Inventory.Resolve();
-                Ctx.Inventory.Refresh();
-            }
 
             _armedRevision = _segment.Revision;
             _armedScene = SceneManager.GetActiveScene().buildIndex;
             _armedRoute = _segment.RouteFingerprint();
 
-            Ctx.PlayerState.Resolve();   // T-0397: names must exist before the copy
-            _recorder.StateChannels = Ctx.PlayerState.Channels;
-            _recorder.ChannelSource = delegate { return Ctx.PlayerState.Channels; };
             if (!_failedFromOtherSegment) KeepFailed();   // a Go / restart without a start state re-arms mid-run
             // A full run (ResumeFrom says otherwise after), no splits, the
-            // item baseline; the start trigger primes on its first evaluation,
+            // item baseline from a fresh inventory, the events so far not
+            // the run's; the start trigger primes on its first evaluation,
             // so standing in the start zone after teleporting in starts nothing.
-            _timer.Arm(_segment, _segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _live, _armedRoute);
+            _runTimer.Arm(_segment, _segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _armedRoute);
 
             MaybeFetchBoard();
             _lssDirty = true;   // re-read the linked file if it changed
@@ -450,6 +452,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void Tick()
         {
+            _runTimer.PracticeOn = Enabled;   // the field is public (the bridge sets it)
             BuildEventLine();
             FlushLineOptions();
             RefreshTabText();
@@ -486,18 +489,18 @@ namespace ForestOverlay.Modules
             if (_camOn)
             {
                 TickReplayCamera();
-                if (_camOn) { _eventsSeen = Ctx.Events.Count; return; }
+                if (_camOn) { _runTimer.SkipEvents(); return; }
             }
 
             // Events that arrive while nothing is armed are not ours to
             // act on later.
-            if (!Timing) { ClearLines(); _eventsSeen = Ctx.Events.Count; return; }
+            if (!Timing) { ClearLines(); _runTimer.SkipEvents(); return; }
 
             // No segment = a plain spot: the last segment's lines went with
             // it (runner report, v0.22.6: they stayed until practice mode was
             // toggled).
             if (_segment == null) ClearLines();
-            if (!Ctx.Player.Found || _segment == null) { _eventsSeen = Ctx.Events.Count; return; }
+            if (!Ctx.Player.Found || _segment == null) { _runTimer.SkipEvents(); return; }
 
             // The segment can be edited while armed. Re-arm against the
             // new geometry rather than keeping a run pointed at a zone
@@ -510,43 +513,12 @@ namespace ForestOverlay.Modules
                 _status = "segment edited - re-armed";
             }
 
+            // One frame of the timer: the inventory its item triggers read, the
+            // game events since the last frame in order (RecordReplayEvent for
+            // each, then the timer's: OnClockStarted, OnSplitTaken,
+            // OnEndBlocked, FinishRun), the autosplits, the clock.
             Vector3 pos = Ctx.Player.Transform.position;
-
-            // Item triggers read the live inventory, so it has to be fresh.
-            RefreshTriggerInventory();
-
-            Ctx.PlayerState.Resolve();
-
-            // Once with no event, or once per event that fired since the
-            // last frame - so two cutscenes starting in one frame both
-            // count. Events are instants: satisfied only in the pass that
-            // carries them, which gives the rising edge by itself.
-            int events = Ctx.Events.Count;
-            if (_eventsSeen > events) _eventsSeen = events;
-
-            if (_eventsSeen == events) EvaluateTriggers(pos, null);
-            while (_eventsSeen < events)
-            {
-                // One occurrence under several names (cave-enter-cave06 +
-                // cave-enter, crafted-bomb-timed + crafted) moves the run
-                // on once (Data/SplitSequence OccurrenceGate).
-                int at = _eventsSeen++;
-                string fired = Ctx.Events.NameAt(at);
-                RecordReplayEvent(at, pos);   // before the gate: the companion carries the detail
-                if (!_timer.Gate(Ctx.Events.CompanionAt(at))) continue;
-                RunRecorder.RunState stateBefore = _timer.State;
-                int splitsBefore = _timer.Splits.Count;
-                EvaluateTriggers(pos, fired);
-                // `event autosplit` (v0.24.186, a LiveSplit import): the ASL's
-                // per-run memory (Data/AutoSplitWatch), one split a frame.
-                if (_timer.AutoSplitOn(fired)) AutoSplit(pos, fired);
-                if (_timer.State != stateBefore || _timer.Splits.Count != splitsBefore) _timer.Moved();
-            }
-            if (_timer.AutoSplitOnItems(_live)) AutoSplit(pos, "an item");
-
-            // Load-removed time: the game's load state this frame (Game/GameLoading).
-            // The first frame after a checkpoint resume adds nothing (Data/RunTimer).
-            _timer.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime, GameLoading.Now);
+            _runTimer.Step(pos);
 
             if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
             {
@@ -560,76 +532,11 @@ namespace ForestOverlay.Modules
             UpdateRunPreview();
         }
 
-        // Refresh() rebuilds and sorts the stack list - garbage every call, and
-        // this ran every frame of a run with an item trigger (or an item
-        // autosplit). With the item hooks in (Game/ItemCounter) it runs when an
-        // item amount was written, or the inventory object is another one, and
-        // on a quarter-second clock besides for a write the hooks missed.
-        // Without the hooks it is every frame as before.
-        private const float InventoryRefreshEvery = 0.25f;
-        private int _invVersion = -1, _invGeneration = -1;
-        private float _invAt = -10f;
+        // --- what the timer says (Modules/RunTimerModule) ---------------------------
 
-        private void RefreshTriggerInventory()
-        {
-            if (_timer.ItemIds.Count == 0) return;
-            Ctx.Inventory.Resolve();
-            float now = Time.unscaledTime;
-            if (ItemCounter.Watching && ItemCounter.Version == _invVersion && Ctx.Inventory.Generation == _invGeneration &&
-                now >= _invAt && now - _invAt < InventoryRefreshEvery)
-                return;
-            _invVersion = ItemCounter.Version;
-            _invGeneration = Ctx.Inventory.Generation;
-            _invAt = now;
-            Ctx.Inventory.Refresh();
-        }
-
-        private void EvaluateTriggers(Vector3 pos, string firedEvent)
-        {
-            switch (_timer.Evaluate(pos, _live, firedEvent))
-            {
-                case TimerStep.Started:
-                    // Crossing, not entering: the spawn usually sits inside
-                    // the start zone, so the run begins when you leave it.
-                    ClockStarted();
-                    _status = "running";
-                    break;
-
-                case TimerStep.Split:
-                    RecordSplit(_timer.Splits.Count - 1, _recorder.Elapsed);
-                    _status = "split " + _timer.Splits.Count + "/" + _segment.Checkpoints.Count +
-                              "  " + Format(_recorder.Elapsed);
-                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _timer.Splits.Count + "/" +
-                                    _segment.Checkpoints.Count + " at " + Format(_recorder.Elapsed) + ".");
-                    OnCheckpointSplit(_timer.Splits.Count - 1);   // a gold from practice, a checkpoint state
-                    break;
-
-                case TimerStep.EndBlocked:
-                    // Said, not silently ignored: a run that will not
-                    // finish looks exactly like a broken end trigger.
-                    _status = "end reached, but checkpoint " + (_timer.Next + 1) + "/" + _segment.Checkpoints.Count +
-                              " (" + _timer.Heading.Describe() + ") was not - the run goes on. F12 skips it.";
-                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': end reached with checkpoint " + (_timer.Next + 1) +
-                                    " (" + _timer.Heading.Describe() + ") outstanding" + ItemReading(_timer.Heading) + ".");
-                    break;
-
-                case TimerStep.Finished:
-                    FinishRun();
-                    break;
-            }
-        }
-
-        /// The ASL splits once per update, whatever else also matched.
-        private void AutoSplit(Vector3 pos, string why)
-        {
-            if (!_timer.TakeAutoSplitFrame(Time.frameCount)) return;
-            Ctx.Log.LogInfo("Run '" + _segment.Id + "': autosplit on " + why + " at " + Format(_recorder.Elapsed) + ".");
-            EvaluateTriggers(pos, Segment.AutoSplitEvent);
-        }
-
-        /// The timer just started the clock (Data/RunTimer: the autosplits'
-        /// baseline, the first sample, the checkpoints in order).
-        private void ClockStarted()
+        /// The clock started (Data/RunTimer: the autosplits' baseline, the
+        /// first sample, the checkpoints in order).
+        private void OnClockStarted(bool byHand)
         {
             if (_segment != null && !TasRun)
             {
@@ -638,14 +545,34 @@ namespace ForestOverlay.Modules
             }
             ReplayRunStarted();
             ResetSplits();   // the last run's times stay up until now
+            _status = byHand ? "running (manual start)" : "running";
         }
 
-        // What an item trigger reads now - the log line a "checkpoint never
-        // fired" report needs.
-        private string ItemReading(Trigger t)
+        /// A checkpoint split (logged by the timer; run mode heard it first).
+        private void OnSplitTaken(int row, float t, bool byHand)
         {
-            if (t.Kind != TriggerKind.Item) return "";
-            return "; holding " + _live.AmountOf(t.ItemId) + ", " + _timer.Baseline.AmountOf(t.ItemId) + " at the start";
+            _splitsDirty = true;
+            _pbChanceDirty = true;
+            if (byHand)
+            {
+                _status = "split " + _timer.Splits.Count + " (manual)";
+                return;
+            }
+            _status = "split " + _timer.Splits.Count + "/" + _segment.Checkpoints.Count + "  " + Format(t);
+            OnCheckpointSplit(row);   // a gold from practice, a checkpoint state
+        }
+
+        /// The end before a checkpoint: said, not silently ignored - a run
+        /// that will not finish looks exactly like a broken end trigger.
+        private void OnEndBlocked()
+        {
+            _status = "end reached, but checkpoint " + (_timer.Next + 1) + "/" + _segment.Checkpoints.Count +
+                      " (" + _timer.Heading.Describe() + ") was not - the run goes on. F12 skips it.";
+        }
+
+        private void OnNothingArmed()
+        {
+            _status = "no run armed";
         }
 
         private void BuildEventLine()
@@ -664,40 +591,9 @@ namespace ForestOverlay.Modules
                              ? " - " + GameEvents.LastDoor : "");
         }
 
-        /// Manual split, or finish when all checkpoints are done. Lets a
-        /// segment be driven by hand while its triggers are still being
-        /// worked out.
-        private void ManualAdvance()
-        {
-            if (_recorder.State == RunRecorder.RunState.Armed && !(Ctx.Player.Found && _segment != null)) return;
-            Vector3 pos = _recorder.State == RunRecorder.RunState.Armed ? Ctx.Player.Transform.position : Vector3.zero;
-            switch (_timer.Advance(pos, _live))
-            {
-                case TimerStep.Started:
-                    ClockStarted();
-                    _status = "running (manual start)";
-                    return;
-
-                case TimerStep.Split:
-                    RecordSplit(_timer.Splits.Count - 1, _recorder.Elapsed);
-                    _status = "split " + _timer.Splits.Count + " (manual)";
-                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _timer.Splits.Count + " split by hand at " +
-                                    Format(_recorder.Elapsed) + ".");
-                    return;
-
-                case TimerStep.Finished:
-                    FinishRun();
-                    return;
-
-                default:
-                    _status = "no run armed";
-                    return;
-            }
-        }
-
         private void FinishRun()
         {
-            Attempt done = _recorder.Finish();
+            Attempt done = _timer.Finish();
             if (done == null) { _status = "no run in progress"; return; }
             _doneLine.Clear();
             if (done.Samples.Count >= 2) _doneLine.Sync(done.Samples);
@@ -723,7 +619,7 @@ namespace ForestOverlay.Modules
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done);
-            RunModeOutcome outcome = _runTimer != null ? _runTimer.ReportFinished(_segment, done.Duration) : null;
+            RunModeOutcome outcome = _runTimer.ReportFinished(_segment, done.Duration);
             ShowResults(done, outcome, -1);
 
             Attempt best = RunCompare.Best(_attempts);
@@ -756,12 +652,17 @@ namespace ForestOverlay.Modules
             KeepFailedSamples();
         }
 
-        private void AbortRun()
+        // The abort key ([, the Runs tab's Abort): the timer drops the run
+        // between these two.
+        private void OnDropping(string why)
         {
             _autoRestartAt = 0f;
             KeepFailed();
-            RecordUnfinished("aborted");
-            _recorder.Abort();
+            RecordUnfinished(why);
+        }
+
+        private void OnAborted()
+        {
             _hasDelta = false;
             ClearRunPreview();
             _status = "aborted";
@@ -777,7 +678,7 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Run '" + gone.Id + "': " + (_recorder.State == RunRecorder.RunState.Running ? "aborted" : "disarmed") +
                             " - the spot was deleted.");
             _autoRestartAt = 0f;
-            _recorder.Abort();
+            _runTimer.Abort();
             _hasDelta = false;
             _segment = null;
             if (_armSource == ArmSource.RunMode) _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
@@ -800,7 +701,7 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("Run '" + _segment.Id + "': aborted - restarting the spot.");
             KeepFailed();
             RecordUnfinished("restart");
-            _recorder.Abort();
+            _runTimer.Abort();
             _hasDelta = false;
             ClearRunPreview();
             _splitsDirty = true;
@@ -819,7 +720,7 @@ namespace ForestOverlay.Modules
             _autoRestartAt = 0f;
             KeepFailed();
             RecordUnfinished("left the level");
-            _recorder.Abort();
+            _runTimer.Abort();
             _hasDelta = false;
             _segment = null;
             // A run mode run's timing went with it; the next run start arms again.
@@ -1169,10 +1070,10 @@ namespace ForestOverlay.Modules
             if (UiKit.PrimaryButton(restartR, TextRestart)) Restart();
             UiKit.Hint(restartR, TipRestart);
             Rect splitR = new Rect(116, 30, 120, 26);
-            if (WinPx.Button(splitR, "Split / finish")) ManualAdvance();
+            if (WinPx.Button(splitR, "Split / finish")) _runTimer.ManualAdvance();
             UiKit.Hint(splitR, TipSplit);
             Rect abortR = new Rect(242, 30, 80, 26);
-            if (WinPx.Button(abortR, "Abort")) AbortRun();
+            if (WinPx.Button(abortR, "Abort")) _runTimer.AbortRun();
             UiKit.Hint(abortR, TipAbort);
 
             WinPx.Label(new Rect(0, 62, 80, 20), "Compare to");
@@ -1479,9 +1380,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public static string Format(float seconds)
         {
-            int m = (int)(seconds / 60f);
-            float s = seconds - m * 60f;
-            return m.ToString("00") + ":" + s.ToString("00.000");
+            return RunTimer.Format(seconds);
         }
     }
 }

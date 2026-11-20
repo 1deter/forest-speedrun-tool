@@ -174,6 +174,15 @@ namespace ForestOverlay.Data
             ResumedFrom = -1;
         }
 
+        /// A run time as the log lines, the status and the saved runs'
+        /// texts write it: "01:05.250".
+        public static string Format(float seconds)
+        {
+            int m = (int)(seconds / 60f);
+            float s = seconds - m * 60f;
+            return m.ToString("00") + ":" + s.ToString("00.000");
+        }
+
         /// The running timer in ms, -1 when none (run mode's chain).
         public long TimerMs()
         {
