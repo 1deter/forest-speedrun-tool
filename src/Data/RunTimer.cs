@@ -198,6 +198,10 @@ namespace ForestOverlay.Data
 
         // --- arming --------------------------------------------------------------
 
+        /// How many times the run was armed: Step stops reading a frame's
+        /// events once one of them re-armed it (the rest belong to no run).
+        public int Arms { get; private set; }
+
         /// First step of arming `s`: which item ids its triggers and its
         /// autosplit list read (the caller refreshes the inventory for them
         /// before Arm captures the baseline).
@@ -229,6 +233,7 @@ namespace ForestOverlay.Data
         /// attempt's first sample if the clock is started by hand.
         public void Arm(Segment s, Vector3 anchor, IItemCounts live, string route)
         {
+            Arms++;
             _segment = s;
             // Priming (rather than firing) on the first evaluation is what
             // stops the start trigger going off while the runner still stands
@@ -430,7 +435,8 @@ namespace ForestOverlay.Data
             if (seen > count) seen = count;
 
             if (seen == count) Report(Evaluate(position, live, null), sink);
-            while (seen < count)
+            int arms = Arms;
+            while (seen < count && arms == Arms)
             {
                 int at = seen++;
                 string fired = events.NameAt(at);
