@@ -324,7 +324,7 @@ namespace ForestOverlay.Modules
             if (b.Closes(ms)) TakeBurst(b, ms, true);
             Vector3 p;
             bool has = PlayerPos(out p);
-            b.Add(ms, TimerMs != null ? TimerMs() : -1, has, p.x, p.y, p.z, what);
+            b.Add(ms, TimerMs(), has, p.x, p.y, p.z, what);
         }
 
         private void TakeBurst(RunAudit.Burst b, long ms, bool force)
@@ -354,7 +354,7 @@ namespace ForestOverlay.Modules
         {
             Vector3 p;
             bool has = PlayerPos(out p);
-            WriteAt(ms, TimerMs != null ? TimerMs() : -1, kind, has, p.x, p.y, p.z, detail);
+            WriteAt(ms, TimerMs(), kind, has, p.x, p.y, p.z, detail);
         }
 
         // The player's place, false during a load (a destroyed transform).
@@ -402,7 +402,7 @@ namespace ForestOverlay.Modules
             {
                 // Past the budget on purpose: the one line that says so.
                 if (ms < _chain.LastMs) ms = _chain.LastMs;
-                _chain.Event(ms, TimerMs != null ? TimerMs() : -1, RunAudit.Full, false, 0, 0, 0,
+                _chain.Event(ms, TimerMs(), RunAudit.Full, false, 0, 0, 0,
                              _auditSkipped + " later events not written (the log keeps " + RunAudit.MaxLines + ")");
                 AttemptChain.EventInfo e = new AttemptChain.EventInfo();
                 e.RealMs = ms; e.Kind = RunAudit.Full; e.Detail = _auditSkipped + " later events";

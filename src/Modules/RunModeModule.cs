@@ -78,6 +78,11 @@ namespace ForestOverlay.Modules
             _death = Host.Find<DeathModule>();
             _savestates = Host.Find<SavestateModule>();
             _upload = Host.Find<RunUploadModule>();
+            if (ctx.RunTimer != null)
+            {
+                ctx.RunTimer.Split += TimerSplit;
+                ctx.RunTimer.Finished += TimerFinished;
+            }
             InitCodes(ctx);
             InitCategories(ctx);
             InitMoves(ctx);

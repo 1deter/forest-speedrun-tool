@@ -17,6 +17,10 @@ namespace ForestOverlay.Core
         public PlayerRef Player;
         public PracticeState Practice;
 
+        /// The run timer (set by the Runs module, which initialises before
+        /// run mode); null until it is up.
+        public IRunTimer RunTimer;
+
         /// Run mode: on during an attempt from a new game. Practice entry
         /// points ask Run.Refuse(...) first.
         public RunMode Run;

@@ -47,12 +47,13 @@ namespace ForestOverlay.Modules
         private bool _online;
         private bool _offline;                 // the start code will not come
 
-        /// The running timer in ms, -1 when none (set by the Runs module).
-        public Func<long> TimerMs;
+        /// The running timer in ms, -1 when none (the Runs module's, through
+        /// Ctx.RunTimer).
+        private long TimerMs() { return Ctx.RunTimer != null ? Ctx.RunTimer.TimerMs() : -1; }
 
         /// Every ms of load the timer ever counted (the Runs module's
         /// LoadClock.Ever): a `load` line's timer ms is its growth over the load.
-        public Func<long> TimedLoadMs;
+        private long TimedLoadMs() { return Ctx.RunTimer != null ? Ctx.RunTimer.TimedLoadMs() : 0; }
 
         // The game's loads in real time: a `load` line each (Data/LoadTimes).
         private readonly LoadSpan _loadSpan = new LoadSpan();
@@ -93,7 +94,7 @@ namespace ForestOverlay.Modules
             _finalTimerMs = -1;
             _loadSpan.Reset();
             _loadsLogged = 0;
-            _loadTimedBefore = TimedLoadMs != null ? TimedLoadMs() : 0;
+            _loadTimedBefore = TimedLoadMs();
             _clock.Reset();
             _clock.Start();
             _nextStepMs = 0;
@@ -159,7 +160,7 @@ namespace ForestOverlay.Modules
         {
             LoadSpanInfo span;
             if (_loadSpan.Update(GameLoading.Now, ms, out span)) WriteLoad(span);
-            if (!_loadSpan.InLoad && TimedLoadMs != null) _loadTimedBefore = TimedLoadMs();
+            if (!_loadSpan.InLoad) _loadTimedBefore = TimedLoadMs();
         }
 
         private void WriteLoad(LoadSpanInfo span)
@@ -176,7 +177,7 @@ namespace ForestOverlay.Modules
         {
             bool hasPos = Ctx.Player.Found && !PlayerRef.AtTitleScreen;
             Vector3 p = hasPos ? Ctx.Player.Transform.position : Vector3.zero;
-            long timer = TimerMs != null ? TimerMs() : -1;
+            long timer = TimerMs();
             _codeText.text = _chain.Step(ms, timer, hasPos, p.x, p.y, p.z);
             _lastStepN = _chain.Steps;
             _lastStepHead = _chain.Head;
@@ -228,7 +229,7 @@ namespace ForestOverlay.Modules
             LoadSpanInfo cut;
             if (_loadSpan.Finish(ms, out cut)) WriteLoad(cut);   // ended during a load: up to now
             StepNow(ms);   // the last position, and a code for the end
-            long timer = _finalTimerMs >= 0 ? _finalTimerMs : (TimerMs != null ? TimerMs() : -1);
+            long timer = _finalTimerMs >= 0 ? _finalTimerMs : (TimerMs());
             _chain.End(_clock.ElapsedMilliseconds, reason, timer);
             _clock.Stop();
 

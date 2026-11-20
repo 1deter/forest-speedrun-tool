@@ -24,7 +24,7 @@ namespace ForestOverlay.Modules
     // A segment with no triggers is just a teleport; this module ignores
     // it rather than inventing a run around it.
     // ------------------------------------------------------------------
-    public sealed partial class PracticeRunModule : OverlayModule
+    public sealed partial class PracticeRunModule : OverlayModule, IRunTimer
     {
         public enum Reference { Best, Last, Average, BestSegments, Runner, LiveSplit }
 
@@ -172,11 +172,7 @@ namespace ForestOverlay.Modules
             _tas = Host.Find<TasModule>();
             // Load-removed time reads the game's load state (gotcha 16: say what it found).
             Ctx.Log.LogInfo("Load-removed time: the game's load state from " + GameLoading.Resolve() + ".");
-            if (_runMode != null)
-            {
-                _runMode.TimerMs = TimerMsNow;
-                _runMode.TimedLoadMs = TimedLoadMsNow;
-            }
+            ctx.RunTimer = this;   // run mode reads the timer through it (T-0466)
             if (_upload != null)
             {
                 _upload.CurrentSegment = SegmentForUpload;
@@ -233,17 +229,20 @@ namespace ForestOverlay.Modules
         private bool TasRun { get { return _tas != null && _tas.Replaying; } }
 
         /// The running timer in ms, -1 when none (run mode's chain).
-        private long TimerMsNow()
+        public long TimerMs()
         {
             return _recorder.State == RunRecorder.RunState.Running ? (long)System.Math.Round(_recorder.Elapsed * 1000.0) : -1;
         }
 
         /// Every ms of load the timer has counted, ever (run mode's `load`
         /// lines take the difference over one load).
-        private long TimedLoadMsNow()
+        public long TimedLoadMs()
         {
             return (long)System.Math.Round(_recorder.LoadClock.Ever * 1000.0);
         }
+
+        public event System.Action<int, float> Split;
+        public event RunFinishedHandler Finished;
 
         /// The spot the runner is on: the armed segment, else the Practice
         /// tab's current spot (practice mode off arms nothing).
@@ -785,7 +784,7 @@ namespace ForestOverlay.Modules
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done);
-            RunModeOutcome outcome = _runMode != null ? _runMode.TimerFinished(_segment, done.Duration) : null;
+            RunModeOutcome outcome = Finished != null ? Finished(_segment, done.Duration) : null;
             ShowResults(done, outcome, -1);
 
             Attempt best = RunCompare.Best(_attempts);
