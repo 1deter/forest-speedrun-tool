@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 896 log calls.
+255 prefixes from 895 log calls.
 
 ## `ActionReaders`
 
@@ -1344,13 +1344,6 @@ Meaning: One allocation-saving performance patch's state.
 Written by PerfPatches.cs; info.
 
 - info `Performance patch '<f.Key>': <f.Status>.`
-
-## `Performance patches`
-
-Meaning: Which experimental performance patches are on.
-Written by PerfPatches.cs; info.
-
-- info `Performance patches: experimental ones <..>`
 
 ## `Pickup gone`
 

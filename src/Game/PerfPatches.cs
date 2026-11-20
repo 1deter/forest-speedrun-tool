@@ -20,7 +20,7 @@ namespace ForestOverlay.Game
     //
     // Each one is behaviour-preserving (the game computes and draws the
     // same things), has its own switch (`[Performance]`, on by default,
-    // Settings > Performance; the experimental ones in Developer > Experimental), applies and removes live, and logs one line.
+    // Settings > Performance), applies and removes live, and logs one line.
     //
     // 1. Overlay layout (ours): Unity runs an IMGUI layout pass - a new
     //    GUILayoutGroup, its list and a RectOffset - for every OnGUI
@@ -169,9 +169,7 @@ namespace ForestOverlay.Game
             public Action Remove;
             public bool Applied;
             public string Status = "off";
-            public bool Experimental;     // changes the game: off by default, own section
             public string Note = "";      // what it changes, shown under it
-            public string Flag;           // experimental: its short name on the HUD while on
         }
 
         private readonly ManualLogSource _log;
@@ -252,7 +250,6 @@ namespace ForestOverlay.Game
                 "little different (drawn before the sun's light-scatter effect). Saves ~0.3-0.4 ms a frame here. Off = the game's " +
                 "own drawing.",
                 _cameras.ApplyParticles, _cameras.RemoveParticles, true);
-            _fixes[_fixes.Count - 1].Flag = "particles in main camera";
             _fixes[_fixes.Count - 1].Note = "Changes the picture a little: flames, rain and other particles are drawn by the main " +
                                             "camera, before the sun's light-scatter effect. Saves ~0.3-0.4 ms a frame.";
             // 15 was physics at 30 Hz: removed (author, 2026-10-02 - maks found
@@ -349,35 +346,14 @@ namespace ForestOverlay.Game
         public string Label(int i) { return _fixes[i].Label; }
         public bool IsOn(int i) { return _fixes[i].Cfg.Value; }
         public string Status(int i) { return _fixes[i].Status; }
-        public bool IsExperimental(int i) { return _fixes[i].Experimental; }
         public string Note(int i) { return _fixes[i].Note; }
-        /// The HUD flag while an experimental switch is on (author, 2026-10-10: short, like "god mode").
-        public string FlagName(int i) { return _fixes[i].Flag ?? _fixes[i].Label.Trim(); }
-
         /// The GUI switch (and the bridge): on / off, saved, applied live.
         public void Toggle(int i)
         {
             Fix f = _fixes[i];
             f.Cfg.Value = !f.Cfg.Value;
-            if (f.Experimental && _experimentalSuspended) return;   // applied when run mode ends
             Set(f, f.Cfg.Value);
         }
-
-        private bool _experimentalSuspended;
-
-        /// Run mode: the experimental (game-changing) switches are taken
-        /// out while it is on and put back as saved after. Cheap when
-        /// nothing changes - called every tick.
-        public void SuspendExperimental(bool suspend)
-        {
-            if (suspend == _experimentalSuspended) return;
-            _experimentalSuspended = suspend;
-            for (int i = 0; i < _fixes.Count; i++)
-                if (_fixes[i].Experimental) Set(_fixes[i], !suspend && _fixes[i].Cfg.Value);
-            _log.LogInfo("Performance patches: experimental ones " + (suspend ? "suspended (run mode)." : "back as saved."));
-        }
-
-        public bool ExperimentalSuspended { get { return _experimentalSuspended; } }
 
         /// Dev (bridge): every live script with an OnGUI that still gets
         /// Unity's layout pass (useGUILayout on, enabled) - what is left

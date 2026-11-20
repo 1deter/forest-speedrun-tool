@@ -96,12 +96,10 @@ namespace ForestOverlay.Modules
             if (_views != null && UiKit.Section(0f, ref y, w, "dev.bench", TextBench, null, TipBench, false))
                 y = _views.DrawBenchmarks(y, w);
 
-            // The trajectory preview, then the experimental performance
-            // switches (GameFixesModule, T-0458).
-            if ((_views != null || _fixes != null) && UiKit.Section(0f, ref y, w, "dev.experimental", TextExperimental, null, TipExperimental, false))
+            // The trajectory preview.
+            if (_views != null && UiKit.Section(0f, ref y, w, "dev.experimental", TextExperimental, null, TipExperimental, false))
             {
-                if (_views != null) y = _views.DrawExperimental(y, w);
-                if (_fixes != null) y = _fixes.DrawExperimental(y, w);
+                y = _views.DrawExperimental(y, w);
             }
 
             if (_tas != null && UiKit.Section(0f, ref y, w, "dev.tas", TextTas, false))
