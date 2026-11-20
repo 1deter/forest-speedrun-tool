@@ -68,36 +68,6 @@ namespace ForestOverlay.Game
     // seen - nothing in the game's code refers to either), and put
     // everything back when switched off. One log line per act.
     //
-    // 3. EXPERIMENTAL (changes the picture, off by default): the sun's
-    //    shadow map every second frame. Sunshine (`TimeAndWeather/R10/
-    //    Sunshine`) renders the sun's shadows and light-shaft occlusion
-    //    from its cascade camera in MainCamNew's OnPreCull (0.55-0.8 ms a
-    //    frame; it switches Unity's own shadows off for the sun while it
-    //    runs). Its own option `UpdateInterval = AfterXFrames` (every
-    //    `UpdateIntervalFrames`, 2) re-renders the map on even frames and
-    //    keeps the last one between (SunshineCamera.NeedsRefresh); nothing
-    //    in the game sets the option. Moving shadows then update at half
-    //    the frame rate. Measured 0.66 -> 0.32 ms a frame.
-    //
-    // 4. EXPERIMENTAL (changes the picture, off by default): the grass-
-    //    bending camera off in caves. AfsGrassDisplacementController's own
-    //    camera (`AFSGrassDisplacementCameraTest`, following the player)
-    //    draws the player's and enemies' bend trails for the terrain grass
-    //    and the "Touch" foliage shaders (ferns) - none of which is inside a
-    //    cave (RenderProbe.ShadersNear, Cave 6, v0.24.126). It kept drawing
-    //    there (0.19 + 0.05 ms here, 0.6 + 1.3 on Cheesecake's laptop). The
-    //    one thing lost: from inside, a cave mouth shows the outside, and
-    //    grass there no longer bends around enemies while you are in the
-    //    cave. Checked every frame (LocalPlayer.IsInCaves, a cached
-    //    delegate), so the camera is back on in the frame you leave; its
-    //    texture is cleared to the camera's neutral colour when switched
-    //    off (the controller keeps moving the texture's origin each frame,
-    //    so old bends would otherwise slide around). The controller never
-    //    touches the camera's `enabled` (IL). The camera is found by the
-    //    name the controller gives it (CreateComponents), among the enabled
-    //    cameras - FindObjectOfType for the controller was a 22 ms hitch at
-    //    the cave entry (v0.24.127).
-    //
     // 5. Changes the picture, ON by default (author, 2026-10-11, T-0277):
     //    the surface world off on the main camera in caves. MainCamNew kept
     //    drawing the terrain (layer 26, nothing else is on it) and the 25
@@ -143,8 +113,6 @@ namespace ForestOverlay.Game
 
         public bool GrassOn { get; private set; }
         public bool ScreenOn { get; private set; }
-        public bool SunOn { get; private set; }
-        public bool CaveGrassOn { get; private set; }
         public bool CaveSurfaceOn { get; private set; }
         public bool ParticlesOn { get; private set; }
         /// The mask bits the particle cut keeps on the main camera (0 = no cut); read by DeathSequence.
@@ -160,13 +128,7 @@ namespace ForestOverlay.Game
         private FieldInfo _ctlCamera, _ctlTexture;
         private int _grassRefusedId, _screenRefusedId;
         private string _grassReadBy = "?";
-        private FieldInfo _sunInstance, _sunInterval, _sunFrames;
-        private object _sunEvery, _sunHalf;
-        private UnityEngine.Object _sunSet;
-        private int _sunRefusedId;
         private Func<bool> _inCaves;
-        private float _nextBendScan;
-        private Camera _caveGrassOff;
         private Func<bool> _inEndgame;
         private Type _billboardType;
         private Renderer[] _billboards;             // Tree_BillBoards' renderers, found once per load
@@ -240,102 +202,6 @@ namespace ForestOverlay.Game
         {
             ScreenOn = false;
             ReleaseScreen("switch off");
-        }
-
-        public string ApplySunshine()
-        {
-            Type t = GameBridge.FindGameType("Sunshine");
-            if (t == null) return "Sunshine not found";
-            _sunInstance = t.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            _sunInterval = t.GetField("UpdateInterval", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            _sunFrames = t.GetField("UpdateIntervalFrames", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (_sunInstance == null || _sunInterval == null || _sunFrames == null || !_sunInterval.FieldType.IsEnum)
-                return "Sunshine's Instance / UpdateInterval / UpdateIntervalFrames not found";
-            try
-            {
-                _sunEvery = Enum.Parse(_sunInterval.FieldType, "EveryFrame");
-                _sunHalf = Enum.Parse(_sunInterval.FieldType, "AfterXFrames");
-            }
-            catch (Exception) { return "Sunshine's update intervals are not EveryFrame / AfterXFrames (game updated?)"; }
-            SunOn = true;
-            _sunRefusedId = 0;
-            _nextScan = 0f;
-            return "";
-        }
-
-        public void RemoveSunshine()
-        {
-            SunOn = false;
-            if (_sunSet != null && Equals(_sunInterval.GetValue(_sunSet), _sunHalf))
-            {
-                _sunInterval.SetValue(_sunSet, _sunEvery);
-                _log.LogInfo("Performance: sun shadows back to every frame (switch off).");
-            }
-            _sunSet = null;
-        }
-
-        public string ApplyCaveGrass()
-        {
-            Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
-            PropertyInfo p = lp != null ? lp.GetProperty("IsInCaves", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
-            MethodInfo get = p != null ? p.GetGetMethod(true) : null;
-            if (get == null || get.ReturnType != typeof(bool)) return "LocalPlayer.IsInCaves not found";
-            _inCaves = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), get);
-            _nextBendScan = 0f;
-            CaveGrassOn = true;
-            return "";
-        }
-
-        public void RemoveCaveGrass()
-        {
-            CaveGrassOn = false;
-            ReleaseCaveGrass("switch off");
-        }
-
-        private void ReleaseCaveGrass(string why)
-        {
-            if (_caveGrassOff != null)
-            {
-                _caveGrassOff.enabled = true;
-                _log.LogInfo("Performance: grass-bending camera back on (" + why + ").");
-            }
-            _caveGrassOff = null;
-        }
-
-        // Every frame, before the cameras render: off in a cave, on outside.
-        private void TickCaveGrass()
-        {
-            bool inCave;
-            try { inCave = _inCaves(); }
-            catch (Exception) { inCave = false; }
-            if (_caveGrassOff != null)
-            {
-                if (!inCave) ReleaseCaveGrass("left the cave");
-                return;
-            }
-            if (!inCave) return;
-            float now = Time.unscaledTime;
-            if (now < _nextBendScan) return;
-            Camera cam = null;
-            Camera[] cams = Camera.allCameras;
-            for (int i = 0; i < cams.Length; i++)
-                if (cams[i] != null && cams[i].name == BendCameraName && cams[i].targetTexture != null) { cam = cams[i]; break; }
-            if (cam == null)
-            {
-                _nextBendScan = now + ScanInterval;   // not there (yet): look again in 2 s
-                return;
-            }
-            RenderTexture rt = cam.targetTexture;
-            if (rt != null)
-            {
-                RenderTexture was = RenderTexture.active;
-                RenderTexture.active = rt;
-                GL.Clear(false, true, cam.backgroundColor);
-                RenderTexture.active = was;
-            }
-            cam.enabled = false;
-            _caveGrassOff = cam;
-            _log.LogInfo("Performance: grass-bending camera off in the cave (" + cam.name + ").");
         }
 
         public string ApplyCaveSurface()
@@ -559,16 +425,6 @@ namespace ForestOverlay.Game
                     CaveSurfaceOn = false;
                 }
             }
-            if (CaveGrassOn)
-            {
-                try { TickCaveGrass(); }
-                catch (Exception ex)
-                {
-                    _log.LogWarning("Performance: grass-bending camera in caves failed: " + ex.Message);
-                    ReleaseCaveGrass("error");
-                    CaveGrassOn = false;
-                }
-            }
             if (_grassOff != null)
             {
                 try { GuardGrass(); }
@@ -578,7 +434,7 @@ namespace ForestOverlay.Game
                     _grassOff = null;
                 }
             }
-            if (!GrassOn && !ScreenOn && !SunOn) return;
+            if (!GrassOn && !ScreenOn) return;
             float now = Time.unscaledTime;
             if (now < _nextScan) return;
             _nextScan = now + ScanInterval;
@@ -586,7 +442,6 @@ namespace ForestOverlay.Game
             {
                 if (GrassOn) ScanGrass();
                 if (ScreenOn) ScanScreen();
-                if (SunOn) ScanSunshine();
             }
             catch (Exception ex)
             {
@@ -693,32 +548,6 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
-        private void ScanSunshine()
-        {
-            UnityEngine.Object sun = _sunInstance.GetValue(null) as UnityEngine.Object;
-            if (sun == null) return;
-            object interval = _sunInterval.GetValue(sun);
-            if (sun == _sunSet)
-            {
-                if (Equals(interval, _sunHalf)) return;
-                _log.LogInfo("Performance: the game set the sun shadows' update interval itself (" + interval + ") - left to it.");
-                _sunRefusedId = sun.GetInstanceID();
-                _sunSet = null;
-                return;
-            }
-            if (sun.GetInstanceID() == _sunRefusedId) return;
-            if (!Equals(interval, _sunEvery))
-            {
-                _sunRefusedId = sun.GetInstanceID();
-                _log.LogInfo("Performance: sun shadows left alone - their update interval is already " + interval + ".");
-                return;
-            }
-            _sunFrames.SetValue(sun, 2);
-            _sunInterval.SetValue(sun, _sunHalf);
-            _sunSet = sun;
-            _log.LogInfo("Performance: sun shadows (Sunshine) rendered every second frame.");
-        }
-
         // ------------------------------------------------------------------
         private void ScanScreen()
         {
