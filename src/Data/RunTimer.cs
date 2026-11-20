@@ -19,6 +19,36 @@ namespace ForestOverlay.Data
         Finished,
     }
 
+    /// The game's events as the timer reads them, oldest first
+    /// (Game/GameEvents; a list in the tests).
+    public interface ITimerEvents
+    {
+        int Count { get; }
+        string NameAt(int i);
+        /// A companion name of an occurrence already listed under another
+        /// (cave-enter after cave-enter-cave06): Data/OccurrenceGate.
+        bool CompanionAt(int i);
+    }
+
+    /// What one frame of the timer (RunTimer.Step) tells its owner, in the
+    /// order it happens.
+    public interface ITimerSink
+    {
+        /// Event `index` is read - before the occurrence gate, so a
+        /// companion name the gate skips still arrives (the replay marks
+        /// take their detail from it).
+        void GameEvent(int index);
+
+        /// An autosplit acts on `why` (an event name, or "an item"), just
+        /// before its evaluation.
+        void AutoSplitting(string why);
+
+        /// The timer moved: Started, Split, EndBlocked or Finished. On
+        /// Finished the sink finishes the run (Finish) before the next
+        /// event is read, so the events after the end move nothing.
+        void Stepped(TimerStep step);
+    }
+
     /// A frozen copy of item counts. Only the ids a segment references are
     /// stored, because that is all anything will ask for: the run's start
     /// counts, so a relative item trigger ("gain 3 more rope") is measured
@@ -373,6 +403,52 @@ namespace ForestOverlay.Data
         public void EndResume()
         {
             ResumedFrom = -1;
+        }
+
+        // --- one frame ------------------------------------------------------------------
+
+        /// One frame's evaluation (not the clock: Tick). `seen` events of
+        /// `events` were read before; returns how many are read now. With
+        /// no new event, one pass with none; else one pass per event, in
+        /// order - so two cutscenes starting in one frame both count.
+        /// Events are instants: satisfied only in the pass that carries
+        /// them, which gives the rising edge by itself. One occurrence under
+        /// several names moves the run once (Gate); the segment's autosplit
+        /// list splits at most once a frame (`frame`, the ASL's update).
+        public int Step(ITimerEvents events, int seen, Vector3 position, IItemCounts live, int frame, ITimerSink sink)
+        {
+            int count = events.Count;
+            if (seen > count) seen = count;
+
+            if (seen == count) Report(Evaluate(position, live, null), sink);
+            while (seen < count)
+            {
+                int at = seen++;
+                string fired = events.NameAt(at);
+                sink.GameEvent(at);   // before the gate: the companion carries the detail
+                if (!Gate(events.CompanionAt(at))) continue;
+                RunRecorder.RunState stateBefore = State;
+                int splitsBefore = _splits.Count;
+                Report(Evaluate(position, live, fired), sink);
+                // `event autosplit` (v0.24.186, a LiveSplit import): the ASL's
+                // per-run memory (Data/AutoSplitWatch).
+                if (AutoSplitOn(fired)) AutoSplit(position, live, fired, frame, sink);
+                if (State != stateBefore || _splits.Count != splitsBefore) Moved();
+            }
+            if (AutoSplitOnItems(live)) AutoSplit(position, live, "an item", frame, sink);
+            return seen;
+        }
+
+        private void AutoSplit(Vector3 position, IItemCounts live, string why, int frame, ITimerSink sink)
+        {
+            if (!TakeAutoSplitFrame(frame)) return;
+            sink.AutoSplitting(why);
+            Report(Evaluate(position, live, Segment.AutoSplitEvent), sink);
+        }
+
+        private static void Report(TimerStep step, ITimerSink sink)
+        {
+            if (step != TimerStep.None) sink.Stepped(step);
         }
 
         // --- several names, autosplits -------------------------------------------------
