@@ -29,6 +29,7 @@ namespace ForestOverlay.Modules
         public enum Reference { Best, Last, Average, BestSegments, Runner, LiveSplit }
 
         public override string Id { get { return "practicerun"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Practice runs"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Runs"; } }

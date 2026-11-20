@@ -16,6 +16,7 @@ namespace ForestOverlay.Modules
     public sealed class DeveloperModule : OverlayModule
     {
         public override string Id { get { return "developer"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Dev; } }
         public override string DisplayName { get { return "Developer"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Developer"; } }

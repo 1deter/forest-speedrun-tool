@@ -28,6 +28,7 @@ namespace ForestOverlay.Modules
     public sealed class PaintModule : OverlayModule
     {
         public override string Id { get { return "paint"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Paint"; } }
 
         private const float Range = 300f;

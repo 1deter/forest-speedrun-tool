@@ -62,6 +62,7 @@ namespace ForestOverlay.Modules
         private const float TitleTimeout = 60f;
 
         public override string Id { get { return "deaths"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Deaths"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Deaths"; } }

@@ -17,6 +17,7 @@ namespace ForestOverlay.Modules
     public sealed class UpdateModule : OverlayModule
     {
         public override string Id { get { return "update"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Updates"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Updates"; } }

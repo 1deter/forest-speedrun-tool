@@ -799,6 +799,38 @@ def cfgwrite_hits(path, text):
     return out
 
 
+MODULE_CLASS = re.compile(r"\bclass\s+(\w+)\s*:\s*OverlayModule\b")
+MODULE_KIND = re.compile(r"\bModuleKind\s+Kind\s*\{\s*get\s*\{\s*return\s+ModuleKind\.(\w+)\s*;")
+FIND_MODULE = re.compile(r"\bFind<\s*(\w+)\s*>")
+
+
+def module_kinds(texts):
+    """{class name: kind} for every OverlayModule that declares its Kind (T-0465)."""
+    kinds = {}
+    for path, text in texts:
+        c, k = MODULE_CLASS.search(text), MODULE_KIND.search(text)
+        if c and k:
+            kinds[c.group(1)] = k.group(1)
+    return kinds
+
+
+def corefind_hits(texts):
+    """Every Find<T>() from a Core module to a Practice or Dev module (T-0465, docs/decisions.md *Module kinds*):
+    a Core module must not depend on what a run file leaves out. The hits that exist sit in the baseline."""
+    kinds = module_kinds(texts)
+    out = []
+    for path, text in texts:
+        c = MODULE_CLASS.search(text)
+        if not c or kinds.get(c.group(1)) != "Core":
+            continue
+        lines = text.splitlines()
+        for n, code in code_lines(text):
+            for m in FIND_MODULE.finditer(code):
+                if kinds.get(m.group(1)) in ("Practice", "Dev"):
+                    out.append(("corefind", path, n, lines[n - 1].strip()))
+    return out
+
+
 def source_hits(path, text):
     """The baselined source-text rules for one src/ file."""
     return findall_hits(path, text) + moveto_hits(path, text) + cfgwrite_hits(path, text)
@@ -817,6 +849,7 @@ def ui_hits(root=ROOT):
             hits.extend(label_hits(rel, text))
             hits.extend(alloc_hits(rel, text))
             hits.extend(source_hits(rel, text))
+    hits.extend(corefind_hits(src_texts(root)))
     return hits
 
 
@@ -838,6 +871,11 @@ UI_TEXT = {
                "surface lit like a cave (gotcha 34)",
                "call string area = _areas.ForTeleport(dest) before MoveTo, as Go and the bridge's tp do; a restore or "
                "pin that stays in one area: python scripts/lint.py --update-baseline"),
+    "corefind": ("a Core module looks up a Practice or Dev module with Find<T>()",
+                 "the run file leaves the practice and dev modules out, so a Core module that needs one cannot stay in it "
+                 "(docs/decisions.md Module kinds, T-0465)",
+                 "pass what it needs through ModuleContext or an event instead; until the refactor tasks do, "
+                 "python scripts/lint.py --update-baseline"),
     "cfgwrite": ("a ConfigEntry .Value write right after a slider / text field",
                  "setting .Value saves the whole config file (86 ms): on every drag step or keystroke that is a hitch (gotcha 60)",
                  "keep the value in the module while it changes and write once it settles (a 0.5 s timer after the last change, "

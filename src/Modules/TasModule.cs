@@ -44,6 +44,7 @@ namespace ForestOverlay.Modules
     public sealed class TasModule : OverlayModule
     {
         public override string Id { get { return "tas"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "TAS (experimental)"; } }
         public override bool IsPracticeOnly { get { return true; } }
 

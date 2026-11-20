@@ -18,6 +18,7 @@ namespace ForestOverlay.Modules
     public sealed class ExplorerModule : OverlayModule
     {
         public override string Id { get { return "explorer"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Dev; } }
         public override string DisplayName { get { return "Type explorer"; } }
         public override bool HasPanel { get { return true; } }
         // Mirrors the explorer's own in-window toggle, so the checkbox

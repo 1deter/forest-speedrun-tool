@@ -12,9 +12,18 @@ namespace ForestOverlay.Core
     // default interface members, and most modules only care about one or
     // two of these hooks.
     // ------------------------------------------------------------------
+    /// Which file a module belongs in (docs/decisions.md *Module kinds*).
+    /// Core is allowed in a run; Practice is the practice file; Dev is
+    /// development tooling. scripts/lint.py lists a Core module that looks
+    /// up a Practice or Dev one with Find<T>().
+    public enum ModuleKind { Core, Practice, Dev }
+
     public abstract class OverlayModule
     {
         protected ModuleContext Ctx;
+
+        /// The module's kind. Every module states it.
+        public abstract ModuleKind Kind { get; }
 
         /// Stable identifier. Used in logs and for hotkey descriptions.
         public abstract string Id { get; }

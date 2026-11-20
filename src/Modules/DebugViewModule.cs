@@ -44,6 +44,7 @@ namespace ForestOverlay.Modules
         private const float SaveDelay = 1f;
 
         public override string Id { get { return "debugview"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Views"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Views"; } }

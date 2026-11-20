@@ -6,6 +6,13 @@ alloc	src/Modules/PracticeRunModule.cs	_compareCfg.Value = kind.ToString();   //
 alloc	src/Modules/UpdateModule.cs	y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
 alloc	src/Plugin.cs	Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
 cfgwrite	src/Modules/PracticeModule.cs	f.Value = p3;
+corefind	src/Modules/RunModeModule.cs	_bridge = Host.Find<BridgeModule>();
+corefind	src/Modules/RunModeModule.cs	_death = Host.Find<DeathModule>();
+corefind	src/Modules/RunModeModule.cs	_savestates = Host.Find<SavestateModule>();
+corefind	src/Modules/RunUploadModule.cs	SavestateModule savestates = Host.Find<SavestateModule>();
+corefind	src/Modules/SettingsModule.cs	PaintModule paint = Host.Find<PaintModule>();
+corefind	src/Modules/SettingsModule.cs	if (_savestates == null) _savestates = Host.Find<SavestateModule>();
+corefind	src/Modules/SettingsModule.cs	if (_views == null) _views = Host.Find<DebugViewModule>();
 findall	src/Game/DrawingsReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
 findall	src/Game/InventoryReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
 findall	src/Game/MemoryCensus.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));

@@ -40,6 +40,7 @@ namespace ForestOverlay.Modules
         private const int MaxBytes = 20 * 1024 * 1024;
 
         public override string Id { get { return "community"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Community spots"; } }
 
         private ConfigEntry<string> _url;

@@ -30,6 +30,7 @@ namespace ForestOverlay.Modules
     public sealed partial class RunUploadModule : OverlayModule
     {
         public override string Id { get { return "upload"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Run uploads"; } }
 
         private const float RequestTimeout = 30f;

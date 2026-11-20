@@ -35,6 +35,7 @@ namespace ForestOverlay.Modules
     public sealed class InputOverlayModule : OverlayModule
     {
         public override string Id { get { return "inputs"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Input overlay"; } }
 
         private const float PopAmount = 0.1f, RiseTime = 0.1f, FallTime = 0.2f, MinLit = 0.05f;

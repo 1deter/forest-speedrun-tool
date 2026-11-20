@@ -22,6 +22,7 @@ namespace ForestOverlay.Modules
     public sealed class GameControlsModule : OverlayModule
     {
         public override string Id { get { return "gamecontrols"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
         public override string DisplayName { get { return "Game controls"; } }
 
         private const float RowH = 22f;
