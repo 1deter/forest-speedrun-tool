@@ -91,7 +91,7 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
 
 ### Timed runs
 
-Paths: `src/Modules/PracticeRunModule*.cs` `src/Modules/RunTimerModule*.cs` `src/Modules/{RunUploadModule,TimerModule}.cs` `src/Core/{SplitLook,ITimerCompanion}.cs` `src/Game/{ActionRecorder,AnimReader,ArmsReplica,BuildWatch,GameEvents,ItemCounter,ItemCounts,LatePass,PlayerStateReader,ReplayDraw,RibbonMesh,RunnerIdentity,WorldEvents}.cs` `src/Data/{AnimTrack,ArmCause,AttemptFormat,AttemptStore,BusEvents,ClockText,InputTracks,LineBuffer,LoadTimes,LssAutoSplit,LssFile,ReplayCamera,CheckpointMarks,MarkLabels,ItemWords,ExtraLines,ReplayLabels,ReplayMarks,ReplayStats,ReplayValues,RibbonPath,RunHistory,RunLineRules,RunRecorder,RunResults,RunTimer,RunTiming,SiteBoard,SiteProtocol,SiteSpots,SpeedGraph,SpeedRamp,SplitSequence,SplitTable,TimerText}.cs`
+Paths: `src/Modules/PracticeRunModule*.cs` `src/Modules/RunTimerModule*.cs` `src/Modules/RunUploadModule.cs` `src/Core/{SplitLook,ITimerCompanion}.cs` `src/Game/{ActionRecorder,AnimReader,ArmsReplica,BuildWatch,GameEvents,ItemCounter,ItemCounts,LatePass,PlayerStateReader,ReplayDraw,RibbonMesh,RunnerIdentity,WorldEvents}.cs` `src/Data/{AnimTrack,ArmCause,AttemptFormat,AttemptStore,BusEvents,ClockText,InputTracks,LineBuffer,LoadTimes,LssAutoSplit,LssFile,ReplayCamera,CheckpointMarks,MarkLabels,ItemWords,ExtraLines,ReplayLabels,ReplayMarks,ReplayStats,ReplayValues,RibbonPath,RunHistory,RunLineRules,RunRecorder,RunResults,RunTimer,RunTiming,SiteBoard,SiteProtocol,SiteSpots,SpeedGraph,SpeedRamp,SplitSequence,SplitTable,TimerText}.cs`
 
 Segments, checkpoints, splits, ghosts, run lines, replays, results,
 LiveSplit, uploads.
@@ -171,7 +171,7 @@ the Map tab.
 
 ### Plugin core and UI
 
-Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CrispText,CursorController,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText,WinPx}.cs` `src/Modules/{MainWindowModule,SettingsModule,InputOverlayModule,GameControlsModule}.cs` `src/Game/{FastField,ActionReaders,ExtraBindingMaps,GameActions,GameBridge,GameInput,GameMessageLines,PlayerRef}.cs` `src/Data/{FolderStamp,ExtraBindings,FontNames,KeyText,KeyGroups,HudTrend,HudLayout,ActionFunctions,InputActions,InputLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,TextOutline,TrailClip,CometPath,UiPalette,UiScale,GameLinesState}.cs` `ForestOverlay.csproj`
+Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CrispText,CursorController,HotkeyMap,HudBuilder,HudLineTips,HudSettings,HudWidgets,HudWidgets.Profiles,HudWidgets.Snap,Lifecycle,ModuleContext,ModuleHost,NetworkSwitches,Notice,OverlayModule,UiKit,UiText,WinPx}.cs` `src/Modules/{MainWindowModule,SettingsModule,InputOverlayModule,GameControlsModule}.cs` `src/Game/{FastField,ActionReaders,ExtraBindingMaps,GameActions,GameBridge,GameInput,GameMessageLines,PlayerRef}.cs` `src/Data/{FolderStamp,ExtraBindings,KeyText,KeyGroups,HudTrend,HudLayout,ActionFunctions,InputActions,InputLayout,HudProfile,ProfileUnits,HudSnap,PageGrouping,TextMemo,TextOutline,TrailClip,CometPath,UiPalette,UiScale,GameLinesState}.cs` `ForestOverlay.csproj`
 
 The module host, window and tabs, hotkeys, cursor, input block, HUD
 builder, notice, settings, the reflection helpers.

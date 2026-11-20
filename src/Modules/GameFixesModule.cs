@@ -31,8 +31,8 @@ namespace ForestOverlay.Modules
     // owner (PathfindingWatch on AstarPath.Awake, before PathPoolCleanup).
     //
     // Not practice-only: the leak fixes and the behaviour-preserving
-    // patches change no gameplay. The experimental patches are marked on
-    // (Ctx.Practice.SetOn) and suspended in run mode, as before.
+    // patches change no gameplay (the experimental ones were deleted in
+    // T-0473).
     // ------------------------------------------------------------------
     public sealed class GameFixesModule : OverlayModule
     {
