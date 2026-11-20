@@ -223,7 +223,10 @@ lists them; `[n]` still works but moves when a module is added):
 `mainwindow`, `update`, `settings`, `runinfo`, `inventory`,
 `collectibles`, `dumps`, `explorer`, `debugview`, `practice`,
 `savestates`, `runtimer` (the run timer: `Machine` is the
-state machine, `TimerMs`, `ManualAdvance` = F12, `AbortRun` = `[`), `practicerun` (the Runs tab), `deaths`, `qa`, `bridge`,
+state machine, `TimerMs`, `ManualAdvance` = F12, `AbortRun` = `[`;
+`Attempts`, `TimedSegment`, `Stats`, `Comparison`, the `[Splits]`
+entries `_splitsPanel` ...), `practicerun` (the Runs tab, `Enabled`,
+`_resultsOpen`, `CloseResults`), `deaths`, `qa`, `bridge`,
 `community`, `upload` (`_url.Value`, `_token.Value`, `EnqueueSaved`,
 `_state`), `runmode` (`EndRunMode`, `_report`), `tas`, `map`, `paint`,
 `developer`, `inputs`, `gamecontrols`, `gamefixes` (`TogglePerfPatch i`,

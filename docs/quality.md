@@ -98,8 +98,11 @@ LiveSplit, uploads.
 - Verification **A**: RunCompare (29), LssFile (20), SplitTable,
   Trigger, RunHistory and more; the e2e `timed` journey; results panel,
   ghosts, replay camera, load-removed time confirmed (v0.24.241-249).
-- Legibility **B**: `PracticeRunModule.cs` 1,402 lines, the rest split
-  into eight partials under 810; plugin.md and plugin-concepts.md cover it.
+- Legibility **B**: the timer of record is its own Core module since
+  T-0467 (`RunTimerModule`, 525 lines, `.Splits` 1,260, `.Records` 180;
+  the state machine `Data/RunTimer`, tested); `PracticeRunModule.cs`
+  1,232 lines, the rest split into partials under 590; plugin.md and
+  plugin-concepts.md cover it.
 - Stability **A**.
 - Gaps **B**: (another segment's Go clears the red line since v0.24.257,
   T-0049); a deleted attempt leaves the list (T-0144, confirmed in game

@@ -145,7 +145,6 @@ namespace ForestOverlay.Modules
             _runTimer = Host.Find<RunTimerModule>();
             if (_runTimer == null) throw new System.InvalidOperationException("PracticeRunModule: no RunTimerModule found - practice runs are off.");
             _timer = _runTimer.Machine;
-            _runTimer.Companion = this;   // its splits panel's comparisons, replay, results, golds
             _runTimer.EventRead += RecordReplayEvent;   // before the occurrence gate: the companion carries the detail
             _runTimer.ClockStarted += OnClockStarted;
             _runTimer.SplitTaken += OnSplitTaken;
@@ -209,6 +208,11 @@ namespace ForestOverlay.Modules
             InitReplay(ctx);
             InitCamera(ctx);
             InitRecorder(ctx);   // after the camera: it shares the look and arms readers
+
+            // Last: only a module that started is the timer's companion (its
+            // splits panel's comparisons, replay, results, golds, the HUD's
+            // delta; this module draws the panel from then on).
+            _runTimer.Companion = this;
         }
 
         private RunUploadModule _upload;

@@ -19,18 +19,22 @@ namespace ForestOverlay.Modules
     // load-removed time), who armed it (Source: F9 or a run spot's run
     // start, Data/RunTiming), the arming (Arm), one frame of it (Step: the
     // inventory its item triggers read, the game events in order, the
-    // autosplits, the clock), F12 and the abort key, the run's records
-    // (RunTimerModule.Records: attempts, runs started, unfinished runs,
-    // saving a finished one) and the timer's log lines. It provides
-    // IRunTimer to run mode (ModuleContext.RunTimer).
+    // autosplits, the clock), F12, the abort key and the comparison key,
+    // the run's records (RunTimerModule.Records: attempts, runs started,
+    // unfinished runs, saving a finished one), the splits panel and its
+    // comparison (RunTimerModule.Splits), the HUD's Run / Delta / LRT /
+    // Next / Last lines, and the timer's log lines. It provides IRunTimer
+    // to run mode (ModuleContext.RunTimer).
     //
     // Who drives it: today Modules/PracticeRunModule - it decides when a
     // spot is armed, calls Step at the point of its frame where a level
     // left, run mode ended or the replay camera have been dealt with (so
     // RunTimerModule never ticks on its own: a level left would be
     // evaluated for a frame), and acts on the events below (status lines,
-    // what is kept of a dropped run, the results). The splits panel moves
-    // here next (tasks/notes/T-0467.md step 5).
+    // what is kept of a dropped run, the results). It is also the timer's
+    // companion (Core/ITimerCompanion): another runner's and LiveSplit
+    // comparisons, the replay, the results panel, practice golds, the
+    // ghost's delta - and it draws the splits panel in its screen order.
     // ------------------------------------------------------------------
     public sealed partial class RunTimerModule : OverlayModule, IRunTimer, ITimerEvents, ITimerSink
     {
