@@ -101,6 +101,8 @@ namespace ForestOverlay.Modules
             _playedFinished = 0f;
             for (int i = 0; i < all.Count; i++)
                 if (all[i].Completed && AttemptOwners.IsOwn(all[i].RunnerId, own)) _playedFinished += all[i].Duration;
+            _pbChanceDirty = true;
+            _playtimeShown = -1;
             return true;
         }
 
@@ -126,6 +128,8 @@ namespace ForestOverlay.Modules
             UnfinishedAttempt u = _timer.Unfinished();
             _store.AddUnfinished(cur.AnchorLabel, u);
             if (cur.AnchorLabel == _loadedSegmentId) _unfinished.Add(u);
+            _pbChanceDirty = true;
+            _splitsDirty = true;
             Ctx.Log.LogInfo("Run '" + cur.AnchorLabel + "': unfinished after " + RunTimer.Format(u.Duration) + " (" + why + ", " +
                             u.Splits.Length + " split(s) reached) - kept for PB chance and playtime.");
             return true;

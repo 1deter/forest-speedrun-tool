@@ -187,7 +187,7 @@ namespace ForestOverlay.Modules
             _ghostYaw = ReplayCamera.HeadingAt(src, 0f, 0f);
             _camSnap = true;
             _nextCameraText = 0f;
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
             Ctx.Practice.Mark("replay camera");
             StartReplayKeys(src);   // the input overlay plays the run's keys
             SetCamStatus("");
@@ -213,7 +213,7 @@ namespace ForestOverlay.Modules
             _camSource = null;
             if (_lines != null) _lines.PathCount = 0;
             _camHud = "";
-            _splitsDirty = true;   // the panel and the timer go back to the live run
+            _runTimer.SplitsChanged();   // the panel and the timer go back to the live run
             SetCamStatus("Replay camera off (" + why + ").");
             Ctx.Log.LogInfo("Replay camera: off - " + why + ", at " + _clock.T.ToString("0.00") + " s.");
         }

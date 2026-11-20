@@ -20,7 +20,8 @@ namespace ForestOverlay.Modules
     // - Built once at the finish (Data/RunResults); only the receipt line
     //   is rebuilt, in Tick, when the upload's state moves on.
     // - Closes with Close, its key (unbound), or when the next run's clock
-    //   starts (ResetSplits); F5 hides it with the rest of the UI.
+    //   starts (the timer's ResetSplits, ITimerCompanion.SplitsReset); F5
+    //   hides it with the rest of the UI.
     // - Buttons only while the cursor is the runner's (the F2 window or the
     //   pause menu): with the game's locked cursor a click lands in the
     //   middle of the screen and would hit them. Dragged by its title in
@@ -96,7 +97,7 @@ namespace ForestOverlay.Modules
             profiles.RegisterProfileEntry(_resWidth, null, ProfileUnit.Size);
             // Its own choice (T-0253); it followed the splits' LRT column
             // before, so it starts from that.
-            _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _cols[(int)Col.Lrt].Value,
+            _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _runTimer.LrtColumnOn,
                 "Results panel: show the load-removed time after a run with no loads too (a run with loads always shows it).");
             profiles.RegisterProfileEntry(_resLoadAlways, null);
             // Its own precision (T-0337, author 2026-10-14): 3 by default, as
@@ -187,13 +188,11 @@ namespace ForestOverlay.Modules
             // PB chance for the NEXT run (this one's is decided): this run in
             // the history, its time the PB if it beat it - a practice run
             // never is.
-            BuildHistory(rows);
             float pb = practice ? _stats.Pb : float.IsNaN(_stats.Pb) ? done.Duration : Mathf.Min(_stats.Pb, done.Duration);
             _resLineValues[0].text = _result.BestPossible;
-            _resLineValues[1].text = PbChance.Compute(_history, SplitStats.Filled(rows), pb, _pbRandom);
+            _resLineValues[1].text = _runTimer.PbChanceNext(pb);   // the splits panel then rebuilds its own
             _resLineValues[2].text = _runTimer.AttemptsText();
-            _resLineValues[3].text = Playtime.Format(Playtime.Total(null, _unfinished, _playedFinished));
-            _pbChanceDirty = true;   // the splits panel rebuilds its own
+            _resLineValues[3].text = Playtime.Format(Playtime.Total(null, _runTimer.Unfinished, _runTimer.PlayedFinished));
 
             _resLink = "";
             _resUploadVersion = -1;
@@ -367,6 +366,45 @@ namespace ForestOverlay.Modules
                 }
                 return _goldName;
             }
+        }
+
+        // --- Edit HUD rows (T-0257), after the splits panel's (the timer's) ------------
+
+        private static readonly GUIContent ResultsPanelText = new GUIContent("Results panel");
+        private static readonly GUIContent ResultsPanelAbout = new GUIContent(
+            "Pops up when a timed run finishes: your time against your PB and the comparison, every split's delta, " +
+            "your golds and PB chance. It closes when the next run starts. On screen: drag it to move, its right edge for the width.");
+        private static readonly GUIContent ResLoadAlwaysText = new GUIContent(" Load-removed time after a run with no loads too");
+        private static readonly GUIContent ResLoadAlwaysTip = new GUIContent(
+            "A run with loads always shows its time without them; this adds the line after a load-free run. The LRT column is the splits' own.");
+        private static readonly GUIContent ResDecimalsText = new GUIContent("Decimals");
+        private static readonly GUIContent ResDecimalsTip = new GUIContent(
+            "The results panel's times and deltas, from the next finished run. The splits panel's decimals are its own.");
+
+        public override float DrawHudEditor(float y, float w)
+        {
+            const float indent = 20f;
+            bool results = UiKit.Toggle(new Rect(0f, y, w, 22f), _resultsCfg.Value, ResultsPanelText);
+            if (results != _resultsCfg.Value) { _resultsCfg.Value = results; if (!results) CloseResults(); }
+            y += 24f;
+            y += UiText.Draw(indent, y, w - indent, ResultsPanelAbout, UiKit.HintStyle) + 2f;
+            if (_resultsCfg.Value)
+            {
+                Rect loadR = new Rect(indent, y, w - indent, 22f);
+                bool always = UiKit.Toggle(loadR, _resLoadAlways.Value, ResLoadAlwaysText);
+                if (always != _resLoadAlways.Value) _resLoadAlways.Value = always;
+                UiKit.Hint(loadR, ResLoadAlwaysTip);
+                y += 24f;
+                const float labelW = 110f;
+                float barW = Mathf.Min(160f, w - indent - labelW - 4f);
+                Rect decR = new Rect(indent + labelW, y, barW, 22f);
+                WinPx.Label(new Rect(indent, y, labelW, 22f), ResDecimalsText);
+                int rd = RunTimerModule.DecimalChoice(decR, _resDecimals.Value);
+                if (rd != _resDecimals.Value) _resDecimals.Value = rd;
+                UiKit.Hint(decR, ResDecimalsTip);
+                y += 26f;
+            }
+            return y + 4f;
         }
 
         private static readonly GUIContent ResultsPlaceholder = new GUIContent(

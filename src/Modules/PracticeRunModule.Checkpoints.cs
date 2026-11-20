@@ -185,7 +185,7 @@ namespace ForestOverlay.Modules
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
 
             Segment seg = _segment;
             _cpRestoring = true;
@@ -217,7 +217,7 @@ namespace ForestOverlay.Modules
             // nothing (it holds the restore's own frame).
             _timer.Resume(PlayerPosition(), st, _live);
             ReplayRunStarted();
-            ResetSplitStats();
+            _runTimer.ResetSplitStats();
             // The delta's search starts where the comparison was at this time.
             _deltaHint = 0;
             if (_reference != null)
@@ -234,7 +234,7 @@ namespace ForestOverlay.Modules
         /// itself is not kept.
         private void FinishResumedRun(Attempt done)
         {
-            FinishSplits(done);
+            _runTimer.FinishSplits(done);
             RecordPracticeSegment(_times.Length - 1);
             int from = _timer.ResumedFrom;
             ShowResults(done, null, from);   // `_stats` are still from before it

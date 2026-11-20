@@ -138,10 +138,10 @@ namespace ForestOverlay.Modules
             _runnerPick = -1;
             for (int i = 0; i < _others.Count; i++)
                 if (_others[i].RunnerId == _runnerPickId) _runnerPick = i;
-            if (_referenceKind == Reference.Runner && _runnerPick < 0) _referenceKind = Reference.Best;
+            if (_referenceKind == RunComparison.Runner && _runnerPick < 0) _referenceKind = RunComparison.Best;
             RefreshRunnerPickText();
             SelectReference();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
             _xOthersDirty = true;
             _xDirty = true;
         }
@@ -197,7 +197,7 @@ namespace ForestOverlay.Modules
             _runnerRuns[e.RunId] = a;
             Ctx.Log.LogInfo("Site run " + e.RunId + " (" + e.Name + ", " + Format(a.Duration) + "): " + a.Samples.Count +
                             " samples - the reference for '" + key + "'.");
-            if (ReferenceEquals(PickedRunner, e) && _referenceKind == Reference.Runner) SelectReference();
+            if (ReferenceEquals(PickedRunner, e) && _referenceKind == RunComparison.Runner) SelectReference();
         }
 
         private void PickRunner(int index)
@@ -205,10 +205,10 @@ namespace ForestOverlay.Modules
             if (_others.Count == 0) return;
             _runnerPick = (index % _others.Count + _others.Count) % _others.Count;
             _runnerPickId = _others[_runnerPick].RunnerId;
-            _referenceKind = Reference.Runner;
+            _referenceKind = RunComparison.Runner;
             RefreshRunnerPickText();
             SelectReference();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
         }
 
         private void RefreshRunnerPickText()
@@ -228,8 +228,8 @@ namespace ForestOverlay.Modules
 
             if (_others.Count > 0)
             {
-                bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.Runner, " another runner");
-                if (on && _referenceKind != Reference.Runner) PickRunner(_runnerPick < 0 ? 0 : _runnerPick);
+                bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == RunComparison.Runner, " another runner");
+                if (on && _referenceKind != RunComparison.Runner) PickRunner(_runnerPick < 0 ? 0 : _runnerPick);
                 if (WinPx.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
                 if (WinPx.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);
                 WinPx.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);

@@ -203,10 +203,10 @@ namespace ForestOverlay.Modules
         {
             if (_lssCompareSplits.Count == 0) return;
             _lssPick = (index % _lssCompareSplits.Count + _lssCompareSplits.Count) % _lssCompareSplits.Count;
-            _referenceKind = Reference.LiveSplit;
+            _referenceKind = RunComparison.LiveSplit;
             RefreshLssPickText();
             SelectReference();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
         }
 
         private float[] LssSplits()
@@ -347,9 +347,9 @@ namespace ForestOverlay.Modules
         private void FinishLssRefresh()
         {
             if (_lssPick >= _lssCompareSplits.Count) _lssPick = 0;
-            if (_referenceKind == Reference.LiveSplit && !LssAvailable) { _referenceKind = Reference.Best; SelectReference(); }
+            if (_referenceKind == RunComparison.LiveSplit && !LssAvailable) { _referenceKind = RunComparison.Best; SelectReference(); }
             RefreshLssPickText();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
             if (_pickLssFor != null && _segment != null && _segment.Id == _pickLssFor && LssAvailable)
             {
                 _pickLssFor = null;
@@ -412,8 +412,8 @@ namespace ForestOverlay.Modules
 
             if (LssAvailable)
             {
-                bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == Reference.LiveSplit, " LiveSplit");
-                if (on && _referenceKind != Reference.LiveSplit) PickLss(_lssPick);
+                bool on = UiKit.Toggle(new Rect(0, y, 130, 20), _referenceKind == RunComparison.LiveSplit, " LiveSplit");
+                if (on && _referenceKind != RunComparison.LiveSplit) PickLss(_lssPick);
                 if (WinPx.Button(new Rect(134, y, 24, 20), "<")) PickLss(_lssPick - 1);
                 if (WinPx.Button(new Rect(162, y, 24, 20), ">")) PickLss(_lssPick + 1);
                 WinPx.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);

@@ -26,8 +26,6 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     public sealed partial class PracticeRunModule : OverlayModule
     {
-        public enum Reference { Best, Last, Average, BestSegments, Runner, LiveSplit }
-
         public override string Id { get { return "practicerun"; } }
         public override ModuleKind Kind { get { return ModuleKind.Practice; } }
         public override string DisplayName { get { return "Practice runs"; } }
@@ -74,7 +72,13 @@ namespace ForestOverlay.Modules
         private PracticeModule _practice;
 
         // --- the segment being run ----------------------------------------
-        private Segment _segment;
+        // The timer's (RunTimerModule.TimedSegment: its splits panel shows
+        // it); set here, where a spot is armed or dropped.
+        private Segment _segment
+        {
+            get { return _runTimer.TimedSegment; }
+            set { _runTimer.TimedSegment = value; }
+        }
         private int _armedRevision;
 
         // The level a run was armed in (build index: an int, no string per
@@ -86,9 +90,9 @@ namespace ForestOverlay.Modules
 
         private LiveItemCounts _live;
 
-        // --- comparison ----------------------------------------------------
+        // --- comparison (the kind is the timer's: _referenceKind) -------------
+        // The attempt the delta, the ghost and the lines race.
         private Attempt _reference;
-        private Reference _referenceKind = Reference.Best;
         private int _deltaHint;
         private float _delta;
         private bool _hasDelta;
@@ -105,7 +109,6 @@ namespace ForestOverlay.Modules
         // Kept across launches (runner maks, twice: practice mode and run
         // lines came back off; v0.24.191).
         private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg, _ownLineLiveCfg, _keepDoneCfg;
-        private ConfigEntry<string> _compareCfg;
         private float _autoRestartAt;
 
         private int _eventLineBuiltFor = -1;
@@ -142,6 +145,7 @@ namespace ForestOverlay.Modules
             _runTimer = Host.Find<RunTimerModule>();
             if (_runTimer == null) throw new System.InvalidOperationException("PracticeRunModule: no RunTimerModule found - practice runs are off.");
             _timer = _runTimer.Machine;
+            _runTimer.Companion = this;   // its splits panel's comparisons, replay, results, golds
             _runTimer.EventRead += RecordReplayEvent;   // before the occurrence gate: the companion carries the detail
             _runTimer.ClockStarted += OnClockStarted;
             _runTimer.SplitTaken += OnSplitTaken;
@@ -193,21 +197,12 @@ namespace ForestOverlay.Modules
             _practiceModeCfg = ctx.Config.Bind("Runs", "PracticeMode", false,
                 "Practice mode (F9) on: teleporting to a timed segment arms a run. Kept across launches.");
             _showLinesCfg = ctx.Config.Bind("Runs", "RunLines", true, "Draw the run lines (yours and the comparison's).");
-            _compareCfg = ctx.Config.Bind("Runs", "CompareTo", "Best",
-                "The comparison picked in the Runs tab: Best, Last, Average or BestSegments.");
+            // [Runs] CompareTo is the timer's (RunTimerModule.Splits).
             Enabled = _practiceModeCfg.Value;
             _runTimer.PracticeOn = Enabled;
             if (Enabled) _status = "on - go to a timed segment in Practice";
             _showLines = _showLinesCfg.Value;
-            try
-            {
-                Reference saved = (Reference)System.Enum.Parse(typeof(Reference), _compareCfg.Value, true);
-                if (saved == Reference.Best || saved == Reference.Last || saved == Reference.Average || saved == Reference.BestSegments)
-                    _referenceKind = saved;
-            }
-            catch (System.Exception) { }
 
-            InitSplits(ctx);
             InitLineOptions(ctx);
             InitResults(ctx);
             InitCheckpoints(ctx);
@@ -256,8 +251,7 @@ namespace ForestOverlay.Modules
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("run.toggleMode", KeyCode.F9, "Practice mode on / off", ToggleMode);
-            // F12 and the abort key are the timer's (Modules/RunTimerModule).
-            map.Add("run.cycleComparison", KeyCode.None, "Splits: next comparison", CycleComparison);
+            // F12, the abort key and the comparison key are the timer's (Modules/RunTimerModule).
             map.Add("run.closeResults", KeyCode.None, "Close the results panel", CloseResultsKey);
             map.Add("run.restartCheckpoint", KeyCode.None, "Restart from checkpoint (the last one used, else the latest)", RestartFromCheckpointKey);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
@@ -418,7 +412,7 @@ namespace ForestOverlay.Modules
             MaybeFetchBoard();
             _lssDirty = true;   // re-read the linked file if it changed
             SelectReference();
-            ArmSplits();
+            _runTimer.ArmSplits();
             // Said where a Runs tab Restart was clicked (T-0270): this line
             // replaces the "turned on" one before anyone reads it.
             _status = (_turnedOnByRestart ? "practice mode turned on - " : "") + "armed: " + _segment.Name;
@@ -439,7 +433,7 @@ namespace ForestOverlay.Modules
             FlushLineOptions();
             RefreshTabText();
             RefreshLss();
-            RefreshSplits();
+            RefreshRunnerField();   // the splits panel refreshes in the timer's Tick
             RefreshResults();
             RefreshCheckpointText();
 
@@ -522,15 +516,13 @@ namespace ForestOverlay.Modules
         {
             if (_segment != null && !TasRun) _runTimer.CountStarted(_segment);
             ReplayRunStarted();
-            ResetSplits();   // the last run's times stay up until now
+            _runTimer.ResetSplits();   // the last run's times stay up until now
             _status = byHand ? "running (manual start)" : "running";
         }
 
         /// A checkpoint split (logged by the timer; run mode heard it first).
         private void OnSplitTaken(int row, float t, bool byHand)
         {
-            _splitsDirty = true;
-            _pbChanceDirty = true;
             if (byHand)
             {
                 _status = "split " + _timer.Splits.Count + " (manual)";
@@ -591,7 +583,7 @@ namespace ForestOverlay.Modules
             if (Resumed) { FinishResumedRun(done); return; }
 
             _runTimer.SaveFinished(done, _segment);   // stamped, on file, to the website's queue
-            FinishSplits(done);
+            _runTimer.FinishSplits(done);
             RunModeOutcome outcome = _runTimer.ReportFinished(_segment, done.Duration);
             ShowResults(done, outcome, -1);
 
@@ -623,6 +615,16 @@ namespace ForestOverlay.Modules
             _failedLine.Clear();
             _failedLine.Sync(_recorder.Current.Samples);
             KeepFailedSamples();
+        }
+
+        /// A running attempt about to be dropped (abort, restart, death,
+        /// another spot, practice off, the title screen): kept as an
+        /// unfinished one by the timer (RunTimerModule.RecordUnfinished) -
+        /// not a TAS replay's, which is not the runner's run.
+        private void RecordUnfinished(string why)
+        {
+            if (TasRun) return;
+            _runTimer.RecordUnfinished(why);
         }
 
         // The abort key ([, the Runs tab's Abort): the timer drops the run
@@ -657,7 +659,7 @@ namespace ForestOverlay.Modules
             if (_armSource == ArmSource.RunMode) _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
             ClearLines();
             ClearRunPreview();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
             _rowsDirty = true;
             _status = "the spot was deleted";
         }
@@ -677,7 +679,7 @@ namespace ForestOverlay.Modules
             _runTimer.Abort();
             _hasDelta = false;
             ClearRunPreview();
-            _splitsDirty = true;
+            _runTimer.SplitsChanged();
         }
 
         // Recorded as an abort ([): an unfinished attempt (PB chance,
@@ -726,55 +728,19 @@ namespace ForestOverlay.Modules
             // count (Data/AttemptOwners, v0.24.190).
             SetLocalOthers(others, s.Checkpoints.Count);
             LoadPracticeSegments(s.Id);
-            _pbChanceDirty = true;   // its unfinished runs and playtime (the timer's)
-            _playtimeShown = -1;
 
             Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id +
                             (others.Count > 0 ? ", " + others.Count + " by other runners (" + _localOthers.Count + " runner(s), comparisons only)" : "") +
                             (_otherRouteCount > 0 ? " (" + _otherRouteCount + " from another route)" : ""));
         }
 
+        /// The attempt the comparison is: another runner's PB from the
+        /// website (fetched here), else the timer's pick among the runner's
+        /// own (best segments and a LiveSplit file race the PB's line).
         private void SelectReference()
         {
             _rowsDirty = true;
-            switch (_referenceKind)
-            {
-                case Reference.Best:
-                case Reference.BestSegments:   // no single attempt: race the PB's line
-                    _reference = RunCompare.Best(_attempts);
-                    break;
-                case Reference.Last:
-                    _reference = _attempts.Count > 0 ? _attempts[_attempts.Count - 1] : null;
-                    break;
-                case Reference.Average:
-                    _reference = NearestToAverage();
-                    break;
-                case Reference.Runner:   // another runner's PB from the website
-                    _reference = RunnerReference();
-                    break;
-                case Reference.LiveSplit:   // times only: race your own PB's line
-                    _reference = RunCompare.Best(_attempts);
-                    break;
-            }
-        }
-
-        private Attempt NearestToAverage()
-        {
-            float avg = RunCompare.AverageDuration(_attempts);
-            if (avg <= 0f) return null;
-
-            Attempt best = null;
-            float bestGap = float.MaxValue;
-
-            for (int i = 0; i < _attempts.Count; i++)
-            {
-                if (!_attempts[i].Completed) continue;
-                float gap = Mathf.Abs(_attempts[i].Duration - avg);
-                if (gap >= bestGap) continue;
-                bestGap = gap;
-                best = _attempts[i];
-            }
-            return best;
+            _reference = _referenceKind == RunComparison.Runner ? RunnerReference() : _runTimer.OwnReference();
         }
 
         // ------------------------------------------------------------------
@@ -926,7 +892,7 @@ namespace ForestOverlay.Modules
             // T-0336): the clock is the Run timer - here only when it is not
             // in the splits panel - and the delta its own value.
             bool running = _recorder.State == RunRecorder.RunState.Running;
-            if (!TimerInPanel) hud.Pair("Run", HudClock(running));
+            if (!_runTimer.TimerInPanel) hud.Pair("Run", HudClock(running));
             if (running)
             {
                 if (_hasDelta && hud.Shows(DeltaLabel)) hud.Pair(DeltaLabel, ClockText.Signed(_delta));
@@ -963,12 +929,14 @@ namespace ForestOverlay.Modules
         /// between runs kept until it moves.
         private string HudClock(bool running)
         {
-            float t = TimerSeconds(running);
+            float t = _runTimer.TimerSeconds(running);
             if (!running && _hudClock != null && t == _hudClockFor) return _hudClock;
             _hudClockFor = t;
-            _hudClock = new string(_timerChars, 0, TimerText.Write(_timerChars, t, _timeDecimals.Value));
+            _hudClock = new string(_hudChars, 0, TimerText.Write(_hudChars, t, _runTimer.TimeDecimals));
             return _hudClock;
         }
+
+        private readonly char[] _hudChars = new char[TimerText.MaxLength];
 
         // The last attempt's, kept until another attempt is the last.
         private string HudLastLrt()
@@ -1027,18 +995,17 @@ namespace ForestOverlay.Modules
             UiKit.Hint(abortR, TipAbort);
 
             WinPx.Label(new Rect(0, 62, 80, 20), "Compare to");
-            Reference kind = _referenceKind;
-            if (UiKit.Toggle(new Rect(84, 62, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
-            if (UiKit.Toggle(new Rect(148, 62, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
-            if (UiKit.Toggle(new Rect(212, 62, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
-            if (UiKit.Toggle(new Rect(296, 62, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            RunComparison kind = _referenceKind;
+            if (UiKit.Toggle(new Rect(84, 62, 60, 20), kind == RunComparison.Best, " best")) kind = RunComparison.Best;
+            if (UiKit.Toggle(new Rect(148, 62, 60, 20), kind == RunComparison.Last, " last")) kind = RunComparison.Last;
+            if (UiKit.Toggle(new Rect(212, 62, 80, 20), kind == RunComparison.Average, " average")) kind = RunComparison.Average;
+            if (UiKit.Toggle(new Rect(296, 62, 120, 20), kind == RunComparison.BestSegments, " best segments")) kind = RunComparison.BestSegments;
             UiKit.Hint(new Rect(0, 62, 420, 20), TipCompare);
             if (kind != _referenceKind)
             {
-                _referenceKind = kind;
-                _compareCfg.Value = kind.ToString();   // one write per click
+                _runTimer.PickComparison(kind);   // kept: one config write per click
                 SelectReference();
-                _splitsDirty = true;
+                _runTimer.SplitsChanged();
             }
 
             // Flowing, each line as tall as its text (UiText) - these
@@ -1299,7 +1266,7 @@ namespace ForestOverlay.Modules
             _runTimer.ClearAttempts();
             _rowsDirty = true;
             SelectReference();
-            ResetSplits();
+            _runTimer.ResetSplits();
             ClearLines();
             _status = "times cleared from view (files kept)";
         }

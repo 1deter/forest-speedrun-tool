@@ -2043,7 +2043,7 @@ Written by FrameTimer.cs; info.
 ## `Splits panel`
 
 Meaning: The runner picked where the run timer shows in Edit HUD (T-0336): inside the splits panel, or on its own as the HUD's Run timer value (placed under the panel).
-Written by PracticeRunModule.Splits.cs; info.
+Written by RunTimerModule.Splits.cs; info.
 
 - info `Splits panel: run timer in the panel.`
 - info `Splits panel: run timer on its own (the HUD's Run timer value).`
@@ -2051,14 +2051,14 @@ Written by PracticeRunModule.Splits.cs; info.
 ## `Splits panel moved to`
 
 Meaning: The runner dragged the splits panel in Edit HUD; its new position.
-Written by PracticeRunModule.Splits.cs; info.
+Written by RunTimerModule.Splits.cs; info.
 
 - info `Splits panel moved to (<..>, <..>).`
 
 ## `Splits panel resized to`
 
 Meaning: The runner dragged the splits panel's edge or corner in Edit HUD mode; its new width and most rows shown.
-Written by PracticeRunModule.Splits.cs; info.
+Written by RunTimerModule.Splits.cs; info.
 
 - info `Splits panel resized to <..> px, <_liveRows> rows.`
 

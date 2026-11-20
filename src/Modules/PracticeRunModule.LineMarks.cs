@@ -94,7 +94,7 @@ namespace ForestOverlay.Modules
             bool running = _recorder.State == RunRecorder.RunState.Running;
             bool windowed = !_camOn && _showLines && _lineAheadOn.Value;
             float from = running ? _recorder.Elapsed : 0f;
-            int td = _timeDecimals.Value, dd = _deltaDecimals.Value;
+            int td = _runTimer.TimeDecimals, dd = _runTimer.DeltaDecimals;
             bool decimalsMoved = td * 10 + dd != _markDecimals;
             _markDecimals = td * 10 + dd;
 

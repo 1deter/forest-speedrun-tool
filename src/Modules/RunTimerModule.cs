@@ -112,12 +112,25 @@ namespace ForestOverlay.Modules
                 _upload.RunnerNameNow = RunnerName;
             }
             InitRecords(ctx);
+            InitSplits(ctx);
         }
+
+        /// The practice tools, when they are on: the comparisons they bring,
+        /// the replay, the results panel, practice golds (Core/ITimerCompanion).
+        /// Set by Modules/PracticeRunModule in its Initialise.
+        public ITimerCompanion Companion
+        {
+            get { return _companion; }
+            set { _companion = value; }
+        }
+
+        private ITimerCompanion _companion;
 
         public override void Tick()
         {
             // Not stepped here: the driver steps the run (see the top).
             FlushRunnerName();
+            RefreshSplits();
         }
 
         /// The panels' shared look (the splits panel, the results panel).
@@ -191,6 +204,7 @@ namespace ForestOverlay.Modules
         {
             map.Add("run.manualSplit", KeyCode.F12, "Manual split / finish", ManualAdvance);
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
+            map.Add("run.cycleComparison", KeyCode.None, "Splits: next comparison", CycleComparison);
         }
 
         // --- arming --------------------------------------------------------------------
@@ -332,11 +346,14 @@ namespace ForestOverlay.Modules
             return "; holding " + _live.AmountOf(t.ItemId) + ", " + _timer.Baseline.AmountOf(t.ItemId) + " at the start";
         }
 
-        /// The split just taken: run mode's Split, the log line, the driver.
+        /// The split just taken: run mode's Split, the log line, the panel,
+        /// the driver.
         private void Splitted(bool byHand)
         {
             int row = _timer.Splits.Count - 1;
             float t = _timer.Elapsed;
+            _splitsDirty = true;
+            _pbChanceDirty = true;
             if (Split != null) Split(row, t);
             Segment s = _timer.Segment;
             if (byHand)
