@@ -1630,8 +1630,8 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<_segment.Id>': armed after <cause> (start: <..>).`
 - info `Run '<_segment.Id>': auto-restart<..>.`
 - info `Run '<_segment.Id>': autosplit on <why> at <..>.`
-- info `Run '<_segment.Id>': checkpoint <_splits.Count> split by hand at <..>.`
-- info `Run '<_segment.Id>': checkpoint <_splits.Count>/<_segment.Checkpoints.Count> at <..>.`
+- info `Run '<_segment.Id>': checkpoint <_timer.Splits.Count> split by hand at <..>.`
+- info `Run '<_segment.Id>': checkpoint <_timer.Splits.Count>/<_segment.Checkpoints.Count> at <..>.`
 - info `Run '<_segment.Id>': end reached with checkpoint <..> (<..>) outstanding<..>.`
 - info `Run '<done.AnchorLabel>': finished in <..> - <done.Splits.Length> split time(s) saved, runner '<done.RunnerName>' (<done.RunnerId>); load-removed <..> (<..>).`
 - info `Run '<done.AnchorLabel>': finished in <..> by a TAS replay (not saved).`
