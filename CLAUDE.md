@@ -160,20 +160,23 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-11-20 (refactor, session 3):** branch
-  claude/laughing-mayer-xyn155 (= youthful-hypatia-63eoji + this
-  session; continue on it), all NOT released (the game is still
-  unreachable). T-0461 (bridge by Id: `_modules[upload]` in the MCP, e2e,
-  docs; the "register last" rule gone), T-0462 (an extra binding on an
-  input that drives another action is refused, saved ones dropped),
-  T-0463 (run mode reloads on death through the title screen) built and
-  checker-accepted; with T-0457..T-0460 that is eight tasks waiting for
-  the game - each task's evidence / note lists what the game must show
-  (e2e smoke first: it now exercises `[id]` paths). **Next:**
-  `tasks.py next` (T-0465; T-0464 waits for the game); with the game,
-  release T-0457..T-0463 together, then merge to main. Cloud containers:
-  install the .NET 10 SDK + 8 SDK (`dotnet-install.sh --channel 10.0` /
-  `8.0` into ~/.dotnet) before the pre-push hook and builds.
+- **2026-11-20 (refactor, session 4, author asleep):** branch
+  claude/hopeful-fermi-5qqe0m (= laughing-mayer-xyn155 + this session;
+  continue on it), all NOT released (no game). Loop run R-0034, 5 rounds,
+  all built and checker-accepted: T-0465 (module Kind + lint `corefind`,
+  7 baselined lookups), T-0466 (IRunTimer), T-0467 (RunTimerModule +
+  Data/RunTimer, 3 researcher sessions; notes in tasks/notes/T-0467.md),
+  T-0473 (TimerModule, patches 7/13/14, font picker deleted), T-0480 (CI
+  read-only, release job, pins). **For the author:** T-0467 put own PB /
+  golds comparisons in the run file per "the tool replaces LiveSplit";
+  other runners' and .lss comparisons stay practice-side - say if not.
+  **Next:** `tasks.py next` (T-0476..T-0479 site chain; T-0468 / T-0464
+  wait for the game, and T-0469..T-0471 behind T-0468). With the game:
+  release T-0457..T-0467, T-0473 together (e2e lists in each task's
+  notes; CHANGELOG names the hotkey order change), then merge to main and
+  watch the first tag's new release job. Agent worktrees start from main:
+  tell each to `git reset --hard <this branch>` first. Cloud: install
+  .NET 10 + 8 SDKs into ~/.dotnet first.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
