@@ -19,18 +19,20 @@ namespace ForestOverlay.Modules
     // load-removed time), who armed it (Source: F9 or a run spot's run
     // start, Data/RunTiming), the arming (Arm), one frame of it (Step: the
     // inventory its item triggers read, the game events in order, the
-    // autosplits, the clock), F12 and the abort key, and the timer's log
-    // lines. It provides IRunTimer to run mode (ModuleContext.RunTimer).
+    // autosplits, the clock), F12 and the abort key, the run's records
+    // (RunTimerModule.Records: attempts, runs started, unfinished runs,
+    // saving a finished one) and the timer's log lines. It provides
+    // IRunTimer to run mode (ModuleContext.RunTimer).
     //
     // Who drives it: today Modules/PracticeRunModule - it decides when a
     // spot is armed, calls Step at the point of its frame where a level
     // left, run mode ended or the replay camera have been dealt with (so
     // RunTimerModule never ticks on its own: a level left would be
     // evaluated for a frame), and acts on the events below (status lines,
-    // the attempt store, the results). The splits panel moves here next
-    // (tasks/notes/T-0467.md step 5).
+    // what is kept of a dropped run, the results). The splits panel moves
+    // here next (tasks/notes/T-0467.md step 5).
     // ------------------------------------------------------------------
-    public sealed class RunTimerModule : OverlayModule, IRunTimer, ITimerEvents, ITimerSink
+    public sealed partial class RunTimerModule : OverlayModule, IRunTimer, ITimerEvents, ITimerSink
     {
         public override string Id { get { return "runtimer"; } }
         public override string DisplayName { get { return "Run timer"; } }
@@ -48,6 +50,11 @@ namespace ForestOverlay.Modules
 
         /// The state machine (the driver reads its rows, splits and clock).
         public RunTimer Machine { get { return _timer; } }
+
+        /// The route the last arming was for ("" before any): a segment's
+        /// times on another route are not this one's (the attempts loaded,
+        /// the stats, the unfinished runs PB chance counts).
+        public string ArmedRoute { get; private set; }
 
         /// The live item counts the triggers read.
         public IItemCounts Live { get { return _live; } }
@@ -88,6 +95,7 @@ namespace ForestOverlay.Modules
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
+            ArmedRoute = "";
             _live = new LiveItemCounts(ctx.Inventory);
             _channels = delegate { return Ctx.PlayerState.Channels; };
             // Load-removed time reads the game's load state (gotcha 16: say what it found).
@@ -97,12 +105,13 @@ namespace ForestOverlay.Modules
             _runnerName = ctx.Config.Bind("Runs", "RunnerName", "", "Your name on recorded attempts. Empty = your Steam name.");
             _localRunnerId = ctx.Config.Bind("Runs", "LocalRunnerId", "", "Runner id used when Steam is not available (made once).");
             // The uploads and run mode's codes carry the same runner.
-            RunUploadModule upload = Host.Find<RunUploadModule>();
-            if (upload != null)
+            _upload = Host.Find<RunUploadModule>();
+            if (_upload != null)
             {
-                upload.RunnerIdNow = RunnerId;
-                upload.RunnerNameNow = RunnerName;
+                _upload.RunnerIdNow = RunnerId;
+                _upload.RunnerNameNow = RunnerName;
             }
+            InitRecords(ctx);
         }
 
         public override void Tick()
@@ -194,6 +203,7 @@ namespace ForestOverlay.Modules
         public void Arm(Segment s, Vector3 anchor, string route)
         {
             _arms++;
+            ArmedRoute = route ?? "";
             _eventsSeen = Ctx.Events.Count;
 
             // The item ids its triggers and autosplits read: fresh before

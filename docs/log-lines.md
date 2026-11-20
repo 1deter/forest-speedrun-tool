@@ -1615,7 +1615,7 @@ Written by PracticeRunModule.Results.cs; info.
 ## `Run`
 
 Meaning: A spot run's life: armed, splits and checkpoints, finished (time, best), aborted or disarmed and why.
-Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, PracticeRunModule.cs, RunTimerModule.cs; info / warning.
+Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.cs, RunTimerModule.Records.cs, RunTimerModule.cs; info / warning.
 
 - info `Run '<_segment.Id>': aborted - restarting from checkpoint <..>.`
 - info `Run '<_segment.Id>': resumed from checkpoint <..>/<_segment.Checkpoints.Count> at <..> - practice: not saved as a run, its live segments can be golds.`
@@ -1623,7 +1623,6 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - warning `Run '<seg.Id>': checkpoint <..> not restored - <err>.`
 - info `Run '<seg.Id>': checkpoint <..> state not captured - <error>.`
 - info `Run '<seg.Id>': restoring checkpoint <..>/<seg.Checkpoints.Count>'s state (captured <..> UTC, clock <..>).`
-- info `Run '<cur.AnchorLabel>': unfinished after <..> (<why>, <u.Splits.Length> split(s) reached) - kept for PB chance and playtime.`
 - info `Run '<_segment.Id>': <..> - left the level, <where> (not saved).`
 - info `Run '<_segment.Id>': <..> - run mode ended, practice mode (F9) is off.`
 - info `Run '<_segment.Id>': aborted - restarting the spot.`
@@ -1634,6 +1633,7 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<gone.Id>': <..> - the spot was deleted.`
 - info `Run '<s.Id>': practice mode turned on by Restart.`
 - info `Run '<s.Id>': timed by run mode (practice mode is off).`
+- info `Run '<cur.AnchorLabel>': unfinished after <..> (<why>, <u.Splits.Length> split(s) reached) - kept for PB chance and playtime.`
 - info `Run '<_timer.Segment.Id>': autosplit on <why> at <..>.`
 - info `Run '<s.Id>': checkpoint <_timer.Splits.Count> split by hand at <..>.`
 - info `Run '<s.Id>': checkpoint <_timer.Splits.Count>/<s.Checkpoints.Count> at <..>.`

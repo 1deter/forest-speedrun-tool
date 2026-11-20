@@ -63,9 +63,8 @@ namespace ForestOverlay.Modules
         // unfinished runs of the loaded segment (every route), the finished
         // ones' time on every route, and PB chance's pool, rebuilt on start,
         // split, finish and reset as LiveSplit's component is.
-        private List<UnfinishedAttempt> _unfinished = new List<UnfinishedAttempt>();
-        private float _playedFinished;
-        private Attempt _recordedUnfinished;
+        private List<UnfinishedAttempt> _unfinished { get { return _runTimer.Unfinished; } }
+        private float _playedFinished { get { return _runTimer.PlayedFinished; } }
         private bool _pbChanceDirty = true;
         private readonly List<HistoryRun> _history = new List<HistoryRun>();
         private readonly System.Random _pbRandom = new System.Random();
@@ -274,38 +273,15 @@ namespace ForestOverlay.Modules
 
         // --- unfinished runs, PB chance, playtime ------------------------------
 
-        /// A running attempt about to be dropped (abort, restart, death,
-        /// another spot, practice off, the title screen): kept as an
-        /// unfinished one - LiveSplit's reset - for PB chance and playtime.
-        /// Once per attempt, whichever path gets there first.
+        /// A running attempt about to be dropped: kept as an unfinished one
+        /// by the timer (RunTimerModule.RecordUnfinished) - not a TAS
+        /// replay's, which is not the runner's run.
         private void RecordUnfinished(string why)
         {
-            Attempt cur = _recorder.Current;
-            if (_recorder.State != RunRecorder.RunState.Running || cur == null || ReferenceEquals(cur, _recordedUnfinished)) return;
-            if (Resumed) return;   // from a checkpoint: practice, not a run that started
-            if (TasRun) return;    // a TAS replay's run is not the runner's
-            _recordedUnfinished = cur;
-
-            UnfinishedAttempt u = _timer.Unfinished();
-            _store.AddUnfinished(cur.AnchorLabel, u);
-            if (cur.AnchorLabel == _loadedSegmentId) _unfinished.Add(u);
+            if (TasRun) return;
+            if (!_runTimer.RecordUnfinished(why)) return;
             _pbChanceDirty = true;
             _splitsDirty = true;
-            Ctx.Log.LogInfo("Run '" + cur.AnchorLabel + "': unfinished after " + Format(u.Duration) + " (" + why + ", " +
-                            u.Splits.Length + " split(s) reached) - kept for PB chance and playtime.");
-        }
-
-        /// On loading a segment's attempts: its unfinished runs and the
-        /// time of this runner's finished ones, every route (time played is
-        /// time played, whatever the zones were then).
-        private void LoadPlaytime(string id, List<Attempt> all, string own)
-        {
-            _unfinished = _store.LoadUnfinished(id);
-            _playedFinished = 0f;
-            for (int i = 0; i < all.Count; i++)
-                if (all[i].Completed && AttemptOwners.IsOwn(all[i].RunnerId, own)) _playedFinished += all[i].Duration;
-            _pbChanceDirty = true;
-            _playtimeShown = -1;
         }
 
         /// PB chance's attempts on the current route, oldest first.

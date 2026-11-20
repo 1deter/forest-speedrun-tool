@@ -62,13 +62,19 @@ namespace ForestOverlay.Modules
 
         // Inventory counts, recorded as changes (the website's state panel).
         private ItemCounter _items;
-        private readonly List<Attempt> _attempts = new List<Attempt>();
+        // The run's records are the timer's (RunTimerModule.Records): this
+        // runner's attempts on the loaded segment and route, runs started.
+        private List<Attempt> _attempts { get { return _runTimer.Attempts; } }
+        private string _loadedSegmentId { get { return _runTimer.LoadedSegmentId; } }
+        private int _otherRouteCount { get { return _runTimer.OtherRouteCount; } }
+        private int _started { get { return _runTimer.Started; } }
+        // The recordings' and checkpoint practice's files (the timer keeps
+        // the runs through its own).
         private AttemptStore _store;
         private PracticeModule _practice;
 
         // --- the segment being run ----------------------------------------
         private Segment _segment;
-        private string _loadedSegmentId;
         private int _armedRevision;
 
         // The level a run was armed in (build index: an int, no string per
@@ -76,8 +82,7 @@ namespace ForestOverlay.Modules
         // its line drawn there (author, v0.24.7); a load restore reloads the
         // same level, so its index does not change.
         private int _armedScene = -1;
-        private string _armedRoute = "";
-        private int _otherRouteCount;
+        private string _armedRoute { get { return _runTimer.ArmedRoute; } }
 
         private LiveItemCounts _live;
 
@@ -102,10 +107,6 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg, _ownLineLiveCfg, _keepDoneCfg;
         private ConfigEntry<string> _compareCfg;
         private float _autoRestartAt;
-
-        // Runs started on this segment, finished or not (AttemptStore
-        // started.txt); never fewer than the finished ones on file.
-        private int _started;
 
         private int _eventLineBuiltFor = -1;
         private string _eventLine = "";
@@ -241,21 +242,10 @@ namespace ForestOverlay.Modules
             return _practice != null ? _practice.CurrentSegment : null;
         }
 
-        /// The runner's own saved runs only - an imported .foseg's runs are
-        /// other runners' and theirs to upload.
+        /// The runner's own saved runs of the spot (the timer's records).
         private List<string> SavedRunsForUpload()
         {
-            Segment s = SegmentForUpload();
-            if (s == null) return null;
-            List<string> texts = _store.RunTexts(s.Id);
-            if (texts == null) return null;
-            string own = RunnerIdNow();
-            List<string> mine = new List<string>(texts.Count);
-            string name = RunnerNameNow();
-            for (int i = 0; i < texts.Count; i++)
-                if (AttemptOwners.IsOwn(AttemptOwners.RunnerIdOf(texts[i]), own))
-                    mine.Add(AttemptFormat.WithRunner(texts[i], own, name));   // an old one: name it, as an export does
-            return mine;
+            return _runTimer.SavedRunsFor(SegmentForUpload());
         }
 
         private float[] ReadState()
@@ -416,14 +406,14 @@ namespace ForestOverlay.Modules
 
             _armedRevision = _segment.Revision;
             _armedScene = SceneManager.GetActiveScene().buildIndex;
-            _armedRoute = _segment.RouteFingerprint();
+            string route = _segment.RouteFingerprint();   // the timer's ArmedRoute from Arm
 
             if (!_failedFromOtherSegment) KeepFailed();   // a Go / restart without a start state re-arms mid-run
             // A full run (ResumeFrom says otherwise after), no splits, the
             // item baseline from a fresh inventory, the events so far not
             // the run's; the start trigger primes on its first evaluation,
             // so standing in the start zone after teleporting in starts nothing.
-            _runTimer.Arm(_segment, _segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _armedRoute);
+            _runTimer.Arm(_segment, _segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), route);
 
             MaybeFetchBoard();
             _lssDirty = true;   // re-read the linked file if it changed
@@ -434,13 +424,6 @@ namespace ForestOverlay.Modules
             _status = (_turnedOnByRestart ? "practice mode turned on - " : "") + "armed: " + _segment.Name;
             _turnedOnByRestart = false;
             Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed after " + cause + " (start: " + _segment.Start.Describe() + ").");
-        }
-
-        /// "23 attempts (9 finished)", or "9 attempts" when every one finished.
-        private string AttemptsText()
-        {
-            int started = Mathf.Max(_started, _attempts.Count);
-            return started + " attempts" + (started > _attempts.Count ? " (" + _attempts.Count + " finished)" : "");
         }
 
         private Vector3 PlayerPosition()
@@ -537,11 +520,7 @@ namespace ForestOverlay.Modules
         /// first sample, the checkpoints in order).
         private void OnClockStarted(bool byHand)
         {
-            if (_segment != null && !TasRun)
-            {
-                _started = Mathf.Max(_started, _attempts.Count) + 1;
-                _store.SetStarted(_segment.Id, _started);
-            }
+            if (_segment != null && !TasRun) _runTimer.CountStarted(_segment);
             ReplayRunStarted();
             ResetSplits();   // the last run's times stay up until now
             _status = byHand ? "running (manual start)" : "running";
@@ -611,12 +590,7 @@ namespace ForestOverlay.Modules
             // From a checkpoint state: practice, never a saved run.
             if (Resumed) { FinishResumedRun(done); return; }
 
-            _runTimer.Stamp(done);
-            _attempts.Add(done);
-            _playedFinished += done.Duration;
-            _store.Save(done);
-            if (_upload != null && _segment != null)
-                _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
+            _runTimer.SaveFinished(done, _segment);   // stamped, on file, to the website's queue
             FinishSplits(done);
             RunModeOutcome outcome = _runTimer.ReportFinished(_segment, done.Duration);
             ShowResults(done, outcome, -1);
@@ -730,13 +704,14 @@ namespace ForestOverlay.Modules
             if (running) Ctx.Notice.Show("Run aborted: " + where + ". Kept as an unfinished attempt.", 6f);
         }
 
+        /// The timer loads the segment's attempts on its route (its records);
+        /// here the other runners' ones, the practice golds and what showed
+        /// the last segment's.
         private void LoadAttemptsFor(Segment s)
         {
-            string route = s.RouteFingerprint();
-            if (s.Id == _loadedSegmentId && route == _armedRoute) return;
+            List<Attempt> others;
+            if (!_runTimer.LoadAttempts(s, out others)) return;   // loaded already
 
-            _loadedSegmentId = s.Id;
-            _attempts.Clear();
             _failedLine.Clear();   // another segment's failure is not this one's
             _failedSamples.Clear();
             _doneLine.Clear();
@@ -746,37 +721,13 @@ namespace ForestOverlay.Modules
             // told UpdateLines the old segment's line had to go.
             _lineSource = null;
             _referenceLine.Clear();
-            _otherRouteCount = 0;
 
-            // Attempts are keyed on the segment id so they can be
-            // compared between players - but moving a start zone changes
-            // what the times mean while leaving the id alone. Times from
-            // a different route are kept on disk and left out of the
-            // comparison rather than silently racing the new one.
-            List<Attempt> all = _store.LoadAll(s.Id);
             // Other runners' attempts (an imported .foseg) compare, never
             // count (Data/AttemptOwners, v0.24.190).
-            string own = RunnerIdNow();
-            List<Attempt> others = new List<Attempt>();
-
-            for (int i = 0; i < all.Count; i++)
-            {
-                // An empty route means the attempt predates route
-                // tracking; treat it as belonging to the current one
-                // rather than throwing away someone’s history.
-                if (all[i].Route.Length > 0 && all[i].Route != route)
-                {
-                    _otherRouteCount++;
-                    continue;
-                }
-
-                if (AttemptOwners.IsOwn(all[i].RunnerId, own)) _attempts.Add(all[i]);
-                else others.Add(all[i]);
-            }
             SetLocalOthers(others, s.Checkpoints.Count);
             LoadPracticeSegments(s.Id);
-            _started = Mathf.Max(_store.Started(s.Id), _attempts.Count);
-            LoadPlaytime(s.Id, all, own);
+            _pbChanceDirty = true;   // its unfinished runs and playtime (the timer's)
+            _playtimeShown = -1;
 
             Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id +
                             (others.Count > 0 ? ", " + others.Count + " by other runners (" + _localOthers.Count + " runner(s), comparisons only)" : "") +
@@ -1345,7 +1296,7 @@ namespace ForestOverlay.Modules
 
         private void ClearTimes()
         {
-            _attempts.Clear();
+            _runTimer.ClearAttempts();
             _rowsDirty = true;
             SelectReference();
             ResetSplits();

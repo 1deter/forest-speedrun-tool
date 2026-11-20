@@ -191,7 +191,7 @@ namespace ForestOverlay.Modules
             float pb = practice ? _stats.Pb : float.IsNaN(_stats.Pb) ? done.Duration : Mathf.Min(_stats.Pb, done.Duration);
             _resLineValues[0].text = _result.BestPossible;
             _resLineValues[1].text = PbChance.Compute(_history, SplitStats.Filled(rows), pb, _pbRandom);
-            _resLineValues[2].text = AttemptsText();
+            _resLineValues[2].text = _runTimer.AttemptsText();
             _resLineValues[3].text = Playtime.Format(Playtime.Total(null, _unfinished, _playedFinished));
             _pbChanceDirty = true;   // the splits panel rebuilds its own
 
