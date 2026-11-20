@@ -8,7 +8,9 @@ how features behave: [`docs/areas/plugin-concepts.md`](../docs/areas/plugin-conc
 
 `Plugin.cs` does lifecycle and composition only. Every feature is an
 `OverlayModule`; adding one is a class in `src/Modules/` plus one line in
-`BuildModules()`.
+`BuildModules()`. Each declares its `Kind` (Core, Practice, Dev: the table
+in docs/decisions.md *Refactor and race build*); a Core module may not
+`Find<T>()` a Practice or Dev one (lint `corefind`).
 
 Modules never reach for globals or each other — shared services arrive via
 `ModuleContext`; `Host.Find<T>()` covers the rare genuine collaboration.

@@ -41,6 +41,7 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "gamefixes"; } }
         public override string DisplayName { get { return "Game fixes"; } }
+        public override ModuleKind Kind { get { return ModuleKind.Core; } }
 
         private LeakedThreads _threads;
         private ConfigEntry<bool> _threadsFix;

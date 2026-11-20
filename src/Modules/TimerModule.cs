@@ -19,7 +19,7 @@ namespace ForestOverlay.Modules
         private const int MaxSplits = 8;
 
         public override string Id { get { return "timer"; } }
-        public override ModuleKind Kind { get { return ModuleKind.Core; } }
+        public override ModuleKind Kind { get { return ModuleKind.Dev; } }   // unregistered (Plugin.BuildModules)
         public override string DisplayName { get { return "Timer"; } }
 
         private bool _running;

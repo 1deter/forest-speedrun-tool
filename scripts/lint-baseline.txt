@@ -12,7 +12,6 @@ corefind	src/Modules/RunModeModule.cs	_savestates = Host.Find<SavestateModule>()
 corefind	src/Modules/RunUploadModule.cs	SavestateModule savestates = Host.Find<SavestateModule>();
 corefind	src/Modules/SettingsModule.cs	PaintModule paint = Host.Find<PaintModule>();
 corefind	src/Modules/SettingsModule.cs	if (_savestates == null) _savestates = Host.Find<SavestateModule>();
-corefind	src/Modules/SettingsModule.cs	if (_views == null) _views = Host.Find<DebugViewModule>();
 findall	src/Game/DrawingsReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
 findall	src/Game/InventoryReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
 findall	src/Game/MemoryCensus.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));
