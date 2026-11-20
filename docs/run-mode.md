@@ -658,8 +658,8 @@ target is `Hook<...>` in a dynamic method; every patch owned by a
      `config/ForestOverlay/run-reports/attempt-<time>.txt`.
    - Locked: Go, F7 / Restart, savestate capture and restore, freecam,
      aerial capture, death revive, god mode, no blood / stagger, item caps,
-     logs in the inventory, fast building, the experimental performance
-     patches. The test bridge stays usable but flags the attempt.
+     logs in the inventory, fast building (the experimental performance
+     patches were deleted in T-0473). The test bridge stays usable but flags the attempt.
    - The report covers: the Assembly-CSharp hash against the Steam build,
      other BepInEx plugins and patchers, code loaded from outside the game,
      Harmony patches with a foreign owner, and the game's `Cheats` statics
