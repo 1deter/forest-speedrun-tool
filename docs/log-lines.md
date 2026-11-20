@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 906 log calls.
+255 prefixes from 895 log calls.
 
 ## `ActionReaders`
 
@@ -566,14 +566,6 @@ Meaning: The player controller is not in the scene yet; binding retries.
 Written by GameBridge.cs; warning.
 
 - warning `FirstPersonCharacter not found yet - will keep retrying.`
-
-## `Font`
-
-Meaning: The runner picked a font in Settings > HUD: which one (HUD font or Window font) and the installed font name, or default.
-Written by FontPick.cs, SettingsModule.cs; info / warning.
-
-- warning `Font: <..> is not installed - using the default font.`
-- info `Font: <label> <..>`
 
 ## `ForestOverlay`
 
@@ -1318,16 +1310,10 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / 
 - info `Performance: endgame screen camera back to rendering every frame (<why>).`
 - info `Performance: endgame screen camera left on - no screen showing 'EndPLane' found.`
 - info `Performance: grass controller's Update skipped while its camera is Unity's current one (a load) - a texture rebuild there crashes Unity.`
-- info `Performance: grass-bending camera back on (<why>).`
-- warning `Performance: grass-bending camera in caves failed: <ex.Message>`
-- info `Performance: grass-bending camera off in the cave (<cam.name>).`
 - info `Performance: particle camera back on (<why>); mask <before> -> <..> (cleared <_pcamAdded>); sun shadows <..>.`
 - info `Performance: particle camera left on - <..>.`
 - info `Performance: particle camera off, the main camera draws its layers (mask bits <_pcamBits>); mask <maskBefore> -> <cam.cullingMask>; sun shadows <shadowsBefore> -> <..>.`
 - warning `Performance: particles in the main camera failed: <ex.Message>`
-- info `Performance: sun shadows (Sunshine) rendered every second frame.`
-- info `Performance: sun shadows back to every frame (switch off).`
-- info `Performance: sun shadows left alone - their update interval is already <interval>.`
 - info `Performance: surface world back on the main camera (<why>; terrain, <back> tree billboards).`
 - warning `Performance: surface world off in caves failed: <ex.Message>`
 - info `Performance: surface world off on the main camera in the cave (<..>, <_billboardsOff.Count> tree billboards).`
@@ -1336,7 +1322,6 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / 
 - warning `Performance: terrain grass camera guard failed: <ex.Message>`
 - info `Performance: terrain grass camera left on - <why>.`
 - info `Performance: terrain grass camera off (<..> drew into a texture nothing reads; the grass reads the one of '<_grassReadBy>').`
-- info `Performance: the game set the sun shadows' update interval itself (<interval>) - left to it.`
 - info `Performance: the game switched the terrain grass camera back on - left to it.`
 - info `Performance: endgame load in play outside a cutscene (a crossing of the load trigger, not the vault door) - the game's own load, no background load, no hold.`
 - info `Performance: endgame loaded in the background for the restore - <took><gaveUp>.`
@@ -1346,7 +1331,6 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / 
 - info `Performance: building removals - <_navWaveRemovals> at once recalculated in <_navWaveBatches> places instead of one area of <..> x <..> m.`
 - warning `Performance: clearing the old 30 Hz physics switch failed: <ex.Message>`
 - info `Performance: one more asset clean-up - a scene unloaded while the merged one ran.`
-- info `Performance: save load handed over after <..> ms, <_holdFrames> frame(s) instead of the fixed 600 ms<..>.`
 - info `Performance: skipped the endgame-animation asset clean-up at load (<AnimSweepsSkipped> this session).`
 - info `Performance: the removed 30 Hz physics switch was on - physics back at 60 Hz (fixed step <..> s).`
 - info `Performance: the sun post-process was switched on again - kept its material instead of making a new one (the game does this every frame in the endgame).`
@@ -1360,13 +1344,6 @@ Meaning: One allocation-saving performance patch's state.
 Written by PerfPatches.cs; info.
 
 - info `Performance patch '<f.Key>': <f.Status>.`
-
-## `Performance patches`
-
-Meaning: Which experimental performance patches are on.
-Written by PerfPatches.cs; info.
-
-- info `Performance patches: experimental ones <..>`
 
 ## `Pickup gone`
 

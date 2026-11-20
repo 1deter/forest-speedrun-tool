@@ -190,12 +190,6 @@ namespace ForestOverlay
             host.Register(new UpdateModule());       // info-only
             host.Register(new SettingsModule());     // info-only
             host.Register(new RunInfoModule());      // info-only
-            // TimerModule is deliberately NOT registered. Its manual
-            // start/stop/split clashed with the practice run keys and has
-            // no purpose until we decide how timing should work - the
-            // direction is automatic splits driven by configuration, the
-            // way the author's LiveSplit autosplitter does it. The file is
-            // kept so that work has somewhere to land.
             host.Register(new InventoryModule());    // info-only
             host.Register(new CollectiblesModule()); // info-only (100% tracking)
             host.Register(new DumpModule());         // info-only
@@ -410,10 +404,6 @@ namespace ForestOverlay
             int px = s.TextSize;
             _hudLabelStyle.fontSize = px;
             _warnStyle.fontSize = px;
-            // The HUD's own font (T-0339); null = the skin's.
-            Font f = FontPick.Get("hud", s.FontName, UiKit.BaseFontSize);
-            _hudLabelStyle.font = f;
-            _warnStyle.font = f;
         }
 
         // The HUD (T-0018): every ticked value, in the COLUMN at the HUD

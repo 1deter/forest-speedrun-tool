@@ -20,7 +20,7 @@ namespace ForestOverlay.Game
     //
     // Each one is behaviour-preserving (the game computes and draws the
     // same things), has its own switch (`[Performance]`, on by default,
-    // Settings > Performance; the experimental ones in Developer > Experimental), applies and removes live, and logs one line.
+    // Settings > Performance), applies and removes live, and logs one line.
     //
     // 1. Overlay layout (ours): Unity runs an IMGUI layout pass - a new
     //    GUILayoutGroup, its list and a RectOffset - for every OnGUI
@@ -49,25 +49,7 @@ namespace ForestOverlay.Game
     //    gets that sweep's operation (callers only wait on it). A scene
     //    unloaded after the running sweep began earns one sweep after it,
     //    so nothing is left unswept - only the overlap goes.
-    // 7. Save load hand-over - EXPERIMENTAL, off by default (author's
-    //    rule, 2026-09-26: anything that differs from the game goes in a
-    //    labelled section, off). LoadSave.Activation sets
-    //    sceneTracker.waitForLoadSequence, yields WaitPointSixSeconds, then
-    //    waits while sceneTracker.doingGlobalNavUpdate. The 0.6 s gives the
-    //    building nav cut (gridObjectBlockerManager.NavCutRountine, waiting
-    //    on that flag) its turn: it calls doNavCut on every registered
-    //    blocker, whose StartCoroutine(doGlobalStructureBoundsNavRemove)
-    //    sets doingGlobalNavUpdate at once. Everything else that waits on
-    //    the flag (spawns, animals, birds, Astar regions) only starts on
-    //    it. So the wait becomes: at least 3 frames and until the manager
-    //    is no longer _running, never longer than the 0.6 s. Single player
-    //    only (Bolt not running).
-    //    A/B (bridge, 2026-09-26, v0.24.95): Activation 2.70 -> 1.35 s from
-    //    the title screen, 2.41 -> 1.47 s on a Full load; player, time,
-    //    animals, cannibal spawners and the picture the same. The one
-    //    difference: a building nav update the game ran inside the wait
-    //    (339 ms, from blockers that register during it) runs after the
-    //    hand-over instead - so the player can move while it finishes.
+    // 7. REMOVED (T-0473): the save-load hand-over without the fixed 0.6 s wait.
     // 8. The endgame load of our restores in the background (on by
     //    default: the restore holds the player anyway; the game's own
     //    trigger crossing is untouched) - EndgameLoader.PatchStream.
@@ -105,10 +87,7 @@ namespace ForestOverlay.Game
     //    Not done: skipping the action-icon camera mid-frame (v0.24.119,
     //    withdrawn in v0.24.120) - disabling the last screen camera in an
     //    earlier camera's onPreCull left the picture frozen (game-notes).
-    // 13. EXPERIMENTAL: the sun's shadow map (Sunshine) every second frame,
-    //    by the game's own UpdateInterval option - Game/CameraTrim.
-    // 14. EXPERIMENTAL: the grass-bending camera off while in a cave -
-    //    Game/CameraTrim.
+    // 13-14. REMOVED (T-0473): half-rate sun shadows, no grass bending in caves.
     // 15. REMOVED in v0.24.210 (author: changes physics noticeably, maks).
     //    Was: physics at 30 Hz - the game's own hidden
     //    "Low Quality Physics" option (PlayerPreferences.SetLowQualityPhysics:
@@ -190,9 +169,7 @@ namespace ForestOverlay.Game
             public Action Remove;
             public bool Applied;
             public string Status = "off";
-            public bool Experimental;     // changes the game: off by default, own section
             public string Note = "";      // what it changes, shown under it
-            public string Flag;           // experimental: its short name on the HUD while on
         }
 
         private readonly ManualLogSource _log;
@@ -229,15 +206,6 @@ namespace ForestOverlay.Game
             Add(config, "VRSwitcherNoLayout", "VR switcher: no GUI layout pass",
                 "Skip Unity's GUI layout pass for the game's VR switcher, which draws nothing outside VR (saves ~50 KB/s of garbage).",
                 ApplyVrSwitcher, RemoveVrSwitcher);
-            Add(config, "SaveLoadNoFixedWait", "Save loads: skip the game's fixed wait before you get control",
-                "EXPERIMENTAL, changes the game: a save load hands over control without the game's fixed 0.6 s wait " +
-                "(about 1 s sooner, as the wait runs slow during a load). The game's nav-mesh update for buildings, which it " +
-                "finished inside that wait, can then still be running for a fraction of a second after you can move. Off = the game's own code.",
-                ApplyHandOver, RemoveHandOver, false);
-            _fixes[_fixes.Count - 1].Experimental = true;
-            _fixes[_fixes.Count - 1].Flag = "fast save loads";
-            _fixes[_fixes.Count - 1].Note = "Changes the game: the nav-mesh update for buildings can finish just after you get control " +
-                                            "(enemies' paths around them). Saves about 1 s per save load.";
             Add(config, "EndgameAsyncForRestores", "Savestates: load the endgame area in the background",
                 "When a savestate restore loads the endgame area (a Full load of a state captured with it, or a Quick load that needs it), " +
                 "load it in the background while the restore holds you, instead of the game's one ~5 s frozen frame. " +
@@ -267,25 +235,6 @@ namespace ForestOverlay.Game
                 "skips cameras). Draw it only in frames where that screen is being drawn (~0.35 ms a frame here while the endgame " +
                 "is loaded).",
                 _cameras.ApplyScreen, _cameras.RemoveScreen);
-            Add(config, "SunShadowsEveryOtherFrame", "Sun shadows: redraw every second frame",
-                "EXPERIMENTAL, changes the picture: the game's sun-shadow system (Sunshine) redraws its shadow map every second frame " +
-                "instead of every frame, using its own built-in option for this. Still shadows look the same; shadows of moving things " +
-                "(you, enemies, swaying trees) update at half your frame rate. Saves ~0.3 ms a frame here (0.35-0.4 ms on the runners' " +
-                "machines measured). Off = the game's own setting.",
-                _cameras.ApplySunshine, _cameras.RemoveSunshine, false);
-            _fixes[_fixes.Count - 1].Experimental = true;
-            _fixes[_fixes.Count - 1].Flag = "half-rate shadows";
-            _fixes[_fixes.Count - 1].Note = "Changes the picture: moving shadows update at half the frame rate. Saves ~0.3 ms a frame.";
-            Add(config, "GrassBendingOffInCaves", "Caves: no grass bending while inside",
-                "EXPERIMENTAL, changes the picture: while you are in a cave, the game's grass-bending camera (it draws where you " +
-                "and enemies push the grass and ferns aside) stops drawing - there is no grass inside a cave. The one difference: " +
-                "looking out of a cave mouth, grass outside no longer bends around enemies until you leave the cave. Back on in the " +
-                "frame you leave. Saves ~0.25 ms a frame in caves here (up to ~2 ms measured on a laptop). Off = the game's own code.",
-                _cameras.ApplyCaveGrass, _cameras.RemoveCaveGrass, false);
-            _fixes[_fixes.Count - 1].Experimental = true;
-            _fixes[_fixes.Count - 1].Flag = "no cave grass bending";
-            _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
-                                            "Saves ~0.25 ms a frame in caves.";
             Add(config, "CaveSurfaceOff", "Caves: don't draw the ground and distant trees above you",
                 "Changes the picture: while you are in a cave (not the endgame), the game's camera stops drawing the surface's " +
                 "ground and its distant-tree pictures, which it kept drawing under the rock where you cannot see them. The one " +
@@ -301,7 +250,6 @@ namespace ForestOverlay.Game
                 "little different (drawn before the sun's light-scatter effect). Saves ~0.3-0.4 ms a frame here. Off = the game's " +
                 "own drawing.",
                 _cameras.ApplyParticles, _cameras.RemoveParticles, true);
-            _fixes[_fixes.Count - 1].Flag = "particles in main camera";
             _fixes[_fixes.Count - 1].Note = "Changes the picture a little: flames, rain and other particles are drawn by the main " +
                                             "camera, before the sun's light-scatter effect. Saves ~0.3-0.4 ms a frame.";
             // 15 was physics at 30 Hz: removed (author, 2026-10-02 - maks found
@@ -398,35 +346,14 @@ namespace ForestOverlay.Game
         public string Label(int i) { return _fixes[i].Label; }
         public bool IsOn(int i) { return _fixes[i].Cfg.Value; }
         public string Status(int i) { return _fixes[i].Status; }
-        public bool IsExperimental(int i) { return _fixes[i].Experimental; }
         public string Note(int i) { return _fixes[i].Note; }
-        /// The HUD flag while an experimental switch is on (author, 2026-10-10: short, like "god mode").
-        public string FlagName(int i) { return _fixes[i].Flag ?? _fixes[i].Label.Trim(); }
-
         /// The GUI switch (and the bridge): on / off, saved, applied live.
         public void Toggle(int i)
         {
             Fix f = _fixes[i];
             f.Cfg.Value = !f.Cfg.Value;
-            if (f.Experimental && _experimentalSuspended) return;   // applied when run mode ends
             Set(f, f.Cfg.Value);
         }
-
-        private bool _experimentalSuspended;
-
-        /// Run mode: the experimental (game-changing) switches are taken
-        /// out while it is on and put back as saved after. Cheap when
-        /// nothing changes - called every tick.
-        public void SuspendExperimental(bool suspend)
-        {
-            if (suspend == _experimentalSuspended) return;
-            _experimentalSuspended = suspend;
-            for (int i = 0; i < _fixes.Count; i++)
-                if (_fixes[i].Experimental) Set(_fixes[i], !suspend && _fixes[i].Cfg.Value);
-            _log.LogInfo("Performance patches: experimental ones " + (suspend ? "suspended (run mode)." : "back as saved."));
-        }
-
-        public bool ExperimentalSuspended { get { return _experimentalSuspended; } }
 
         /// Dev (bridge): every live script with an OnGUI that still gets
         /// Unity's layout pass (useGUILayout on, enabled) - what is left
@@ -876,101 +803,6 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
-        // 7. Save load hand-over
-        private const int SixSecondsState = 12;   // the iterator's $PC after `yield return WaitPointSixSeconds`
-        private const float HandOverCap = 0.6f;
-        private MethodInfo _actMoveNext;
-        private static FieldInfo _actPcField, _actCurrent, _mgrInstance, _mgrRunning;
-        private static PropertyInfo _boltRunning;
-        private static object _sixSeconds;
-        private static object _holding;           // the iterator being held, null = none
-        private static float _holdStart;
-        private static int _holdFrames;
-
-        private string ApplyHandOver()
-        {
-            const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            const BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            Type act = LoadTiming.ActivationIterator();
-            if (act == null) return "LoadSave.Activation not found";
-            _actPcField = act.GetField("$PC", inst);
-            _actCurrent = act.GetField("$current", inst);
-            _actMoveNext = act.GetMethod("MoveNext", inst, null, Type.EmptyTypes, null);
-            if (_actPcField == null || _actCurrent == null || _actMoveNext == null) return "Activation iterator fields not found";
-            Type presets = GameType("YieldPresets");
-            FieldInfo six = presets != null ? presets.GetField("WaitPointSixSeconds", stat) : null;
-            _sixSeconds = six != null ? six.GetValue(null) : null;
-            if (_sixSeconds == null) return "YieldPresets.WaitPointSixSeconds not found";
-            Type mgr = GameType("gridObjectBlockerManager");
-            _mgrInstance = mgr != null ? mgr.GetField("instance", stat) : null;
-            _mgrRunning = mgr != null ? mgr.GetField("_running", inst) : null;
-            if (_mgrInstance == null || _mgrRunning == null) return "gridObjectBlockerManager fields not found";
-            Type bolt = null;
-            Assembly[] all = AppDomain.CurrentDomain.GetAssemblies();
-            for (int i = 0; i < all.Length && bolt == null; i++)
-            {
-                try { bolt = all[i].GetType("BoltNetwork", false); }
-                catch (Exception) { }
-            }
-            _boltRunning = bolt != null ? bolt.GetProperty("isRunning", stat) : null;
-            if (_boltRunning == null) return "BoltNetwork.isRunning not found";
-            _self = this;
-            _holding = null;
-            _harmony.Patch(_actMoveNext,
-                new HarmonyMethod(typeof(PerfPatches).GetMethod("HandOverPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
-                new HarmonyMethod(typeof(PerfPatches).GetMethod("HandOverPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
-            return "";
-        }
-
-        private void RemoveHandOver()
-        {
-            if (_actMoveNext != null) _harmony.Unpatch(_actMoveNext, HarmonyPatchType.All, _harmony.Id);
-            _holding = null;
-        }
-
-        // The iterator just yielded the 0.6 s wait: yield one frame instead
-        // and hold it in that state (the prefix) until the nav cut has run.
-        private static void HandOverPostfix(object __instance, bool __result)
-        {
-            try
-            {
-                if (!__result || !ReferenceEquals(_actCurrent.GetValue(__instance), _sixSeconds)) return;
-                if ((int)_actPcField.GetValue(__instance) != SixSecondsState) return;
-                if ((bool)_boltRunning.GetValue(null, null)) return;
-                _actCurrent.SetValue(__instance, null);
-                _holding = __instance;
-                _holdStart = Time.realtimeSinceStartup;
-                _holdFrames = 0;
-            }
-            catch (Exception) { _holding = null; }
-        }
-
-        private static bool HandOverPrefix(object __instance, ref bool __result)
-        {
-            if (_holding == null || !ReferenceEquals(__instance, _holding)) return true;
-            try
-            {
-                if ((int)_actPcField.GetValue(__instance) != SixSecondsState) { _holding = null; return true; }
-                _holdFrames++;
-                float held = Time.realtimeSinceStartup - _holdStart;
-                bool navCutPending = false;
-                object mgr = _mgrInstance.GetValue(null);
-                if (mgr != null && !(mgr is UnityEngine.Object && (UnityEngine.Object)mgr == null))
-                    navCutPending = (bool)_mgrRunning.GetValue(mgr);
-                if ((_holdFrames < 3 || navCutPending) && held < HandOverCap)
-                {
-                    __result = true;          // still waiting; $current is null = next frame
-                    return false;
-                }
-                _holding = null;
-                if (_self != null)
-                    _self._log.LogInfo("Performance: save load handed over after " + (held * 1000f).ToString("0") + " ms, " + _holdFrames +
-                                       " frame(s) instead of the fixed 600 ms" + (navCutPending ? " (nav cut still pending: cap reached)" : "") + ".");
-                return true;
-            }
-            catch (Exception) { _holding = null; return true; }
-        }
-
         // ------------------------------------------------------------------
         // 3. Ocean
         private const string GridType = "Ceto.ProjectedGrid";

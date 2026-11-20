@@ -17,8 +17,7 @@ namespace ForestOverlay.Modules
     // A pure move: the same config sections, keys, defaults and log lines,
     // and the same toggles in the same places - Settings > Loads and
     // savestates (DrawLeakFixes, under the savestate option), Settings >
-    // Performance (DrawPerformance) and Developer > Experimental
-    // (DrawExperimental, under the trajectory preview).
+    // Performance (DrawPerformance).
     //
     // Stale subscribers are pruned once per load (by load number).
     // SavestateModule calls PruneSubscribers just before its census / heap
@@ -53,7 +52,6 @@ namespace ForestOverlay.Modules
         private int _prunedLoad;   // the last load number pruned for
 
         private PerfPatches _perf;
-        private string[] _perfNames;   // the HUD's ON NOW names, built once
 
         public override void Initialise(ModuleContext ctx)
         {
@@ -112,16 +110,6 @@ namespace ForestOverlay.Modules
             if (_loads.Tick()) PruneSubscribers(_loads.Loads);
 
             if (_perf == null) return;
-            // The experimental performance switches change the game: say
-            // which are on (the HUD's ON NOW line).
-            _perf.SuspendExperimental(Ctx.Run.Locks("perf"));
-            if (_perfNames == null)
-            {
-                _perfNames = new string[_perf.Count];
-                for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.FlagName(i);
-            }
-            for (int i = 0; i < _perf.Count && i < _perfNames.Length; i++)
-                if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i) && !_perf.ExperimentalSuspended);
             _perf.Tick(Ctx.Player, Ctx.Events);
         }
 
@@ -158,29 +146,15 @@ namespace ForestOverlay.Modules
         public float DrawPerformance(float y, float w)
         {
             y += UiText.Note(12, y, w - 24, PerformanceNote) + 4f;
-            return DrawPerf(y, w, false);
+            return DrawPerf(y, w);
         }
 
-        // --- drawn by the Developer tab's Experimental fold -------------------
-        // The gameplay-altering performance switches, under the trajectory
-        // preview (DebugViewModule.DrawExperimental).
-        public float DrawExperimental(float y, float w)
-        {
-            { float hh = UiText.Draw(12, y, w - 24, "Gameplay-altering performance switches"); UiText.Note(12, y + hh, w - 24, ExperimentalNote); y += hh; }
-            return DrawPerf(y, w, true) + 4f;
-        }
-
-        // One group of performance switches: the behaviour-preserving ones,
-        // or the experimental ones with what each changes under it.
-        private float DrawPerf(float y, float w, bool experimental)
+        // The performance switches, with what each changes under it.
+        private float DrawPerf(float y, float w)
         {
             for (int i = 0; i < _perf.Count; i++)
             {
-                if (_perf.IsExperimental(i) != experimental) continue;
-                bool guiWas = GUI.enabled;
-                if (experimental && _perf.ExperimentalSuspended) GUI.enabled = false;
                 bool on = UiKit.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
-                GUI.enabled = guiWas;
                 if (on != _perf.IsOn(i)) _perf.Toggle(i);
                 y += Row;
                 if (_perf.Note(i).Length > 0) UiText.Note(30, y, w - 42, _perf.Note(i));
@@ -193,7 +167,5 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent PerformanceNote = new GUIContent(
             "Less work for the game each frame, and less garbage to collect (fewer hitches); " +
             "each one keeps what the game does. Untick one to get the game's own code back.");
-        private static readonly GUIContent ExperimentalNote = new GUIContent(
-            "Off by default. These change what the game does, not only how fast it runs; each one says what under it.");
     }
 }
