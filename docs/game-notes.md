@@ -3690,7 +3690,7 @@ the manager is idle - Activation 2.70 -> 1.35 s from the title screen,
 2.41 -> 1.47 s on a Full load; player, time, animals, spawners, picture
 the same, **but** a surface Full load ran a 339 ms / 69-frame nav update
 inside the wait (blockers registering during it) that then runs after
-the hand-over. So it is `SaveLoadNoFixedWait`, experimental, off.
+the hand-over. So it is `SaveLoadNoFixedWait`, experimental, off (deleted in T-0473).
 
 **After a Full load of a state captured with the endgame loaded** (Slot 1
 states taken on the surface after leaving the lab still read
@@ -3925,7 +3925,7 @@ by the options menu only. It renders in caves too (0.55 ms). Its own
 `UpdateIntervalFrames` / `AfterXMovement`) is set by nothing in the
 game (only the constructor); `AfterXFrames` 2 re-renders on even frames
 (`SunshineCamera.NeedsRefresh`): 0.66 -> 0.32 ms a frame. Shipped as
-the Experimental switch `SunShadowsEveryOtherFrame` (v0.24.125, off).
+the Experimental switch `SunShadowsEveryOtherFrame` (v0.24.125, off; deleted in T-0473).
 
 **The endgame leaks one Material a frame** (T-0149; bridge + IL,
 2026-10-08, v0.24.252). In the endgame `Sunshine`'s GameObject is
@@ -3994,7 +3994,7 @@ caves; within 60 m in Cave 6 no renderer uses a Touch / grass shader
 black walls are for outside), so grass beyond a mouth can be in view.
 The controller never sets the camera's `enabled`; its camera clears to
 its background colour every render. Experimental switch
-`GrassBendingOffInCaves` (v0.24.127).
+`GrassBendingOffInCaves` (v0.24.127; deleted in T-0473).
 
 **Runners' machines** (QA, 2026-09-26, v0.24.116, surface, `Frame`
 lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
