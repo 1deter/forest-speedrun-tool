@@ -1,3 +1,4 @@
+using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
 using ForestOverlay.Game;
@@ -92,6 +93,89 @@ namespace ForestOverlay.Modules
             // Load-removed time reads the game's load state (gotcha 16: say what it found).
             ctx.Log.LogInfo("Load-removed time: the game's load state from " + GameLoading.Resolve() + ".");
             ctx.RunTimer = this;   // run mode reads the timer through it (T-0466)
+
+            _runnerName = ctx.Config.Bind("Runs", "RunnerName", "", "Your name on recorded attempts. Empty = your Steam name.");
+            _localRunnerId = ctx.Config.Bind("Runs", "LocalRunnerId", "", "Runner id used when Steam is not available (made once).");
+            // The uploads and run mode's codes carry the same runner.
+            RunUploadModule upload = Host.Find<RunUploadModule>();
+            if (upload != null)
+            {
+                upload.RunnerIdNow = RunnerId;
+                upload.RunnerNameNow = RunnerName;
+            }
+        }
+
+        public override void Tick()
+        {
+            // Not stepped here: the driver steps the run (see the top).
+            FlushRunnerName();
+        }
+
+        /// The panels' shared look (the splits panel, the results panel).
+        public readonly SplitLook Look = new SplitLook();
+
+        // --- the runner every saved run carries -------------------------------------------
+
+        private ConfigEntry<string> _runnerName, _localRunnerId;
+        // A config write saves the whole file (86 ms measured, bridge
+        // 2026-09-27): the name field would hitch on every keystroke. The
+        // name is held here and written once, half a second after the last
+        // change.
+        private string _pendingName;   // null = nothing to write
+        private float _nameWriteAt;
+
+        /// The name runs carry: the typed one, else the Steam name, else "".
+        public string RunnerName()
+        {
+            string typed = _pendingName ?? SavedRunnerName;
+            if (typed.Length > 0) return typed;
+            string steam = RunnerIdentity.SteamName();
+            return steam ?? "";
+        }
+
+        /// The runner id: Steam's, else one made once and kept.
+        public string RunnerId()
+        {
+            string steam = RunnerIdentity.SteamRunnerId();
+            if (steam != null) return steam;
+            if (string.IsNullOrEmpty(_localRunnerId.Value)) _localRunnerId.Value = RunnerIdentity.RandomRunnerId();
+            return _localRunnerId.Value;
+        }
+
+        /// The name as set ("" = the Steam name).
+        public string SavedRunnerName
+        {
+            get { return _runnerName.Value != null ? _runnerName.Value.Trim() : ""; }
+        }
+
+        /// The runner field changed: `stored` ("" = follow the Steam name)
+        /// is written half a second after the last change.
+        public void TypeRunnerName(string stored)
+        {
+            _pendingName = stored ?? "";
+            _nameWriteAt = Time.unscaledTime + 0.5f;
+        }
+
+        private void FlushRunnerName()
+        {
+            if (_pendingName == null || Time.unscaledTime < _nameWriteAt) return;
+            _runnerName.Value = _pendingName;
+            _pendingName = null;
+        }
+
+        /// A finished run as it is saved: its split times and the loads
+        /// before each checkpoint (Data/RunTimer: only when there were any),
+        /// the runner, the mods, where the plane is.
+        public void Stamp(Attempt done)
+        {
+            _timer.StampSplits(done);
+            done.RunnerId = RunnerId();
+            done.RunnerName = RunnerName();
+            done.ModApi = Ctx.Practice != null && Ctx.Practice.ModApi;
+            done.Mods = Ctx.Practice != null ? Ctx.Practice.Mods : "";
+            Vector3 plane;
+            float yaw;
+            if (PlaneSite.TryRead(Ctx.Log, out plane, out yaw)) { done.HasPlane = true; done.Plane = plane; done.PlaneYaw = yaw; }
         }
 
         public override void RegisterHotkeys(HotkeyMap map)

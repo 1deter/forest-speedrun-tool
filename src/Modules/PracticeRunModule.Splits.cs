@@ -46,7 +46,6 @@ namespace ForestOverlay.Modules
         private ConfigEntry<int> _panelRows, _timeDecimals, _deltaDecimals;
         private readonly ConfigEntry<bool>[] _cols = new ConfigEntry<bool>[ColCount];
         private readonly ConfigEntry<bool>[] _lines2 = new ConfigEntry<bool>[LineCount];
-        private ConfigEntry<string> _runnerName, _localRunnerId;
 
         private SplitStats _stats;
         // The rows' times and the timer's load seconds when each was reached
@@ -110,16 +109,16 @@ namespace ForestOverlay.Modules
         // The runner field: one text box, pre-filled with the Steam name
         // (author, 2026-09-27: one field, the name already typed). Filled
         // from Tick when the field is first drawn; null = not filled yet.
+        // The name itself is the timer's (RunTimerModule: it stamps the runs).
         private string _runnerEdit;
         private string _steamName;
         private bool _runnerFill;
 
         // A config write saves the whole file (86 ms measured, bridge
-        // 2026-09-27): the slider and the name field would hitch on every
-        // step / keystroke. They hold their value here and write once,
-        // half a second after the last change (FlushSplitSettings, Tick).
+        // 2026-09-27): the slider would hitch on every step. It holds its
+        // value here and writes once, half a second after the last change
+        // (FlushSplitSettings, Tick).
         private float _opacityNow = -1f;       // < 0 = the config's value
-        private string _pendingName;           // null = nothing to write
         private bool _opacityPending;
         private float _writeAt;
 
@@ -127,9 +126,9 @@ namespace ForestOverlay.Modules
 
         private void FlushSplitSettings()
         {
-            if ((!_opacityPending && _pendingName == null) || Time.unscaledTime < _writeAt) return;
-            if (_opacityPending) { _panelOpacity.Value = _opacityNow; _opacityPending = false; }
-            if (_pendingName != null) { _runnerName.Value = _pendingName; _pendingName = null; }
+            if (!_opacityPending || Time.unscaledTime < _writeAt) return;
+            _panelOpacity.Value = _opacityNow;
+            _opacityPending = false;
         }
         // The table's texts by what they were made from (RefreshSplits).
         private readonly TextMemo _cellText = new TextMemo();
@@ -140,21 +139,16 @@ namespace ForestOverlay.Modules
         private int _attemptsLineStarted = -1, _attemptsLineCount = -1;
         private int _shownRows;
 
-        private GUIStyle _cellStyle, _nameStyle, _titleStyle, _placeholderStyle;
-        private GUIStyle[] _colourStyles;
-
-        /// The delta colours by SplitColour: the panel's, the results' and
-        /// the checkpoint markers' on the run line (T-0371) - one table.
-        private static readonly Color[] SplitPalette =
-        {
-            Color.white,
-            new Color(0.25f, 0.85f, 0.35f),   // ahead, gaining
-            new Color(0.6f, 0.95f, 0.6f),     // ahead, losing
-            new Color(0.95f, 0.6f, 0.6f),     // behind, gaining
-            new Color(0.9f, 0.25f, 0.25f),    // behind, losing
-            new Color(1f, 0.8f, 0.2f),        // gold
-        };
-        private GUIStyle _panelStyle;
+        // The panels' shared look (Core/SplitLook, the timer's): the splits
+        // panel, the results panel, the replay bar, the line marks.
+        private SplitLook _look { get { return _runTimer.Look; } }
+        private GUIStyle _cellStyle { get { return _look.Cell; } }
+        private GUIStyle _nameStyle { get { return _look.Name; } }
+        private GUIStyle _titleStyle { get { return _look.Title; } }
+        private GUIStyle _placeholderStyle { get { return _look.Placeholder; } }
+        private GUIStyle[] _colourStyles { get { return _look.Colours; } }
+        private GUIStyle _panelStyle { get { return _look.Panel; } }
+        private static Color[] SplitPalette { get { return SplitLook.Palette; } }
 
         private void InitSplits(ModuleContext ctx)
         {
@@ -187,8 +181,6 @@ namespace ForestOverlay.Modules
                 _lineOptionText[i] = new GUIContent(" " + LineOptions[i]);
             }
             RegisterSplitsProfile();
-            _runnerName = c.Bind("Runs", "RunnerName", "", "Your name on recorded attempts. Empty = your Steam name.");
-            _localRunnerId = c.Bind("Runs", "LocalRunnerId", "", "Runner id used when Steam is not available (made once).");
         }
 
         // Everything Edit HUD sets up for the panel belongs to the HUD profile
@@ -226,37 +218,10 @@ namespace ForestOverlay.Modules
             };
         }
 
-        // --- identity ---------------------------------------------------------
+        // --- identity (the timer's: RunTimerModule stamps the runs) ------------
 
-        private string RunnerNameNow()
-        {
-            string typed = _pendingName ?? (_runnerName.Value != null ? _runnerName.Value.Trim() : "");
-            if (typed.Length > 0) return typed;
-            string steam = RunnerIdentity.SteamName();
-            return steam ?? "";
-        }
-
-        private string RunnerIdNow()
-        {
-            string steam = RunnerIdentity.SteamRunnerId();
-            if (steam != null) return steam;
-            if (string.IsNullOrEmpty(_localRunnerId.Value)) _localRunnerId.Value = RunnerIdentity.RandomRunnerId();
-            return _localRunnerId.Value;
-        }
-
-        private void StampAttempt(Attempt done)
-        {
-            // Its split times and the loads before each checkpoint
-            // (Data/LoadTimes): only when there were any.
-            _timer.StampSplits(done);
-            done.RunnerId = RunnerIdNow();
-            done.RunnerName = RunnerNameNow();
-            done.ModApi = Ctx.Practice != null && Ctx.Practice.ModApi;
-            done.Mods = Ctx.Practice != null ? Ctx.Practice.Mods : "";
-            Vector3 plane;
-            float yaw;
-            if (PlaneSite.TryRead(Ctx.Log, out plane, out yaw)) { done.HasPlane = true; done.Plane = plane; done.PlaneYaw = yaw; }
-        }
+        private string RunnerNameNow() { return _runTimer.RunnerName(); }
+        private string RunnerIdNow() { return _runTimer.RunnerId(); }
 
         // --- state ------------------------------------------------------------
 
@@ -460,7 +425,7 @@ namespace ForestOverlay.Modules
             {
                 _runnerFill = false;
                 _steamName = RunnerIdentity.SteamName();
-                string typed = _runnerName.Value != null ? _runnerName.Value.Trim() : "";
+                string typed = _runTimer.SavedRunnerName;
                 _runnerEdit = typed.Length > 0 ? typed : (_steamName ?? "");
             }
             if (!HudEditing) return;
@@ -697,31 +662,7 @@ namespace ForestOverlay.Modules
 
         private void EnsureSplitStyles()
         {
-            if (_cellStyle != null) return;
-            _cellStyle = UiKit.Style(GUI.skin.label);
-            _cellStyle.alignment = TextAnchor.MiddleRight;
-            _cellStyle.padding = new RectOffset(0, 2, 0, 0);
-            _cellStyle.wordWrap = false;
-            _cellStyle.clipping = TextClipping.Clip;
-            _nameStyle = UiKit.Style(_cellStyle);
-            _nameStyle.alignment = TextAnchor.MiddleLeft;
-            _titleStyle = UiKit.Style(_nameStyle);
-            _titleStyle.fontStyle = FontStyle.Bold;
-            _placeholderStyle = UiKit.Style(GUI.skin.label);
-            _placeholderStyle.wordWrap = true;
-            _placeholderStyle.normal.textColor = UiKit.DimColour;
-
-            Color[] colours = SplitPalette;
-            _colourStyles = new GUIStyle[colours.Length];
-            for (int i = 0; i < colours.Length; i++)
-            {
-                _colourStyles[i] = UiKit.Style(_cellStyle);
-                _colourStyles[i].normal.textColor = colours[i];
-            }
-
-            // The kit's rounded dark card: the same look as the results panel
-            // and the HUD widgets (docs/ui-redesign.md).
-            _panelStyle = UiKit.Style(UiKit.WidgetCard);
+            _look.Ensure();
         }
 
         // The panels are drawn in the scaled screen (T-0318); the replay labels
@@ -1302,8 +1243,7 @@ namespace ForestOverlay.Modules
                     // The Steam name (or nothing) is stored as "", so the
                     // name follows a Steam rename; anything else is kept.
                     string t = typed.Trim();
-                    _pendingName = t.Length == 0 || t == _steamName ? "" : t;
-                    _writeAt = Time.unscaledTime + 0.5f;
+                    _runTimer.TypeRunnerName(t.Length == 0 || t == _steamName ? "" : t);
                 }
             }
             y += 26f;

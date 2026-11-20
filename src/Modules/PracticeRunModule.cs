@@ -182,8 +182,7 @@ namespace ForestOverlay.Modules
             {
                 _upload.CurrentSegment = SegmentForUpload;
                 _upload.SavedRunTexts = SavedRunsForUpload;
-                _upload.RunnerIdNow = RunnerIdNow;
-                _upload.RunnerNameNow = RunnerNameNow;
+                // The runner's id and name: the timer wires them (RunTimerModule).
             }
 
             _autoRestart = ctx.Config.Bind("Runs", "AutoRestartAtEnd", false,
@@ -612,7 +611,7 @@ namespace ForestOverlay.Modules
             // From a checkpoint state: practice, never a saved run.
             if (Resumed) { FinishResumedRun(done); return; }
 
-            StampAttempt(done);
+            _runTimer.Stamp(done);
             _attempts.Add(done);
             _playedFinished += done.Duration;
             _store.Save(done);
