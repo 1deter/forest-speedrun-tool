@@ -209,6 +209,9 @@ server), **Low** (needs an account and effort, or a small impact), **Info**
 
 ### 12. Low - CI supply chain (recommendation)
 
+- **Status (2026-11-20, T-0480):** partly resolved - Playwright is pinned
+  (`playwright==1.65.2`) and every action is pinned by commit; Playwright
+  still installs in the job that later holds `DEPLOY_KEY`.
 - **Where:** `.github/workflows/site.yml:48` `pip install playwright` (no
   version), then `playwright install --with-deps chromium`, in the same job
   whose later step has `DEPLOY_KEY`.
