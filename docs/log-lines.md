@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 901 log calls.
+256 prefixes from 904 log calls.
 
 ## `ActionReaders`
 
@@ -110,6 +110,7 @@ Written by RunUploadModule.Attempts.cs; info / warning.
 - warning `Attempts: could not write the open log of <attemptId>: <ex.Message>`
 - warning `Attempts: no start code for <attemptId> - <..>; the attempt is offline.`
 - warning `Attempts: open logs not recovered: <ex.Message>`
+- info `Attempts: sending run mode attempts to the website <..>.`
 - info `Attempts: the site has no light attempt check yet (404) - each listed attempt is asked about in full this session.`
 - warning `Attempts: token refused (401); attempt logs wait.`
 
@@ -2312,9 +2313,11 @@ Written by RunUploadModule.cs; info / warning.
 - info `Upload: <texts.Count> saved run(s) of '<seg.Id>' queued in <files> file(s).`
 - warning `Upload: cannot read <..>: <ex.Message>`
 - warning `Upload: could not queue a run of '<segment.Id>': <ex.Message>`
+- info `Upload: one-time question answered - <..>`
 - warning `Upload: register failed: <..>.`
 - info `Upload: registered on <baseUrl> as '<name>' (<id>).`
 - warning `Upload: runner <id> is registered already (409); uploads paused.`
+- info `Upload: sending finished runs to the website <..>.`
 - warning `Upload: start state not queued: <ex.Message>`
 - info `Upload: the site has no start state for '<b.Segment.Id>' - not sent: <why>.`
 - info `Upload: the site has no start state for '<b.Segment.Id>' - queued it.`

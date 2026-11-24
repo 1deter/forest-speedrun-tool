@@ -764,3 +764,9 @@ Proposed wording for T-0457's one-time question (the author confirms or
 edits it): "Send your timed runs and run attempts to forest.deter.cloud?
 Other people can see your runner name, times and route. You can change
 this in Settings." with **Yes, send them** / **No**.
+**Confirmed** (author, 2026-11-24): the last sentence is "You can change
+this in the Runs tab." (the switches live there), and the question
+replaces the window's tabs until it is answered (not a banner). Keys
+`Site.SendRuns` / `Site.SendRunAttempts` (off) and `Site.AskedToSend`;
+the old `UploadRuns` / `SendAttempts` are dropped, not carried over; a
+switch ticked by hand in the Runs tab counts as an answer.

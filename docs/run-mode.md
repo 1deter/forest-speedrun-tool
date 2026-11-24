@@ -171,7 +171,7 @@ this session is in one `GET /api/attempts/exists?ids=<id>,<id>` (T-0266):
 leaves it; a site from before that answers 404, and then each one gets
 `GET /api/attempts/<id>` for the rest of the session - the site's 404 ("no
 such attempt") takes it off, 200 is not asked again, anything else leaves
-it (T-0144), `Data/SentAttempts`; `[Site] SendAttempts`, on).
+it (T-0144), `Data/SentAttempts`; `[Site] SendRunAttempts`, off until the runner says yes once, T-0457).
 
 **Site**: `POST /api/attempts` (nonce; a retry gets the same one),
 `POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),

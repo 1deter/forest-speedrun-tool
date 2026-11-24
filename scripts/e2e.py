@@ -532,6 +532,9 @@ class Hygiene:
         up = self.g.mod("upload")
         self.uploads = self.g.get(PLUGIN, up + "._enabled.Value")
         self.g.run("set %s %s._enabled.Value false" % (PLUGIN, up))
+        # The one-time send question (T-0457) hides the window's tabs until answered.
+        self.asked = self.g.get(PLUGIN, up + "._asked.Value")
+        self.g.run("set %s %s._asked.Value true" % (PLUGIN, up))
         self.god = self.g.get("static:Cheats", "GodMode")
         self.energy = self.g.get("static:Cheats", "InfiniteEnergy")
         self.panel = self.g.get(PLUGIN, self.g.mod("mainwindow") + ".PanelOpen")
@@ -545,6 +548,7 @@ class Hygiene:
             if in_game(g):
                 g.run("call %s %s.Reload" % (PLUGIN, g.mod("practice")))
             g.run("set %s %s._enabled.Value %s" % (PLUGIN, g.mod("upload"), self.uploads.lower()))
+            g.run("set %s %s._asked.Value %s" % (PLUGIN, g.mod("upload"), self.asked.lower()))
             g.run("set static:Cheats GodMode %s" % self.god.lower(), "set static:Cheats InfiniteEnergy %s" % self.energy.lower())
             if g.get(PLUGIN, g.mod("mainwindow") + ".PanelOpen") != self.panel:
                 g.run("call %s %s.TogglePanel" % (PLUGIN, g.mod("mainwindow")))

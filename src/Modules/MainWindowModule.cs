@@ -253,6 +253,16 @@ namespace ForestOverlay.Modules
                 return;
             }
 
+            // The one-time question (T-0457): nothing goes to the website
+            // until it is answered; the tabs come once it is.
+            if (!_uploadLooked) { _upload = Host.Find<RunUploadModule>(); _uploadLooked = true; }
+            if (_upload != null && _upload.NeedsAnswer)
+            {
+                DrawSendQuestion();
+                WinPx.DragWindow(new Rect(0, 0, _windowRect.width, 22));
+                return;
+            }
+
             List<OverlayModule> tabs = Host.Tabs();
             if (tabs.Count == 0)
             {
@@ -285,6 +295,24 @@ namespace ForestOverlay.Modules
             UiKit.DrawTip(new Rect(0f, 0f, _windowRect.width, _windowRect.height));
 
             WinPx.DragWindow(new Rect(0, 0, _windowRect.width, 22));
+        }
+
+        // The author's words (2026-11-24, T-0457).
+        private static readonly GUIContent SendQuestion = new GUIContent(
+            "Send your timed runs and run attempts to forest.deter.cloud? Other people can see your runner name, " +
+            "times and route. You can change this in the Runs tab.");
+        private static readonly GUIContent SendYes = new GUIContent("Yes, send them");
+        private static readonly GUIContent SendNo = new GUIContent("No");
+        private RunUploadModule _upload;
+        private bool _uploadLooked;
+
+        private void DrawSendQuestion()
+        {
+            float w = _windowRect.width - Pad * 2f;
+            float y = 34f;
+            y += UiText.Draw(Pad, y, w, SendQuestion) + 10f;
+            if (WinPx.Button(new Rect(Pad, y, 140f, 24f), SendYes)) _upload.Answer(true);
+            if (WinPx.Button(new Rect(Pad, y + 30f, 140f, 24f), SendNo)) _upload.Answer(false);
         }
 
         private void DrawTabStrip(List<OverlayModule> tabs)

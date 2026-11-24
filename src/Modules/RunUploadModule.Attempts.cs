@@ -78,9 +78,12 @@ namespace ForestOverlay.Modules
 
         private void InitAttempts(ConfigFile config, string root)
         {
-            _attemptsOn = config.Bind("Site", "SendAttempts", true,
+            _attemptsOn = config.Bind("Site", "SendRunAttempts", false,
                 "Run mode: send each attempt's codes and log to the website (a start code, a checkpoint a minute, the log " +
                 "when it ends), so anyone can check a run's video against it. Off = attempts are checked by the video only.");
+            ConfigEntry<bool> oldAttempts = config.Bind("Site", "SendAttempts", false, "Replaced by Site.SendRunAttempts.");
+            config.Remove(oldAttempts.Definition);
+            config.Save();
             _attemptDir = Path.Combine(root, "attempts");
             _attemptRefusedDir = Path.Combine(_attemptDir, "refused");
             _sentList = Path.Combine(_attemptDir, "sent.txt");
@@ -383,7 +386,14 @@ namespace ForestOverlay.Modules
             _recentDrawnFrame = Time.frameCount;
             bool on = UiKit.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website");
             UiKit.Hint(new Rect(0, y, w, 20), SendTip);
-            if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
+            if (on != _attemptsOn.Value)
+            {
+                _attemptsOn.Value = on;
+                _tokenBad = false;
+                _nextAttemptTry = 0f;
+                MarkAsked();
+                Ctx.Log.LogInfo("Attempts: sending run mode attempts to the website " + (on ? "on" : "off") + ".");
+            }
             y += 22f;
             if (_attemptState.Length > 0)
             {

@@ -38,6 +38,7 @@ namespace ForestOverlay.Modules
         private const int MaxBundleBytes = 16 * 1024 * 1024;   // ~60 min with the arms track (T-0399); the site takes 20 MB
 
         private ConfigEntry<bool> _enabled;
+        private ConfigEntry<bool> _asked;
         private ConfigEntry<string> _url;
         private ConfigEntry<string> _token;
 
@@ -65,8 +66,16 @@ namespace ForestOverlay.Modules
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
-            _enabled = ctx.Config.Bind("Site", "UploadRuns", true,
+            // Off until the runner says yes once (T-0457, author 2026-11-17:
+            // "nothing is sent until the runner says yes once"). New keys,
+            // so a saved on from the old defaults does not carry over.
+            _enabled = ctx.Config.Bind("Site", "SendRuns", false,
                 "Upload each finished timed run to the website (forest.deter.cloud): its path, split times and your runner name.");
+            _asked = ctx.Config.Bind("Site", "AskedToSend", false,
+                "The one-time question in the F2 window (send runs and attempts to the website?) has been answered.");
+            ConfigEntry<bool> oldRuns = ctx.Config.Bind("Site", "UploadRuns", false, "Replaced by Site.SendRuns.");
+            ctx.Config.Remove(oldRuns.Definition);
+            ctx.Config.Save();
             _url = ctx.Config.Bind("Site", "Url", SiteProtocol.DefaultUrl, "The website's address.");
             _token = ctx.Config.Bind("Site", "Token", "",
                 "Given by the website on the first upload; it proves the runs are yours. Keep it private.");
@@ -491,6 +500,32 @@ namespace ForestOverlay.Modules
             if (_toggleText.text != t) _toggleText.text = t;
         }
 
+        // --- the one-time question (T-0457) ------------------------------------------
+
+        /// Not answered yet: the F2 window shows the question instead of its tabs.
+        public bool NeedsAnswer { get { return _asked != null && !_asked.Value; } }
+
+        /// The runner's answer: yes turns both sends on, no leaves both off.
+        public void Answer(bool yes)
+        {
+            _asked.Value = true;
+            _enabled.Value = yes;
+            _attemptsOn.Value = yes;
+            _tokenBad = false;
+            _nextTry = 0f;
+            _nextAttemptTry = 0f;
+            _nextText = 0f;
+            _state = yes ? "on" : "off";
+            Ctx.Log.LogInfo("Upload: one-time question answered - " +
+                            (yes ? "finished runs and run attempts are sent to the website." : "nothing is sent to the website."));
+        }
+
+        /// A switch ticked by hand answers the question too.
+        private void MarkAsked()
+        {
+            if (!_asked.Value) _asked.Value = true;
+        }
+
         /// The section under the Runs tab's status lines; returns the new y.
         public float DrawSection(float y, float w)
         {
@@ -498,6 +533,8 @@ namespace ForestOverlay.Modules
             if (on != _enabled.Value)
             {
                 _enabled.Value = on;
+                MarkAsked();
+                Ctx.Log.LogInfo("Upload: sending finished runs to the website " + (on ? "on" : "off") + ".");
                 _tokenBad = false;
                 _nextTry = 0f;
                 _nextText = 0f;
