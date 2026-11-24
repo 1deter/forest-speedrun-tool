@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.402 - 2026-11-24
+
+- Caves: the ground outside is drawn again in caves. Out of bounds through Cave 6 the floor no longer disappears.
+- Settings > Performance: 'Caves: don't draw the ground and distant trees above you' is now off by default, and switched off once for everyone who had it on. Tick it again if you want the small saving in caves.
+
 ## v0.24.401 - 2026-10-21
 
 - Run mode now notices when already-loaded code is swapped for a copy loaded from memory, and logs what changed.
