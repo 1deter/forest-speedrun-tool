@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 900 log calls.
+256 prefixes from 901 log calls.
 
 ## `ActionReaders`
 
@@ -1346,6 +1346,7 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / 
 - info `Performance: one more asset clean-up - a scene unloaded while the merged one ran.`
 - info `Performance: save load handed over after <..> ms, <_holdFrames> frame(s) instead of the fixed 600 ms<..>.`
 - info `Performance: skipped the endgame-animation asset clean-up at load (<AnimSweepsSkipped> this session).`
+- info `Performance: the old cave-surface switch (on by default before v0.24.402) is gone - the ground is drawn in caves again; 'Caves: don't draw the ground' is off.`
 - info `Performance: the removed 30 Hz physics switch was on - physics back at 60 Hz (fixed step <..> s).`
 - info `Performance: the sun post-process was switched on again - kept its material instead of making a new one (the game does this every frame in the endgame).`
 - warning `Performance: plane wreck - nav cut check failed (<..>); the game's update runs.`

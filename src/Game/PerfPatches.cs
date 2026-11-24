@@ -282,13 +282,23 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Flag = "no cave grass bending";
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
                                             "Saves ~0.25 ms a frame in caves.";
-            Add(config, "CaveSurfaceOff", "Caves: don't draw the ground and distant trees above you",
+            // Off by default since T-0485 (author, 2026-11-23): out of bounds
+            // through Cave 6 the game still says "in cave" with the surface
+            // in view, so the ground vanished. The old key CaveSurfaceOff was
+            // on by default; its saved true is dropped, not carried over (a
+            // saved true cannot be told from the old default).
+            Add(config, "CaveSurfaceHide", "Caves: don't draw the ground and distant trees above you",
                 "Changes the picture: while you are in a cave (not the endgame), the game's camera stops drawing the surface's " +
-                "ground and its distant-tree pictures, which it kept drawing under the rock where you cannot see them. The one " +
-                "difference: looking out of a cave mouth or up a sinkhole, the ground and distant trees outside are missing until " +
-                "you leave the cave. Picture only - nothing you can touch or that enemies use changes. Back in the frame you leave. " +
-                "Saves ~0.25 ms a frame in caves here. Off = the game's own drawing.",
-                _cameras.ApplyCaveSurface, _cameras.RemoveCaveSurface, true);
+                "ground and its distant-tree pictures, which it kept drawing under the rock where you cannot see them. The " +
+                "difference: looking out of a cave mouth or up a sinkhole, and out of bounds after a cave clip, the ground and " +
+                "distant trees outside are missing until you leave the cave. Picture only - nothing you can touch or that enemies " +
+                "use changes. Back in the frame you leave. Saves ~0.25 ms a frame in caves here. Off = the game's own drawing.",
+                _cameras.ApplyCaveSurface, _cameras.RemoveCaveSurface, false);
+            ConfigEntry<bool> oldCaveSurface = config.Bind("Performance", "CaveSurfaceOff", false, "Replaced by Performance.CaveSurfaceHide.");
+            if (oldCaveSurface.Value)
+                _log.LogInfo("Performance: the old cave-surface switch (on by default before v0.24.402) is gone - the ground is drawn in caves again; 'Caves: don't draw the ground' is off.");
+            config.Remove(oldCaveSurface.Definition);
+            config.Save();
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, the ground and distant trees outside the mouth " +
                                             "are not drawn. Saves ~0.25 ms a frame in caves.";
             Add(config, "ParticlesInMainCamera", "Particles: draw them in the main camera",

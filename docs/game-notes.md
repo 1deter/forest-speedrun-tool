@@ -3902,7 +3902,7 @@ withdrew it ten minutes later. Never skip a screen camera mid-frame.
   (~0.37 ms), 4.10 vs 3.79 in Cave 6. Writers of MainCamNew's mask (IL):
   the drag-away death cutscene (saves, sets its own ~10 s, puts it
   back), the VR pause menu, PlayMaker `SetCameraCullingMask`; our
-  CaveSurfaceOff clears bit 26 - change single bits, never assign.
+  CaveSurfaceHide clears bit 26 - change single bits, never assign.
 - **Far shadow** (0.29 ms): re-rendered every main-camera OnPreCull
   (`refresh` 1) along the sun's direction, which moves every frame - a
   skip would change the picture.
@@ -4072,8 +4072,11 @@ The table, the method and each cut's verdict: `tasks/notes/T-0199.md`.
   `_terrainRender` writes `drawHeightmap`): 0.13 ms at the
   Cave 6 spot, invisible there (cave mouths are open from inside, see
   *black walls* above).
-- **Both off in caves** (`[Performance] CaveSurfaceOff`, on, T-0277,
-  2026-10-11): layer 26 off MainCamNew's culling mask (nothing in the game
+- **Both off in caves** (`[Performance] CaveSurfaceHide`, off by default
+  since T-0485, 2026-11-23; was `CaveSurfaceOff`, on, T-0277,
+  2026-10-11). Out of bounds after a Cave 6 clip the cave entrance lets
+  go with `IsInCaves` still true and the surface in view, so the ground
+  vanished (runner report, v0.24.401): layer 26 off MainCamNew's culling mask (nothing in the game
   writes that camera's mask: the IL writers are its shadow / particle /
   reflection / mask cameras) and the 25 `Tree_BillBoards` renderers off
   (CustomBillboard never writes `Renderer.enabled`), while `IsInCaves &&

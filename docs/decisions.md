@@ -444,6 +444,12 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   test). Not in the endgame (Claude's narrowing: the lab's exits and
   endings show the outside). **Stays on in run mode** (author, 2026-10-11:
   not Experimental, so run mode does not suspend it).
+  **Superseded for this switch** (author, 2026-11-23, T-0485): off by
+  default ("Default it off"), new key `CaveSurfaceHide`, the old
+  `CaveSurfaceOff` dropped without carrying its value over. An Any% out of
+  bounds route leaves the player in cave state with the surface in view,
+  and the ground vanished for a runner; chosen over a terrain-height test
+  and over suspending it in run mode only.
 - **A setting does exactly what it says; else each thing gets its own
   toggle** (author, 2026-10-11, T-0326: "update on startup should do just
   that - everything should have an individual toggle if it isn't clearly

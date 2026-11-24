@@ -98,14 +98,17 @@ namespace ForestOverlay.Game
     //    cameras - FindObjectOfType for the controller was a 22 ms hitch at
     //    the cave entry (v0.24.127).
     //
-    // 5. Changes the picture, ON by default (author, 2026-10-11, T-0277):
+    // 5. Changes the picture, OFF by default since T-0485 (author,
+    //    2026-11-23; ON from 2026-10-11, T-0277; key CaveSurfaceHide):
     //    the surface world off on the main camera in caves. MainCamNew kept
     //    drawing the terrain (layer 26, nothing else is on it) and the 25
     //    whole-map tree billboards (`Tree_BillBoards`, CustomBillboard
     //    meshes with 10 km bounds - they pass every frustum) under the
     //    ground: ~0.25 ms of 3.4 at the Cave 6 spot, no pixel different
     //    there (tasks/notes/T-0199.md). Looking out of a cave mouth or up a
-    //    sinkhole, the ground and distant trees are missing. Layer 26 comes
+    //    sinkhole, the ground and distant trees are missing - and out of
+    //    bounds after a Cave 6 clip (IsInCaves stays true with the surface
+    //    in view, T-0485), the reason it is off by default. Layer 26 comes
     //    off the camera's culling mask (nothing in the game writes
     //    MainCamNew's mask - IL) and the billboards' renderers off (nothing
     //    in the game writes them); colliders, AI and state are untouched.
@@ -119,7 +122,7 @@ namespace ForestOverlay.Game
     //    TransparentFX) in a render of its own (0.3-0.37 ms a frame, surface
     //    and Cave 6, tasks/notes/T-0198.md). Here the component is off and
     //    layer 1 goes back into the main camera's mask (only that bit is
-    //    OR-ed: CaveSurfaceOff clears another). The one look difference: the
+    //    OR-ed: CaveSurfaceHide clears another). The one look difference: the
     //    particles are drawn before SunshinePostprocess / WaterEngine instead
     //    of after. Sun / Moon shadows are left at Soft, the state the
     //    component leaves them in every frame. Nothing else in the game
