@@ -158,15 +158,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-21 (author session, T-0406 / T-0407 picks):** author picked
-  from the demo shots. T-0407 runner item words (Survival book, Walkie
-  talkie; Axe Plane kept), plus the Inventory filter / not-held rows:
-  v0.24.395, confirmed. T-0406 rescoped by the author to a drawn-label
-  "Label layout" (single line / wrap, Line / Stats / Items groups,
-  "join line above"): v0.24.396, two minor faults live (delta 1-2 px
-  high, dead join toggles), fixed in .397, confirmed. Demo branch
-  worktree-agent-ace9106be0c782956 is superseded. **Next:** forest-tester
-  checks T-0423 on v0.24.394, then `tasks.py next`.
+- **2026-11-24 (T-0485, runner report):** addison5150 (Discord) lost
+  the ground out of bounds through Cave 6. Cause: `CaveSurfaceOff`
+  hid the terrain while `IsInCaves`. Author: "Default it off". New
+  key `CaveSurfaceHide`, off; the old key dropped. v0.24.402,
+  checker accept; built on macOS (.NET 8 in ~/.dotnet, stub build).
+  **Next:** forest-tester or addison confirms on .402 (cfg key,
+  ground visible OOB), then back to `tasks.py next`.
 
 - **2026-11-17 (review + refactor plan):** an independent review is in
   `REVIEW.md`; the author's decisions are in decisions.md *Refactor and
