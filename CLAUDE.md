@@ -55,8 +55,9 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
     feature on legality, keep the labels (`IsPracticeOnly`, the marker).
     *(author, 2026-11-17; until the speedrun.com moderators rule)*
 13. **Test runs upload to the live site** - turn uploads off for a test or
-    delete the run after (docs/bridge.md *Test spots*). *(uploads on by
-    default since v0.24.153; while they are)*
+    delete the run after (docs/bridge.md *Test spots*). *(uploads on
+    once an install answers yes to the send question, T-0457; while the
+    author's does)*
 14. **Pushes deploy:** `site/`, `src/Data/`, `community/` -> the site;
     `bot/`, `knowledge/`, `docs/game-notes.md`, `docs/savestates.md`,
     `docs/run-mode.md`, `docs/fsm/` -> the bot. *(.github/workflows; while

@@ -61,7 +61,8 @@ advantage.
   author whether that should change.)
 - **Anti-splice codes** beside the timer: big, readable on YouTube, out of the
   runner's way.
-- **Receipts for every attempt**, resets included, uploaded by default. The
+- **Receipts for every attempt**, resets included, uploaded once the runner
+  says yes to the one-time send question (off until then, T-0457). The
   server has ~200 GB, shared with other uses. Estimate: ~1 KB/s raw for a run
   log (a 137 s `.run` = 143 KB), so 1 h is ~4 MB raw and ~1 MB compressed;
   a reset's receipt is a few KB. That is well under 10 GB for years at this

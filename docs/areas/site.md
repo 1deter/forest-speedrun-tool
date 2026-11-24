@@ -19,8 +19,8 @@ itself when you open a file under `site/`); the site's decisions in
 
 ## Where we are
 
-Spots, runs uploaded from the game (on by default; a test run that
-finishes uploads - delete it, docs/bridge.md *Test spots*), other
+Spots, runs uploaded from the game (off until the runner says yes once,
+T-0457; on an install that said yes a test run that finishes uploads - delete it, docs/bridge.md *Test spots*), other
 runners' PBs as comparisons, the admin page, spot submissions, the photo
 map (recaptured 2026-10-03 on v0.24.222) and the 3D world of the game's
 own models (surface, caves, the endgame lab; per kind switches, texture
