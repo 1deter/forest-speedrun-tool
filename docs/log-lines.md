@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-258 prefixes from 921 log calls.
+257 prefixes from 918 log calls.
 
 ## `ActionReaders`
 
@@ -2104,16 +2104,6 @@ Written by PracticeModule.cs; warning.
 
 - warning `Start state of '<s.Id>' not restored: <error>`
 
-## `Submit`
-
-Meaning: A spot submitted to the site: sent, refused, or not sent.
-Written by RunUploadModule.cs; info / warning.
-
-- warning `Submit: '<segment.Id>' not sent: <..>.`
-- warning `Submit: '<segment.Id>' refused - HTTP <code>: <msg>`
-- info `Submit: '<segment.Id>' sent to <baseUrl> as submission <..>, <what>.`
-- warning `Submit: token refused (401).`
-
 ## `System`
 
 Meaning: The machine and graphics settings, logged when first seen or changed.
@@ -2323,8 +2313,9 @@ Written by UpdaterPatcher.cs, UpdateChecker.cs, UpdaterInstaller.cs; info / warn
 ## `Upload`
 
 Meaning: A run upload to the site: how many new / already there, refused, or retried.
-Written by RunUploadModule.cs; info / warning.
+Written by PracticeModule.cs, RunUploadModule.cs; info / warning.
 
+- info `Upload: opened '<s.Id>' on the website.`
 - info `Upload: <name> -> <added> new, <existing> already on the site<..>.`
 - warning `Upload: <name> not sent: <..>; retry in <..> s.`
 - warning `Upload: <name> refused - <why> (moved to uploads/refused).`

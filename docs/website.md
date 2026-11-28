@@ -116,13 +116,17 @@ spot's saved runs" and "Open on the website".
   and push - CI checks the index, the site redeploys with it, plugins pick
   it up on their next startup check. Remove `demo-template.foseg` when the
   first real pack goes in.
-- **Submissions (v0.24.158):** Practice -> Share -> *Submit to community*
-  sends the saved entry + start state, never attempts
-  (`RunUploadModule.Submit`; `SiteProtocol.SubmitRefusal`, shared with the
-  site: an old-style id must be Duplicated first). A runner's second
-  submit of a spot still open replaces it. The author approves on
-  `/admin`; publishing is still the commit to `community/` above (the repo
-  stays the source of truth) - maybe the GitHub API later.
+- **Uploading a spot from Practice (T-0495, author 2026-11-28):** the
+  Share row has *Upload saved runs* (the selected spot's own saved runs,
+  queued as the Runs tab's button does), *Open on the website*, *Delete
+  from the website* and one status line: on the website (from the
+  `/api/spots.txt` list, owner line included) or why not - no start and
+  end (only a timed spot uploads), sending off, token refused (the site's
+  admin can reset it), runs waiting, nothing finished yet
+  (`Data/SpotUploadStatus`). The old *Submit to community* button is gone
+  (v0.24.158-); the author makes community spots by hand from Export. The
+  site's `/api/submissions` and `/admin` list stay for now, with no
+  plugin sender.
 
 ## The photo map (2026-09-27 / 28)
 

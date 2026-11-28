@@ -2557,6 +2557,9 @@ namespace ForestOverlay.Modules
                 _shareForId = s.Id;
                 int n = _attempts.CountFiles(s.Id);
                 _exportAttemptsLabel.text = " with my attempts (" + n + ")";
+                _siteSavedRuns = n;
+                _siteNext = 0f;
+                _siteCountNext = Time.unscaledTime + 5f;
             }
 
             WinPx.Label(new Rect(0, y, 74, 20), "Share");
@@ -2568,14 +2571,25 @@ namespace ForestOverlay.Modules
             y += 26f;
             if (_upload != null)
             {
-                GUI.enabled = s.Id.Length > 0 && !_upload.Submitting;
-                if (WinPx.Button(new Rect(80, y - 2, 160, 22), "Submit to community")) SubmitToCommunity(s);
+                bool saved = s.Id.Length > 0 && !_unsaved.Contains(s);
+                GUI.enabled = saved && s.IsTimed;
+                if (WinPx.Button(new Rect(80, y - 2, 210, 22), "Upload this spot's saved runs")) UploadSaved(s);
+                GUI.enabled = saved;
+                if (WinPx.Button(new Rect(296, y - 2, 150, 22), "Open on the website"))
+                {
+                    Ctx.Log.LogInfo("Upload: opened '" + s.Id + "' on the website.");
+                    _upload.OpenSpot(s.Id);
+                }
+                GUI.enabled = true;
+                y += 26f;
                 GUI.enabled = s.Id.Length > 0 && !_upload.Deleting && !SegmentLibrary.IsCommunity(s);
-                if (WinPx.Button(new Rect(246, y - 2, 170, 22),
+                if (WinPx.Button(new Rect(80, y - 2, 170, 22),
                                Time.unscaledTime <= _deleteSiteArmedUntil && ReferenceEquals(_deleteSiteFor, s) ? "Sure? Click again"
                                : "Delete from the website")) DeleteFromSite(s);
                 GUI.enabled = true;
                 y += 26f;
+                RefreshSiteStatus(s);
+                y += UiText.Draw(80, y, cw - 90, _siteStatus);
             }
             y += UiText.Draw(80, y, cw - 90, _shareStatus);
             y += 6f;
@@ -2646,27 +2660,55 @@ namespace ForestOverlay.Modules
             if (name == null) name = "";
         }
 
-        /// Sends the saved entry and its start state to the website for the
-        /// author to approve as a community spot (docs/website.md). Never
-        /// its times: packs carry spots.
-        /// The selected entry's Submit (the bridge's way to press it).
-        public void SubmitSelected() { if (_selected != null) SubmitToCommunity(_selected); }
+        // --- the selected spot on the website (T-0495) ----------------------
+        private readonly GUIContent _siteStatus = new GUIContent("");
+        private float _siteNext;
+        private int _siteSavedRuns, _siteUploadedSeen;
+        private float _siteCountNext;
 
-        private void SubmitToCommunity(Segment s)
+        /// The status line under the Share buttons, rebuilt once a second
+        /// (a folder listing and a string - never per frame).
+        private void RefreshSiteStatus(Segment s)
+        {
+            if (_community != null) _community.WebEnsureFresh();
+            if (Time.unscaledTime < _siteNext) return;
+            _siteNext = Time.unscaledTime + 1f;
+            if (Time.unscaledTime >= _siteCountNext)
+            {
+                _siteCountNext = Time.unscaledTime + 5f;
+                _siteSavedRuns = _attempts.CountFiles(s.Id);   // a new attempt shows within 5 s
+            }
+            if (_upload.UploadedCount != _siteUploadedSeen)
+            {
+                _siteUploadedSeen = _upload.UploadedCount;
+                if (_community != null) _community.WebInvalidate();
+            }
+            string id, name;
+            OwnRunner(out id, out name);
+            string text = SpotUploadStatus.Text(s.Id.Length > 0, s.IsTimed, _upload.SendOn, _upload.TokenRefused,
+                _community != null && _community.WebListKnown, _community != null ? _community.WebSpotById(s.Id) : null,
+                id, _upload.PendingFor(s.Id), _siteSavedRuns);
+            if (_siteStatus.text != text) _siteStatus.text = text;
+        }
+
+        /// Queues every saved run of the selected spot that is the runner's
+        /// own (named, as an export does) for the website.
+        private void UploadSaved(Segment s)
         {
             FlushAutosave();
-            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = NotSavedWhy(s, "a submission"); return; }
-            if (SegmentLibrary.IsCommunity(s)) { _shareStatus.text = "This is a community spot already."; return; }
-            string startState = null;
-            try { startState = _savestates != null ? _savestates.ReadStartStateText(s) : null; }
-            catch (Exception ex) { _shareStatus.text = "Could not read its start state: " + ex.Message; return; }
-            // The answer belongs to this entry: showing another one clears it
-            // (DrawShare), as for Export.
-            Segment shown = s;
-            _upload.Submit(s, startState, delegate(string text)
-            {
-                if (_shareFor == null || ReferenceEquals(_shareFor, shown)) { _shareFor = shown; _shareForId = null; _shareStatus.text = text; }
-            });
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = NotSavedWhy(s, "an upload"); return; }
+            string id, name;
+            OwnRunner(out id, out name);
+            List<string> texts = _attempts.RunTexts(s.Id);
+            List<string> mine = new List<string>(texts.Count);
+            for (int i = 0; i < texts.Count; i++)
+                if (AttemptOwners.IsOwn(AttemptOwners.RunnerIdOf(texts[i]), id))
+                    mine.Add(AttemptFormat.WithRunner(texts[i], id, name));
+            _shareFor = s; _shareForId = s.Id;
+            string said = _upload.EnqueueSavedFor(s, mine);
+            _shareStatus.text = char.ToUpper(said[0]) + said.Substring(1) + ".";
+            _siteNext = 0f;
+            _siteCountNext = 0f;
         }
 
         /// Takes the runner's own spot off the website (its runs too); a

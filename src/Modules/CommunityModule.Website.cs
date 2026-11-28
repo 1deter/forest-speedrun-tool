@@ -43,13 +43,39 @@ namespace ForestOverlay.Modules
         public bool WebBusy { get; private set; }
 
         private const float WebRecheckAfter = 120f;
+        private const float WebRetryAfter = 45f;
+        private bool _webFailLogged;
         private float _webAskedAt = -1f;
+        private float _webRetryAt;   // nothing asks before this (a failed read)
 
         private void WebOpened()
         {
-            if (WebBusy || (_webAskedAt >= 0f && Time.unscaledTime < _webAskedAt + WebRecheckAfter)) return;
+            if (WebBusy || Time.unscaledTime < _webRetryAt || (_webAskedAt >= 0f && Time.unscaledTime < _webAskedAt + WebRecheckAfter)) return;
             WebRefresh();
         }
+
+        private bool _webLoaded;
+
+        /// The list was read at least once this session (Share's status line).
+        public bool WebListKnown { get { return _webLoaded; } }
+
+        /// The website's entry for a spot id; null when not listed. No allocation.
+        public SiteSpot WebSpotById(string id)
+        {
+            for (int i = 0; i < WebSpots.Count; i++)
+                if (WebSpots[i].Spot.Id == id) return WebSpots[i].Spot;
+            return null;
+        }
+
+        /// Practice's Share row asks for the list as the Import view does
+        /// (same refresh switch, same recheck interval).
+        public void WebEnsureFresh()
+        {
+            if (Ctx.Network.Refresh.Value) WebOpened();
+        }
+
+        /// An upload went through: read the list again at the next ask.
+        public void WebInvalidate() { _webAskedAt = -1f; }
 
         private string WebBase
         {
@@ -83,8 +109,12 @@ namespace ForestOverlay.Modules
             {
                 string why = code == 0 ? (error ?? "no answer") : "answer " + code;
                 WebStatus = "Could not read the website (" + why + ").";
-                _webAskedAt = -1f;   // the next Import view asks again
-                Ctx.Log.LogWarning("Website spots: list: " + why + ".");
+                // Ask again in WebRetryAfter, not at the next draw (Practice's
+                // Share row asks every frame); one log line per failure streak.
+                _webAskedAt = -1f;
+                _webRetryAt = Time.unscaledTime + WebRetryAfter;
+                if (!_webFailLogged) Ctx.Log.LogWarning("Website spots: list: " + why + ".");
+                _webFailLogged = true;
                 yield break;
             }
 
@@ -101,6 +131,9 @@ namespace ForestOverlay.Modules
                 WebSpots.Add(e);
             }
             WebRelabel();
+            _webLoaded = true;
+            _webFailLogged = false;
+            _webRetryAt = 0f;
             WebStatus = list.Count == 0 ? "No runner spots on the website yet." : list.Count + " spot(s) on the website.";
             Ctx.Log.LogInfo("Website spots: " + list.Count + " listed.");
         }
