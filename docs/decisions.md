@@ -717,9 +717,12 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
 - **Full bridge, guarded while remote:** every bridge command works, but
   the reflection keeps to the game and its engine (Data/LiveGuard: no
   mscorlib / System.*, no ForestOverlay types, no OpenURL / WWW /
-  UnityWebRequest / ScreenCapture / AssetBundle.LoadFrom). The plugin
-  side also refuses `SendMessage` / `BroadcastMessage` and a `destroy` of
-  an object carrying a refused component (they reach the overlay itself).
+  UnityWebRequest / ScreenCapture / AssetBundle.LoadFrom). The checker
+  (T-0490) widened it: the receiver of every member use must be allowed
+  too, the overlay's own objects are refused, and by name `Invoke*` /
+  `StartCoroutine*` / `SendMessage*` / `BroadcastMessage`, legacy
+  networking, the clipboard and UnityEngine's other file / network
+  types (docs/bridge.md *Live sessions* has the list).
 - **No runner token** on the live endpoints: a runner's upload
   registration may be broken; the session's own secret authenticates.
 - The site contract, the guard's lists and the plugin's behaviour:

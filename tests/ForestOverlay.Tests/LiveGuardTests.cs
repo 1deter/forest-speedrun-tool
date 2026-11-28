@@ -76,6 +76,45 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void AllowedMemberOnAnOverlayObject_Refused()
+        {
+            // Behaviour.enabled is UnityEngine's, but the receiver is the overlay's.
+            Assert.True(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.Behaviour", "enabled"));
+            Assert.False(LiveGuard.AllowsReceiver("ForestOverlay", "ForestOverlay.OverlayPlugin"));
+            Assert.False(LiveGuard.AllowsReceiver("BepInEx", "BepInEx.Bootstrap.Chainloader"));
+            Assert.False(LiveGuard.AllowsReceiver(typeof(string).Assembly.GetName().Name, typeof(string).FullName));
+            Assert.True(LiveGuard.AllowsReceiver("UnityEngine", "UnityEngine.Transform"));
+            Assert.True(LiveGuard.AllowsReceiver("Assembly-CSharp", "FirstPersonCharacter"));
+        }
+
+        [Fact]
+        public void InvokeAndMessages_RefusedOnAnyType()
+        {
+            foreach (string n in new[] { "Invoke", "InvokeRepeating", "CancelInvoke", "StartCoroutine", "StartCoroutine_Auto",
+                                         "SendMessage", "SendMessageUpwards", "BroadcastMessage" })
+            {
+                Assert.False(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.MonoBehaviour", n));
+                Assert.False(LiveGuard.AllowsMember("Assembly-CSharp", "SomeGameType", n));
+            }
+            Assert.True(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.MonoBehaviour", "IsInvoking"));
+        }
+
+        [Fact]
+        public void LegacyNetworkPingClipboardAndWindowsFiles_Refused()
+        {
+            foreach (string t in new[] { "UnityEngine.Network", "UnityEngine.NetworkView", "UnityEngine.MasterServer", "UnityEngine.Ping",
+                                         "UnityEngine.Windows.File", "UnityEngine.Windows.Directory", "UnityEngine.Profiling.Profiler",
+                                         "UnityEngine.Microphone", "UnityEngine.WebCamTexture", "UnityEngine.Security",
+                                         "UnityEngine.Caching", "UnityEngine.AndroidJavaObject" })
+                Assert.False(LiveGuard.AllowsType("UnityEngine", t), t);
+            Assert.False(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.GUIUtility", "systemCopyBuffer"));
+            Assert.False(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.GUIUtility", "get_systemCopyBuffer"));
+            Assert.False(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.GUIUtility", "set_systemCopyBuffer"));
+            Assert.False(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.TextEditor", "Paste"));
+            Assert.True(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.GUIUtility", "hotControl"));
+        }
+
+        [Fact]
         public void TransformMember_Allowed()
         {
             Assert.True(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.Transform", "position"));
@@ -91,8 +130,7 @@ namespace ForestOverlay.Tests
             Assert.True(LiveGuard.AllowsMember("Rewired_Core", "Rewired.Player", "GetButton"));
             Assert.True(LiveGuard.AllowsMember("PlayMaker", "HutongGames.PlayMaker.Fsm", "ActiveStateName"));
             Assert.True(LiveGuard.AllowsMember("UnityEngine.UI", "UnityEngine.UI.Text", "text"));
-            // A game behaviour's own SendMessage-named method is the game's.
-            Assert.True(LiveGuard.AllowsMember("Assembly-CSharp", "SomeGameType", "SendMessage"));
+            Assert.True(LiveGuard.AllowsReceiver("Assembly-CSharp", "TheForest.Utils.LocalPlayer"));
         }
     }
 
@@ -132,7 +170,7 @@ namespace ForestOverlay.Tests
             Assert.Equal(LiveLink.Answer.Retry, LiveLink.Classify(0));
             Assert.Equal(LiveLink.Answer.Retry, LiveLink.Classify(503));
             Assert.Equal(LiveLink.Answer.Retry, LiveLink.Classify(429));
-            Assert.Equal(LiveLink.Answer.Refused, LiveLink.Classify(413));
+            Assert.Equal(LiveLink.Answer.Refused, LiveLink.Classify(400));
         }
 
         [Fact]
@@ -144,6 +182,76 @@ namespace ForestOverlay.Tests
             Assert.Equal("shot-120355", LiveLink.ShotName("shot-120355.png"));
             Assert.Equal("my_shot__1", LiveLink.ShotName("my shot (1"));
             Assert.Null(LiveLink.ShotName(".png"));
+        }
+
+        [Fact]
+        public void TooLarge_IsNotTheEnd()
+        {
+            Assert.Equal(LiveLink.Answer.TooLarge, LiveLink.Classify(413));
+            Assert.Equal(LiveLink.Answer.Refused, LiveLink.Classify(401));
+        }
+
+        [Fact]
+        public void Utf8Bytes_CountsBytesNotChars()
+        {
+            Assert.Equal(3, LiveLink.Utf8Bytes("abc"));
+            Assert.Equal(2, LiveLink.Utf8Bytes("\u00e9"));
+            Assert.Equal(3, LiveLink.Utf8Bytes("\u20ac"));
+            Assert.Equal(4, LiveLink.Utf8Bytes("\ud83d\ude00"));
+            string mix = "a\u00e9\u20ac\ud83d\ude00\n";
+            Assert.Equal(System.Text.Encoding.UTF8.GetByteCount(mix), LiveLink.Utf8Bytes(mix));
+        }
+
+        [Fact]
+        public void NextChunk_FitsTheCapAtALine()
+        {
+            string rest;
+            Assert.Equal("small\n", LiveLink.NextChunk("small\n", 100, out rest));
+            Assert.Null(rest);
+
+            string text = "line one\nline two\nline three\n";
+            string first = LiveLink.NextChunk(text, 20, out rest);
+            Assert.Equal("line one\nline two\n", first);
+            Assert.Equal("line three\n", rest);
+
+            // One line longer than the cap: cut between characters, never in a pair.
+            string emoji = new string('a', 5) + "\ud83d\ude00" + "bbb";
+            first = LiveLink.NextChunk(emoji, 7, out rest);
+            Assert.Equal("aaaaa", first);
+            Assert.Equal(emoji, first + rest);
+        }
+
+        [Fact]
+        public void NextChunk_EveryChunkUnderTheSitesCap()
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < 20000; i++) sb.Append("#").Append(i).Append(" \u00e9\u20ac output line\n");
+            string text = sb.ToString(), rest = text, all = "";
+            int chunks = 0;
+            while (rest != null)
+            {
+                string c = LiveLink.NextChunk(rest, LiveLink.MaxPostBytes, out rest);
+                Assert.True(System.Text.Encoding.UTF8.GetByteCount(c) <= LiveLink.MaxPostBytes);
+                Assert.True(LiveLink.MaxPostBytes < 256 * 1024);
+                all += c;
+                chunks++;
+            }
+            Assert.True(chunks > 1);
+            Assert.Equal(text, all);
+        }
+
+        [Fact]
+        public void KeepNewest_CapsBytesAndKeepsWholeLines()
+        {
+            Assert.Equal("short\n", LiveLink.KeepNewest("short\n", 100));
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < 100; i++) sb.Append("\u20ac\u20ac line ").Append(i).Append('\n');
+            string kept = LiveLink.KeepNewest(sb.ToString(), 400);
+            Assert.StartsWith(LiveLink.DroppedNote, kept);
+            string tail = kept.Substring(LiveLink.DroppedNote.Length);
+            Assert.True(System.Text.Encoding.UTF8.GetByteCount(tail) <= 200);
+            Assert.StartsWith("\u20ac", tail);
+            Assert.EndsWith("line 99\n", tail);
         }
 
         [Fact]

@@ -56,7 +56,10 @@ namespace ForestOverlay.Modules
         private bool _announced;
 
         private readonly ObjectProbe _probe = new ObjectProbe();
-        private readonly Queue<string> _queue = new Queue<string>();
+        private readonly Queue<string> _queue = new Queue<string>();          // from in.txt
+        private readonly Queue<string> _remoteQueue = new Queue<string>();    // from a live session
+        private bool _pendingRemote;       // the waiting command came from the live session
+        private bool _animRemote;          // the anim watch was started by it
 
         // The command in progress, when it waits.
         private int _pendingId;
@@ -95,8 +98,9 @@ namespace ForestOverlay.Modules
                 _probe.Guarded = value;
                 _remoteOut.Length = 0;
                 _shotReady = null;
-                // A session that ends leaves nothing of its own queued.
-                if (!value) _queue.Clear();
+                // A session that ends leaves nothing of its own queued; the
+                // file bridge's commands stay.
+                if (!value) _remoteQueue.Clear();
                 RebuildStatus();
             }
         }
@@ -109,7 +113,7 @@ namespace ForestOverlay.Modules
             string[] lines = text.Replace("\r", "").Split('\n');
             int n = 0;
             for (int i = 0; i < lines.Length; i++)
-                if (lines[i].Trim().Length > 0) { _queue.Enqueue(lines[i]); n++; }
+                if (lines[i].Trim().Length > 0) { _remoteQueue.Enqueue(lines[i]); n++; }
             return n;
         }
 
@@ -132,7 +136,7 @@ namespace ForestOverlay.Modules
         }
 
         /// True while a command waits (capture, restore, wait...) or more are queued.
-        public bool RemoteBusy { get { return _pendingId != 0 || _queue.Count > 0; } }
+        public bool RemoteBusy { get { return (_pendingId != 0 && _pendingRemote) || _remoteQueue.Count > 0; } }
 
         public bool Enabled
         {
@@ -181,7 +185,7 @@ namespace ForestOverlay.Modules
                 _announced = true;
                 try { Directory.CreateDirectory(_dir); } catch (Exception ex) { _lastError = ex.Message; }
                 Append("== bridge on, ForestOverlay v" + OverlayPlugin.PluginVersion + ", " +
-                       DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + (_remote ? ", live session" : "") + " ==\n");
+                       DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ==\n", false);
                 Ctx.Log.LogInfo("Bridge: on, " + (Enabled ? "watching " + _inPath : "") + (Enabled && _remote ? " and " : "") +
                                 (_remote ? "a live session (guarded)" : ""));
                 RebuildStatus();
@@ -195,12 +199,15 @@ namespace ForestOverlay.Modules
                 try { _anim.Sample(lines); }
                 catch (Exception ex) { lines.Add("sample threw " + ex.GetType().Name + ": " + ex.Message); }
                 if (Time.realtimeSinceStartup >= _animUntil) { _animUntil = 0f; lines.Add("anim watch: done"); }
-                if (lines.Count > 0) Append(string.Join("\n", lines.ToArray()) + "\n");
+                if (lines.Count > 0) Append(string.Join("\n", lines.ToArray()) + "\n", _animRemote);
             }
 
             InputInject.Tick();
 
             if (_pendingId != 0) { TickPending(); return; }
+
+            // The live session's lines first, one a frame like the file's.
+            if (_remoteQueue.Count > 0 && _remote) { Run(_remoteQueue.Dequeue(), true); return; }
 
             if (_queue.Count == 0)
             {
@@ -211,7 +218,7 @@ namespace ForestOverlay.Modules
             }
 
             // One command a frame: a heavy find is one hitch, not a stall.
-            Run(_queue.Dequeue());
+            Run(_queue.Dequeue(), false);
         }
 
         private void ReadInput()
@@ -246,11 +253,15 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         // Running a command
 
-        private void Run(string line)
+        private void Run(string line, bool remote)
         {
             int id = ++_count;
             List<string> tokens = BridgeCommand.Tokenize(line);
             if (tokens.Count == 0) return;
+            // Guarded for the live session's commands only (Data/LiveGuard);
+            // the file bridge's are the author's own machine's.
+            _probe.Guarded = remote;
+            _running = remote;
 
             List<string> output = new List<string>();
             long start = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -271,6 +282,7 @@ namespace ForestOverlay.Modules
             if (waits && error == null)
             {
                 _pendingId = id;
+                _pendingRemote = remote;
                 _pendingLine = line.Trim();
                 _pendingStart = Time.realtimeSinceStartup;
             }
@@ -281,7 +293,7 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("Bridge #" + id + ": " + BridgeCommand.OneLine(line.Trim(), 120) + " -> " +
                                 (error == null ? "ok, " + output.Count + " line(s)" : "error: " + BridgeCommand.OneLine(error, 200)));
             }
-            Append(sb.ToString());
+            Append(sb.ToString(), remote);
             RebuildStatus();
         }
 
@@ -333,7 +345,7 @@ namespace ForestOverlay.Modules
             _callbackResult = null;
 
             string took = (now - _pendingStart).ToString("0.00", CultureInfo.InvariantCulture) + " s";
-            Append(Close(id, error, took) + "\n");
+            Append(Close(id, error, took) + "\n", _pendingRemote);
             Ctx.Log.LogInfo("Bridge #" + id + ": " + BridgeCommand.OneLine(_pendingLine, 120) + " -> " +
                             (error == null ? "done in " + took : "error: " + error));
         }
@@ -363,16 +375,20 @@ namespace ForestOverlay.Modules
             };
         }
 
-        private void Append(string text)
+        // The command being run came from the live session (its output and
+        // its shot go there).
+        private bool _running;
+
+        private void Append(string text, bool remote)
         {
-            if (_remote)
+            if (remote && _remote)
             {
+                // Taken by the live module every 0.5 s; this cap is only for
+                // a stalled module (chars - it caps bytes itself, LiveLink).
                 if (_remoteOut.Length + text.Length > MaxRemoteOut)
                 {
-                    // Not taken for a long while (the site is unreachable):
-                    // keep the newest, say what was dropped.
                     _remoteOut.Length = 0;
-                    _remoteOut.Append("(older bridge output dropped - the site did not take it)\n");
+                    _remoteOut.Append(LiveLink.DroppedNote);
                 }
                 _remoteOut.Append(text);
             }
@@ -586,8 +602,7 @@ namespace ForestOverlay.Modules
                     try { Directory.CreateDirectory(_dir); } catch (Exception) { }
                     Application.CaptureScreenshot(path);
                     Mark("screenshot");
-                    _shotPending = path;
-                    _shotPendingId = _count;
+                    if (_running) { _shotPending = path; _shotPendingId = _count; }
                     WaitFor(1f);
                     waits = true;
                     o.Add("screenshot -> " + path + " (" + Screen.width + "x" + Screen.height + ")");
@@ -609,6 +624,7 @@ namespace ForestOverlay.Modules
                     if (AnimProbe.PlayerAnimator() == null) return "no player animator";
                     _anim.BeginWatch();
                     _animUntil = Time.realtimeSinceStartup + s;
+                    _animRemote = _running;
                     o.Add("watching the player's animator for " + s + " s in the background - every change to a layer's " +
                           "state / clips or a bool / int parameter; the next commands run meanwhile");
                     return null;

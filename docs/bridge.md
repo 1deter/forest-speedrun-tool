@@ -186,18 +186,31 @@ with consent, and the runner can stop it at any time.
   /api/live/open` -> `{"code","secret","idle"}`; `GET /in` (Bearer secret)
   -> text lines, empty = none, 410 closed; `POST /out` text -> 204; `POST
   /file?name=[A-Za-z0-9_-]{1,64}` PNG <= 4 MB -> 204; `POST /close` -> 204.
-- **The guard** (`Data/LiveGuard`, `ObjectProbe.Guarded` while a session
-  is on, at `FindType`, the member walk of get / set / fields / walk,
-  `call` and `destroy`): members declared in `Assembly-CSharp*`,
-  `UnityEngine*`, `Rewired*`, `PlayMaker*` only. Refused: mscorlib /
-  System.* (Process, File, reflection, AppDomain), ForestOverlay's own
-  types, BepInEx / Harmony, and in UnityEngine `Application.OpenURL` /
-  `CaptureScreenshot` / `ExternalCall` / `ExternalEval`, `WWW*`,
-  `UnityEngine.Networking.*` (UnityWebRequest), `ScreenCapture`,
-  `AssetBundle.LoadFrom*`, `SendMessage` / `BroadcastMessage` (they reach
-  the overlay's behaviours too). A refused one answers *not allowed in a
-  live session*. With the local file bridge on at the same time its
-  commands are guarded too.
+- **The guard** (`Data/LiveGuard`; `ObjectProbe.Guarded`, set for the
+  live session's commands only - the file bridge's are not guarded):
+  members declared in `Assembly-CSharp*`, `UnityEngine*`, `Rewired*`,
+  `PlayMaker*` only. Refused: mscorlib / System.* (Process, File,
+  reflection, AppDomain), ForestOverlay's own types, BepInEx / Harmony;
+  in UnityEngine the networking (`WWW*`, `Networking.*`, legacy
+  `Network*` / `MasterServer` / `Ping`, `ClusterNetwork`), files and code
+  (`Windows.*`, `Security`, `Profiling.*`, `Caching`, `AssetBundle.LoadFrom*`),
+  `ScreenCapture`, `Microphone`, `WebCam*`, `LocationService`, Android /
+  analytics / social, `Application.OpenURL` / `CaptureScreenshot` /
+  `ExternalCall` / `ExternalEval` / `Request*`, the clipboard
+  (`GUIUtility.systemCopyBuffer`, `TextEditor.Copy` / `Paste`); and by name
+  on any type `Invoke*`, `CancelInvoke`, `StartCoroutine*`, `SendMessage*`,
+  `BroadcastMessage` (the list from ILScan over UnityEngine 5.6). **The
+  receiver counts too**: every object a path starts from or walks
+  through, the target of a call / set / destroy and an object passed as an
+  argument must be an allowed type and not the overlay's own GameObject
+  (one with a BepInEx plugin, or with an overlay component outside the
+  game's scenes - the overlay's helpers on game objects such as the main
+  camera do not make them the overlay's). `types` lists only allowed
+  types. A refused one answers *not allowed in a live session*.
+- **Output** goes up in chunks of at most 200 KB of UTF-8 (the site caps a
+  post at 256 KB); at most 1 MB waits while the site is not answering
+  (older lines dropped with a note). A 413 drops that one body; the
+  session goes on. The file bridge's commands and output stay local.
 - **`log [n] [filter]`** (any bridge): the last n (40, <= 500) lines of
   BepInEx's `LogOutput.log` containing the filter (a substring, any case) -
   the MCP's log tool cannot read a remote disk.

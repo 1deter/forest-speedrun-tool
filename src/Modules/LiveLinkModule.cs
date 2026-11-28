@@ -35,7 +35,6 @@ namespace ForestOverlay.Modules
 
         private const float PollEvery = 0.5f;
         private const float RequestTimeout = 20f;
-        private const int MaxUnsent = 1024 * 1024;
 
         private enum Phase { Closed, Opening, Open }
 
@@ -253,13 +252,15 @@ namespace ForestOverlay.Modules
             if (fresh != null)
             {
                 _unsent = _unsent == null ? fresh : _unsent + fresh;
-                if (_unsent.Length > MaxUnsent)
-                    _unsent = "(older bridge output dropped - the site did not take it)\n" + _unsent.Substring(_unsent.Length - MaxUnsent / 2);
+                _unsent = LiveLink.KeepNewest(_unsent, LiveLink.MaxUnsentBytes);   // bytes, not chars
             }
             if (!_outFlight && !_fileFlight && _unsent != null)
             {
-                _sending = _unsent;
-                _unsent = null;
+                // At most MaxPostBytes a post (the site caps one at 256 KB);
+                // the rest goes on the next polls.
+                string rest;
+                _sending = LiveLink.NextChunk(_unsent, LiveLink.MaxPostBytes, out rest);
+                _unsent = rest;
                 _outFlight = true;
                 _outGen = _gen;
                 Ctx.Runner.StartCoroutine(WebRequest.Send("POST", _outUrl, Encoding.UTF8.GetBytes(_sending),
@@ -349,6 +350,12 @@ namespace ForestOverlay.Modules
                 return true;
             }
             if (a == LiveLink.Answer.Closed) { End("the site closed it", false); return false; }
+            if (a == LiveLink.Answer.TooLarge)
+            {
+                // That one body is dropped; the session goes on.
+                Ctx.Log.LogInfo("Live: " + what + " was too large for the site (413), dropped it.");
+                return false;
+            }
             if (a == LiveLink.Answer.Refused) { Stop("the site refused " + what + " (" + code + ")"); return false; }
             if (_retries++ == 0)
             {

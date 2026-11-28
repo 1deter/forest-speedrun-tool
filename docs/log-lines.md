@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 915 log calls.
+257 prefixes from 916 log calls.
 
 ## `ActionReaders`
 
@@ -948,6 +948,7 @@ Meaning: The live session with deter (T-0490): opened (its code), each screensho
 Written by LiveLinkModule.cs; info.
 
 - info `Live: <what> failed (<..>), retrying.`
+- info `Live: <what> was too large for the site (413), dropped it.`
 - info `Live: could not open a session - <reason>.`
 - info `Live: could not open a session - <why>.`
 - info `Live: opening a session at <BaseUrl>.`
