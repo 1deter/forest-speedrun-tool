@@ -173,6 +173,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   and `BepInEx_Manager` are refused; evidence on T-0490 / T-0491), then
   T-0487, T-0489, T-0493, T-0494. Mac: .NET 8 + 10 in ~/.dotnet (not on
   PATH; `dotnet` exit 137: re-copy the host); no VPS key here.
+- **v0.24.404 (T-0495, author: "Release now"):** Practice -> Share
+  uploads the runner's own spot (saved runs, Open on the website, a line
+  saying why it is not on the site); "Submit to community" removed
+  (author makes community spots from Export). sxczurass's spot
+  s-f2b06927450b was never on the site (token refused, author reset it).
+  Released **before** its forest-ux review and any in-game try: both next,
+  in his live session (he updates to .404, not .403).
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
