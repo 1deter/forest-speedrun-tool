@@ -166,8 +166,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   **live connection** (decisions.md, author: full bridge guarded,
   practice module, button + code): site relay T-0488 on main (accept,
   not pushed); plugin side T-0490 on `claude/live-link-plugin` (checker
-  **revise**: guard receiver hole etc., fix in progress in session
-  live-connection-plugin-s); MCP remote mode T-0491 on
+  **revise**: guard receiver hole etc.; fixed in cb4c47ee, needs its
+  re-check); MCP remote mode T-0491 on
   `claude/exciting-bardeen-83243c` (accept; its notes fixed in d1359e2a,
   re-check). Zone editor T-0492 (decisions.md *Zone editor mode*) on
   main, in progress, untried in game. **Next:** re-check T-0490 / T-0491,
