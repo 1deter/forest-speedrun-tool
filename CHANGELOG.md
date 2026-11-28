@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.405 - 2026-11-28
+
+- Live sessions: the developer can now show you on-screen messages while looking at your game.
+- Live sessions: your folder paths (which hold your Windows user name) stay hidden from the developer.
+
 ## v0.24.404 - 2026-11-28
 
 - Practice > Share: upload a spot's saved runs and open it on the website from there. A line tells you whether the spot is on the website yet, and if not, why.
