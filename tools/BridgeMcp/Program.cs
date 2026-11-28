@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -25,6 +26,17 @@ namespace ForestOverlay.BridgeMcp
             BridgeClient bridge = new BridgeClient(paths);
             Tools tools = new Tools(paths, bridge);
             new DiscordTools().Register(tools.All);
+
+            // FOREST_LIVE_CODE: start on a runner's live session (as
+            // live_connect), e.g. for --call from scripts (T-0491).
+            string liveCode = ForestPaths.Env("FOREST_LIVE_CODE");
+            if (liveCode != null && (args.Length == 0 || args[0] != "--tools"))
+            {
+                ToolResult live = await tools.ConnectLive(liveCode, CancellationToken.None);
+                Console.Error.WriteLine("FOREST_LIVE_CODE: " + string.Join(" ", live.ToJson()["content"].AsArray()
+                    .Select(n => (string)n["text"])));
+                if (live.IsError && args.Length > 0 && args[0] == "--call") return 1;
+            }
 
             if (args.Length > 0 && args[0] == "--tools")
             {

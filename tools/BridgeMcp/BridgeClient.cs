@@ -95,36 +95,6 @@ namespace ForestOverlay.BridgeMcp
         }
     }
 
-    internal sealed class BridgeReply
-    {
-        /// The game took in.txt.
-        public bool Delivered;
-        /// Every command's reply arrived (the end marker was seen).
-        public bool Complete;
-        /// Why the call fell short; null when Complete.
-        public string Problem;
-        public string Raw = "";
-        public BridgeText.Transcript Transcript = new BridgeText.Transcript();
-
-        /// The transcript as the model should read it.
-        public string Text(bool withHeaders)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (object item in Transcript.Items)
-            {
-                BridgeText.Block b = item as BridgeText.Block;
-                if (b == null) { sb.Append((string)item).Append('\n'); continue; }
-                if (withHeaders) sb.Append("> ").Append(b.Command).Append('\n');
-                foreach (string l in b.Lines) sb.Append(l).Append('\n');
-                if (b.Error != null) sb.Append("error: ").Append(b.Error).Append('\n');
-                else if (!b.Closed) sb.Append("(no reply yet - still running in game)\n");
-                else if (withHeaders) sb.Append("ok (").Append(b.Took).Append(")\n");
-            }
-            if (Problem != null) sb.Append(Problem).Append('\n');
-            return sb.ToString().TrimEnd('\n');
-        }
-    }
-
     // ------------------------------------------------------------------
     // The file transport, as scripts/bridge.sh: write the batch plus an
     // `echo <marker>` into in.tmp, rename it to in.txt, and read out.txt
@@ -132,7 +102,7 @@ namespace ForestOverlay.BridgeMcp
     // Unlike bridge.sh, an in.txt the game never read is withdrawn on
     // timeout - left there, it would run on the next launch.
     // ------------------------------------------------------------------
-    internal sealed class BridgeClient
+    internal sealed class BridgeClient : IBridgeTransport
     {
         private readonly ForestPaths _paths;
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);

@@ -176,6 +176,9 @@
     <Compile Include="../../tools/BridgeMcp/DiscordText.cs" Link="Linked/DiscordText.cs" />
     <Compile Include="../../tools/BridgeMcp/ChildProcess.cs" Link="Linked/ChildProcess.cs" />
     <Compile Include="../../tools/BridgeMcp/GpuFault.cs" Link="Linked/GpuFault.cs" />
+    <!-- The live relay transport (T-0491), checked against a fake site handler (no network). -->
+    <Compile Include="../../tools/BridgeMcp/BridgeReply.cs" Link="Linked/BridgeReply.cs" />
+    <Compile Include="../../tools/BridgeMcp/RemoteBridge.cs" Link="Linked/RemoteBridge.cs" />
   </ItemGroup>
 
 </Project>
