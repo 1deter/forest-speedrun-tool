@@ -1907,6 +1907,10 @@ namespace ForestOverlay.Modules
             {
                 if (!on)
                 {
+                    // Zone -> box -> poly changes the shape only: the place
+                    // and facing stay, Here moves it (author, 2026-11-28,
+                    // T-0486). A trigger that was not a zone has no place yet.
+                    bool wasZone = t.Kind == TriggerKind.Zone;
                     t.Kind = kind;
 
                     if (kind == TriggerKind.Zone)
@@ -1914,13 +1918,13 @@ namespace ForestOverlay.Modules
                         t.Shape = shape;
 
                         Vector3 p;
-                        if (TryPlayerPosition(out p)) t.Position = p;
+                        if (!wasZone && TryPlayerPosition(out p)) t.Position = p;
 
                         if (shape == ZoneShape.Sphere && t.Radius <= 0f) t.Radius = DefaultRadius;
                         if (shape == ZoneShape.Box && t.Extents.x <= 0f)
                             t.Extents = new Vector3(3f, 3f, 3f);
                         // A new box faces the way you look (runners).
-                        if (shape == ZoneShape.Box) t.Yaw = PlayerYaw();
+                        if (shape == ZoneShape.Box && !wasZone) t.Yaw = PlayerYaw();
                         if (shape == ZoneShape.Polygon)
                         {
                             if (t.Extents.y <= 0f) t.Extents = new Vector3(t.Extents.x, 3f, t.Extents.z);
@@ -3084,9 +3088,13 @@ namespace ForestOverlay.Modules
         private Trigger ZoneHere()
         {
             Trigger t = new Trigger();
+            // A new trigger is a box facing the way you look (author,
+            // 2026-11-28, T-0486); the radius is kept for a switch to zone.
             t.Kind = TriggerKind.Zone;
-            t.Shape = ZoneShape.Sphere;
+            t.Shape = ZoneShape.Box;
             t.Radius = DefaultRadius;
+            t.Extents = new Vector3(3f, 3f, 3f);
+            t.Yaw = PlayerYaw();
 
             Vector3 p;
             if (TryPlayerPosition(out p)) t.Position = p;

@@ -72,6 +72,10 @@ concept before changing its feature. Where the code lives:
 - **Triggers** (`zone`, `box`, `item`, `event`, `manual`) are the spine —
   splits, segment bounds and eventually autosplits are all "a trigger fired".
   Item triggers can be **relative** (`+3` = three more than at the start).
+  A new start / end / checkpoint is a 3 m **box** facing the player's look;
+  the editor's zone / box / poly buttons change only the shape of a zone
+  (place and facing stay, **Here** moves it) - a trigger that was item /
+  event / manual takes the player's place (author, 2026-11-28, T-0486).
   `event` triggers fire from `Game/GameEvents`; the segment editor steps
   through the known names with `<` `>`.
 - **Split order** (`Data/SplitSequence`, v0.22.7, tested): the start fires
