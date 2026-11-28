@@ -92,9 +92,7 @@ not copy the token aside) or, to test a full registration locally, clear
 it and have the author **Reset token** for their runner on the live
 `/admin` afterwards, so the plugin registers again live. A local test
 that sets `_tokenBad` (401) needs `set ..._modules[16]._tokenBad false`.
-Pressing Submit over the bridge: `call ..._modules[9].SubmitSelected`
-(after `QuickSaveSpot`, which selects the new spot; remove it after per
-*Removing test spots*).
+(The plugin's Submit button and `SubmitSelected` are gone, T-0495.)
 
 ## The reference: [`docs/website.md`](../website.md)
 

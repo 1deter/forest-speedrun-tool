@@ -116,14 +116,23 @@ namespace ForestOverlay.Modules
             Write(segment, one, runnerId, runnerName);
         }
 
-        /// Every saved run of the current segment (the button). The site
-        /// keeps one copy of each, so pressing twice uploads nothing twice.
+        /// Every saved run of the current segment (the Runs tab's button).
         public void EnqueueSaved()
         {
             Segment seg = CurrentSegment != null ? CurrentSegment() : null;
-            if (seg == null || !seg.IsTimed) { _state = "pick a timed segment first (Practice tab, Go)"; return; }
             List<string> texts = SavedRunTexts != null ? SavedRunTexts() : null;
-            if (texts == null || texts.Count == 0) { _state = "no saved runs for '" + seg.Name + "'"; return; }
+            _state = EnqueueSavedFor(seg, texts);
+            _nextText = 0f;
+        }
+
+        /// Every saved run of `seg` (`texts`: the runner's own, named), queued
+        /// as files; the answer says what happened. The site keeps one copy
+        /// of each, so pressing twice uploads nothing twice. Practice's Share
+        /// row uses it for the selected spot.
+        public string EnqueueSavedFor(Segment seg, List<string> texts)
+        {
+            if (seg == null || !seg.IsTimed) return "pick a timed segment first (Practice tab, Go)";
+            if (texts == null || texts.Count == 0) return "no saved runs for '" + seg.Name + "'";
 
             // In bundles of a few, so one big file never hits the size cap.
             int files = 0;
@@ -133,8 +142,34 @@ namespace ForestOverlay.Modules
                 files++;
             }
             _nextTry = 0f;
-            _state = texts.Count + " saved run(s) of '" + seg.Name + "' queued";
             Ctx.Log.LogInfo("Upload: " + texts.Count + " saved run(s) of '" + seg.Id + "' queued in " + files + " file(s).");
+            return texts.Count + " saved run(s) of '" + seg.Name + "' queued";
+        }
+
+        public bool SendOn { get { return _enabled != null && _enabled.Value; } }
+        public bool TokenRefused { get { return _tokenBad; } }
+        /// Runs uploaded this session (Practice re-reads the website list when it changes).
+        public int UploadedCount { get { return _uploaded; } }
+
+        /// Queued upload files of one spot.
+        public int PendingFor(string segmentId)
+        {
+            int n = 0;
+            try
+            {
+                if (!Directory.Exists(_pendingDir)) return 0;
+                string tail = "_" + Safe(segmentId) + SegmentBundle.Extension;
+                foreach (string path in Directory.GetFiles(_pendingDir, "*" + SegmentBundle.Extension))
+                    if (Path.GetFileName(path).EndsWith(tail, StringComparison.Ordinal)) n++;
+            }
+            catch (Exception) { }
+            return n;
+        }
+
+        /// Opens the spot's page on the website (the site's front page for none).
+        public void OpenSpot(string segmentId)
+        {
+            Application.OpenURL(!string.IsNullOrEmpty(segmentId) ? SiteProtocol.SpotUrl(_url.Value, segmentId) : SiteProtocol.TrimUrl(_url.Value));
         }
 
         private void Write(Segment segment, List<string> runTexts, string runnerId, string runnerName)
@@ -361,76 +396,6 @@ namespace ForestOverlay.Modules
             StringBuilder sb = new StringBuilder(id.Length);
             for (int i = 0; i < id.Length; i++) sb.Append(char.IsLetterOrDigit(id[i]) || id[i] == '-' ? id[i] : '_');
             return sb.ToString();
-        }
-
-        // --- spot submissions (Practice's Share row) -----------------------------------
-
-        private bool _submitting;
-        public bool Submitting { get { return _submitting; } }
-
-        /// Sends `segment` (+ its start state, no attempts) to the site for the
-        /// author to approve as a community spot. `report` gets each status
-        /// line (the Practice tab shows it under the button).
-        public void Submit(Segment segment, string startState, Action<string> report)
-        {
-            string why = SiteProtocol.SubmitRefusal(segment.Id, false);
-            if (why != null) { report(why); return; }
-            if (_submitting) { report("A submission is on its way already."); return; }
-
-            SegmentBundle b = new SegmentBundle();
-            b.Segment = segment;
-            b.StartState = startState;
-            b.Exported = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-            b.PluginVersion = OverlayPlugin.PluginVersion;
-            string text = b.Write();
-            if (text.Length > MaxBundleBytes) { report("Too large to send (over " + (MaxBundleBytes >> 20) + " MB)."); return; }
-
-            _submitting = true;
-            report("Sending '" + segment.Name + "' to " + HostName() + "...");
-            Ctx.Runner.StartCoroutine(SendSubmission(segment, text, startState != null, report));
-        }
-
-        private IEnumerator SendSubmission(Segment segment, string text, bool withStart, Action<string> report)
-        {
-            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
-            if (string.IsNullOrEmpty(_token.Value))
-            {
-                bool ok = false;
-                yield return Ctx.Runner.StartCoroutine(Register(baseUrl, "", delegate(bool r) { ok = r; }));
-                if (!ok) { _submitting = false; report("Not sent: " + _state + "."); yield break; }
-            }
-
-            long code = 0; string body = null, error = null;
-            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/submissions", Encoding.UTF8.GetBytes(text),
-                "text/plain; charset=utf-8", _token.Value, RequestTimeout,
-                delegate(long c, string b, string e) { code = c; body = b; error = e; }));
-            _submitting = false;
-
-            string what = withStart ? "with its start state" : "no start state";
-            switch (SiteProtocol.Classify(code))
-            {
-                case UploadOutcome.Done:
-                    bool replaced = body != null && body.Contains("\"replaced\":true");
-                    report((replaced ? "Sent again - it replaces your earlier submission" : "Submitted") + " (" + what +
-                           "). The author looks at it before it goes out to everyone; until then a new submit replaces this one.");
-                    Ctx.Log.LogInfo("Submit: '" + segment.Id + "' sent to " + baseUrl + " as submission " +
-                                    SiteProtocol.Number(body, "id") + (replaced ? " (replaced the waiting one)" : "") + ", " + what + ".");
-                    break;
-                case UploadOutcome.TokenBad:
-                    _tokenBad = true;
-                    report("Not sent: the site does not know this install's token - clear Token in the config to register again.");
-                    Ctx.Log.LogWarning("Submit: token refused (401).");
-                    break;
-                case UploadOutcome.Refused:
-                    string msg = SiteProtocol.Field(body, "error") ?? body;
-                    report("The site refused it: " + msg);
-                    Ctx.Log.LogWarning("Submit: '" + segment.Id + "' refused - HTTP " + code + ": " + msg);
-                    break;
-                default:
-                    report("Not sent - the site is not reachable (" + (error ?? "HTTP " + code) + "). Try again later.");
-                    Ctx.Log.LogWarning("Submit: '" + segment.Id + "' not sent: " + (error ?? "HTTP " + code) + ".");
-                    break;
-            }
         }
 
         // --- deleting the runner's own spot from the site (Practice's Share row) ------

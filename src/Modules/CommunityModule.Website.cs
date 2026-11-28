@@ -51,6 +51,29 @@ namespace ForestOverlay.Modules
             WebRefresh();
         }
 
+        private bool _webLoaded;
+
+        /// The list was read at least once this session (Share's status line).
+        public bool WebListKnown { get { return _webLoaded; } }
+
+        /// The website's entry for a spot id; null when not listed. No allocation.
+        public SiteSpot WebSpotById(string id)
+        {
+            for (int i = 0; i < WebSpots.Count; i++)
+                if (WebSpots[i].Spot.Id == id) return WebSpots[i].Spot;
+            return null;
+        }
+
+        /// Practice's Share row asks for the list as the Import view does
+        /// (same refresh switch, same recheck interval).
+        public void WebEnsureFresh()
+        {
+            if (Ctx.Network.Refresh.Value) WebOpened();
+        }
+
+        /// An upload went through: read the list again at the next ask.
+        public void WebInvalidate() { _webAskedAt = -1f; }
+
         private string WebBase
         {
             get
@@ -101,6 +124,7 @@ namespace ForestOverlay.Modules
                 WebSpots.Add(e);
             }
             WebRelabel();
+            _webLoaded = true;
             WebStatus = list.Count == 0 ? "No runner spots on the website yet." : list.Count + " spot(s) on the website.";
             Ctx.Log.LogInfo("Website spots: " + list.Count + " listed.");
         }
