@@ -924,6 +924,36 @@ static:TheForest.Utils.LocalPlayer Inventory.GetMaxAmountOf <id>` per id
 (a `-f` script, ~2 s). The local site stamps `?v=` once at startup:
 restart it after editing a wwwroot file, or the page keeps the old one.
 
+## Live sessions (2026-11-28, T-0488)
+
+The relay between the author's test bridge (tools/BridgeMcp) and a
+runner's game that asked for it (the plugin's live connection, T-0489;
+docs/bridge.md *Live sessions*). `LiveSessions.cs`, **in memory**:
+nothing from a runner's game is written to disk, and a restart of the
+site ends every session (the game then gets 403 and stops).
+
+- **The game** (no runner token - a broken upload registration must not
+  stop a runner asking for help): `POST /api/live/open` -> `{code, secret,
+  idle}`. The 6-character code (no 0/O/1/I) is what the runner sends the
+  author; the 48-hex secret is the game's `Authorization: Bearer` for
+  `GET /api/live/in` (the lines waiting, taken), `POST /api/live/out`
+  (output appended, 256 KB a post), `POST /api/live/file?name=` (a PNG,
+  4 MB, name `[A-Za-z0-9_-]{1,64}`) and `POST /api/live/close`. A wrong
+  secret is 403, a closed session 410.
+- **The author** (admin group, `X-Admin-Token`): `GET /api/admin/live`
+  (the sessions), `POST .../live/{code}/send` (lines; 413 past 64 KB
+  waiting), `GET .../live/{code}/out?after=<byte offset>` (headers
+  `X-Live-Offset`, `X-Live-State: open|closed`, `X-Live-Trimmed: 1`),
+  `GET .../live/{code}/file/{name}`, `POST .../live/{code}/close`. The
+  code alone is nothing without the token.
+- **Ends:** the runner's Stop, the author's close, 30 min with no line
+  sent, the game not polling for 2 min, 4 h in all; a closed session's
+  output stays readable 10 min, then the code is gone.
+- **Caps:** 1 MB of output kept (the oldest half dropped at a line, the
+  offset keeps counting), 20 pictures, 50 sessions open, one per address
+  (a new open closes the old). Rate limits `live` 600/min, `liveopen`
+  20/hour per address. Tests: `site/ForestSite.Tests/LiveTests.cs`.
+
 ## Next
 
 **Open items here are tasks since 2026-10-07** (`python scripts/tasks.py list --open --area site`); this section keeps the detail.

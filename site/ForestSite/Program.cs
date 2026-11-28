@@ -49,6 +49,7 @@ var bot = new BotSettings(store);
 string botToken = Environment.GetEnvironmentVariable("FOREST_BOT_TOKEN") ?? "";
 var runs = new Runs(store, c => categories.IsPublished(c));
 var attempts = new Attempts(store, dataDir, null, categories);
+var live = new LiveSessions();   // in memory: a restart ends every live session (T-0488)
 var webhook = new PbWebhook(builder.Configuration["FOREST_DISCORD_WEBHOOK"], builder.Configuration["FOREST_SITE_URL"]);
 var pbPosts = new PbPosts(webhook, new PbWebhook("", builder.Configuration["FOREST_SITE_URL"], "Discord webhook (runners' spots)"),
                           new PbSettings(store));
@@ -93,6 +94,12 @@ builder.Services.AddRateLimiter(o =>
     // The bot polls about once a minute and reports as often.
     o.AddPolicy("bot", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1) }));
+    // Live sessions (T-0488): a game polls twice a second and posts its
+    // output as often - about 250 calls a minute; opening one is a click.
+    o.AddPolicy("live", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) }));
+    o.AddPolicy("liveopen", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromHours(1) }));
 });
 
 var app = builder.Build();
@@ -719,6 +726,70 @@ app.MapGet("/compare", (HttpContext c) =>
     return Results.Content(Pages.WithMeta(indexHtml, "Compare runs · Forest Practice Runs",
         "Two YouTube runs side by side, frame-timed: each run's start, end and splits, played together.", url), "text/html; charset=utf-8");
 });
+// --- live sessions (LiveSessions, T-0488; docs/bridge.md *Live sessions*) -------
+// The game's side holds the session's secret (Bearer), never a runner token:
+// a runner whose upload registration is broken can still ask for help. The
+// author's side is the admin group. Nothing here is written to disk.
+
+api.MapPost("/live/open", (HttpContext c) =>
+    live.Open(ClientIp(c)) is { } o ? Results.Json(new { code = o.Code, secret = o.Secret, idle = o.IdleSeconds })
+                                    : Problem(503, "too many live sessions open")).RequireRateLimiting("liveopen");
+
+static IResult LiveAnswer(LiveSessions.Access a) => a switch
+{
+    LiveSessions.Access.Ok => Results.NoContent(),
+    LiveSessions.Access.Closed => Problem(410, "live session closed"),
+    _ => Problem(403, "unknown live session"),
+};
+
+api.MapGet("/live/in", (HttpRequest r) =>
+{
+    var a = live.TakeInput(Bearer(r), out string lines);
+    if (a != LiveSessions.Access.Ok) return LiveAnswer(a);
+    r.HttpContext.Response.Headers.CacheControl = "no-store";
+    return Results.Text(lines, "text/plain; charset=utf-8");
+}).RequireRateLimiting("live");
+
+api.MapPost("/live/out", async (HttpRequest r) =>
+    LiveAnswer(live.AddOutput(Bearer(r), await Body(r, LiveSessions.MaxOutPost)))).RequireRateLimiting("live");
+
+api.MapPost("/live/file", async (HttpRequest r, string name) =>
+{
+    if (!LiveSessions.ValidName(name)) return Problem(400, "bad picture name");
+    if (r.ContentLength > LiveSessions.MaxFile) return Problem(413, "picture too large");
+    using var buffer = new MemoryStream();
+    await r.Body.CopyToAsync(buffer);
+    if (buffer.Length > LiveSessions.MaxFile) return Problem(413, "picture too large");
+    byte[] png = buffer.ToArray();
+    if (!LiveSessions.IsPng(png)) return Problem(400, "not a PNG");
+    return LiveAnswer(live.AddFile(Bearer(r), name, png));
+}).RequireRateLimiting("live");
+
+api.MapPost("/live/close", (HttpRequest r) => LiveAnswer(live.CloseByRunner(Bearer(r)))).RequireRateLimiting("live");
+
+admin.MapGet("/live", () => Results.Json(live.List()));
+admin.MapPost("/live/{code}/send", async (HttpRequest r, string code) =>
+    live.Send(code, await Body(r, LiveSessions.MaxPending)) switch
+    {
+        LiveSessions.SendResult.Ok => Results.NoContent(),
+        LiveSessions.SendResult.Closed => Problem(410, "live session closed"),
+        LiveSessions.SendResult.TooMuch => Problem(413, "too many lines waiting - the game has not taken them"),
+        _ => Problem(404, "no such live session"),
+    });
+admin.MapGet("/live/{code}/out", (HttpContext c, string code, long? after) =>
+{
+    var o = live.ReadOutput(code, after ?? 0);
+    if (o == null) return Problem(404, "no such live session");
+    c.Response.Headers["X-Live-Offset"] = o.Offset.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    c.Response.Headers["X-Live-State"] = o.Open ? "open" : "closed";
+    if (o.Trimmed) c.Response.Headers["X-Live-Trimmed"] = "1";
+    return Results.Text(o.Text, "text/plain; charset=utf-8");
+});
+admin.MapGet("/live/{code}/file/{name}", (string code, string name) =>
+    LiveSessions.ValidName(name) && live.File(code, name) is { } png ? Results.File(png, "image/png") : Problem(404, "no such picture"));
+admin.MapPost("/live/{code}/close", (string code) =>
+    live.CloseByAdmin(code) ? Results.NoContent() : Problem(404, "no such live session"));
+
 api.MapFallback(() => Problem(404, "no such endpoint"));
 app.MapFallback(Page);
 
