@@ -1929,13 +1929,14 @@ namespace ForestOverlay.Modules
                         {
                             if (t.Extents.y <= 0f) t.Extents = new Vector3(t.Extents.x, 3f, t.Extents.z);
                             // An outline kept from before moves here whole;
-                            // a new one starts as a 6 m square facing your way.
+                            // a new one starts as a 6 m square facing your way,
+                            // or the zone's own way when it was one (T-0486).
                             if (t.Points != null && t.Points.Length >= 3)
                             {
                                 Vector2 c = ZonePolygon.Centre(t.Points);
                                 t.Points = ZonePolygon.Translated(t.Points, t.Position.x - c.x, t.Position.z - c.y);
                             }
-                            else t.Points = ZonePolygon.Square(t.Position.x, t.Position.z, 3f, PlayerYaw());
+                            else t.Points = ZonePolygon.Square(t.Position.x, t.Position.z, 3f, wasZone ? t.Yaw : PlayerYaw());
                             ZonePolygon.Recentre(ref t);
                         }
                     }
