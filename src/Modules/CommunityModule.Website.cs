@@ -43,6 +43,8 @@ namespace ForestOverlay.Modules
         public bool WebBusy { get; private set; }
 
         private const float WebRecheckAfter = 120f;
+        private const float WebRetryAfter = 45f;
+        private bool _webFailLogged;
         private float _webAskedAt = -1f;
 
         private void WebOpened()
@@ -106,8 +108,11 @@ namespace ForestOverlay.Modules
             {
                 string why = code == 0 ? (error ?? "no answer") : "answer " + code;
                 WebStatus = "Could not read the website (" + why + ").";
-                _webAskedAt = -1f;   // the next Import view asks again
-                Ctx.Log.LogWarning("Website spots: list: " + why + ".");
+                // Ask again in WebRetryAfter, not at the next draw (Practice's
+                // Share row asks every frame); one log line per failure streak.
+                _webAskedAt = Time.unscaledTime - WebRecheckAfter + WebRetryAfter;
+                if (!_webFailLogged) Ctx.Log.LogWarning("Website spots: list: " + why + ".");
+                _webFailLogged = true;
                 yield break;
             }
 
@@ -125,6 +130,7 @@ namespace ForestOverlay.Modules
             }
             WebRelabel();
             _webLoaded = true;
+            _webFailLogged = false;
             WebStatus = list.Count == 0 ? "No runner spots on the website yet." : list.Count + " spot(s) on the website.";
             Ctx.Log.LogInfo("Website spots: " + list.Count + " listed.");
         }

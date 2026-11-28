@@ -2512,6 +2512,7 @@ namespace ForestOverlay.Modules
                 _exportAttemptsLabel.text = " with my attempts (" + n + ")";
                 _siteSavedRuns = n;
                 _siteNext = 0f;
+                _siteCountNext = Time.unscaledTime + 5f;
             }
 
             WinPx.Label(new Rect(0, y, 74, 20), "Share");
@@ -2523,14 +2524,16 @@ namespace ForestOverlay.Modules
             y += 26f;
             if (_upload != null)
             {
-                GUI.enabled = s.Id.Length > 0;
-                if (WinPx.Button(new Rect(80, y - 2, 170, 22), "Upload saved runs")) UploadSaved(s);
-                GUI.enabled = true;
-                if (WinPx.Button(new Rect(256, y - 2, 150, 22), "Open on the website"))
+                bool saved = s.Id.Length > 0 && !_unsaved.Contains(s);
+                GUI.enabled = saved && s.IsTimed;
+                if (WinPx.Button(new Rect(80, y - 2, 210, 22), "Upload this spot's saved runs")) UploadSaved(s);
+                GUI.enabled = saved;
+                if (WinPx.Button(new Rect(296, y - 2, 150, 22), "Open on the website"))
                 {
                     Ctx.Log.LogInfo("Upload: opened '" + s.Id + "' on the website.");
                     _upload.OpenSpot(s.Id);
                 }
+                GUI.enabled = true;
                 y += 26f;
                 GUI.enabled = s.Id.Length > 0 && !_upload.Deleting && !SegmentLibrary.IsCommunity(s);
                 if (WinPx.Button(new Rect(80, y - 2, 170, 22),
@@ -2614,6 +2617,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _siteStatus = new GUIContent("");
         private float _siteNext;
         private int _siteSavedRuns, _siteUploadedSeen;
+        private float _siteCountNext;
 
         /// The status line under the Share buttons, rebuilt once a second
         /// (a folder listing and a string - never per frame).
@@ -2622,6 +2626,11 @@ namespace ForestOverlay.Modules
             if (_community != null) _community.WebEnsureFresh();
             if (Time.unscaledTime < _siteNext) return;
             _siteNext = Time.unscaledTime + 1f;
+            if (Time.unscaledTime >= _siteCountNext)
+            {
+                _siteCountNext = Time.unscaledTime + 5f;
+                _siteSavedRuns = _attempts.CountFiles(s.Id);   // a new attempt shows within 5 s
+            }
             if (_upload.UploadedCount != _siteUploadedSeen)
             {
                 _siteUploadedSeen = _upload.UploadedCount;
@@ -2652,6 +2661,7 @@ namespace ForestOverlay.Modules
             string said = _upload.EnqueueSavedFor(s, mine);
             _shareStatus.text = char.ToUpper(said[0]) + said.Substring(1) + ".";
             _siteNext = 0f;
+            _siteCountNext = 0f;
         }
 
         /// Takes the runner's own spot off the website (its runs too); a
