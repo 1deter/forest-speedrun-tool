@@ -789,13 +789,8 @@ namespace ForestOverlay.Modules
         /// object, so a live session may use it (the guard refuses that object).
         private string NoticeCommand(List<string> a, List<string> o)
         {
-            if (a.Count < 1) return "notice [seconds] <text>";
-            float seconds = 8f;
-            int from = 0;
-            float parsed;
-            if (a.Count >= 2 && BridgeCommand.TryParseFloat(a[0], out parsed)) { seconds = Mathf.Clamp(parsed, 1f, 30f); from = 1; }
-            string text = string.Join(" ", a.GetRange(from, a.Count - from).ToArray());
-            if (text.Length > 300) text = text.Substring(0, 300);
+            float seconds; string text;
+            if (!BridgeCommand.TryParseNotice(a, out seconds, out text)) return "notice [seconds] <text>";
             Ctx.Notice.Show(text, seconds);
             o.Add("notice shown for " + seconds.ToString("0.#", CultureInfo.InvariantCulture) + " s");
             return null;

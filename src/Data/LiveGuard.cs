@@ -104,9 +104,8 @@ namespace ForestOverlay.Data
         /// members listed?
         public static bool AllowsType(string assembly, string typeFullName)
         {
-            if (string.IsNullOrEmpty(typeFullName)) return false;
-            if (IsSafeSystemType(assembly, typeFullName)) return true;
             if (!AllowsAssembly(assembly)) return false;
+            if (string.IsNullOrEmpty(typeFullName)) return false;
             for (int i = 0; i < RefusedTypes.Length; i++)
                 if (typeFullName.StartsWith(RefusedTypes[i], StringComparison.Ordinal)) return false;
             return true;
@@ -117,7 +116,7 @@ namespace ForestOverlay.Data
         /// accessor (get_X / set_X) counts as the property.
         public static bool AllowsMember(string assembly, string declaringType, string member)
         {
-            if (!AllowsType(assembly, declaringType)) return false;
+            if (!AllowsReceiver(assembly, declaringType)) return false;
             if (string.IsNullOrEmpty(member)) return false;
             string m = member.StartsWith("get_", StringComparison.Ordinal) || member.StartsWith("set_", StringComparison.Ordinal)
                 ? member.Substring(4) : member;
@@ -151,7 +150,7 @@ namespace ForestOverlay.Data
         /// BepInEx or System object.
         public static bool AllowsReceiver(string assembly, string typeFullName)
         {
-            return AllowsType(assembly, typeFullName);
+            return IsSafeSystemType(assembly, typeFullName) || AllowsType(assembly, typeFullName);
         }
     }
 }

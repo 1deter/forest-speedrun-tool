@@ -113,6 +113,10 @@ namespace ForestOverlay.Tests
             Assert.False(LiveGuard.AllowsType("System.Core", "System.String"));
             Assert.False(LiveGuard.AllowsType("ForestOverlay", "System.String"));
             Assert.False(LiveGuard.AllowsAssembly("mscorlib"));   // FindType by name stays shut
+            // naming them (static:System.String, types) stays shut too: only as a receiver
+            foreach (string n in new[] { "System.String", "System.Math", "System.Array", "System.Int32",
+                                         "System.Collections.Generic.List`1" })
+                Assert.False(LiveGuard.AllowsType(ms, n), n);
         }
 
         [Fact]

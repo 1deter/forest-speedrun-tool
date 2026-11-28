@@ -92,6 +92,21 @@ namespace ForestOverlay.Data
             return true;
         }
 
+        /// `notice [seconds] <text>`: the seconds (1-30, 8 by default) and the
+        /// text (300 characters at most); false with no text.
+        public static bool TryParseNotice(System.Collections.Generic.List<string> a, out float seconds, out string text)
+        {
+            seconds = 8f;
+            text = "";
+            int from = 0;
+            float parsed;
+            if (a.Count >= 2 && TryParseFloat(a[0], out parsed)) { seconds = parsed < 1f ? 1f : (parsed > 30f ? 30f : parsed); from = 1; }
+            if (a.Count - from < 1) return false;
+            text = string.Join(" ", a.GetRange(from, a.Count - from).ToArray());
+            if (text.Length > 300) text = text.Substring(0, 300);
+            return true;
+        }
+
         public static bool TryParseFloat(string text, out float value)
         {
             return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);

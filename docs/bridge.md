@@ -222,7 +222,9 @@ with consent, and the runner can stop it at any time.
   `streamingAssetsPath`, `temporaryCachePath`, `consoleLogPath`: a Windows
   user name is in them) are refused. **`notice [seconds] <text>`** is a
   bridge command of its own (the MCP `notice` tool uses it), so the
-  overlay's object stays shut and a live session can still talk to the runner.
+  overlay's object stays shut and a live session can still talk to the runner
+  (a plugin older than this answers *unknown command 'notice'*: the notice
+  tool needs the release that carries T-0496).
 - **`log [n] [filter]`** (any bridge): the last n (40, <= 500) lines of
   BepInEx's `LogOutput.log` containing the filter (a substring, any case) -
   the MCP's log tool cannot read a remote disk.
