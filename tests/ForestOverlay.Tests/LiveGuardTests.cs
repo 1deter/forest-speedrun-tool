@@ -82,9 +82,45 @@ namespace ForestOverlay.Tests
             Assert.True(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.Behaviour", "enabled"));
             Assert.False(LiveGuard.AllowsReceiver("ForestOverlay", "ForestOverlay.OverlayPlugin"));
             Assert.False(LiveGuard.AllowsReceiver("BepInEx", "BepInEx.Bootstrap.Chainloader"));
-            Assert.False(LiveGuard.AllowsReceiver(typeof(string).Assembly.GetName().Name, typeof(string).FullName));
+            Assert.False(LiveGuard.AllowsReceiver("mscorlib", typeof(Type).FullName));
             Assert.True(LiveGuard.AllowsReceiver("UnityEngine", "UnityEngine.Transform"));
             Assert.True(LiveGuard.AllowsReceiver("Assembly-CSharp", "FirstPersonCharacter"));
+        }
+
+        [Fact]
+        public void SafeSystemTypes_AllowedAsReceivers()
+        {
+            string ms = "mscorlib";   // the game's Mono (.NET 8 names it System.Private.CoreLib)
+            Assert.True(LiveGuard.AllowsMember(ms, typeof(string).FullName, "Length"));
+            Assert.True(LiveGuard.AllowsReceiver(ms, typeof(System.Collections.Generic.List<int>).FullName));
+            Assert.True(LiveGuard.AllowsReceiver(ms, typeof(System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<string>>).FullName));
+            Assert.True(LiveGuard.AllowsReceiver(ms, typeof(int[]).FullName));
+            Assert.True(LiveGuard.AllowsMember(ms, typeof(System.Collections.Generic.List<int>).FullName, "Count"));
+            Assert.True(LiveGuard.AllowsMember(ms, typeof(System.Collections.Generic.List<int>).FullName, "get_Item"));
+        }
+
+        [Fact]
+        public void OtherSystemTypes_StillRefused()
+        {
+            string ms = "mscorlib";   // the game's Mono (.NET 8 names it System.Private.CoreLib)
+            foreach (Type t in new[] { typeof(Type), typeof(Delegate), typeof(Environment), typeof(Activator), typeof(StringComparer),
+                                       typeof(System.Text.StringBuilder), typeof(System.IO.Stream), typeof(object), typeof(Convert),
+                                       typeof(System.Collections.ArrayList) })
+            {
+                Assert.False(LiveGuard.AllowsReceiver(ms, t.FullName), t.FullName);
+                Assert.False(LiveGuard.AllowsType(ms, t.FullName), t.FullName);
+            }
+            Assert.False(LiveGuard.AllowsType("System.Core", "System.String"));
+            Assert.False(LiveGuard.AllowsType("ForestOverlay", "System.String"));
+            Assert.False(LiveGuard.AllowsAssembly("mscorlib"));   // FindType by name stays shut
+        }
+
+        [Fact]
+        public void RunnerFolders_Refused()
+        {
+            foreach (string m in new[] { "dataPath", "persistentDataPath", "streamingAssetsPath", "temporaryCachePath", "consoleLogPath", "get_persistentDataPath" })
+                Assert.False(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.Application", m), m);
+            Assert.True(LiveGuard.AllowsMember("UnityEngine", "UnityEngine.Application", "version"));
         }
 
         [Fact]

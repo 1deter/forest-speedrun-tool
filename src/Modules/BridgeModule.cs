@@ -592,6 +592,7 @@ namespace ForestOverlay.Modules
                 case "press": case "hold": case "release": case "axis": case "input":
                     return InputCommand(cmd, a, o, out waits);
                 case "mark": return MarkCommand(a, o);
+                case "notice": return NoticeCommand(a, o);
                 case "shot":
                 {
                     // Written at the end of the frame by Unity; the wait
@@ -670,6 +671,7 @@ namespace ForestOverlay.Modules
             "spots [filter] | go <id> | select <id> (as a row click) | restart [id] (waits until idle) | tp x y z [yaw] | dump",
             "mark <target> | mark x y z | mark clear   - a magenta beacon on it for the player to find (max 16)",
             "anim | anim watch <seconds> | anim reset   - the player's animator: layers, states (tags), clips, parameters; watch: every change, in the background; reset: what a restart does to an action",
+            "notice [seconds] <text>   - text on the game screen for the player (1-30 s, 8 by default)",
             "shot [name]   - a screenshot into the bridge folder (a live session uploads it)",
             "log [n] [filter]   - the last n (40, at most 500) lines of BepInEx's LogOutput.log, only those containing filter",
             "press <action> [frames]   - the game's own input (Jump, Run, Crouch, Take, Fire1, Esc, ...): down next frame, held N frames (1), waits until released",
@@ -781,6 +783,23 @@ namespace ForestOverlay.Modules
         }
 
         private MarkerBehaviour _markers;
+
+        /// notice [seconds] <text>: on-screen text for the player (the MCP's
+        /// notice tool). A command of its own, not a call on the overlay's
+        /// object, so a live session may use it (the guard refuses that object).
+        private string NoticeCommand(List<string> a, List<string> o)
+        {
+            if (a.Count < 1) return "notice [seconds] <text>";
+            float seconds = 8f;
+            int from = 0;
+            float parsed;
+            if (a.Count >= 2 && BridgeCommand.TryParseFloat(a[0], out parsed)) { seconds = Mathf.Clamp(parsed, 1f, 30f); from = 1; }
+            string text = string.Join(" ", a.GetRange(from, a.Count - from).ToArray());
+            if (text.Length > 300) text = text.Substring(0, 300);
+            Ctx.Notice.Show(text, seconds);
+            o.Add("notice shown for " + seconds.ToString("0.#", CultureInfo.InvariantCulture) + " s");
+            return null;
+        }
 
         private string MarkCommand(List<string> a, List<string> o)
         {

@@ -663,7 +663,7 @@ namespace ForestOverlay.BridgeMcp
         private Task<ToolResult> Notice(Args a, CancellationToken ct)
         {
             string seconds = F(a.Num("seconds", 8));
-            return One(BridgeText.Command("call", Plugin, "OverlayPlugin._notice.Show", a.Need("text"), seconds))(ct);
+            return One(BridgeText.Command("notice", seconds, a.Need("text")))(ct);
         }
 
         private Task<ToolResult> Wait(Args a, CancellationToken ct)

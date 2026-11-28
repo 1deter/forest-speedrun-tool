@@ -73,12 +73,40 @@ namespace ForestOverlay.Data
             return false;
         }
 
+        // The few mscorlib types a game path walks through: text, arrays,
+        // lists, dictionaries and numbers. Their members only read, measure
+        // and index data the game already holds; none reaches a file, the
+        // network, a process or reflection (a Type, a delegate or a stream
+        // is not on this list, so those stay refused as receivers). Exact
+        // names, or the name with generic arguments after it.
+        private static readonly string[] SafeSystemTypes =
+        {
+            "System.String", "System.Array", "System.Math", "System.Boolean", "System.Byte", "System.Char",
+            "System.Int16", "System.Int32", "System.Int64", "System.Single", "System.Double", "System.UInt32",
+            "System.Collections.Generic.List`1", "System.Collections.Generic.Dictionary`2",
+            "System.Collections.Generic.KeyValuePair`2",
+        };
+
+        private static bool IsSafeSystemType(string assembly, string typeFullName)
+        {
+            if (!string.Equals(assembly, "mscorlib", StringComparison.OrdinalIgnoreCase)) return false;
+            string n = typeFullName;
+            while (n.EndsWith("[]", StringComparison.Ordinal)) n = n.Substring(0, n.Length - 2);
+            for (int i = 0; i < SafeSystemTypes.Length; i++)
+            {
+                string s = SafeSystemTypes[i];
+                if (n == s || (n.Length > s.Length && n.StartsWith(s, StringComparison.Ordinal) && n[s.Length] == '[')) return true;
+            }
+            return false;
+        }
+
         /// May this type be named (static:Type, type, members) or its
         /// members listed?
         public static bool AllowsType(string assembly, string typeFullName)
         {
-            if (!AllowsAssembly(assembly)) return false;
             if (string.IsNullOrEmpty(typeFullName)) return false;
+            if (IsSafeSystemType(assembly, typeFullName)) return true;
+            if (!AllowsAssembly(assembly)) return false;
             for (int i = 0; i < RefusedTypes.Length; i++)
                 if (typeFullName.StartsWith(RefusedTypes[i], StringComparison.Ordinal)) return false;
             return true;
@@ -102,7 +130,10 @@ namespace ForestOverlay.Data
                 case "UnityEngine.Application":
                     return m != "OpenURL" && m != "CaptureScreenshot" && m != "ExternalCall" && m != "ExternalEval" &&
                            m != "Internal_ExternalCall" && m != "RequestAdvertisingIdentifierAsync" &&
-                           m != "RequestUserAuthorization";
+                           m != "RequestUserAuthorization" &&
+                           // the runner's folders (a Windows user name is in them)
+                           m != "dataPath" && m != "persistentDataPath" && m != "streamingAssetsPath" &&
+                           m != "temporaryCachePath" && m != "consoleLogPath";
                 case "UnityEngine.AssetBundle":
                     return !m.StartsWith("LoadFrom", StringComparison.Ordinal);
                 case "UnityEngine.GUIUtility":

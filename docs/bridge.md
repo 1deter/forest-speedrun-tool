@@ -214,6 +214,15 @@ with consent, and the runner can stop it at any time.
   post at 256 KB); at most 1 MB waits while the site is not answering
   (older lines dropped with a note). A 413 drops that one body; the
   session goes on. The file bridge's commands and output stay local.
+- **Looser than the first cut (T-0496):** the receiver may be `String`,
+  `Array`, `List<T>`, `Dictionary<,>` or a number (`mscorlib`, exact names;
+  `Length`, `Count`, indexers) - a path walks through them; every other
+  `System.*` type stays refused, and `static:System.*` by name too. The
+  runner's folders (`Application.dataPath`, `persistentDataPath`,
+  `streamingAssetsPath`, `temporaryCachePath`, `consoleLogPath`: a Windows
+  user name is in them) are refused. **`notice [seconds] <text>`** is a
+  bridge command of its own (the MCP `notice` tool uses it), so the
+  overlay's object stays shut and a live session can still talk to the runner.
 - **`log [n] [filter]`** (any bridge): the last n (40, <= 500) lines of
   BepInEx's `LogOutput.log` containing the filter (a substring, any case) -
   the MCP's log tool cannot read a remote disk.
