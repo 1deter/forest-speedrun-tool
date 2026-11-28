@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.404 - 2026-11-28
+
+- Practice > Share: upload a spot's saved runs and open it on the website from there. A line tells you whether the spot is on the website yet, and if not, why.
+- Practice > Share: 'Submit to community' is gone. Your own spots go to the website by themselves with your finished runs.
+
 ## v0.24.403 - 2026-11-28
 
 - Runs: nothing is sent to the website until you answer a one-time question in the F2 window. The Runs tab says plainly whether sending is on.
