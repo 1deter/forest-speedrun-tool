@@ -216,6 +216,7 @@ namespace ForestOverlay
             host.Register(new DeveloperModule());    // the Developer tab: hosts other modules' developer folds; last, so bridge indexes stay
             host.Register(new InputOverlayModule());  // info-only: the keys and mouse buttons pressed, drawn in Edit HUD style (T-0302); last, so bridge indexes stay
             host.Register(new GameControlsModule());  // extra game bindings in the game's Rewired maps, drawn in Settings (T-0343); allowed in runs; last, so bridge indexes stay
+            host.Register(new LiveLinkModule());      // PRACTICE ONLY: the live connection - deter drives this game over the guarded bridge, via the site (T-0490); drawn in the Practice tab; last, so bridge indexes stay
         }
 
         // ------------------------------------------------------------------

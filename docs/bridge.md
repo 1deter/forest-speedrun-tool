@@ -160,6 +160,50 @@ each item a `needs: tester` task with its `qa` line (linking the post),
 active. An answer: `tasks.py evidence T-n "..." --by qa:<tester>`, the
 task confirmed or back to `needs: none`, then `qa_todo from_tasks`.
 
+## Live sessions (T-0490, author 2026-11-28)
+
+The same bridge, driven in a **consenting runner's** game instead of the
+author's, relayed through forest.deter.cloud. The runner presses **Let
+deter see my game** (Practice tab, under the start strip), gets a
+6-character code and tells it to deter; the MCP server's remote mode
+connects with the code. The runner never runs a script: the dev drives,
+with consent, and the runner can stop it at any time.
+
+- **Plugin** (`Modules/LiveLinkModule`, practice only, registered last):
+  `POST /api/live/open` -> code + secret; then every 0.5 s `GET /in`
+  (lines -> `BridgeModule.RemoteEnqueue`), the new bridge output ->
+  `POST /out` (out.txt is still written), a finished `shot` ->
+  `POST /file?name=<name>` (the file before the output that closes it).
+  A banner *Live session with deter (code ABC123)* with **Stop** is on
+  screen the whole time, F2 window and F5 or not; it is clickable when the
+  game frees the cursor, and `[Hotkeys] live.stop` (unbound) stops it from
+  the keyboard. **Ends on** Stop (`POST /close`), the game closing (close
+  sent by hand), no command for the site's idle (30 min), the site
+  answering 410 / 404, a refused request, or run mode starting. Run mode
+  refuses it; opening marks the session as practice ("live session"), and
+  every command marks as a bridge command does.
+- **The contract** (`Data/LiveLink`, fixed; no runner token): `POST
+  /api/live/open` -> `{"code","secret","idle"}`; `GET /in` (Bearer secret)
+  -> text lines, empty = none, 410 closed; `POST /out` text -> 204; `POST
+  /file?name=[A-Za-z0-9_-]{1,64}` PNG <= 4 MB -> 204; `POST /close` -> 204.
+- **The guard** (`Data/LiveGuard`, `ObjectProbe.Guarded` while a session
+  is on, at `FindType`, the member walk of get / set / fields / walk,
+  `call` and `destroy`): members declared in `Assembly-CSharp*`,
+  `UnityEngine*`, `Rewired*`, `PlayMaker*` only. Refused: mscorlib /
+  System.* (Process, File, reflection, AppDomain), ForestOverlay's own
+  types, BepInEx / Harmony, and in UnityEngine `Application.OpenURL` /
+  `CaptureScreenshot` / `ExternalCall` / `ExternalEval`, `WWW*`,
+  `UnityEngine.Networking.*` (UnityWebRequest), `ScreenCapture`,
+  `AssetBundle.LoadFrom*`, `SendMessage` / `BroadcastMessage` (they reach
+  the overlay's behaviours too). A refused one answers *not allowed in a
+  live session*. With the local file bridge on at the same time its
+  commands are guarded too.
+- **`log [n] [filter]`** (any bridge): the last n (40, <= 500) lines of
+  BepInEx's `LogOutput.log` containing the filter (a substring, any case) -
+  the MCP's log tool cannot read a remote disk.
+- `Live: ...` log lines (docs/log-lines.md) say when it opened (the code),
+  each screenshot sent, the site not answering, and how it ended.
+
 ## The e2e suite (`scripts/e2e.py`, T-0010)
 
 The golden journeys as code (docs/harness.md 8a): launch + Slot 1 +
