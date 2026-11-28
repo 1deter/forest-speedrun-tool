@@ -1234,6 +1234,19 @@ namespace ForestOverlay.Modules
                       _dimStyle);
             y += 28f;
 
+            // The zone editor (T-0492): the zones drawn in the world.
+            if (s.IsTimed)
+            {
+                if (_zoneEditor == null) _zoneEditor = Host.Find<ZoneEditorModule>();
+                if (_zoneEditor != null && WinPx.Button(new Rect(0, y, 200, 22), "Edit zones in the world"))
+                {
+                    string why = _zoneEditor.Enter(s);
+                    _zoneEditorNote.text = why ?? "";
+                }
+                y += 26f;
+                if (_zoneEditorNote.text.Length > 0) y += UiText.Draw(0, y, cw - 10, _zoneEditorNote) + 4f;
+            }
+
             if (s.IsTimed || s.Start.IsSet || s.End.IsSet)
             {
                 y = DrawAutoSplit(y, cw, s);
@@ -2289,6 +2302,28 @@ namespace ForestOverlay.Modules
 
             string slug = sb.ToString().Trim('-');
             return slug.Length == 0 ? "unnamed" : slug;
+        }
+
+        private ZoneEditorModule _zoneEditor;
+        private readonly GUIContent _zoneEditorNote = new GUIContent("");
+
+        /// The zone editor's segment is still this library's (a Reload
+        /// rebuilds every entry; a delete drops it).
+        public bool Holds(Segment s)
+        {
+            if (s == null) return false;
+            IList<Segment> all = _library.All;
+            for (int i = 0; i < all.Count; i++)
+                if (ReferenceEquals(all[i], s)) return true;
+            return false;
+        }
+
+        /// A zone the zone editor placed or removed: saved and shown as an
+        /// edit in this tab would be (the armed run re-arms on the change).
+        public void EditedByZoneEditor(Segment s)
+        {
+            Touch(s);
+            RebuildVisible();
         }
 
         private void Touch() { Touch(_selected); }

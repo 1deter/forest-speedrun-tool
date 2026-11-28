@@ -415,7 +415,8 @@ namespace ForestOverlay.Core
             return MenuClose.PauseMenuOpen();
         }
 
-        private void CloseAllPanels()
+        /// Every open panel closed (the zone editor takes the screen, T-0492).
+        public void CloseAllPanels()
         {
             for (int i = 0; i < _modules.Count; i++)
                 if (_modules[i].PanelOpen) TogglePanel(_modules[i]);

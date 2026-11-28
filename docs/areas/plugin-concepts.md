@@ -76,6 +76,17 @@ concept before changing its feature. Where the code lives:
   the editor's zone / box / poly buttons change only the shape of a zone
   (place and facing stay, **Here** moves it) - a trigger that was item /
   event / manual takes the player's place (author, 2026-11-28, T-0486).
+  **The zone editor** (T-0492, `Modules/ZoneEditorModule`, geometry in
+  `Data/ZoneBuilder`, tested): *Edit zones in the world* on a timed
+  segment flies the view free (the body held), and a box is three clicks
+  on what the crosshair hits - two ground corners, then the height on the
+  upright plane through the footprint facing the camera. G cycles the grid
+  (off, 0.5, 1, 2, 4 m; x / z only - the ground keeps its height), R /
+  Shift+R turn it 15 degrees and the box takes the grid's turn; Tab picks
+  start / a checkpoint / a new checkpoint / end; Backspace takes back a
+  click, Delete removes a checkpoint, Enter or Esc leaves. Each placed
+  zone is an edit like the tab's (autosaved, the armed run re-arms).
+  Practice only, refused in run mode.
   `event` triggers fire from `Game/GameEvents`; the segment editor steps
   through the known names with `<` `>`.
 - **Split order** (`Data/SplitSequence`, v0.22.7, tested): the start fires

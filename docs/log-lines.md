@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-256 prefixes from 904 log calls.
+257 prefixes from 909 log calls.
 
 ## `ActionReaders`
 
@@ -2423,3 +2423,14 @@ Meaning: A type index dump written (dev).
 Written by GameDumper.cs; info.
 
 - info `Wrote type index -> <path>`
+
+## `Zone editor`
+
+Meaning: The zone editor (T-0492): on for a segment, off and why, each zone it placed (the target and the box as the segment file writes it) and each checkpoint it removed.
+Written by ZoneEditorModule.cs; info.
+
+- info `Zone editor: <what> of '<_segment.Name>' is now <..>.`
+- info `Zone editor: off (<why>).`
+- info `Zone editor: off (the camera changed).`
+- info `Zone editor: on for '<s.Name>' (<s.Id>).`
+- info `Zone editor: removed checkpoint <..> of '<_segment.Name>'.`
