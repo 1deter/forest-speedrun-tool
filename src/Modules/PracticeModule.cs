@@ -1239,7 +1239,9 @@ namespace ForestOverlay.Modules
             y += 28f;
 
             // The zone editor (T-0492): the zones drawn in the world.
-            if (s.IsTimed)
+            // Held back from runners until the checker's T-0492 faults are fixed
+            // (author, 2026-11-28: "Hold it, ship now"); flip ZoneEditorShown to show it.
+            if (ZoneEditorShown && s.IsTimed)
             {
                 if (_zoneEditor == null) _zoneEditor = Host.Find<ZoneEditorModule>();
                 if (_zoneEditor != null && WinPx.Button(new Rect(0, y, 200, 22), "Edit zones in the world"))
@@ -2308,6 +2310,7 @@ namespace ForestOverlay.Modules
             return slug.Length == 0 ? "unnamed" : slug;
         }
 
+        private static readonly bool ZoneEditorShown = false;   // T-0492 held back (see the "Edit zones in the world" button)
         private ZoneEditorModule _zoneEditor;
         private readonly GUIContent _zoneEditorNote = new GUIContent("");
 
