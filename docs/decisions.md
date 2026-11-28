@@ -172,6 +172,16 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## Plugin
 
+- **Zone editor mode** (author, 2026-11-28, T-0492): timed segments' zones
+  are made in an editor mode of their own, opened from the Practice tab
+  (like Momentum Mod's zone editor), instead of ticking positions in the
+  Practice UI, which gets cleaner for it. A box is **three clicks**: two
+  ground corners set width and length, the third sets the height. **Grid
+  snapping, sizes cycled** by a key (off and a few sizes); how it meets
+  the terrain is for a runner's test to settle. Zone colours stay start
+  green, checkpoints amber, end red (`Game/ZonePreview`). Zone placement
+  from freecam comes with it. Before it: shape buttons keep a zone's place
+  and new triggers are boxes (T-0486).
 - **Built around LiveSplit** (author, 2026-10-14, T-0336 / T-0338): most
   users are speedrunners who know LiveSplit, so the run timer sits
   **inside the splits panel by default** and can be popped out. The
