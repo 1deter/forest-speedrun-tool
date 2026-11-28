@@ -565,7 +565,7 @@ namespace ForestOverlay.BridgeMcp
         }
 
         /// A remote `shot`: the game uploads the PNG to the site, fetched
-        /// from /file/<name>.png (retried ~10 s); a local copy is kept in the
+        /// from /file/<name> (retried ~10 s); a local copy is kept in the
         /// temp folder for reference.
         private async Task<ToolResult> RemoteScreenshot(string name, double delay, Args a, CancellationToken ct)
         {
