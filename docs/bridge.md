@@ -161,7 +161,7 @@ each item a `needs: tester` task with its `qa` line (linking the post),
 active. An answer: `tasks.py evidence T-n "..." --by qa:<tester>`, the
 task confirmed or back to `needs: none`, then `qa_todo from_tasks`.
 
-## Live sessions (T-0490, author 2026-11-28)
+## Live sessions (T-0490 plugin, T-0491 MCP; author 2026-11-28)
 
 The same bridge, driven in a **consenting runner's** game instead of the
 author's, relayed through forest.deter.cloud. The runner presses **Let
@@ -169,6 +169,8 @@ deter see my game** (Practice tab, under the start strip), gets a
 6-character code and tells it to deter; the MCP server's remote mode
 connects with the code. The runner never runs a script: the dev drives,
 with consent, and the runner can stop it at any time.
+
+### The game side (T-0490)
 
 - **Plugin** (`Modules/LiveLinkModule`, practice only, registered last):
   `POST /api/live/open` -> code + secret; then every 0.5 s `GET /in`
@@ -217,12 +219,11 @@ with consent, and the runner can stop it at any time.
   the MCP's log tool cannot read a remote disk.
 - `Live: ...` log lines (docs/log-lines.md) say when it opened (the code),
   each screenshot sent, the site not answering, and how it ended.
-## Live sessions (T-0491: the MCP half)
 
-A consenting runner's game can be driven like the author's: the game polls
-forest.deter.cloud, and the MCP server talks to the site's admin relay
-instead of `in.txt` / `out.txt` (author decisions 2026-11-28; the site
-relay and the plugin side are their own tasks). The contract (base
+### The MCP side (T-0491)
+
+The MCP server talks to the site's admin relay instead of `in.txt` /
+`out.txt` (the site relay is T-0488). The admin contract (base
 `https://forest.deter.cloud`, header `X-Admin-Token`): `GET
 /api/admin/live` (sessions: `code`, `opened`, `lastCommand`, `lastPoll`,
 `outBytes`, `state` = `open` / `closed: <why>`), `POST

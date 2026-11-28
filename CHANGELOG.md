@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.403 - 2026-11-28
+
+- Runs: nothing is sent to the website until you answer a one-time question in the F2 window. The Runs tab says plainly whether sending is on.
+- Practice editor: switching a zone between zone, box and poly keeps its place and facing. New start, end and checkpoint triggers are a 3 m box.
+- Practice tab: a live connection button. It gives you a code to send deter, who can then look at and test your game while you play. Stop ends it at any time.
+
 ## v0.24.402 - 2026-11-24
 
 - Caves: the ground outside is drawn again in caves. Out of bounds through Cave 6 the floor no longer disappears.

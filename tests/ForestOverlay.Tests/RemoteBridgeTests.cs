@@ -25,7 +25,7 @@ namespace ForestOverlay.Tests
             public readonly StringBuilder Out = new StringBuilder("== bridge on, ForestOverlay v0.24.402, polling the site\n");
             public readonly Queue<string> Pending = new Queue<string>();
             public int FileMissesLeft = 2, Throttle;
-            public bool SendGone;
+            public bool SendGone, Sent;
             public bool Closed, AnswerNothing, Trim;
             private int _n;
 
@@ -48,11 +48,14 @@ namespace ForestOverlay.Tests
                     if (SendGone) return new HttpResponseMessage(HttpStatusCode.Gone);
                     foreach (string l in (await req.Content.ReadAsStringAsync(ct)).Split('\n'))
                         if (l.Length > 0) Pending.Enqueue(l);
+                    Sent = true;
                     return new HttpResponseMessage(HttpStatusCode.NoContent);
                 }
                 if (tail.StartsWith("out?after="))
                 {
-                    if (tail.Contains("&wait=") && Throttle > 0)
+                    // The site's rate limit refuses every read once the batch is in, long poll
+                    // or plain (a plain read near the deadline must not slip past it).
+                    if (Sent && Throttle > 0)
                     {
                         Throttle--;
                         return new HttpResponseMessage((HttpStatusCode)429);
