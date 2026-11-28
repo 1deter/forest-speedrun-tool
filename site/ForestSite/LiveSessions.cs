@@ -31,6 +31,7 @@ public sealed class LiveSessions
     public const int MaxOutPost = 256 * 1024;
     public const int MaxFile = 4 * 1024 * 1024;
     public const int MaxFiles = 20;
+    public const long MaxFileBytesAll = 200L * 1024 * 1024;   // every session's pictures together (checker, T-0488)
     public const int MaxOpen = 50;
     public static readonly TimeSpan IdleLimit = TimeSpan.FromMinutes(30);
     public static readonly TimeSpan PollLimit = TimeSpan.FromMinutes(2);
@@ -126,6 +127,8 @@ public sealed class LiveSessions
             s.Files.RemoveAll(f => f.Key == name);
             s.Files.Add(new KeyValuePair<string, byte[]>(name, png));
             while (s.Files.Count > MaxFiles) s.Files.RemoveAt(0);
+            // Past the site-wide cap the oldest pictures go, whoever's.
+            while (FileBytesAll() > MaxFileBytesAll && DropOldestFile()) { }
             return Access.Ok;
         }
     }
@@ -275,6 +278,38 @@ public sealed class LiveSessions
         {
             _bySecret.Remove(_byCode[c].Secret);
             _byCode.Remove(c);
+        }
+    }
+
+    private long FileBytesAll()
+    {
+        long n = 0;
+        foreach (Session s in _byCode.Values)
+            foreach (var f in s.Files) n += f.Value.Length;
+        return n;
+    }
+
+    // Sessions are oldest-opened first by their own lists; the oldest
+    // session's first picture is the oldest kept.
+    private bool DropOldestFile()
+    {
+        Session oldest = null;
+        foreach (Session s in _byCode.Values)
+            if (s.Files.Count > 0 && (oldest == null || s.Opened < oldest.Opened)) oldest = s;
+        if (oldest == null) return false;
+        oldest.Files.RemoveAt(0);
+        return true;
+    }
+
+    /// For the author's long poll: the output has grown past `after`, or
+    /// the session is closed or gone - worth answering now.
+    public bool HasNews(string code, long after)
+    {
+        lock (_gate)
+        {
+            Sweep();
+            if (!_byCode.TryGetValue(Norm(code), out Session s)) return true;
+            return s.Closed != null || s.OutTotal > after;
         }
     }
 

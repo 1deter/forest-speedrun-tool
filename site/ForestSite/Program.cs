@@ -776,9 +776,16 @@ admin.MapPost("/live/{code}/send", async (HttpRequest r, string code) =>
         LiveSessions.SendResult.TooMuch => Problem(413, "too many lines waiting - the game has not taken them"),
         _ => Problem(404, "no such live session"),
     });
-admin.MapGet("/live/{code}/out", (HttpContext c, string code, long? after) =>
+// `wait` (seconds, at most 15): a long poll - answered as soon as there is
+// output past `after` (or the session ends), so the author's side makes one
+// call per reply, not several a second against the admin limit.
+admin.MapGet("/live/{code}/out", async (HttpContext c, string code, long? after, int? wait) =>
 {
-    var o = live.ReadOutput(code, after ?? 0);
+    long from = after ?? 0;
+    var until = DateTime.UtcNow.AddSeconds(Math.Clamp(wait ?? 0, 0, 15));
+    while (DateTime.UtcNow < until && !live.HasNews(code, from) && !c.RequestAborted.IsCancellationRequested)
+        await Task.Delay(150, c.RequestAborted).ContinueWith(_ => { });
+    var o = live.ReadOutput(code, from);
     if (o == null) return Problem(404, "no such live session");
     c.Response.Headers["X-Live-Offset"] = o.Offset.ToString(System.Globalization.CultureInfo.InvariantCulture);
     c.Response.Headers["X-Live-State"] = o.Open ? "open" : "closed";

@@ -119,6 +119,23 @@ public sealed class LiveSessionTests
         Assert.NotNull(live.File(o.Code, "s" + (LiveSessions.MaxFiles + 1)));
     }
 
+    [Fact]
+    public void PicturesAcrossSessionsAreCapped()
+    {
+        var live = New();
+        byte[] big = Png(4 * 1024 * 1024 - 8);   // 4 MB each
+        var first = live.Open("ip0");
+        _now += TimeSpan.FromSeconds(1);
+        live.AddFile(first.Secret, "old", big);
+        for (int i = 1; i <= 10; i++)   // 10 sessions x 6 x 4 MB elsewhere: past the 200 MB cap
+        {
+            _now += TimeSpan.FromSeconds(1);
+            var o = live.Open("ip" + i);
+            for (int k = 0; k < 6; k++) live.AddFile(o.Secret, "p" + k, big);
+        }
+        Assert.Null(live.File(first.Code, "old"));   // the oldest went first
+    }
+
     [Theory]
     [InlineData("mcp-120000-001", true)]
     [InlineData("a_b-C9", true)]
@@ -218,6 +235,22 @@ public sealed class LiveApiTests : IDisposable
         Assert.Equal("closed", closed.Headers.GetValues("X-Live-State").Single());
         Assert.Contains("stopped by the runner", await closed.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.Gone, (await _http.SendAsync(Author(HttpMethod.Post, "/api/admin/live/" + code + "/send", new StringContent("status")))).StatusCode);
+    }
+
+    [Fact]
+    public async Task LongPollAnswersWhenOutputArrives()
+    {
+        var j = JsonNode.Parse(await (await _http.PostAsync("/api/live/open", null)).Content.ReadAsStringAsync());
+        string code = (string)j["code"], secret = (string)j["secret"];
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var poll = _http.SendAsync(Author(HttpMethod.Get, "/api/admin/live/" + code + "/out?after=0&wait=10"));
+        await Task.Delay(400);
+        Assert.False(poll.IsCompleted);   // nothing yet: still waiting
+        await _http.SendAsync(Game(HttpMethod.Post, "/api/live/out", secret, new StringContent("< #1 ok (1 ms)\n")));
+        var r = await poll;
+        Assert.Equal("< #1 ok (1 ms)\n", await r.Content.ReadAsStringAsync());
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5));
     }
 
     [Fact]

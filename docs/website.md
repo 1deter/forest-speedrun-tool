@@ -942,7 +942,9 @@ site ends every session (the game then gets 403 and stops).
   secret is 403, a closed session 410.
 - **The author** (admin group, `X-Admin-Token`): `GET /api/admin/live`
   (the sessions), `POST .../live/{code}/send` (lines; 413 past 64 KB
-  waiting), `GET .../live/{code}/out?after=<byte offset>` (headers
+  waiting), `GET .../live/{code}/out?after=<byte offset>&wait=<s>` (a
+  long poll up to 15 s, answered as soon as output arrives - the admin
+  limit is 120/min, so poll this way, not several times a second; headers
   `X-Live-Offset`, `X-Live-State: open|closed`, `X-Live-Trimmed: 1`),
   `GET .../live/{code}/file/{name}`, `POST .../live/{code}/close`. The
   code alone is nothing without the token.
@@ -950,7 +952,8 @@ site ends every session (the game then gets 403 and stops).
   sent, the game not polling for 2 min, 4 h in all; a closed session's
   output stays readable 10 min, then the code is gone.
 - **Caps:** 1 MB of output kept (the oldest half dropped at a line, the
-  offset keeps counting), 20 pictures, 50 sessions open, one per address
+  offset keeps counting), 20 pictures a session and 200 MB of pictures
+  in all (the oldest go), 50 sessions open, one per address
   (a new open closes the old). Rate limits `live` 600/min, `liveopen`
   20/hour per address. Tests: `site/ForestSite.Tests/LiveTests.cs`.
 
