@@ -50,7 +50,7 @@ namespace ForestOverlay.Tests
                     // The game answers what was queued before this poll.
                     while (!AnswerNothing && Pending.Count > 0) Answer(Pending.Dequeue());
                     byte[] all = Encoding.UTF8.GetBytes(Out.ToString());
-                    int after = Math.Min(int.Parse(tail.Substring("out?after=".Length)), all.Length);
+                    int after = Math.Min(int.Parse(tail.Substring("out?after=".Length).Split('&')[0]), all.Length);
                     HttpResponseMessage r = new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new ByteArrayContent(all, after, all.Length - after),
@@ -120,7 +120,9 @@ namespace ForestOverlay.Tests
             Assert.DoesNotContain("bridge on", r.Raw);   // the banner was before this batch
 
             Assert.Contains(relay.Paths, p => p == "POST /api/admin/live/AB12/send");
-            Assert.Contains(relay.Paths, p => p.StartsWith("GET /api/admin/live/AB12/out?after=") && !p.EndsWith("=0"));
+            // The reply is long-polled (wait=), not read on a fast timer.
+            Assert.Contains(relay.Paths, p => p.StartsWith("GET /api/admin/live/AB12/out?after=") && p.Contains("&wait="));
+            Assert.DoesNotContain(relay.Paths, p => p.Contains("&wait=") && p.Contains("after=0&"));
         }
 
         [Fact]

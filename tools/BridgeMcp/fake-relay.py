@@ -36,7 +36,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if p == "/api/admin/live": return self.send(200, json.dumps([{"code": "AB12", "opened": "2026-11-28T10:00:00Z", "lastCommand": None, "outBytes": len(out)}]).encode(), "application/json")
         if p.startswith("/api/admin/live/AB12/out?after="):
             while pending: answer(pending.pop(0))
-            after = min(int(p.split("=")[1]), len(out))
+            after = min(int(p.split("after=")[1].split("&")[0]), len(out))
             return self.send(200, bytes(out[after:]), headers={"X-Live-Offset": str(len(out)), "X-Live-State": "open"})
         if p.startswith("/api/admin/live/AB12/file/"):
             f = files.get(p.rsplit("/", 1)[1])

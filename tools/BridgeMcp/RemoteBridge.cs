@@ -114,14 +114,20 @@ namespace ForestOverlay.BridgeMcp
 
     // ------------------------------------------------------------------
     // The remote transport: the batch plus `echo <marker>` goes to /send,
-    // then /out?after= is read every ~300 ms from the session's end until
+    // then /out?after=&wait= long-polls from the session's end (the site
+    // answers as soon as there is output, or on close; at most 15 s) until
     // the marker comes back - the same transcript BridgeClient reads from
     // out.txt, so BridgeText.Parse and the tools take it as it is. One
     // batch at a time. A batch cannot be withdrawn once posted.
     // ------------------------------------------------------------------
     internal sealed class RemoteBridge : IBridgeTransport
     {
-        public static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(300);
+        /// The admin endpoints share 120 requests a minute: a /out that
+        /// comes back empty sooner than this (a site without the long
+        /// poll) waits the rest before the next one.
+        public static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(600);
+        /// Seconds per long poll (the site caps `wait` at 15).
+        public const int LongPoll = 10;
 
         public readonly LiveSite Site;
         public readonly string Code;
@@ -223,16 +229,23 @@ namespace ForestOverlay.BridgeMcp
             string text = "";
             while (true)
             {
-                await Task.Delay(_poll, ct);
-                var (bytes, problem) = await ReadOut(ct);
+                // Wait no longer than the deadline that applies now.
+                TimeSpan until = (reply.Delivered ? timeout : (readWithin < timeout ? readWithin : timeout)) - sw.Elapsed;
+                int wait = Math.Max(1, Math.Min(LongPoll, (int)Math.Ceiling(until.TotalSeconds)));
+                TimeSpan asked = sw.Elapsed;
+                var (bytes, problem) = await ReadOut(ct, wait);
                 if (problem != null)
                 {
-                    // A dropped request or two is the network, not the end.
+                    // A dropped request or two is the network, not the end;
+                    // a 429 is the shared rate limit - back off.
                     if (++failures >= 5) { reply.Problem = problem + " (5 times in a row)"; break; }
+                    await Task.Delay(TimeSpan.FromSeconds(2 * failures), ct);
                 }
                 else
                 {
                     failures = 0;
+                    if (bytes.Length == 0 && !Closed && sw.Elapsed - asked < _poll)
+                        await Task.Delay(_poll - (sw.Elapsed - asked), ct);
                     if (bytes.Length > 0)
                     {
                         got.Write(bytes, 0, bytes.Length);
@@ -274,13 +287,16 @@ namespace ForestOverlay.BridgeMcp
             return "live session " + Code + " is closed (the runner ended it or it expired) - live_disconnect.";
         }
 
-        /// GET /out?after=<offset>: the new bytes, the offset moved on.
-        private async Task<(byte[] bytes, string problem)> ReadOut(CancellationToken ct)
+        /// GET /out?after=<offset>[&wait=<s>]: the new bytes, the offset
+        /// moved on. `wait` > 0 long-polls until there is output or the
+        /// session closes.
+        private async Task<(byte[] bytes, string problem)> ReadOut(CancellationToken ct, int wait = 0)
         {
             try
             {
-                using HttpResponseMessage r = await Site.Call(HttpMethod.Get,
-                    P("/out?after=" + _offset.ToString(CultureInfo.InvariantCulture)), null, ct);
+                string q = "/out?after=" + _offset.ToString(CultureInfo.InvariantCulture) +
+                           (wait > 0 ? "&wait=" + wait.ToString(CultureInfo.InvariantCulture) : "");
+                using HttpResponseMessage r = await Site.Call(HttpMethod.Get, P(q), null, ct);
                 if (r.StatusCode == HttpStatusCode.NotFound)
                 {
                     Closed = true;
@@ -329,7 +345,7 @@ namespace ForestOverlay.BridgeMcp
                 if (sw.Elapsed > within)
                     return (null, "screenshot " + name + " never arrived from the runner's game in " +
                                   (int)within.TotalSeconds + " s (" + last + ")");
-                await Task.Delay(500, ct);
+                await Task.Delay(1000, ct);   // ~10 tries: the shared rate limit
             }
         }
 

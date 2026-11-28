@@ -172,7 +172,8 @@ relay and the plugin side are their own tasks). The contract (base
 `outBytes`), `POST /api/admin/live/{code}/send` (text/plain bridge lines;
 204, 404 unknown / expired), `GET .../out?after=<byte offset>` (the
 out.txt-format text after it; `X-Live-Offset` = new total, `X-Live-State`
-open / closed, `X-Live-Trimmed: 1` when older output was dropped), `GET
+open / closed, `X-Live-Trimmed: 1` when older output was dropped;
+`&wait=<s>`, at most 15, long-polls until there is output or a close), `GET
 .../file/{name}` (a `shot` PNG the game uploaded; 404 until then), `POST
 .../close`.
 
@@ -184,7 +185,9 @@ open / closed, `X-Live-Trimmed: 1` when older output was dropped), `GET
   sessions.
 - The transport is `RemoteBridge` behind `IBridgeTransport` (the local one
   is `BridgeClient`): the batch plus `echo __mcp_done_<guid>` goes to
-  `/send`, then `/out?after=` every 300 ms until the marker - the same
+  `/send`, then `/out?after=&wait=10` again and again (the admin endpoints
+  share 120 requests a minute: no fast polling; 429s back off) until the
+  marker - the same
   transcript, so every tool reads it unchanged. Output that arrived between
   calls is skipped, not taken as a reply. A posted batch cannot be
   withdrawn: an unanswered one stays queued on the site. Closed / 404 ends
