@@ -258,6 +258,7 @@ namespace ForestOverlay.Modules
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
             _runs = Host.Find<PracticeRunModule>();   // the start strip (T-0256)
+            _live = Host.Find<LiveLinkModule>();      // the live session row (T-0490)
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true,
@@ -950,6 +951,8 @@ namespace ForestOverlay.Modules
 
             // The front door: start the selected spot from here (T-0256).
             float t = DrawStartStrip(w);
+            // The live session with deter (T-0490): its button, or its code and Stop.
+            if (_live != null) t = _live.DrawRow(t, w);
 
             // --- toolbar ---------------------------------------------------
             if (WinPx.Button(new Rect(0, t, 70, 24), "New")) CreateNew();
@@ -991,6 +994,7 @@ namespace ForestOverlay.Modules
         // under each") and the spot's run state, so a timed segment starts
         // here in two clicks (select, Restart) with its state in view.
         private PracticeRunModule _runs;
+        private LiveLinkModule _live;
         private readonly GUIContent _stripText = new GUIContent("");
         private readonly GUIContent _stripStatus = new GUIContent("");
         private float _stripH = 34f;

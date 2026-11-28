@@ -714,6 +714,30 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   on: "it's their spot, their rules", so everyone runs it on the same
   playing field.
 
+## Live connection (author, 2026-11-28, T-0490)
+
+- **What it is:** a consenting runner lets deter's Claude session drive
+  their game over the test bridge, relayed through forest.deter.cloud.
+  Runners still never run scripts: the dev drives, with consent.
+- **Practice module** (`IsPracticeOnly`): it marks the session as practice
+  and run mode refuses it (a run starting ends it).
+- **Consent and control:** a button (*Let deter see my game*) gives a
+  6-character code; a banner with Stop is always visible while it is on.
+  It ends on Stop, the game closing, or 30 min with no command.
+- **Full bridge, guarded while remote:** every bridge command works, but
+  the reflection keeps to the game and its engine (Data/LiveGuard: no
+  mscorlib / System.*, no ForestOverlay types, no OpenURL / WWW /
+  UnityWebRequest / ScreenCapture / AssetBundle.LoadFrom). The checker
+  (T-0490) widened it: the receiver of every member use must be allowed
+  too, the overlay's own objects are refused, and by name `Invoke*` /
+  `StartCoroutine*` / `SendMessage*` / `BroadcastMessage`, legacy
+  networking, the clipboard and UnityEngine's other file / network
+  types (docs/bridge.md *Live sessions* has the list).
+- **No runner token** on the live endpoints: a runner's upload
+  registration may be broken; the session's own secret authenticates.
+- The site contract, the guard's lists and the plugin's behaviour:
+  [`docs/bridge.md`](bridge.md) *Live sessions*.
+
 ## Refactor and race build (author, 2026-11-17)
 
 Decided after the independent review ([`REVIEW.md`](../REVIEW.md); its

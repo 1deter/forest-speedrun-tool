@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-257 prefixes from 909 log calls.
+258 prefixes from 921 log calls.
 
 ## `ActionReaders`
 
@@ -180,7 +180,7 @@ Written by BridgeModule.cs; info.
 
 - info `Bridge #<id>: <..> -> <..>` (x2)
 - info `Bridge: off.<..>`
-- info `Bridge: on, watching <_inPath>`
+- info `Bridge: on, <..>`
 
 ## `Cave mouths`
 
@@ -941,6 +941,24 @@ Meaning: A Unity message method (Update, OnRenderObject, OnDestroy, ...) on one 
 Written by Lifecycle.cs; error.
 
 - error `Lifecycle: <where> threw (logged once, later throws are silent): <ex>`
+
+## `Live`
+
+Meaning: The live session with deter (T-0490): opened (its code), each screenshot sent, the site not answering / answering again, and how it ended (Stop, the game closing, idle, the site closing it, run mode) with the number of commands run.
+Written by LiveLinkModule.cs; info.
+
+- info `Live: <what> failed (<..>), retrying.`
+- info `Live: <what> was too large for the site (413), dropped it.`
+- info `Live: could not open a session - <reason>.`
+- info `Live: could not open a session - <why>.`
+- info `Live: opening a session at <BaseUrl>.`
+- info `Live: screenshot <..> not sent (<..>).`
+- info `Live: screenshot <..> not sent (<ex.Message>).`
+- info `Live: sending screenshot <name> (<..> KB).`
+- info `Live: session ended (<why>), <_commands> command(s) run.`
+- info `Live: session ended (the game closed), <_commands> command(s) run.`
+- info `Live: session open, code <_code>, ends after <..> min with no command.`
+- info `Live: the site answers again after <_retries> failed request(s).`
 
 ## `LiveSplit`
 

@@ -130,6 +130,13 @@ concept before changing its feature. Where the code lives:
   normal runs**: it is the game's own load of the same save.
   A revive from a fatal hard landing cancels the landing's aftermath (a
   postfix on `FirstPersonCharacter.HandleLanded`; game-notes *Deaths*).
+- **Live session** (Practice tab, under the start strip; practice-only,
+  T-0490): *Let deter see my game* opens a session on forest.deter.cloud
+  and shows a 6-character code; deter's session then drives this game over
+  the test bridge, guarded to the game and its engine (nothing of the PC).
+  A banner with Stop stays on screen; it ends on Stop, the game closing,
+  30 min with no command, the site closing it or run mode starting.
+  Details: [`docs/bridge.md`](../bridge.md) *Live sessions*.
 - **Savestates** (no tab: Practice start states + the bridge; practice-only):
   the game's own level serialization to `config/ForestOverlay/savestates/*.fosave`,
   never a save slot. **Quick load** = in place (`LoadNow` + the keepers put back

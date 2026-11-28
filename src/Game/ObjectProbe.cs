@@ -36,6 +36,86 @@ namespace ForestOverlay.Game
         /// Resolved each command by the bridge: the player's root, or null.
         public Transform Player;
 
+        /// On while a live session drives the bridge (T-0490): every type
+        /// named and every member read, written or called passes
+        /// Data/LiveGuard, a refused one answers LiveGuard.Refusal.
+        public bool Guarded;
+
+        private static string AssemblyOf(Type t)
+        {
+            try { return t.Assembly.GetName().Name; }
+            catch (Exception) { return null; }
+        }
+
+        private bool TypeAllowed(Type t)
+        {
+            return !Guarded || (t != null && LiveGuard.AllowsType(AssemblyOf(t), t.FullName));
+        }
+
+        private bool MemberAllowed(MemberInfo m)
+        {
+            if (!Guarded) return true;
+            Type d = m != null ? m.DeclaringType : null;
+            return d != null && LiveGuard.AllowsMember(AssemblyOf(d), d.FullName, m.Name);
+        }
+
+        private static string Refused(string what)
+        {
+            return what + ": " + LiveGuard.Refusal;
+        }
+
+        /// While guarded: may a member be used on this object (a path starts
+        /// from or walks through it, a call / set / destroy targets it, an
+        /// argument names it)? Its type must be allowed (an overlay
+        /// behaviour's UnityEngine-declared `enabled` is refused), and a
+        /// GameObject or component must not be the overlay's own (T-0490
+        /// checker). Null = allowed.
+        private string Receiver(object o)
+        {
+            if (!Guarded || IsNull(o)) return null;
+            Type t = o.GetType();
+            if (!LiveGuard.AllowsReceiver(AssemblyOf(t), t.FullName)) return Refused(t.FullName);
+            GameObject go = o as GameObject;
+            if (go == null && o is Component) go = ((Component)o).gameObject;
+            if (go != null && IsOverlayObject(go, false)) return Refused(go.name + " (the overlay's own object)");
+            return null;
+        }
+
+        /// The overlay's (or the loader's) own GameObject: one carrying a
+        /// BepInEx plugin, or carrying a refused component outside the
+        /// game's scenes (the hidden / DontDestroyOnLoad hosts the overlay
+        /// makes). Not "any object with a refused component": the overlay
+        /// adds helpers to game objects (the main camera's LatePass and
+        /// RenderOnView), and those stay the game's. `children` looks below
+        /// too (destroy takes them with it).
+        private bool IsOverlayObject(GameObject go, bool children)
+        {
+            Component[] comps = children ? go.GetComponentsInChildren<Component>(true) : go.GetComponents<Component>();
+            for (int i = 0; i < comps.Length; i++)
+            {
+                Component c = comps[i];
+                if (c == null) continue;
+                Type t = c.GetType();
+                if (LiveGuard.AllowsReceiver(AssemblyOf(t), t.FullName)) continue;
+                if (IsPlugin(t) || OutsideScenes(c.gameObject)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsPlugin(Type t)
+        {
+            for (Type c = t; c != null; c = c.BaseType)
+                if (c.FullName == "BepInEx.BaseUnityPlugin") return true;
+            return false;
+        }
+
+        private static bool OutsideScenes(GameObject g)
+        {
+            if (g.hideFlags != HideFlags.None) return true;
+            Scene sc = g.scene;
+            return !sc.IsValid() || sc.buildIndex < 0 || sc.name == "DontDestroyOnLoad";
+        }
+
         // ------------------------------------------------------------------
         // Handles and targets
 
@@ -54,6 +134,15 @@ namespace ForestOverlay.Game
         /// A target is an object (GameObject / Component) or, for
         /// "static:Type", a type whose static members the path starts at.
         public string ResolveTarget(string token, out object target, out Type staticType)
+        {
+            string err = ResolveTargetUnguarded(token, out target, out staticType);
+            if (err != null) return err;
+            err = Receiver(target);
+            if (err != null) { target = null; return err; }
+            return null;
+        }
+
+        private string ResolveTargetUnguarded(string token, out object target, out Type staticType)
         {
             target = null;
             staticType = null;
@@ -140,7 +229,12 @@ namespace ForestOverlay.Game
         {
             note = null;
             Type cached;
-            if (_typeCache.TryGetValue(name, out cached)) return cached;
+            if (_typeCache.TryGetValue(name, out cached))
+            {
+                if (TypeAllowed(cached)) return cached;
+                note = Refused(cached.FullName);
+                return null;
+            }
 
             List<Type> all = AllTypes();
             Type best = null;
@@ -163,6 +257,7 @@ namespace ForestOverlay.Game
             if (best == null) { note = "no type '" + name + "' (try: types " + name + ")"; return null; }
             if (others.Count > 0) note = "'" + name + "' is " + best.FullName + " (also: " + string.Join(", ", others.ToArray()) + ")";
             _typeCache[name] = best;
+            if (!TypeAllowed(best)) { note = Refused(best.FullName); return null; }
             return best;
         }
 
@@ -179,6 +274,7 @@ namespace ForestOverlay.Game
             {
                 Type t = all[i];
                 if (t.FullName == null || t.FullName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (!TypeAllowed(t)) continue;   // a live session lists only what it may use
                 if (n < max) into.Add(t.FullName + "  [" + t.Assembly.GetName().Name + "]" +
                                       (typeof(Component).IsAssignableFrom(t) ? " component" : ""));
                 n++;
@@ -460,6 +556,8 @@ namespace ForestOverlay.Game
             }
 
             if (IsNull(value)) { into.Add("null"); return null; }
+            string refused = Receiver(value);
+            if (refused != null) return refused;
             into.Add(Format(value) + "  (" + value.GetType().FullName + ")");
             AppendMembers(value, into);
             return null;
@@ -497,6 +595,7 @@ namespace ForestOverlay.Game
             {
                 bool engine = c.Namespace != null && c.Namespace.StartsWith("UnityEngine");
                 if (c != value.GetType()) into.Add("  -- from " + c.FullName);
+                if (!TypeAllowed(c)) { into.Add("  (" + LiveGuard.Refusal + ")"); continue; }
 
                 FieldInfo[] fields = c.GetFields(flags);
                 for (int i = 0; i < fields.Length && lines < MaxLines; i++, lines++)
@@ -589,8 +688,11 @@ namespace ForestOverlay.Game
 
             for (int i = first; i < steps.Count; i++)
             {
+                err = Receiver(cur);
+                if (err != null) return err;
                 MemberInfo m = FindMember(cur, i == first ? staticType : null, steps[i].Name);
                 if (m == null) return "no field or property '" + steps[i].Name + "' on " + OwnerName(cur, staticType);
+                if (!MemberAllowed(m)) return Refused(m.DeclaringType.FullName + "." + m.Name);
                 owners.Add(cur);
                 members.Add(m);
                 if (i == steps.Count - 1) break;
@@ -613,6 +715,8 @@ namespace ForestOverlay.Game
             Type want = MemberType(last);
             object value;
             err = Convert(text, want, out value);
+            if (err != null) return err;
+            err = Receiver(value as UnityEngine.Object);
             if (err != null) return err;
 
             object before;
@@ -658,6 +762,11 @@ namespace ForestOverlay.Game
                 ownerStatic = null;
             }
 
+            if (ownerStatic == null)
+            {
+                err = Receiver(owner);
+                if (err != null) return err;
+            }
             Type t = ownerStatic ?? owner.GetType();
             BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly |
                                  (ownerStatic != null ? BindingFlags.Static : BindingFlags.Instance | BindingFlags.Static);
@@ -669,6 +778,7 @@ namespace ForestOverlay.Game
                 {
                     MethodInfo m = ms[i];
                     if (m.Name != methodName || m.IsGenericMethodDefinition) continue;
+                    if (!MemberAllowed(m)) return Refused(c.FullName + "." + m.Name);
                     ParameterInfo[] ps = m.GetParameters();
                     if (ps.Length != args.Count) { tried.Add(m.Name + Signature(m)); continue; }
 
@@ -677,6 +787,12 @@ namespace ForestOverlay.Game
                     for (int k = 0; k < ps.Length && convErr == null; k++)
                         convErr = Convert(args[k], ps[k].ParameterType, out values[k]);
                     if (convErr != null) { tried.Add(m.Name + Signature(m) + ": " + convErr); continue; }
+                    // An argument naming the overlay's object (Object.Destroy #h) is as refused as a target.
+                    for (int k = 0; k < values.Length; k++)
+                    {
+                        string argErr = Receiver(values[k] as UnityEngine.Object);
+                        if (argErr != null) return argErr;
+                    }
 
                     object result;
                     try { result = m.Invoke(m.IsStatic ? null : owner, values); }
@@ -713,6 +829,14 @@ namespace ForestOverlay.Game
         {
             GameObject go = AsGameObject(target);
             if (go == null) return "destroy needs a GameObject";
+            if (Guarded)
+            {
+                // Not the overlay's (or the loader's) own objects, nor one
+                // holding them: that would end the session it is driven through.
+                string err = Receiver(target);
+                if (err != null) return err;
+                if (IsOverlayObject(go, true)) return Refused("destroy " + PathOf(go.transform) + " (holds the overlay's own object)");
+            }
             into.Add("destroyed " + Handle(go) + " " + PathOf(go.transform));
             UnityEngine.Object.Destroy(go);
             return null;
@@ -750,8 +874,11 @@ namespace ForestOverlay.Game
             for (int i = first; i < steps.Count; i++)
             {
                 if (i > first && IsNull(cur)) return JoinSteps(steps, i) + " is null";
+                err = Receiver(cur);
+                if (err != null) return err;
                 MemberInfo m = FindMember(cur, i == first ? staticType : null, steps[i].Name);
                 if (m == null) return "no field or property '" + steps[i].Name + "' on " + OwnerName(cur, i == first ? staticType : null);
+                if (!MemberAllowed(m)) return Refused(m.DeclaringType.FullName + "." + m.Name);
                 err = Read(m, cur, out cur);
                 if (err != null) return err;
                 if (steps[i].Index >= 0)
@@ -786,7 +913,7 @@ namespace ForestOverlay.Game
             for (int i = 0; i < comps.Length; i++)
             {
                 if (comps[i] == null || !TypeMatches(comps[i].GetType(), s.Name)) continue;
-                if (seen++ == Math.Max(0, s.Index)) { cur = comps[i]; return null; }
+                if (seen++ == Math.Max(0, s.Index)) { cur = comps[i]; return Receiver(cur); }
             }
             return seen > 0
                 ? go.name + " has " + seen + " " + s.Name + " component(s), not " + (s.Index + 1)

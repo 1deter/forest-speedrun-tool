@@ -160,6 +160,63 @@ each item a `needs: tester` task with its `qa` line (linking the post),
 active. An answer: `tasks.py evidence T-n "..." --by qa:<tester>`, the
 task confirmed or back to `needs: none`, then `qa_todo from_tasks`.
 
+## Live sessions (T-0490, author 2026-11-28)
+
+The same bridge, driven in a **consenting runner's** game instead of the
+author's, relayed through forest.deter.cloud. The runner presses **Let
+deter see my game** (Practice tab, under the start strip), gets a
+6-character code and tells it to deter; the MCP server's remote mode
+connects with the code. The runner never runs a script: the dev drives,
+with consent, and the runner can stop it at any time.
+
+- **Plugin** (`Modules/LiveLinkModule`, practice only, registered last):
+  `POST /api/live/open` -> code + secret; then every 0.5 s `GET /in`
+  (lines -> `BridgeModule.RemoteEnqueue`), the new bridge output ->
+  `POST /out` (out.txt is still written), a finished `shot` ->
+  `POST /file?name=<name>` (the file before the output that closes it).
+  A banner *Live session with deter (code ABC123)* with **Stop** is on
+  screen the whole time, F2 window and F5 or not; it is clickable when the
+  game frees the cursor, and `[Hotkeys] live.stop` (unbound) stops it from
+  the keyboard. **Ends on** Stop (`POST /close`), the game closing (close
+  sent by hand), no command for the site's idle (30 min), the site
+  answering 410 / 404, a refused request, or run mode starting. Run mode
+  refuses it; opening marks the session as practice ("live session"), and
+  every command marks as a bridge command does.
+- **The contract** (`Data/LiveLink`, fixed; no runner token): `POST
+  /api/live/open` -> `{"code","secret","idle"}`; `GET /in` (Bearer secret)
+  -> text lines, empty = none, 410 closed; `POST /out` text -> 204; `POST
+  /file?name=[A-Za-z0-9_-]{1,64}` PNG <= 4 MB -> 204; `POST /close` -> 204.
+- **The guard** (`Data/LiveGuard`; `ObjectProbe.Guarded`, set for the
+  live session's commands only - the file bridge's are not guarded):
+  members declared in `Assembly-CSharp*`, `UnityEngine*`, `Rewired*`,
+  `PlayMaker*` only. Refused: mscorlib / System.* (Process, File,
+  reflection, AppDomain), ForestOverlay's own types, BepInEx / Harmony;
+  in UnityEngine the networking (`WWW*`, `Networking.*`, legacy
+  `Network*` / `MasterServer` / `Ping`, `ClusterNetwork`), files and code
+  (`Windows.*`, `Security`, `Profiling.*`, `Caching`, `AssetBundle.LoadFrom*`),
+  `ScreenCapture`, `Microphone`, `WebCam*`, `LocationService`, Android /
+  analytics / social, `Application.OpenURL` / `CaptureScreenshot` /
+  `ExternalCall` / `ExternalEval` / `Request*`, the clipboard
+  (`GUIUtility.systemCopyBuffer`, `TextEditor.Copy` / `Paste`); and by name
+  on any type `Invoke*`, `CancelInvoke`, `StartCoroutine*`, `SendMessage*`,
+  `BroadcastMessage` (the list from ILScan over UnityEngine 5.6). **The
+  receiver counts too**: every object a path starts from or walks
+  through, the target of a call / set / destroy and an object passed as an
+  argument must be an allowed type and not the overlay's own GameObject
+  (one with a BepInEx plugin, or with an overlay component outside the
+  game's scenes - the overlay's helpers on game objects such as the main
+  camera do not make them the overlay's). `types` lists only allowed
+  types. A refused one answers *not allowed in a live session*.
+- **Output** goes up in chunks of at most 200 KB of UTF-8 (the site caps a
+  post at 256 KB); at most 1 MB waits while the site is not answering
+  (older lines dropped with a note). A 413 drops that one body; the
+  session goes on. The file bridge's commands and output stay local.
+- **`log [n] [filter]`** (any bridge): the last n (40, <= 500) lines of
+  BepInEx's `LogOutput.log` containing the filter (a substring, any case) -
+  the MCP's log tool cannot read a remote disk.
+- `Live: ...` log lines (docs/log-lines.md) say when it opened (the code),
+  each screenshot sent, the site not answering, and how it ended.
+
 ## The e2e suite (`scripts/e2e.py`, T-0010)
 
 The golden journeys as code (docs/harness.md 8a): launch + Slot 1 +
