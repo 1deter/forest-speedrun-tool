@@ -16,13 +16,35 @@ namespace ForestOverlay.BridgeMcp
     /// One open live session as GET /api/admin/live lists it.
     internal sealed class LiveEntry
     {
-        public string Code, Opened, LastCommand;
+        /// The site's JSON (camelCase): code, opened, lastCommand, lastPoll,
+        /// outBytes, state ("open" or "closed: <why>").
+        public string Code, Opened, LastCommand, LastPoll, State;
         public long OutBytes;
+
+        public bool IsOpen { get { return State == null || State == "open"; } }
 
         public override string ToString()
         {
-            return Code + " (opened " + (Opened ?? "?") + ", last command " + (LastCommand ?? "none") +
-                   ", " + OutBytes.ToString(CultureInfo.InvariantCulture) + " bytes of output)";
+            return Code + " (" + (State ?? "open") + "; opened " + (Opened ?? "?") + ", last command " + (LastCommand ?? "none") +
+                   ", game's last poll " + (LastPoll ?? "?") + ", " + OutBytes.ToString(CultureInfo.InvariantCulture) +
+                   " bytes of output)";
+        }
+
+        /// A shot name as the game uploads it (LiveLink.ShotName): no .png,
+        /// [A-Za-z0-9_-] only (others become _), at most 64.
+        public static string FileName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            if (name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) name = name.Substring(0, name.Length - 4);
+            char[] cs = name.ToCharArray();
+            for (int i = 0; i < cs.Length; i++)
+            {
+                char c = cs[i];
+                if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-')) cs[i] = '_';
+            }
+            string n = new string(cs);
+            if (n.Length > 64) n = n.Substring(0, 64);
+            return n.Length > 0 ? n : null;
         }
     }
 
@@ -87,6 +109,8 @@ namespace ForestOverlay.BridgeMcp
                             Code = Str(o["code"]),
                             Opened = Str(o["opened"]),
                             LastCommand = Str(o["lastCommand"]),
+                            LastPoll = Str(o["lastPoll"]),
+                            State = Str(o["state"]),
                             OutBytes = o["outBytes"] is JsonValue v && v.TryGetValue(out long b) ? b : 0,
                         });
                     }
@@ -132,7 +156,7 @@ namespace ForestOverlay.BridgeMcp
         public readonly LiveSite Site;
         public readonly string Code;
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
-        private readonly TimeSpan _poll;
+        private readonly TimeSpan _poll, _backoff;
         private long _offset;
         private string _banner;
 
@@ -142,11 +166,12 @@ namespace ForestOverlay.BridgeMcp
         public long Offset { get { return _offset; } }
         public bool Trimmed { get; private set; }
 
-        public RemoteBridge(LiveSite site, string code, TimeSpan? poll = null)
+        public RemoteBridge(LiveSite site, string code, TimeSpan? poll = null, TimeSpan? backoff = null)
         {
             Site = site;
             Code = code;
             _poll = poll ?? Poll;
+            _backoff = backoff ?? TimeSpan.FromSeconds(2);
         }
 
         private string P(string tail) { return "/api/admin/live/" + Uri.EscapeDataString(Code) + tail; }
@@ -191,6 +216,11 @@ namespace ForestOverlay.BridgeMcp
             // `anim watch`) is not this batch's reply.
             var (_, stale) = await ReadOut(ct);
             if (stale != null) { reply.Problem = stale; return reply; }
+            if (Closed)
+            {
+                reply.Problem = ClosedText();
+                return reply;
+            }
 
             string marker = "__mcp_done_" + Guid.NewGuid().ToString("N");
             StringBuilder sb = new StringBuilder();
@@ -205,6 +235,12 @@ namespace ForestOverlay.BridgeMcp
             {
                 using HttpResponseMessage r = await Site.Call(HttpMethod.Post, P("/send"),
                     new StringContent(sb.ToString(), new UTF8Encoding(false), "text/plain"), ct);
+                if (r.StatusCode == HttpStatusCode.Gone)
+                {
+                    Closed = true;
+                    reply.Problem = "not delivered: " + ClosedText();
+                    return reply;
+                }
                 if (r.StatusCode == HttpStatusCode.NotFound)
                 {
                     Closed = true;
@@ -229,23 +265,24 @@ namespace ForestOverlay.BridgeMcp
             string text = "";
             while (true)
             {
-                // Wait no longer than the deadline that applies now.
+                // Wait no longer than the deadline that applies now (whole
+                // seconds, rounded down: under 1 s left is a plain read).
                 TimeSpan until = (reply.Delivered ? timeout : (readWithin < timeout ? readWithin : timeout)) - sw.Elapsed;
-                int wait = Math.Max(1, Math.Min(LongPoll, (int)Math.Ceiling(until.TotalSeconds)));
+                int wait = Math.Max(0, Math.Min(LongPoll, (int)Math.Floor(until.TotalSeconds)));
                 TimeSpan asked = sw.Elapsed;
                 var (bytes, problem) = await ReadOut(ct, wait);
                 if (problem != null)
                 {
                     // A dropped request or two is the network, not the end;
-                    // a 429 is the shared rate limit - back off.
+                    // a 429 is the shared rate limit - back off (never past the deadline).
                     if (++failures >= 5) { reply.Problem = problem + " (5 times in a row)"; break; }
-                    await Task.Delay(TimeSpan.FromSeconds(2 * failures), ct);
+                    await Task.Delay(Shorter(TimeSpan.FromTicks(_backoff.Ticks * failures), until - (sw.Elapsed - asked)), ct);
                 }
                 else
                 {
                     failures = 0;
                     if (bytes.Length == 0 && !Closed && sw.Elapsed - asked < _poll)
-                        await Task.Delay(_poll - (sw.Elapsed - asked), ct);
+                        await Task.Delay(Shorter(_poll - (sw.Elapsed - asked), until - (sw.Elapsed - asked)), ct);
                     if (bytes.Length > 0)
                     {
                         got.Write(bytes, 0, bytes.Length);
@@ -280,6 +317,13 @@ namespace ForestOverlay.BridgeMcp
             reply.Raw = text;
             reply.Transcript = BridgeText.Parse(text, marker);
             return reply;
+        }
+
+        /// The shorter of two spans, never below zero.
+        private static TimeSpan Shorter(TimeSpan a, TimeSpan b)
+        {
+            TimeSpan t = a < b ? a : b;
+            return t > TimeSpan.Zero ? t : TimeSpan.Zero;
         }
 
         private string ClosedText()

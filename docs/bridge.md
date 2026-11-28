@@ -168,9 +168,10 @@ forest.deter.cloud, and the MCP server talks to the site's admin relay
 instead of `in.txt` / `out.txt` (author decisions 2026-11-28; the site
 relay and the plugin side are their own tasks). The contract (base
 `https://forest.deter.cloud`, header `X-Admin-Token`): `GET
-/api/admin/live` (open sessions: `code`, `opened`, `lastCommand`,
-`outBytes`), `POST /api/admin/live/{code}/send` (text/plain bridge lines;
-204, 404 unknown / expired), `GET .../out?after=<byte offset>` (the
+/api/admin/live` (sessions: `code`, `opened`, `lastCommand`, `lastPoll`,
+`outBytes`, `state` = `open` / `closed: <why>`), `POST
+/api/admin/live/{code}/send` (text/plain bridge lines; 204, 410 closed, 404
+unknown / expired), `GET .../out?after=<byte offset>` (the
 out.txt-format text after it; `X-Live-Offset` = new total, `X-Live-State`
 open / closed, `X-Live-Trimmed: 1` when older output was dropped;
 `&wait=<s>`, at most 15, long-polls until there is output or a close), `GET
@@ -178,7 +179,7 @@ open / closed, `X-Live-Trimmed: 1` when older output was dropped;
 .../close`.
 
 - **`live_connect <code>`** (the code the runner gives) checks the site
-  lists it, reads the output so far (the banner gives the plugin version),
+  lists it open (a closed one is refused, with its reason), reads the output so far (the banner gives the plugin version),
   pings the game with `echo`, and switches every bridge tool to it until
   **`live_disconnect`** (closes the session on the site unless
   `keep_open`). **`live_status`**: which game the tools drive, and the open
@@ -190,12 +191,15 @@ open / closed, `X-Live-Trimmed: 1` when older output was dropped;
   marker - the same
   transcript, so every tool reads it unchanged. Output that arrived between
   calls is skipped, not taken as a reply. A posted batch cannot be
-  withdrawn: an unanswered one stays queued on the site. Closed / 404 ends
-  the wait and every later call says so.
+  withdrawn: an unanswered one stays queued on the site. Closed (a read's
+  `X-Live-State`, a 410 or 404 from `/send`) ends the wait, nothing more is
+  posted, and every later call says so. No wait or back-off runs past the
+  call's timeout.
 - While remote: `status` sends the same batch and skips the PC-side lines
-  (process, folders, `.cfg`); `screenshot` sends `shot <name>`, fetches
-  `/file/<name>.png` (retried ~10 s), keeps a copy in
-  `$TMPDIR/forest-live/<code>/` and scales it as usual; `log` sends the
+  (process, folders, `.cfg`); `screenshot` sends `shot <name>` with the
+  name the game uploads under (`[A-Za-z0-9_-]`, others `_`, no `.png`:
+  `LiveLink.ShotName`), fetches `/file/<name>` (retried ~10 s), keeps the
+  newest 40 in `$TMPDIR/forest-live/<code>/` and scales it as usual; `log` sends the
   game's own `log [n] [filter]` (the current session only, no `context`);
   `game` and `update_game` refuse. `ilscan` and `run`'s `file` stay local.
 - Token: the User variable **`FOREST_SITE_ADMIN_TOKEN`** (the one

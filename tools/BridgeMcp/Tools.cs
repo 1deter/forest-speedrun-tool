@@ -548,7 +548,7 @@ namespace ForestOverlay.BridgeMcp
             if (delay > 0) cmds.Add("wait " + F(delay));
             cmds.Add("shot " + name);
 
-            if (Remote) return await RemoteScreenshot(name, cmds, a, ct);
+            if (Remote) return await RemoteScreenshot(name, delay, a, ct);
 
             string path = Path.Combine(_paths.Bridge, name + ".png");
             TryDelete(path);
@@ -567,11 +567,18 @@ namespace ForestOverlay.BridgeMcp
         /// A remote `shot`: the game uploads the PNG to the site, fetched
         /// from /file/<name>.png (retried ~10 s); a local copy is kept in the
         /// temp folder for reference.
-        private async Task<ToolResult> RemoteScreenshot(string name, List<string> cmds, Args a, CancellationToken ct)
+        private async Task<ToolResult> RemoteScreenshot(string name, double delay, Args a, CancellationToken ct)
         {
+            // The game uploads `shot <name>` under LiveLink.ShotName's name:
+            // use that name from the start so both sides agree.
+            name = LiveEntry.FileName(name);
+            if (name == null) throw new ArgumentException("a screenshot name needs a letter, digit, _ or -");
+            List<string> cmds = new List<string>();
+            if (delay > 0) cmds.Add("wait " + F(delay));
+            cmds.Add("shot " + name);
             BridgeReply r = await Send(cmds, ct);
             if (!r.Complete || r.Transcript.Errors > 0) return FromReply(r, false);
-            var (png, problem) = await _remote.FetchFile(name + ".png", TimeSpan.FromSeconds(10), ct);
+            var (png, problem) = await _remote.FetchFile(name, TimeSpan.FromSeconds(10), ct);
             if (png == null) return ToolResult.Fail(problem);
             string dir = Path.Combine(Path.GetTempPath(), "forest-live", _remote.Code);
             string path = "live " + _remote.Code + ": " + name + ".png";
@@ -581,6 +588,7 @@ namespace ForestOverlay.BridgeMcp
                 string local = Path.Combine(dir, name + ".png");
                 File.WriteAllBytes(local, png);
                 path = local;
+                PruneShots(dir, "*.png");
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
@@ -632,12 +640,15 @@ namespace ForestOverlay.BridgeMcp
             return gpu == null ? res : res.AddText(gpu);
         }
 
-        /// Keeps the newest 40 of this server's own screenshots.
-        private void PruneShots()
+        /// Keeps the newest 40 of this server's own screenshots (a live
+        /// session's: every copy in its temp folder).
+        private void PruneShots() { PruneShots(_paths.Bridge, "mcp-*.png"); }
+
+        private static void PruneShots(string dir, string pattern)
         {
             try
             {
-                FileInfo[] shots = new DirectoryInfo(_paths.Bridge).GetFiles("mcp-*.png")
+                FileInfo[] shots = new DirectoryInfo(dir).GetFiles(pattern)
                     .OrderByDescending(f => f.LastWriteTimeUtc).ToArray();
                 for (int i = 40; i < shots.Length; i++) shots[i].Delete();
             }
@@ -1181,9 +1192,13 @@ namespace ForestOverlay.BridgeMcp
             var (list, problem) = await site.List(ct);
             if (list == null) return ToolResult.Fail(problem);
             LiveEntry entry = list.FirstOrDefault(e => string.Equals(e.Code, code, StringComparison.OrdinalIgnoreCase));
+            List<LiveEntry> open = list.Where(e => e.IsOpen).ToList();
             if (entry == null)
-                return ToolResult.Fail("no open live session " + code + " on " + site.Base + " - open: " +
-                                       (list.Count == 0 ? "none" : string.Join(", ", list.Select(e => e.Code))));
+                return ToolResult.Fail("no live session " + code + " on " + site.Base + " - open: " +
+                                       (open.Count == 0 ? "none" : string.Join(", ", open.Select(e => e.Code))));
+            if (!entry.IsOpen)
+                return ToolResult.Fail("live session " + entry.Code + " is " + entry.State + " - not connected. Open: " +
+                                       (open.Count == 0 ? "none" : string.Join(", ", open.Select(e => e.Code))));
 
             RemoteBridge remote = new RemoteBridge(site, entry.Code);
             string primed = await remote.Prime(ct);
@@ -1219,11 +1234,11 @@ namespace ForestOverlay.BridgeMcp
                   .Append(_remote.Trimmed ? " (the site dropped older output)" : "").Append('\n');
 
             var (list, problem) = await site.List(ct);
-            if (list == null) sb.Append("open live sessions: ? (").Append(problem).Append(')');
-            else if (list.Count == 0) sb.Append("open live sessions: none");
+            if (list == null) sb.Append("live sessions: ? (").Append(problem).Append(')');
+            else if (list.Count == 0) sb.Append("live sessions: none");
             else
             {
-                sb.Append("open live sessions:");
+                sb.Append("live sessions:");
                 foreach (LiveEntry e in list) sb.Append("\n  ").Append(e);
             }
             return ToolResult.Text(sb.ToString());

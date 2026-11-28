@@ -6,7 +6,7 @@
         dotnet tools/BridgeMcp/bin/Release/net8.0/forest-bridge-mcp.dll --call status {}
 
 One session AB12; each queued line is answered in the out.txt shape on the
-next /out poll; `shot <name>` makes a tiny PNG for /file/<name>.png.
+next /out poll; `shot <name>` makes a tiny PNG for /file/<name> (no .png, as the site).
 """
 import http.server, json, struct, sys, threading, zlib
 TOKEN = "fake-token"
@@ -21,7 +21,7 @@ def answer(line):
     n[0] += 1; i = n[0]
     body = {"status": "scene: ForestMain, practice: no, savestates idle", "player": "player at (1, 2, 3), not in caves"}.get(line, "")
     if line.startswith("get "): body = "ScriptSetup.pmControl.ActiveStateName = \"idle\"  (String)"
-    if line.startswith("shot "): files[line[5:] + ".png"] = png(); body = "saved " + line[5:] + ".png"
+    if line.startswith("shot "): files[line[5:]] = png(); body = "saved " + line[5:] + ".png"
     if line.startswith("log "): body = "[Info   :ForestOverlay] Bridge #1: status"
     out.extend(("> #%d %s\n%s%s< #%d ok (1 ms)\n" % (i, line, body, "\n" if body else "", i)).encode())
 class H(http.server.BaseHTTPRequestHandler):
@@ -33,7 +33,7 @@ class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get("X-Admin-Token") != TOKEN: return self.send(401)
         p = self.path
-        if p == "/api/admin/live": return self.send(200, json.dumps([{"code": "AB12", "opened": "2026-11-28T10:00:00Z", "lastCommand": None, "outBytes": len(out)}]).encode(), "application/json")
+        if p == "/api/admin/live": return self.send(200, json.dumps([{"code": "AB12", "opened": "2026-11-28T10:00:00Z", "lastCommand": None, "lastPoll": None, "outBytes": len(out), "state": "open"}]).encode(), "application/json")
         if p.startswith("/api/admin/live/AB12/out?after="):
             while pending: answer(pending.pop(0))
             after = min(int(p.split("after=")[1].split("&")[0]), len(out))
