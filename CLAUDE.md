@@ -159,6 +159,28 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-11-28 (runner sxczurass, live connection):** perf report
+  (v0.24.402 ~1.5 ms/frame slower than .259 on his PC; a reinstall
+  halved his hitches). T-0486 (shape buttons keep a zone's place, new
+  triggers are boxes) checker accept, on main, **not released**. The
+  **live connection** (decisions.md, author: full bridge guarded,
+  practice module, button + code): site relay T-0488 on main (accept,
+  not pushed); plugin side T-0490 on `claude/live-link-plugin` (checker
+  **revise**: guard receiver hole etc., fix in progress in session
+  live-connection-plugin-s); MCP remote mode T-0491 on
+  `claude/exciting-bardeen-83243c` (accept; its notes fixed in d1359e2a,
+  re-check). Zone editor T-0492 (decisions.md *Zone editor mode*) on
+  main, in progress, untried in game. **Next:** re-check T-0490 / T-0491,
+  merge both branches (author: yes once checkers pass), build + test,
+  push (deploys the site: `deploy-watch`), release with T-0457 (author:
+  ship both now), add a local-scope `forest` MCP entry
+  (`~/.dotnet/dotnet` + the built dll) and restart; then the author
+  tests live with sxczurass: T-0487 (axe lowered after a mid-placement
+  restore), T-0489 (L1 start near miss), T-0493 (checkpoint restart
+  loses a pulled-out blueprint), T-0494 (practice golds not kept, so
+  sum of best never holds them), the zone editor on his terrain.
+  Mac: .NET 8 + 10 in ~/.dotnet (`dotnet` exit 137: re-copy the host).
+
 - **2026-11-24 (T-0485, runner report):** addison5150 (Discord) lost
   the ground out of bounds through Cave 6. Cause: `CaveSurfaceOff`
   hid the terrain while `IsInCaves`. Author: "Default it off". New
@@ -169,19 +191,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   **Next, on Windows:** `e2e.py --smoke --evidence` on the built plugin
   and forest-ux on the question window, then release T-0457; confirm
   .402 (cfg key, ground visible OOB); then `tasks.py next` (T-0458).
-
-- **2026-11-17 (review + refactor plan):** an independent review is in
-  `REVIEW.md`; the author's decisions are in decisions.md *Refactor and
-  race build*. The work is T-0456..T-0483, titled "Refactor NN", P1,
-  chained with blocked-by: `tasks.py next` hands them out in order.
-  Nothing was built. **Next:** `python scripts/tasks.py next`, read that
-  task's row and the REVIEW.md section its notes name, do it, release,
-  repeat. Tasks with `needs` bridge / author-present / author-eyes wait
-  for the game or the author; the rest need neither (with the game,
-  `next --bridge` offers the two Research tasks first). The 51 older
-  open tasks are held under `after the refactor` (`tasks.py lift`
-  brings them back) and T-0424 is parked. File no feature tasks until
-  T-0474 is released.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the

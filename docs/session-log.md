@@ -2,6 +2,21 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-11-28 (live connection handoff)
+
+- **2026-11-17 (review + refactor plan):** an independent review is in
+  `REVIEW.md`; the author's decisions are in decisions.md *Refactor and
+  race build*. The work is T-0456..T-0483, titled "Refactor NN", P1,
+  chained with blocked-by: `tasks.py next` hands them out in order.
+  Nothing was built. **Next:** `python scripts/tasks.py next`, read that
+  task's row and the REVIEW.md section its notes name, do it, release,
+  repeat. Tasks with `needs` bridge / author-present / author-eyes wait
+  for the game or the author; the rest need neither (with the game,
+  `next --bridge` offers the two Research tasks first). The 51 older
+  open tasks are held under `after the refactor` (`tasks.py lift`
+  brings them back) and T-0424 is parked. File no feature tasks until
+  T-0474 is released.
+
 ## Moved out 2026-11-24 (T-0485 handoff)
 
 - **2026-10-21 (author session, T-0406 / T-0407 picks):** author picked
