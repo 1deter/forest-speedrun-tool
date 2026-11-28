@@ -495,8 +495,9 @@ of an action shows that frame - wait a few tenths); `anim watch N` runs
 in the background. `TaskStop` on a background polling script can leave
 its loop running: `ps -ef | grep <script>` and `kill` it (no `pkill` in
 Git Bash). **Instructions go on the game screen, not in chat** (author,
-2026-09-24: "super useful"): the `notice` tool (or `call #<h>
-OverlayPlugin._notice.Show "text" <s>`), **at least 6-8 s each**,
+2026-09-24: "super useful"): the `notice` tool (the `notice [seconds] <text>` bridge
+command; a plugin older than T-0496 needs `call #<h>
+OverlayPlugin._notice.Show "text" <s>`, which a live session refuses), **at least 6-8 s each**,
 explained in chat first; script timed tests as notices + waits in a
 `-f` file; the author reacts ~1 s after a prompt and reads only when not
 mid-cutscene, so repeat actions beat a single timed one and a step that
