@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -25,14 +26,31 @@ namespace ForestOverlay.BridgeMcp
         private const string Host = "OverlayPlugin._host";
 
         private readonly ForestPaths _paths;
-        private readonly BridgeClient _bridge;
+        private readonly BridgeClient _local;
+        private readonly HttpClient _http;
+        /// Set while live_connect drives a runner's game (T-0491); null = the local files.
+        private RemoteBridge _remote;
         public readonly List<Tool> All = new List<Tool>();
 
-        public Tools(ForestPaths paths, BridgeClient bridge)
+        public Tools(ForestPaths paths, BridgeClient bridge, HttpClient http = null)
         {
             _paths = paths;
-            _bridge = bridge;
+            _local = bridge;
+            _http = http ?? new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
+            {
+                Timeout = System.Threading.Timeout.InfiniteTimeSpan,
+            };
             Register();
+        }
+
+        /// Where every bridge command goes: the runner's game while live, else the local files.
+        private IBridgeTransport Bridge { get { return (IBridgeTransport)_remote ?? _local; } }
+        private bool Remote { get { return _remote != null; } }
+
+        private string RemoteRefusal(string what)
+        {
+            return what + " is not available in a remote session (live " + _remote.Code + ": the game runs on the " +
+                   "runner's PC) - live_disconnect first to work on the local game.";
         }
 
         public const string Instructions =
@@ -46,7 +64,9 @@ namespace ForestOverlay.BridgeMcp
             "`run` sends raw bridge lines in order (one a frame; capture / restore / restart / wait hold the queue) - " +
             "use it for scripts and for anything without a typed tool (its `help` lists every command). " +
             "Instructions for the player go on the game screen with `notice` (6-8 s each), not in chat. " +
-            "`status` says why the bridge is not answering; `game` closes / launches / restarts the game, `update_game` installs a release.";
+            "`status` says why the bridge is not answering; `game` closes / launches / restarts the game, `update_game` installs a release. " +
+            "`live_connect <code>` drives a consenting runner's game through forest.deter.cloud instead (the same tools; " +
+            "`game` / `update_game` refuse, `log` asks the game) until `live_disconnect`; `live_status` says which.";
 
         // ------------------------------------------------------------------
         // Registration
@@ -259,6 +279,24 @@ namespace ForestOverlay.BridgeMcp
                 Schema(P("restart", "boolean", "Restart the game once staged (default true)."),
                        P("via", "string", "steam (default) or exe.", false, "steam", "exe")),
                 UpdateGame);
+
+            Add("live_connect",
+                "Drives a runner's game through the site's live connection instead of the local one: the runner opened a " +
+                "live session in game and gave its code. Checks the site lists the code, then every bridge tool goes " +
+                "there (status, run, get, screenshot, log, ...) until live_disconnect. Needs FOREST_SITE_ADMIN_TOKEN.",
+                Schema(P("code", "string", "The live session code the runner gave.", true)),
+                LiveConnect);
+
+            Add("live_status",
+                "Which game the tools drive (local, or the live session's code, state and plugin version) and the open " +
+                "live sessions on the site.",
+                Schema(), LiveStatus);
+
+            Add("live_disconnect",
+                "Back to the local game. Closes the live session on the site too (the runner's game stops polling) " +
+                "unless keep_open.",
+                Schema(P("keep_open", "boolean", "Leave the session open on the site (default false: close it).")),
+                LiveDisconnect);
         }
 
         private void Add(string name, string description, JsonObject schema, Func<Args, CancellationToken, Task<ToolResult>> run)
@@ -332,7 +370,7 @@ namespace ForestOverlay.BridgeMcp
                                        TimeSpan? readWithin = null)
         {
             double s = timeoutSeconds ?? BridgeText.EstimateSeconds(commands);
-            return _bridge.Send(commands, TimeSpan.FromSeconds(s), ct, readWithin);
+            return Bridge.Send(commands, TimeSpan.FromSeconds(s), ct, readWithin);
         }
 
         /// One command; its output is the tool's text and an error line
@@ -378,6 +416,7 @@ namespace ForestOverlay.BridgeMcp
 
         private async Task<ToolResult> Status(Args a, CancellationToken ct)
         {
+            if (Remote) return await RemoteStatus(ct);
             StringBuilder sb = new StringBuilder();
             using (Process p = GameProcess.Find())
             {
@@ -395,7 +434,7 @@ namespace ForestOverlay.BridgeMcp
             sb.Append("game folder: ").Append(_paths.Root).Append('\n');
             sb.Append("bridge folder: ").Append(_paths.Bridge).Append('\n');
             sb.Append("TestBridge setting: ").Append(_paths.TestBridgeSetting() ?? "(not in the .cfg)").Append('\n');
-            sb.Append("plugin (newest bridge banner): v").Append(_bridge.PluginVersionFromBanner() ?? "?").Append('\n');
+            sb.Append("plugin (newest bridge banner): v").Append(Bridge.PluginVersionFromBanner() ?? "?").Append('\n');
             sb.Append("plugins folder: ").Append(string.Join(", ", PluginFiles())).Append('\n');
 
             if (!GameProcess.Running) return ToolResult.Text(sb.ToString().TrimEnd());
@@ -405,6 +444,24 @@ namespace ForestOverlay.BridgeMcp
                 "status", "player",
                 "get static:TheForest.Utils.LocalPlayer ScriptSetup.pmControl.ActiveStateName",
             }, ct, 20, TimeSpan.FromSeconds(8));
+            sb.Append('\n').Append(r.Text(false));
+            return ToolResult.Text(sb.ToString().TrimEnd(), !r.Delivered);
+        }
+
+        /// The same bridge batch as the local status; the PC-side lines
+        /// (process, folders, .cfg) are the runner's and not readable here.
+        private async Task<ToolResult> RemoteStatus(CancellationToken ct)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("remote session: live ").Append(_remote.Code).Append(" on ").Append(_remote.Site.Base)
+              .Append(_remote.Closed ? " (closed)" : "").Append('\n');
+            sb.Append("game process, folders, .cfg: on the runner's PC (not checked)\n");
+            BridgeReply r = await Send(new[]
+            {
+                "status", "player",
+                "get static:TheForest.Utils.LocalPlayer ScriptSetup.pmControl.ActiveStateName",
+            }, ct, 30, TimeSpan.FromSeconds(20));
+            sb.Append("plugin (newest bridge banner): v").Append(Bridge.PluginVersionFromBanner() ?? "?").Append('\n');
             sb.Append('\n').Append(r.Text(false));
             return ToolResult.Text(sb.ToString().TrimEnd(), !r.Delivered);
         }
@@ -491,6 +548,8 @@ namespace ForestOverlay.BridgeMcp
             if (delay > 0) cmds.Add("wait " + F(delay));
             cmds.Add("shot " + name);
 
+            if (Remote) return await RemoteScreenshot(name, cmds, a, ct);
+
             string path = Path.Combine(_paths.Bridge, name + ".png");
             TryDelete(path);
             BridgeReply r = await Send(cmds, ct);
@@ -500,6 +559,36 @@ namespace ForestOverlay.BridgeMcp
             try { png = await Images.ReadWhenComplete(path, TimeSpan.FromSeconds(10), ct); }
             catch (IOException ex) { return WithGpuFault(ToolResult.Fail(ex.Message), true); }
 
+            ToolResult res = ShotResult(png, path, a);
+            PruneShots();
+            return res;
+        }
+
+        /// A remote `shot`: the game uploads the PNG to the site, fetched
+        /// from /file/<name>.png (retried ~10 s); a local copy is kept in the
+        /// temp folder for reference.
+        private async Task<ToolResult> RemoteScreenshot(string name, List<string> cmds, Args a, CancellationToken ct)
+        {
+            BridgeReply r = await Send(cmds, ct);
+            if (!r.Complete || r.Transcript.Errors > 0) return FromReply(r, false);
+            var (png, problem) = await _remote.FetchFile(name + ".png", TimeSpan.FromSeconds(10), ct);
+            if (png == null) return ToolResult.Fail(problem);
+            string dir = Path.Combine(Path.GetTempPath(), "forest-live", _remote.Code);
+            string path = "live " + _remote.Code + ": " + name + ".png";
+            try
+            {
+                Directory.CreateDirectory(dir);
+                string local = Path.Combine(dir, name + ".png");
+                File.WriteAllBytes(local, png);
+                path = local;
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            return ShotResult(png, path, a);
+        }
+
+        private static ToolResult ShotResult(byte[] png, string path, Args a)
+        {
             Rectangle? region = null;
             List<string> reg = a.List("region");
             if (reg.Count > 0)
@@ -509,8 +598,15 @@ namespace ForestOverlay.BridgeMcp
                 region = new Rectangle(v[0], v[1], v[2], v[3]);
             }
             int maxWidth = (int)a.Num("max_width", region.HasValue ? 0 : 1280);
-            Images.Prepared img = Images.Prepare(png, maxWidth, region, a.Bool("png"), 85);
-            PruneShots();
+            Images.Prepared img;
+            try { img = Images.Prepare(png, maxWidth, region, a.Bool("png"), 85); }
+            catch (Exception ex) when (!OperatingSystem.IsWindows() &&
+                                       (ex is PlatformNotSupportedException || ex is TypeInitializationException))
+            {
+                // System.Drawing is Windows only: elsewhere the PNG goes as it came.
+                return ToolResult.Text(path + " (" + png.Length + " bytes, sent unscaled: no System.Drawing on this OS)")
+                    .AddImage(png, "image/png");
+            }
 
             return ToolResult.Text(path + " (" + img.SourceWidth + "x" + img.SourceHeight + ")" +
                                    (region.HasValue ? ", region " + string.Join(",", reg) : "") +
@@ -583,7 +679,8 @@ namespace ForestOverlay.BridgeMcp
         private async Task<(List<ModuleInfo> list, string problem)> Modules(CancellationToken ct)
         {
             int pid;
-            using (Process p = GameProcess.Find()) pid = p == null ? 0 : p.Id;
+            if (Remote) pid = -1;   // dropped on live_connect / live_disconnect
+            else using (Process p = GameProcess.Find()) pid = p == null ? 0 : p.Id;
             if (_modules != null && pid == _modulesPid) return (_modules, null);
 
             var (count, problem) = await GetValues(new[] { BridgeText.Command("get", Plugin, Host + ".Count") }, ct);
@@ -767,6 +864,7 @@ namespace ForestOverlay.BridgeMcp
 
         private Task<ToolResult> Log(Args a, CancellationToken ct)
         {
+            if (Remote) return RemoteLog(a, ct);
             int session = (int)a.Num("session", 0);
             string file;
             if (session <= 0) file = _paths.LogOutput;
@@ -804,6 +902,24 @@ namespace ForestOverlay.BridgeMcp
                        (matches > max ? ", the newest " + max : "");
             }
             return Task.FromResult(ToolResult.Text(head + "\n" + Cap(body, 60000)));
+        }
+
+        /// The runner's log, through the game's own `log [n] [filter]`
+        /// command (it tails its BepInEx log): the current session only.
+        private async Task<ToolResult> RemoteLog(Args a, CancellationToken ct)
+        {
+            if (a.Num("session", 0) > 0)
+                return ToolResult.Fail("a remote session reads the current game session's log only (session 0) - the kept " +
+                                       "older logs are on the runner's PC.");
+            string pattern = a.Str("pattern");
+            int n = string.IsNullOrEmpty(pattern) ? (int)a.Num("tail", 60) : (int)a.Num("max", 80);
+            BridgeReply r = await Send(new[]
+            {
+                BridgeText.Command("log", n.ToString(CultureInfo.InvariantCulture), string.IsNullOrEmpty(pattern) ? null : pattern),
+            }, ct, 60);
+            ToolResult res = FromReply(r, false);
+            if (a.Has("context")) res.AddText("(context is not supported remotely - the game's `log` command returns matching lines only)");
+            return res;
         }
 
         private static string Cap(string text, int chars)
@@ -864,6 +980,7 @@ namespace ForestOverlay.BridgeMcp
         private async Task<ToolResult> Game(Args a, CancellationToken ct)
         {
             string action = a.Need("action");
+            if (Remote) return ToolResult.Fail(RemoteRefusal("`game " + action + "`"));
             bool exe = a.Str("via", "steam") == "exe";
             StringBuilder sb = new StringBuilder();
             switch (action)
@@ -935,13 +1052,13 @@ namespace ForestOverlay.BridgeMcp
             // plugin, title screen included).
             using CancellationTokenSource stopClicker = CancellationTokenSource.CreateLinkedTokenSource(ct);
             Task<string> clicker = PressPlay(stopClicker.Token);
-            BridgeReply r = await _bridge.Send(new[] { "echo ready" }, TimeSpan.FromSeconds(300), ct, TimeSpan.FromSeconds(280));
+            BridgeReply r = await _local.Send(new[] { "echo ready" }, TimeSpan.FromSeconds(300), ct, TimeSpan.FromSeconds(280));
             stopClicker.Cancel();
             string clicked = await clicker;
             sb.Append(clicked != null ? "pressed " + clicked + " in the launcher\n" : "no launcher dialog seen\n");
             if (!r.Complete) return ToolResult.Fail(sb + "the bridge did not answer: " + r.Problem);
             sb.Append("bridge answering after ").Append(sw.Elapsed.TotalSeconds.ToString("0", CultureInfo.InvariantCulture))
-              .Append(" s, ForestOverlay v").Append(_bridge.PluginVersionFromBanner() ?? "?");
+              .Append(" s, ForestOverlay v").Append(Bridge.PluginVersionFromBanner() ?? "?");
             _modules = null;
             return ToolResult.Text(sb.ToString());
         }
@@ -972,6 +1089,7 @@ namespace ForestOverlay.BridgeMcp
 
         private async Task<ToolResult> UpdateGame(Args a, CancellationToken ct)
         {
+            if (Remote) return ToolResult.Fail(RemoteRefusal("update_game") + " The runner updates from the Updates tab.");
             var (mods, problem) = await Modules(ct);
             if (mods == null) return ToolResult.Fail(problem);
             ModuleInfo up = mods.FirstOrDefault(m => m.Id == "update");
@@ -985,7 +1103,7 @@ namespace ForestOverlay.BridgeMcp
             };
 
             StringBuilder sb = new StringBuilder();
-            string before = _bridge.PluginVersionFromBanner();
+            string before = Bridge.PluginVersionFromBanner();
             sb.Append("running v").Append(before ?? "?").Append('\n');
 
             var (v, err) = await GetValues(read, ct);
@@ -1025,7 +1143,7 @@ namespace ForestOverlay.BridgeMcp
             ToolResult launched = await Launch(a.Str("via", "steam") == "exe", sb, ct);
             if (launched.IsError) return launched;
 
-            string after = _bridge.PluginVersionFromBanner();
+            string after = Bridge.PluginVersionFromBanner();
             string want = v[2];
             bool ok = want != null && after == want;
             string files = string.Join(", ", PluginFiles());
@@ -1044,6 +1162,83 @@ namespace ForestOverlay.BridgeMcp
                 if (v != null && v[0] != null && done(v[0])) return v;
             }
             return null;
+        }
+
+        // ------------------------------------------------------------------
+        // Live sessions: a runner's game through the site (T-0491)
+
+        private LiveSite SiteFromEnvironment()
+        {
+            return new LiveSite(ForestPaths.Env(LiveSite.BaseVariable), ForestPaths.Env(LiveSite.TokenVariable), _http);
+        }
+
+        /// live_connect, also FOREST_LIVE_CODE at startup (Program).
+        internal async Task<ToolResult> ConnectLive(string code, CancellationToken ct)
+        {
+            code = (code ?? "").Trim();
+            if (code.Length == 0) return ToolResult.Fail("give the live session code");
+            LiveSite site = SiteFromEnvironment();
+            var (list, problem) = await site.List(ct);
+            if (list == null) return ToolResult.Fail(problem);
+            LiveEntry entry = list.FirstOrDefault(e => string.Equals(e.Code, code, StringComparison.OrdinalIgnoreCase));
+            if (entry == null)
+                return ToolResult.Fail("no open live session " + code + " on " + site.Base + " - open: " +
+                                       (list.Count == 0 ? "none" : string.Join(", ", list.Select(e => e.Code))));
+
+            RemoteBridge remote = new RemoteBridge(site, entry.Code);
+            string primed = await remote.Prime(ct);
+            if (primed != null) return ToolResult.Fail("live session " + entry.Code + ": " + primed);
+            string was = _remote != null ? " (left live " + _remote.Code + " open)" : "";
+            _remote = remote;
+            _modules = null;
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("connected to live ").Append(entry).Append(was).Append('\n');
+            BridgeReply r = await Send(new[] { "echo live" }, ct, 25, TimeSpan.FromSeconds(20));
+            sb.Append(r.Complete ? "the runner's game answers" : "the game has not answered yet: " + r.Problem).Append('\n');
+            sb.Append("plugin (newest bridge banner): v").Append(remote.PluginVersionFromBanner() ?? "?").Append('\n');
+            sb.Append("every bridge tool now drives this game; game / update_game refuse; live_disconnect to go back");
+            return ToolResult.Text(sb.ToString());
+        }
+
+        private Task<ToolResult> LiveConnect(Args a, CancellationToken ct)
+        {
+            return ConnectLive(a.Need("code"), ct);
+        }
+
+        private async Task<ToolResult> LiveStatus(Args a, CancellationToken ct)
+        {
+            StringBuilder sb = new StringBuilder();
+            LiveSite site = _remote != null ? _remote.Site : SiteFromEnvironment();
+            if (_remote == null) sb.Append("driving: the local game (").Append(_paths.Bridge).Append(")\n");
+            else
+                sb.Append("driving: live ").Append(_remote.Code).Append(" on ").Append(site.Base)
+                  .Append(_remote.Closed ? ", closed" : ", open")
+                  .Append(", plugin v").Append(_remote.PluginVersionFromBanner() ?? "?")
+                  .Append(", ").Append(_remote.Offset.ToString(CultureInfo.InvariantCulture)).Append(" output bytes read")
+                  .Append(_remote.Trimmed ? " (the site dropped older output)" : "").Append('\n');
+
+            var (list, problem) = await site.List(ct);
+            if (list == null) sb.Append("open live sessions: ? (").Append(problem).Append(')');
+            else if (list.Count == 0) sb.Append("open live sessions: none");
+            else
+            {
+                sb.Append("open live sessions:");
+                foreach (LiveEntry e in list) sb.Append("\n  ").Append(e);
+            }
+            return ToolResult.Text(sb.ToString());
+        }
+
+        private async Task<ToolResult> LiveDisconnect(Args a, CancellationToken ct)
+        {
+            if (_remote == null) return ToolResult.Text("not connected - the tools already drive the local game");
+            RemoteBridge was = _remote;
+            _remote = null;
+            _modules = null;
+            if (a.Bool("keep_open")) return ToolResult.Text("back on the local game; live " + was.Code + " left open on the site");
+            string problem = await was.Close(ct);
+            return ToolResult.Text("back on the local game; live " + was.Code +
+                                   (problem == null ? " closed on the site" : " not closed: " + problem), problem != null);
         }
     }
 }

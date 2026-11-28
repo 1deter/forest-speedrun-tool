@@ -89,8 +89,9 @@ on timeout / close, so stale commands never run on the next launch.
 Build: `dotnet build tools/BridgeMcp -c Release` - **build it
 yourself** (author, 2026-09-26; memory `build-mcp-yourself`): every
 session's server (`dotnet .../forest-bridge-mcp.dll`, old ones linger)
-locks the DLL - `Stop-Process` them first; the game does not lock it. Its text side (`BridgeText`, `LogSearch`, `DiscordText`) is
-tested.
+locks the DLL - `Stop-Process` them first; the game does not lock it. Its text side (`BridgeText`, `LogSearch`, `DiscordText`) and the
+live transport (`RemoteBridge`) are tested. A runner's game: *Live sessions*
+below (`live_connect`).
 
 **The QA Discord** (same server, `Discord.cs`, 2026-09-25): the
 author's bot (*The Forest Tool QA*, may be renamed - nothing depends
@@ -159,6 +160,50 @@ each item a `needs: tester` task with its `qa` line (linking the post),
 `qa_todo from_tasks`, and poll `qa_read new_only` while a tester is
 active. An answer: `tasks.py evidence T-n "..." --by qa:<tester>`, the
 task confirmed or back to `needs: none`, then `qa_todo from_tasks`.
+
+## Live sessions (T-0491: the MCP half)
+
+A consenting runner's game can be driven like the author's: the game polls
+forest.deter.cloud, and the MCP server talks to the site's admin relay
+instead of `in.txt` / `out.txt` (author decisions 2026-11-28; the site
+relay and the plugin side are their own tasks). The contract (base
+`https://forest.deter.cloud`, header `X-Admin-Token`): `GET
+/api/admin/live` (open sessions: `code`, `opened`, `lastCommand`,
+`outBytes`), `POST /api/admin/live/{code}/send` (text/plain bridge lines;
+204, 404 unknown / expired), `GET .../out?after=<byte offset>` (the
+out.txt-format text after it; `X-Live-Offset` = new total, `X-Live-State`
+open / closed, `X-Live-Trimmed: 1` when older output was dropped), `GET
+.../file/{name}` (a `shot` PNG the game uploaded; 404 until then), `POST
+.../close`.
+
+- **`live_connect <code>`** (the code the runner gives) checks the site
+  lists it, reads the output so far (the banner gives the plugin version),
+  pings the game with `echo`, and switches every bridge tool to it until
+  **`live_disconnect`** (closes the session on the site unless
+  `keep_open`). **`live_status`**: which game the tools drive, and the open
+  sessions.
+- The transport is `RemoteBridge` behind `IBridgeTransport` (the local one
+  is `BridgeClient`): the batch plus `echo __mcp_done_<guid>` goes to
+  `/send`, then `/out?after=` every 300 ms until the marker - the same
+  transcript, so every tool reads it unchanged. Output that arrived between
+  calls is skipped, not taken as a reply. A posted batch cannot be
+  withdrawn: an unanswered one stays queued on the site. Closed / 404 ends
+  the wait and every later call says so.
+- While remote: `status` sends the same batch and skips the PC-side lines
+  (process, folders, `.cfg`); `screenshot` sends `shot <name>`, fetches
+  `/file/<name>.png` (retried ~10 s), keeps a copy in
+  `$TMPDIR/forest-live/<code>/` and scales it as usual; `log` sends the
+  game's own `log [n] [filter]` (the current session only, no `context`);
+  `game` and `update_game` refuse. `ilscan` and `run`'s `file` stay local.
+- Token: the User variable **`FOREST_SITE_ADMIN_TOKEN`** (the one
+  `scripts/e2e.py` and `scripts/aerial-upload.py` read), sent only in the
+  header, never printed or logged. `FOREST_LIVE_BASE` points at another
+  site (a local copy, the fake below); `FOREST_LIVE_CODE` makes the server
+  start connected (`--call` from scripts).
+- Checked without a site or game: `RemoteBridgeTests` (a fake relay
+  handler) and `tools/BridgeMcp/fake-relay.py` (the contract on
+  127.0.0.1:8765; its docstring has the `--call` line). Off Windows,
+  System.Drawing is missing, so a screenshot goes back as the unscaled PNG.
 
 ## The e2e suite (`scripts/e2e.py`, T-0010)
 
