@@ -2,6 +2,19 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-11-28 (v0.24.403 handoff)
+
+- **2026-11-24 (T-0485, runner report):** addison5150 (Discord) lost
+  the ground out of bounds through Cave 6. Cause: `CaveSurfaceOff`
+  hid the terrain while `IsInCaves`. Author: "Default it off". New
+  key `CaveSurfaceHide`, off; the old key dropped. v0.24.402,
+  checker accept; built on macOS (.NET 8 in ~/.dotnet, stub build).
+  T-0457 (Refactor 02, the one-time send question) built and
+  checker-accepted, **not released**: author, "wait for Windows".
+  **Next, on Windows:** `e2e.py --smoke --evidence` on the built plugin
+  and forest-ux on the question window, then release T-0457; confirm
+  .402 (cfg key, ground visible OOB); then `tasks.py next` (T-0458).
+
 ## Moved out 2026-11-28 (live connection handoff)
 
 - **2026-11-17 (review + refactor plan):** an independent review is in

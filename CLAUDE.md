@@ -159,38 +159,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-11-28 (runner sxczurass, live connection):** perf report
-  (v0.24.402 ~1.5 ms/frame slower than .259 on his PC; a reinstall
-  halved his hitches). T-0486 (shape buttons keep a zone's place, new
-  triggers are boxes) checker accept, on main, **not released**. The
-  **live connection** (decisions.md, author: full bridge guarded,
-  practice module, button + code): site relay T-0488 on main (accept,
-  not pushed); plugin side T-0490 on `claude/live-link-plugin` (checker
-  **revise**: guard receiver hole etc.; fixed in cb4c47ee, needs its
-  re-check); MCP remote mode T-0491 on
-  `claude/exciting-bardeen-83243c` (accept; its notes fixed in d1359e2a,
-  re-check). Zone editor T-0492 (decisions.md *Zone editor mode*) on
-  main, in progress, untried in game. **Next:** re-check T-0490 / T-0491,
-  merge both branches (author: yes once checkers pass), build + test,
-  push (deploys the site: `deploy-watch`), release with T-0457 (author:
-  ship both now), add a local-scope `forest` MCP entry
-  (`~/.dotnet/dotnet` + the built dll) and restart; then the author
-  tests live with sxczurass: T-0487 (axe lowered after a mid-placement
-  restore), T-0489 (L1 start near miss), T-0493 (checkpoint restart
-  loses a pulled-out blueprint), T-0494 (practice golds not kept, so
-  sum of best never holds them), the zone editor on his terrain.
-  Mac: .NET 8 + 10 in ~/.dotnet (`dotnet` exit 137: re-copy the host).
-
-- **2026-11-24 (T-0485, runner report):** addison5150 (Discord) lost
-  the ground out of bounds through Cave 6. Cause: `CaveSurfaceOff`
-  hid the terrain while `IsInCaves`. Author: "Default it off". New
-  key `CaveSurfaceHide`, off; the old key dropped. v0.24.402,
-  checker accept; built on macOS (.NET 8 in ~/.dotnet, stub build).
-  T-0457 (Refactor 02, the one-time send question) built and
-  checker-accepted, **not released**: author, "wait for Windows".
-  **Next, on Windows:** `e2e.py --smoke --evidence` on the built plugin
-  and forest-ux on the question window, then release T-0457; confirm
-  .402 (cfg key, ground visible OOB); then `tasks.py next` (T-0458).
+- **2026-11-28 (v0.24.403, live connection):** released the live
+  connection (site relay T-0488, plugin T-0490, MCP remote mode T-0491),
+  T-0457 (one-time send question) and T-0486 (shapes keep a zone's
+  place). Zone editor T-0492 **held back** (checker revise, 6 faults in
+  its review; `PracticeModule.ZoneEditorShown = false` hides the button,
+  the module stays registered; author keeps R turn / Backspace undo):
+  next a forest-dev fix + re-check, then flip it on. **Next:** the author
+  adds the local `forest` MCP entry (`~/.dotnet/dotnet` + the built dll,
+  `FOREST_SITE_ADMIN_TOKEN`) and restarts; `qa_read new_only`; the live
+  test with sxczurass (he updates to .403, Practice tab button, code ->
+  `live_connect`; uploads off; prove call / destroy on `ForestOverlay_*`
+  and `BepInEx_Manager` are refused; evidence on T-0490 / T-0491), then
+  T-0487, T-0489, T-0493, T-0494. Mac: .NET 8 + 10 in ~/.dotnet (not on
+  PATH; `dotnet` exit 137: re-copy the host); no VPS key here.
 
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
